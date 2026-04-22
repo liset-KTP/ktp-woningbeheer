@@ -1,0 +1,105 @@
+// Begindata voor alle woningen
+// Dit wordt eenmalig in Supabase gezet via de SQL setup
+
+export const INITIAL_HOUSES = [
+  { id: 1, stad: "Almelo", adres: "Celebestraat 1", postcode: "7606 XC", kamers: [
+    { k: "1", naam: "Pawel Bartosiak", status: "Lopend", bedrijf: "Pacton" },
+    { k: "2", naam: "Dariusz Baldyga", status: "Lopend", bedrijf: "Tasche" },
+    { k: "3", naam: "Andrzej Graczyk", status: "Lopend", bedrijf: "LOA" },
+    { k: "3.1", naam: "", status: "Beschikbaar", bedrijf: "" },
+    { k: "4", naam: "Patryk Kucharski", status: "Lopend", bedrijf: "Priema Cetra" },
+  ]},
+  { id: 2, stad: "Almelo", adres: "Grotestraat 4", postcode: "7607 CM", kamers: [
+    { k: "1", naam: "Slawomir Bielak", status: "Lopend", bedrijf: "Falco" },
+    { k: "2", naam: "Eryk Szalkowski", status: "Controle", bedrijf: "" },
+  ]},
+  { id: 3, stad: "Almelo", adres: "Hoornbladstraat 26", postcode: "7605 EG", kamers: [
+    { k: "1", naam: "Piotr Jakubowski", status: "Lopend", bedrijf: "Triferto Goor" },
+    { k: "2", naam: "Daniel Sugier", status: "Lopend", bedrijf: "Falco" },
+    { k: "3", naam: "Jakub Gemza", status: "Lopend", bedrijf: "Potijk" },
+    { k: "4", naam: "Dawid Wojdat", status: "Lopend", bedrijf: "Tasche" },
+  ]},
+  { id: 4, stad: "Almelo", adres: "Rohofstraat 65", postcode: "7605 AT", kamers: [
+    { k: "1", naam: "Viorel Stingaciu", status: "Lopend", bedrijf: "Pecocar" },
+    { k: "2", naam: "Alexandra Stingaciu", status: "Moet aan het werk", bedrijf: "" },
+    { k: "3", naam: "Daniel Pascariu", status: "Lopend", bedrijf: "Pecocar" },
+  ]},
+  { id: 5, stad: "Almelo", adres: "Rietstraat 28", postcode: "7601 XR", kamers: [
+    { k: "1", naam: "", status: "Beschikbaar", bedrijf: "" },
+    { k: "2", naam: "Daniel Rosca", status: "Lopend", bedrijf: "Pecocar" },
+    { k: "3", naam: "Ioan Navacoveschi", status: "Lopend", bedrijf: "Tijhof" },
+    { k: "4", naam: "Emanuel Paraschiv", status: "Lopend", bedrijf: "Denissen" },
+    { k: "5", naam: "Remigiusz Pilarski", status: "Lopend", bedrijf: "Tijhof" },
+  ]},
+  { id: 6, stad: "Almelo", adres: "Krommendijk 14", postcode: "7603 NJ", kamers: [
+    { k: "1", naam: "Ionut Hagiu", status: "Lopend", bedrijf: "Tasche" },
+    { k: "2", naam: "Slawomir Kolodziejczak", status: "Lopend", bedrijf: "Priema Cetra" },
+    { k: "3", naam: "Wieslaw Gasinski", status: "Lopend", bedrijf: "Matel Metaal" },
+    { k: "4", naam: "", status: "Beschikbaar", bedrijf: "" },
+  ]},
+  { id: 7, stad: "Enschede", adres: "Haaksbergerstraat 302C", postcode: "7513 EM", kamers: [
+    { k: "1", naam: "", status: "Beschikbaar", bedrijf: "" },
+    { k: "2", naam: "Petru Kalanyos", status: "Lopend", bedrijf: "Vd Moolen" },
+    { k: "3", naam: "", status: "Beschikbaar", bedrijf: "" },
+    { k: "4", naam: "", status: "Beschikbaar", bedrijf: "" },
+  ]},
+  { id: 8, stad: "Enschede", adres: "Spaarnestraat 84", postcode: "7523 VM", kamers: [
+    { k: "1", naam: "Krzysztof Zajfert", status: "Lopend", bedrijf: "Hassing" },
+    { k: "2", naam: "Samy Ait-Mohamed", status: "Lopend", bedrijf: "Service print" },
+    { k: "3", naam: "Marek Wutke", status: "Controle", bedrijf: "Pluimers" },
+    { k: "4", naam: "Mariusz Stusinski", status: "Lopend", bedrijf: "Hassing" },
+    { k: "5", naam: "", status: "Beschikbaar", bedrijf: "" },
+  ]},
+  { id: 9, stad: "Enschede", adres: "Zweringweg 248", postcode: "7545 DA", kamers: [
+    { k: "1", naam: "Damian Dorobisz", status: "Lopend", bedrijf: "Van der Moolen" },
+    { k: "2", naam: "Sebastian Ferdek", status: "Lopend", bedrijf: "XHC" },
+    { k: "3", naam: "Michal Kardasz", status: "Gereserveerd", bedrijf: "" },
+    { k: "4", naam: "Wlodzimierz Piasecki", status: "Lopend", bedrijf: "Hassing" },
+    { k: "4.2", naam: "", status: "Beschikbaar", bedrijf: "" },
+  ]},
+  { id: 10, stad: "Goor", adres: "Deldensestraat 25", postcode: "7471 KT", kamers: [
+    { k: "1", naam: "Bartosz Derka", status: "Lopend", bedrijf: "Nieuwpoort" },
+    { k: "2", naam: "Piotr Skwira", status: "Lopend", bedrijf: "Nieuwpoort" },
+    { k: "3", naam: "Hubert Wysocki", status: "Controle", bedrijf: "Pecocar" },
+    { k: "4", naam: "Jakub Kramarczuk", status: "Lopend", bedrijf: "Vidra" },
+    { k: "5", naam: "Krystian Sobek", status: "Lopend", bedrijf: "Vidra" },
+  ]},
+  { id: 11, stad: "Goor", adres: "Nijverheidsweg 5", postcode: "7471 EW", kamers: [
+    { k: "1", naam: "Wojciech Dabrowski", status: "Lopend", bedrijf: "Vidra" },
+    { k: "2", naam: "Grzegorz Najda", status: "Lopend", bedrijf: "Vidra" },
+    { k: "3", naam: "Lukasz Szeleszczuk", status: "Lopend", bedrijf: "Tijhof" },
+    { k: "4", naam: "Filip Strzelecki", status: "Controle", bedrijf: "Morsink" },
+    { k: "5", naam: "Damian Strzelecki", status: "Controle", bedrijf: "Vidra" },
+    { k: "6", naam: "Piotr Tegi", status: "Lopend", bedrijf: "Vidra" },
+  ]},
+  { id: 12, stad: "Goor", adres: "Nijverheidsweg 9", postcode: "7471 EW", kamers: [
+    { k: "1", naam: "Emilian Balint", status: "Lopend", bedrijf: "Triferto G" },
+    { k: "2", naam: "Augustin Vama", status: "Moet aan het werk", bedrijf: "Triferto G" },
+    { k: "3", naam: "Piotr Monasterski", status: "Gereserveerd", bedrijf: "" },
+    { k: "4", naam: "Mariusz Gera", status: "Lopend", bedrijf: "Vidra" },
+    { k: "5", naam: "Mateusz Gierlicki", status: "Controle", bedrijf: "Steelworks" },
+    { k: "6", naam: "Piotr Grzeca", status: "Lopend", bedrijf: "Tijhof" },
+  ]},
+  { id: 13, stad: "Coevorden", adres: "Friesestraat 50 A", postcode: "7741 GX", kamers: [
+    { k: "1", naam: "Patryk Latocha", status: "Controle", bedrijf: "E-coldstore" },
+    { k: "2", naam: "Kamil Malinowski", status: "Lopend", bedrijf: "Unitech" },
+    { k: "2.2", naam: "", status: "Beschikbaar", bedrijf: "" },
+    { k: "3", naam: "Jakub Lewandowski", status: "Lopend", bedrijf: "Unitech" },
+  ]},
+  { id: 14, stad: "Rijssen", adres: "Morsweg 3", postcode: "7461 AG", kamers: [
+    { k: "1", naam: "Lukasz Kluczek", status: "Lopend", bedrijf: "W en K" },
+    { k: "2", naam: "Marek Wutke", status: "Lopend", bedrijf: "Pluimers" },
+    { k: "3", naam: "Piotr Kus", status: "Lopend", bedrijf: "Kemper" },
+    { k: "4", naam: "Robert Buczek", status: "Lopend", bedrijf: "Vidra" },
+  ]},
+  { id: 15, stad: "De Krim", adres: "Coevorderweg 135", postcode: "7781 PA", kamers: [
+    { k: "1", naam: "Michal Nowak", status: "Lopend", bedrijf: "Oegema" },
+    { k: "2", naam: "Jaroslaw Flejszer", status: "Lopend", bedrijf: "Oegema" },
+    { k: "3", naam: "Jaroslaw Gasiorowski", status: "Lopend", bedrijf: "Oegema" },
+    { k: "4", naam: "Marcin Mazur", status: "Lopend", bedrijf: "Oegema" },
+    { k: "5", naam: "Patryk Fialkowski", status: "Lopend", bedrijf: "Oegema" },
+    { k: "6", naam: "Mariusz Dziala", status: "Lopend", bedrijf: "Oegema" },
+    { k: "7", naam: "Bartosz Nowak", status: "Lopend", bedrijf: "Oegema" },
+    { k: "8", naam: "Jurica Josic", status: "Lopend", bedrijf: "Oegema" },
+  ]},
+];
