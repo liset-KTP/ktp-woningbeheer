@@ -137,7 +137,7 @@ export function AutoModule({ gebruiker, showToast }) {
         ))}
       </div>
 
-      {subTab==="overzicht" && <AutoOverzicht autos={autos} />}
+      {subTab==="overzicht" && <AutoOverzicht autos={autos} gebruiker={gebruiker} />}
       {subTab==="melding"   && <AutoMeldingForm autos={autos} gebruiker={gebruiker} onSubmit={addAutoMelding} showToast={showToast} />}
       {subTab==="log"       && <AutoLog meldingen={autoMeldingen} autos={autos} onUpdate={updateAutoMelding} gebruiker={gebruiker} isBackoffice={isBackoffice} />}
       {subTab==="beheer" && isBackoffice && <AutoBeheer autos={autos} onAdd={addAuto} onUpdate={updateAuto} onDelete={deleteAuto} showToast={showToast} />}
@@ -146,9 +146,10 @@ export function AutoModule({ gebruiker, showToast }) {
 }
 
 // ─── AUTO OVERZICHT ───────────────────────────────────────────────────────────
-function AutoOverzicht({ autos }) {
+function AutoOverzicht({ autos, gebruiker }) {
   const [filterStatus, setFilterStatus] = useState("Alle");
   const [zoek, setZoek] = useState("");
+  const isCollega = gebruiker?.rol === "collega";
 
   const filtered = autos.filter(a => {
     if (filterStatus !== "Alle" && a.status !== filterStatus) return false;
@@ -175,8 +176,8 @@ function AutoOverzicht({ autos }) {
 
   return (
     <div>
-      {/* APK waarschuwingen */}
-      {(apkWaarschuwing.length > 0 || verlopen.length > 0) && (
+      {/* APK waarschuwingen — alleen voor backoffice en huismeester */}
+      {!isCollega && (apkWaarschuwing.length > 0 || verlopen.length > 0) && (
         <div style={{marginBottom:20}}>
           {verlopen.length > 0 && (
             <div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:12,padding:"12px 18px",marginBottom:10}}>
@@ -277,15 +278,16 @@ function AutoMeldingForm({ autos, gebruiker, onSubmit, showToast }) {
   const [saving, setSaving] = useState(false);
 
   const acties = [
-    { id:"uitgifte",    icon:"🚗", label:"UITGIFTE",    color:C.groen },
-    { id:"inname",      icon:"🔑", label:"INNAME",      color:C.blauw },
-    { id:"geannuleerd", icon:"❌", label:"GEANNULEERD", color:"#ef4444" },
+    { id:"uitgifte",    icon:"🚗", label:"UITGIFTE",       color:C.groen },
+    { id:"inname",      icon:"🔑", label:"INNAME",         color:C.blauw },
+    { id:"storing",     icon:"🔧", label:"SCHADE/STORING", color:"#f59e0b" },
+    { id:"geannuleerd", icon:"❌", label:"GEANNULEERD",    color:"#ef4444" },
   ];
 
   async function handleSubmit() {
     if (!kenteken) { showToast("Selecteer een kenteken","err"); return; }
     if (!naamMedewerker.trim()) { showToast("Vul naam medewerker in","err"); return; }
-    if (actie !== "geannuleerd") {
+    if (actie !== "geannuleerd" && actie !== "storing") {
       if (tankVol===null) { showToast("Geef aan of tank vol is","err"); return; }
       if (schoon===null) { showToast("Geef aan of auto schoon is","err"); return; }
     }
@@ -357,7 +359,7 @@ function AutoMeldingForm({ autos, gebruiker, onSubmit, showToast }) {
         </div>
       </div>
 
-      {actie !== "geannuleerd" && (
+      {actie !== "geannuleerd" && actie !== "storing" && (
         <div className="card" style={{marginBottom:16}}>
           <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:12,display:"block"}}>Controlelijst</label>
           {[
@@ -391,6 +393,29 @@ function AutoMeldingForm({ autos, gebruiker, onSubmit, showToast }) {
         </div>
       )}
 
+      {/* Storing/schade melden */}
+      {actie === "storing" && (
+        <div className="card" style={{marginBottom:16,borderTop:`3px solid #f59e0b`}}>
+          <label style={{fontSize:11,fontWeight:600,color:"#b45309",letterSpacing:".8px",textTransform:"uppercase",marginBottom:12,display:"block"}}>
+            🔧 Wat is er aan de hand?
+          </label>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
+            {["Lekke band","Lamp kapot","Motorstoring","Schade / aanrijding","Ruit beschadigd","Accu leeg","Remmen","Overig"].map(opt => {
+              const selected = opmerkingen.includes(opt);
+              return (
+                <button key={opt} onClick={()=>setOpmerkingen(prev => selected ? prev.replace(opt+", ","").replace(", "+opt,"").replace(opt,"").trim() : (prev?prev+", ":"")+opt)}
+                  style={{background:selected?"#f59e0b18":"white",border:`1.5px solid ${selected?"#f59e0b":C.border}`,borderRadius:8,padding:"10px 14px",cursor:"pointer",fontFamily:"inherit",fontSize:13,fontWeight:600,color:selected?"#b45309":C.text,textAlign:"left",transition:"all .15s"}}>
+                  {selected?"✓ ":""}{opt}
+                </button>
+              );
+            })}
+          </div>
+          <div style={{background:"#fef3c7",border:"1px solid #fcd34d",borderRadius:8,padding:"10px 14px",fontSize:13,color:"#b45309",fontWeight:500}}>
+            ⚠️ De backoffice en huismeester worden direct geïnformeerd
+          </div>
+        </div>
+      )}
+
       <div className="card" style={{marginBottom:20}}>
         <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Opmerkingen</label>
         <textarea style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"10px 14px",fontSize:14,outline:"none",resize:"vertical",fontFamily:"inherit"}}
@@ -414,11 +439,12 @@ function AutoLog({ meldingen, autos, onUpdate, gebruiker, isBackoffice }) {
     filter === "alle" ? true :
     filter === "open" ? m.status === "open" :
     filter === "uitgifte" ? m.actie === "uitgifte" :
-    filter === "inname" ? m.actie === "inname" : true
+    filter === "inname" ? m.actie === "inname" :
+    filter === "storing" ? m.actie === "storing" : true
   );
 
-  const actiKleur = { uitgifte:C.groen, inname:C.blauw, geannuleerd:"#ef4444" };
-  const actiIcon  = { uitgifte:"🚗", inname:"🔑", geannuleerd:"❌" };
+  const actiKleur = { uitgifte:C.groen, inname:C.blauw, storing:"#f59e0b", geannuleerd:"#ef4444" };
+  const actiIcon  = { uitgifte:"🚗", inname:"🔑", storing:"🔧", geannuleerd:"❌" };
 
   function exportCSV() {
     let csv = "Datum,Tijd,Actie,Kenteken,Medewerker,Tank vol,Schoon,Formulier,Rijbewijs,KM stand,Locatie,Door,Opmerkingen\n";
@@ -445,7 +471,7 @@ function AutoLog({ meldingen, autos, onUpdate, gebruiker, isBackoffice }) {
       </div>
 
       <div style={{display:"flex",gap:6,marginBottom:20,flexWrap:"wrap"}}>
-        {[["alle","Alle"],["open","Open"],["uitgifte","Uitgifte"],["inname","Inname"]].map(([v,l])=>(
+        {[["alle","Alle"],["open","Open"],["uitgifte","Uitgifte"],["inname","Inname"],["storing","Schade/Storing"]].map(([v,l])=>(
           <button key={v} onClick={()=>setFilter(v)}
             style={{background:filter===v?C.blauw:"white",color:filter===v?"white":C.muted,border:`1.5px solid ${filter===v?C.blauw:C.border}`,borderRadius:20,padding:"6px 16px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
             {l}
