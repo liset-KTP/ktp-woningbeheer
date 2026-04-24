@@ -856,9 +856,31 @@ function MeldingForm({ houses, onSubmit, showToast }) {
       {type==="vertrek"&&(
         <div className="card" style={{marginBottom:16}}>
           <label className="fl">Controlelijst bij vertrek</label>
-          <div className="cr"><span style={{flex:1,fontSize:14,fontWeight:500}}>🔑 Sleutel(s) teruggegeven?</span><div style={{display:"flex",gap:8}}>{["ja","nee"].map(v=><button key={v} className={`cb ${v} ${sleutelTerug===v?"s":""}`} onClick={()=>setSleutelTerug(v)}>{v}</button>)}</div></div>
-          <div className="cr"><span style={{flex:1,fontSize:14,fontWeight:500}}>🧹 Kamer schoon achtergelaten?</span><div style={{display:"flex",gap:8}}>{["ja","nee"].map(v=><button key={v} className={`cb ${v} ${kamerSchoon===v?"s":""}`} onClick={()=>setKamerSchoon(v)}>{v}</button>)}</div></div>
+          <div className="cr">
+            <span style={{flex:1,fontSize:14,fontWeight:500}}>🔑 Sleutel(s) teruggegeven?</span>
+            <div style={{display:"flex",gap:8}}>
+              <button className={`cb ja ${sleutelTerug==="ja"?"s":""}`} onClick={()=>setSleutelTerug("ja")}>ja</button>
+              <button onClick={()=>setSleutelTerug("controle")}
+                style={{padding:"5px 14px",borderRadius:6,fontSize:12,fontWeight:600,border:"1.5px solid",cursor:"pointer",transition:"all .15s",borderColor:"#f59e0b",color:sleutelTerug==="controle"?"white":"#f59e0b",background:sleutelTerug==="controle"?"#f59e0b":"white"}}>
+                controle
+              </button>
+              <button className={`cb nee ${sleutelTerug==="nee"?"s":""}`} onClick={()=>setSleutelTerug("nee")}>nee</button>
+            </div>
+          </div>
+          <div className="cr">
+            <span style={{flex:1,fontSize:14,fontWeight:500}}>🧹 Kamer schoon achtergelaten?</span>
+            <div style={{display:"flex",gap:8}}>
+              <button className={`cb ja ${kamerSchoon==="ja"?"s":""}`} onClick={()=>setKamerSchoon("ja")}>ja</button>
+              <button onClick={()=>setKamerSchoon("controle")}
+                style={{padding:"5px 14px",borderRadius:6,fontSize:12,fontWeight:600,border:"1.5px solid",cursor:"pointer",transition:"all .15s",borderColor:"#f59e0b",color:kamerSchoon==="controle"?"white":"#f59e0b",background:kamerSchoon==="controle"?"#f59e0b":"white"}}>
+                controle
+              </button>
+              <button className={`cb nee ${kamerSchoon==="nee"?"s":""}`} onClick={()=>setKamerSchoon("nee")}>nee</button>
+            </div>
+          </div>
           {sleutelTerug==="nee"&&<div style={{marginTop:10,padding:"10px 14px",background:"#fef2f2",border:"1px solid #fecaca",borderRadius:8,fontSize:13,color:"#b91c1c",fontWeight:500}}>⚠️ Sleutel niet terug → backoffice wordt geïnformeerd om €100 in te houden van borg</div>}
+          {sleutelTerug==="controle"&&<div style={{marginTop:10,padding:"10px 14px",background:"#fef3c7",border:"1px solid #fcd34d",borderRadius:8,fontSize:13,color:"#b45309",fontWeight:500}}>🔍 Sleutel in controle → backoffice en huismeester worden geïnformeerd</div>}
+          {kamerSchoon==="controle"&&<div style={{marginTop:8,padding:"10px 14px",background:"#fef3c7",border:"1px solid #fcd34d",borderRadius:8,fontSize:13,color:"#b45309",fontWeight:500}}>🔍 Schoonmaak in controle → huismeester wordt gevraagd te inspecteren</div>}
         </div>
       )}
       <div className="card" style={{marginBottom:20}}><label className="fl">Opmerkingen</label><textarea className="fi" value={opmerkingen} onChange={e=>setOpmerkingen(e.target.value)} placeholder="Eventuele bijzonderheden..." rows={3} style={{resize:"vertical"}}/></div>
@@ -997,7 +1019,13 @@ function BackofficeInbox({meldingen,houses,onUpdate,naam,showToast}) {
               <div style={{fontSize:11,fontWeight:700,color:C.muted,marginBottom:8,letterSpacing:".8px"}}>ADMINISTRATIEVE ACTIES:</div>
               {m.type==="aankomst"&&<div style={{fontSize:13,color:C.text}}>✅ Kamer {m.kamer} → <strong style={{color:C.groen}}>Lopend</strong> — huuraftrek actief per {m.datum}</div>}
               {m.type==="reservering"&&<div style={{fontSize:13,color:C.text}}>📅 Kamer {m.kamer} gereserveerd voor {m.medewerker} — aankomst {m.datum}</div>}
-              {m.type==="vertrek"&&(<><div style={{fontSize:13,color:C.text,marginBottom:6}}>{m.sleutel_terug==="nee"?"🔑❌ ":"🔑✅ "}{m.sleutel_terug==="nee"?<strong style={{color:"#ef4444"}}>NIET terug → €100 inhouden van borg</strong>:<span style={{color:C.groen}}>Sleutel teruggegeven</span>}</div><div style={{fontSize:13,color:C.text}}>{m.kamer_schoon==="nee"?"🧹❌ ":"🧹✅ "}{m.kamer_schoon==="nee"?<strong style={{color:"#f59e0b"}}>NIET schoon → schoonmaakkosten verwerken</strong>:<span style={{color:C.groen}}>Kamer schoon achtergelaten</span>}</div></>)}
+              {m.type==="vertrek"&&(<><div style={{fontSize:13,color:C.text,marginBottom:6}}>
+                {m.sleutel_terug==="nee"?"🔑❌ ":m.sleutel_terug==="controle"?"🔑🔍 ":"🔑✅ "}
+                {m.sleutel_terug==="nee"?<strong style={{color:"#ef4444"}}>NIET terug → €100 inhouden van borg</strong>:m.sleutel_terug==="controle"?<strong style={{color:"#f59e0b"}}>In controle → nog natrekken</strong>:<span style={{color:C.groen}}>Sleutel teruggegeven</span>}
+              </div><div style={{fontSize:13,color:C.text}}>
+                {m.kamer_schoon==="nee"?"🧹❌ ":m.kamer_schoon==="controle"?"🧹🔍 ":"🧹✅ "}
+                {m.kamer_schoon==="nee"?<strong style={{color:"#f59e0b"}}>NIET schoon → schoonmaakkosten verwerken</strong>:m.kamer_schoon==="controle"?<strong style={{color:"#f59e0b"}}>In controle → huismeester inspecteert</strong>:<span style={{color:C.groen}}>Kamer schoon achtergelaten</span>}
+              </div></>)}
             </div>
             {m.status==="open"&&(<><input className="fi" value={notitieMap[m.id]||""} onChange={e=>setNotitieMap(p=>({...p,[m.id]:e.target.value}))} placeholder="Notitie bij verwerking..." style={{fontSize:13,marginBottom:10}}/><button className="btn-b" style={{width:"100%"}} onClick={()=>onUpdate(m.id,"verwerkt",notitieMap[m.id]||"")}>✓ Verwerkt in administratie</button></>)}
             {m.status!=="open"&&m.afgehandeld_door&&<div style={{fontSize:12,color:C.muted,marginTop:8}}>Verwerkt door {m.afgehandeld_door}{m.notitie?` — "${m.notitie}"`:""}</div>}
