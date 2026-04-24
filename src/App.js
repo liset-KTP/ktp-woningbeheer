@@ -9,26 +9,7 @@ const C = {
   text:      "#1a2b47", muted: "#6b7a8d", dark: "#0d1f3c",
 };
 
-// ─── STANDAARD GEBRUIKERS ─────────────────────────────────────────────────────
-const STANDAARD_GEBRUIKERS = [
-  { naam: "Liset",     pin: "4768", rol: "backoffice" },
-  { naam: "Warscha",   pin: "3994", rol: "backoffice" },
-  { naam: "Hans",      pin: "4864", rol: "huismeester" },
-  { naam: "Laurens",   pin: "7135", rol: "huismeester" },
-  { naam: "Roy",       pin: "7936", rol: "huismeester" },
-  { naam: "Harald",    pin: "5900", rol: "collega" },
-  { naam: "Johan",     pin: "1326", rol: "collega" },
-  { naam: "Karolina",  pin: "5003", rol: "collega" },
-  { naam: "Magdalena", pin: "7719", rol: "collega" },
-  { naam: "Natalia",   pin: "1959", rol: "collega" },
-  { naam: "Cristian",  pin: "2093", rol: "collega" },
-  { naam: "Liane",     pin: "7185", rol: "collega" },
-  { naam: "Lynn",      pin: "3470", rol: "collega" },
-  { naam: "Mihaela",   pin: "7044", rol: "collega" },
-];
-const GEBRUIKERS_KEY = "ktp_gebruikers_v1";
-function laadGebruikers() { try { const d = localStorage.getItem(GEBRUIKERS_KEY); if (d) return JSON.parse(d); } catch {} return STANDAARD_GEBRUIKERS; }
-function slaGebruikersOp(g) { try { localStorage.setItem(GEBRUIKERS_KEY, JSON.stringify(g)); } catch {} }
+// Gebruikers komen uit Supabase — geen localStorage meer
 
 // ─── STATUS KLEUREN ───────────────────────────────────────────────────────────
 const STATUS_MAP = {
@@ -99,7 +80,7 @@ function dagVanDeWeek() { return ["zo","ma","di","wo","do","vr","za"][new Date()
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 export default function App() {
   const [gebruiker, setGebruiker] = useState(null);
-  const [gebruikers, setGebruikers] = useState(laadGebruikers);
+  const [gebruikers, setGebruikers] = useState([]);
   const [houses, setHouses] = useState([]);
   const [meldingen, setMeldingen] = useState([]);
   const [taken, setTaken] = useState([]);
@@ -107,6 +88,12 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("melding");
   const [toast, setToast] = useState(null);
+
+  const loadGebruikers = useCallback(async () => {
+    const { data, error } = await supabase.from("gebruikers").select("*").eq("actief", true).order("rol").order("naam");
+    if (error) { console.error("gebruikers:", error); return; }
+    setGebruikers(data || []);
+  }, []);
 
   const loadHouses = useCallback(async () => {
     const { data, error } = await supabase.from("woningen").select("*").order("stad").order("adres");
@@ -135,24 +122,41 @@ export default function App() {
   useEffect(() => {
     async function init() {
       setLoading(true);
-      await Promise.all([loadHouses(), loadMeldingen(), loadTaken(), loadChecklists()]);
+      await Promise.all([loadGebruikers(), loadHouses(), loadMeldingen(), loadTaken(), loadChecklists()]);
       setLoading(false);
     }
     init();
-  }, [loadHouses, loadMeldingen, loadTaken, loadChecklists]);
+  }, [loadGebruikers, loadHouses, loadMeldingen, loadTaken, loadChecklists]);
 
   useEffect(() => {
     const s1 = supabase.channel("mel-rt").on("postgres_changes",{event:"*",schema:"public",table:"meldingen"},()=>loadMeldingen()).subscribe();
     const s2 = supabase.channel("won-rt").on("postgres_changes",{event:"*",schema:"public",table:"woningen"},()=>loadHouses()).subscribe();
     const s3 = supabase.channel("tak-rt").on("postgres_changes",{event:"*",schema:"public",table:"taken"},()=>loadTaken()).subscribe();
     const s4 = supabase.channel("chk-rt").on("postgres_changes",{event:"*",schema:"public",table:"checklists"},()=>loadChecklists()).subscribe();
-    return () => { supabase.removeChannel(s1); supabase.removeChannel(s2); supabase.removeChannel(s3); supabase.removeChannel(s4); };
-  }, [loadHouses, loadMeldingen, loadTaken, loadChecklists]);
+    const s5 = supabase.channel("gbr-rt").on("postgres_changes",{event:"*",schema:"public",table:"gebruikers"},()=>loadGebruikers()).subscribe();
+    return () => { supabase.removeChannel(s1); supabase.removeChannel(s2); supabase.removeChannel(s3); supabase.removeChannel(s4); supabase.removeChannel(s5); };
+  }, [loadHouses, loadMeldingen, loadTaken, loadChecklists, loadGebruikers]);
 
   function showToast(msg, type="ok") { setToast({msg,type}); setTimeout(()=>setToast(null),3500); }
   function login(g) { setGebruiker(g); setTab(g.rol==="collega"?"melding":g.rol==="huismeester"?"dagplanning":"woningen"); }
   function logout() { setGebruiker(null); }
-  function setEnSlaOp(lijst) { slaGebruikersOp(lijst); setGebruikers(lijst); }
+  async function voegGebruikerToe(g) {
+    const { error } = await supabase.from("gebruikers").insert([g]);
+    if (error) { showToast("Fout bij toevoegen gebruiker", "err"); return false; }
+    showToast(`✓ ${g.naam} toegevoegd`); return true;
+  }
+
+  async function updateGebruiker(id, updates) {
+    const { error } = await supabase.from("gebruikers").update(updates).eq("id", id);
+    if (error) { showToast("Fout bij opslaan", "err"); return false; }
+    showToast("✓ Opgeslagen"); return true;
+  }
+
+  async function verwijderGebruiker(id) {
+    const { error } = await supabase.from("gebruikers").update({ actief: false }).eq("id", id);
+    if (error) { showToast("Fout bij verwijderen", "err"); return false; }
+    showToast("✓ Gebruiker verwijderd"); return true;
+  }
 
   async function addMelding(m) {
     const { error } = await supabase.from("meldingen").insert([{
@@ -329,7 +333,7 @@ export default function App() {
         {tab==="checklist"&&<ChecklistView houses={houses} checklists={checklists} onSave={slaChecklistOp} gebruiker={gebruiker}/>}
         {rol==="backoffice"&&tab==="inbox"&&<BackofficeInbox meldingen={meldingen} houses={houses} onUpdate={updateMeldingStatus} naam={naam} showToast={showToast}/>}
         {rol==="backoffice"&&tab==="log"&&<LogView meldingen={meldingen} houses={houses}/>}
-        {rol==="backoffice"&&isLiset&&tab==="beheer"&&<BeheerView houses={houses} onAdd={addWoning} onUpdate={updateWoning} onDelete={deleteWoning} showToast={showToast} gebruikers={gebruikers} onUpdateGebruikers={setEnSlaOp}/>}
+        {rol==="backoffice"&&isLiset&&tab==="beheer"&&<BeheerView houses={houses} onAdd={addWoning} onUpdate={updateWoning} onDelete={deleteWoning} showToast={showToast} gebruikers={gebruikers} onAddGebruiker={voegGebruikerToe} onUpdateGebruiker={updateGebruiker} onDeleteGebruiker={verwijderGebruiker}/>}
       </div>
     </div>
   );
@@ -868,7 +872,7 @@ function MeldingForm({ houses, onSubmit, showToast }) {
       </div>
       {(type==="aankomst"||type==="reservering")&&(
         <div className="card" style={{marginBottom:16,display:"grid",gridTemplateColumns:"1fr 1fr",gap:18}}>
-          <div><label className="fl">Wie regelt aankomst?</label><input className="fi" value={wieRegelt} onChange={e=>setWieRegelt(e.target.value)} placeholder="bijv. NW CB, Hans, zelf..."/></div>
+          <div><label className="fl">Wie regelt aankomst?</label><input className="fi" value={wieRegelt} onChange={e=>setWieRegelt(e.target.value)} placeholder="bijv. NW, CB, HK, zelf..."/></div>
           {type==="aankomst"&&<div><label className="fl">Aantal sleutels ontvangen</label><select className="fs" value={sleutelAantal} onChange={e=>setSleutelAantal(Number(e.target.value))}>{[0,1,2,3].map(n=><option key={n} value={n}>{n}</option>)}</select></div>}
         </div>
       )}
@@ -1147,7 +1151,7 @@ function PlanningView({houses}) {
   );
 }
 
-function BeheerView({houses,onAdd,onUpdate,onDelete,showToast,gebruikers,onUpdateGebruikers}) {
+function BeheerView({houses,onAdd,onUpdate,onDelete,showToast,gebruikers,onAddGebruiker,onUpdateGebruiker,onDeleteGebruiker}) {
   const [subTab,setSubTab]=useState("woningen");
   return(
     <div>
@@ -1161,7 +1165,7 @@ function BeheerView({houses,onAdd,onUpdate,onDelete,showToast,gebruikers,onUpdat
         ))}
       </div>
       {subTab==="woningen"&&<WoningBeheer houses={houses} onAdd={onAdd} onUpdate={onUpdate} onDelete={onDelete} showToast={showToast}/>}
-      {subTab==="gebruikers"&&<GebruikersBeheer gebruikers={gebruikers} onUpdate={onUpdateGebruikers} showToast={showToast}/>}
+      {subTab==="gebruikers"&&<GebruikersBeheer gebruikers={gebruikers} onAdd={onAddGebruiker} onUpdate={onUpdateGebruiker} onDelete={onDeleteGebruiker} showToast={showToast}/>}
     </div>
   );
 }
@@ -1293,25 +1297,33 @@ function KamerBewerken({kamer,onSave,onCancel,saving}) {
   );
 }
 
-function GebruikersBeheer({gebruikers,onUpdate,showToast}) {
-  const [lijst,setLijst]=useState(gebruikers);
+function GebruikersBeheer({gebruikers,onAdd,onUpdate,onDelete,showToast}) {
   const [nieuw,setNieuw]=useState({naam:"",pin:"",rol:"collega"});
   const [bewerk,setBewerk]=useState(null);
-  useEffect(()=>{setLijst(gebruikers);},[gebruikers]);
+  const [saving,setSaving]=useState(false);
 
-  function voegToe() {
+  async function voegToe() {
     if(!nieuw.naam.trim()){showToast("Vul een naam in","err");return;}
     if(nieuw.pin.length<4){showToast("Pincode moet minimaal 4 cijfers zijn","err");return;}
-    if(lijst.some(g=>g.naam.toLowerCase()===nieuw.naam.toLowerCase())){showToast("Naam bestaat al","err");return;}
-    const bijgewerkt=[...lijst,{naam:nieuw.naam.trim(),pin:nieuw.pin,rol:nieuw.rol}];
-    onUpdate(bijgewerkt);setNieuw({naam:"",pin:"",rol:"collega"});showToast(`✓ ${nieuw.naam} toegevoegd`);
+    if(gebruikers.some(g=>g.naam.toLowerCase()===nieuw.naam.toLowerCase())){showToast("Naam bestaat al","err");return;}
+    setSaving(true);
+    await onAdd({naam:nieuw.naam.trim(),pin:nieuw.pin,rol:nieuw.rol,actief:true});
+    setSaving(false);
+    setNieuw({naam:"",pin:"",rol:"collega"});
   }
-  function verwijder(naam) {
-    if(naam==="Liset"){showToast("Liset kan niet verwijderd worden","err");return;}
-    if(!window.confirm(`${naam} verwijderen?`)) return;
-    onUpdate(lijst.filter(g=>g.naam!==naam));showToast(`✓ ${naam} verwijderd`);
+
+  async function verwijder(g) {
+    if(g.naam==="Liset"){showToast("Liset kan niet verwijderd worden","err");return;}
+    if(!window.confirm(`${g.naam} verwijderen?`)) return;
+    await onDelete(g.id);
   }
-  function slaBewerk(oud,u) { const b=lijst.map(g=>g.naam===oud?{...g,...u}:g); onUpdate(b); setBewerk(null); showToast("✓ Opgeslagen"); }
+
+  async function slaBewerk(g, updates) {
+    setSaving(true);
+    await onUpdate(g.id, updates);
+    setSaving(false);
+    setBewerk(null);
+  }
 
   const rk={backoffice:C.blauw,huismeester:C.groen,collega:C.muted};
   const ri={backoffice:"📊",huismeester:"🏠",collega:"👤"};
@@ -1325,19 +1337,19 @@ function GebruikersBeheer({gebruikers,onUpdate,showToast}) {
           <div><label className="fl">Pincode</label><input className="fi" value={nieuw.pin} onChange={e=>setNieuw(p=>({...p,pin:e.target.value.replace(/\D/g,"")}))} placeholder="1234" maxLength={8} type="password"/></div>
           <div><label className="fl">Rol</label><select className="fs" value={nieuw.rol} onChange={e=>setNieuw(p=>({...p,rol:e.target.value}))}><option value="collega">👤 Collega</option><option value="huismeester">🏠 Huismeester</option><option value="backoffice">📊 Backoffice</option></select></div>
         </div>
-        <button className="btn-g" style={{padding:"10px 24px"}} onClick={voegToe}>✓ Toevoegen</button>
+        <button className="btn-g" style={{padding:"10px 24px"}} onClick={voegToe} disabled={saving}>{saving?"⏳ Opslaan...":"✓ Toevoegen"}</button>
       </div>
       <div className="card">
-        <div style={{fontWeight:700,fontSize:14,color:C.blauw,marginBottom:16}}>Alle gebruikers ({lijst.length})</div>
-        {lijst.map(g=>(
-          <div key={g.naam}>
-            {bewerk===g.naam?<GebruikerBewerken g={g} onSave={u=>slaBewerk(g.naam,u)} onCancel={()=>setBewerk(null)}/>:(
+        <div style={{fontWeight:700,fontSize:14,color:C.blauw,marginBottom:16}}>Alle gebruikers ({gebruikers.length})</div>
+        {gebruikers.map(g=>(
+          <div key={g.id}>
+            {bewerk===g.id ? <GebruikerBewerken g={g} onSave={u=>slaBewerk(g,u)} onCancel={()=>setBewerk(null)} saving={saving}/>:(
               <div className="br" style={{marginBottom:8}}>
                 <div style={{width:32,height:32,borderRadius:8,background:rk[g.rol]+"18",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>{ri[g.rol]}</div>
                 <div style={{flex:1}}><div style={{fontWeight:700,fontSize:14,color:C.text}}>{g.naam}</div><div style={{fontSize:11,color:rk[g.rol],fontWeight:600,textTransform:"capitalize"}}>{g.rol}</div></div>
                 <div style={{fontSize:13,color:C.muted,fontFamily:"monospace",background:C.bg,padding:"4px 10px",borderRadius:6}}>••••</div>
-                <button className="btn-out" style={{padding:"5px 12px",fontSize:12}} onClick={()=>setBewerk(g.naam)}>✏️ Bewerken</button>
-                {g.naam!=="Liset"&&<button className="btn-r" style={{padding:"5px 12px",fontSize:12}} onClick={()=>verwijder(g.naam)}>🗑</button>}
+                <button className="btn-out" style={{padding:"5px 12px",fontSize:12}} onClick={()=>setBewerk(g.id)}>✏️ Bewerken</button>
+                {g.naam!=="Liset"&&<button className="btn-r" style={{padding:"5px 12px",fontSize:12}} onClick={()=>verwijder(g)}>🗑</button>}
               </div>
             )}
           </div>
