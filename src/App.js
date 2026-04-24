@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "./supabaseClient";
+import { AutoModule } from "./AutoModule";
 
 // ─── KLEUREN HUISSTIJL ────────────────────────────────────────────────────────
 const C = {
@@ -269,6 +270,7 @@ export default function App() {
               <button className={`tp ${tab==="mijn"?"act":""}`} onClick={()=>setTab("mijn")}>📋 Mijn {mijnMeldingen.length>0&&<Notif n={mijnMeldingen.length}/>}</button>
               <button className={`tp ${tab==="taken"?"act":""}`} onClick={()=>setTab("taken")}>📌 To-do {openTaken.length>0&&<Notif n={openTaken.length}/>}</button>
               <button className={`tp ${tab==="woningen"?"act":""}`} onClick={()=>setTab("woningen")}>🏠 Woningen</button>
+              <button className={`tp ${tab==="autos"?"act":""}`} onClick={()=>setTab("autos")}>🚗 Auto's</button>
             </>)}
             {rol==="huismeester" && (<>
               <button className={`tp ${tab==="dagplanning"?"act":""}`} onClick={()=>setTab("dagplanning")}>📅 Mijn dag {totalNotifs>0&&<Notif n={totalNotifs}/>}</button>
@@ -276,11 +278,13 @@ export default function App() {
               <button className={`tp ${tab==="taken"?"act":""}`} onClick={()=>setTab("taken")}>📌 To-do {openTaken.length>0&&<Notif n={openTaken.length}/>}</button>
               <button className={`tp ${tab==="checklist"?"act":""}`} onClick={()=>setTab("checklist")}>✅ Checklists</button>
               <button className={`tp ${tab==="woningen"?"act":""}`} onClick={()=>setTab("woningen")}>🏠 Woningen</button>
+              <button className={`tp ${tab==="autos"?"act":""}`} onClick={()=>setTab("autos")}>🚗 Auto's</button>
             </>)}
             {rol==="backoffice" && (<>
               <button className={`tp ${tab==="woningen"?"act":""}`} onClick={()=>setTab("woningen")}>🏠 Woningen</button>
               <button className={`tp ${tab==="planning"?"act":""}`} onClick={()=>setTab("planning")}>📊 Status</button>
               <button className={`tp ${tab==="taken"?"act":""}`} onClick={()=>setTab("taken")}>📌 To-do {openTaken.length>0&&<Notif n={openTaken.length}/>}</button>
+              <button className={`tp ${tab==="autos"?"act":""}`} onClick={()=>setTab("autos")}>🚗 Auto's</button>
               <button className={`tp ${tab==="inbox"?"act":""}`} onClick={()=>setTab("inbox")}>📨 Inbox {openMeldingen.length>0&&<Notif n={openMeldingen.length}/>}</button>
               <button className={`tp ${tab==="checklist"?"act":""}`} onClick={()=>setTab("checklist")}>✅ Checklists</button>
               <button className={`tp ${tab==="log"?"act":""}`} onClick={()=>setTab("log")}>📝 Log</button>
@@ -304,6 +308,7 @@ export default function App() {
         {tab==="taken"&&<TakenView taken={taken} houses={houses} gebruiker={gebruiker} onAdd={addTaak} onUpdate={updateTaak} showToast={showToast}/>}
         {tab==="woningen"&&<WoningenDetail houses={houses}/>}
         {tab==="planning"&&<PlanningView houses={houses}/>}
+        {tab==="autos"&&<AutoModule gebruiker={gebruiker} showToast={showToast}/>}
         {rol==="huismeester"&&tab==="dagplanning"&&<DagplanningView meldingen={meldingen} taken={taken} houses={houses} onUpdate={updateMeldingStatus} onUpdateTaak={updateTaak} naam={naam}/>}
         {rol==="huismeester"&&tab==="meldingen"&&<HuismeesterTaken meldingen={meldingen} houses={houses} onUpdate={updateMeldingStatus} naam={naam}/>}
         {tab==="checklist"&&<ChecklistView houses={houses} checklists={checklists} checklistItems={checklistItems} onSave={slaChecklistOp} gebruiker={gebruiker}/>}
