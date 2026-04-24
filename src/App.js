@@ -1509,6 +1509,7 @@ function ChecklistItemsBeheer({ checklistItems, showToast }) {
 }
 
 // ─── LOG VIEW ─────────────────────────────────────────────────────────────────
+function LogView({meldingen,houses}) {
   function exportCSV() {
     let csv="Datum,Tijd,Type,Medewerker,Adres,Kamer,Wie regelt,Ingediend door,Status,Sleutel terug,Kamer schoon,Notitie\n";
     meldingen.forEach(m=>{const h=houses.find(h=>h.id===m.woning_id);const dt=m.created_at?new Date(m.created_at):new Date();csv+=`"${fmtDate(dt)}","${fmtTime(dt)}","${m.type}","${m.medewerker}","${h?.adres||""}","${m.kamer}","${m.wie_regelt||""}","${m.ingediend_door}","${m.status}","${m.sleutel_terug||""}","${m.kamer_schoon||""}","${m.notitie||""}"\n`;});
