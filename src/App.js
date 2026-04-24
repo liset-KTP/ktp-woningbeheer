@@ -23,43 +23,11 @@ const STATUS_MAP = {
 };
 const STATUSSEN = Object.keys(STATUS_MAP);
 
-// ─── SNF CHECKLISTS ───────────────────────────────────────────────────────────
-const CHECKLIST_WEKELIJKS = [
-  "Gemeenschappelijke ruimtes schoongemaakt (gang, toilet, keuken)",
-  "Vuilnisbakken geleegd en afval correct gesorteerd",
-  "Rookmelders visueel gecontroleerd (groen lampje)",
-  "Verwarmingsinstallatie gecontroleerd op afwijkende geluiden",
-  "Brandblussers zichtbaar en toegankelijk",
-  "Ramen en deuren sluiten goed af",
-  "Schimmel of vochtplekken gecontroleerd in badkamer/keuken",
-  "Verlichting gemeenschappelijke ruimtes werkt",
-];
-const CHECKLIST_4WEKELIJKS = [
-  "Rookmelders getest (testknop ingedrukt)",
-  "CO-melders getest indien aanwezig",
-  "Nooduitgangen vrij en deuren goed werkend",
-  "Legionellapreventie: koud water < 25°C, warm water > 60°C gecontroleerd",
-  "Sloten en sleutels gecontroleerd op werking",
-  "Buitenverlichting getest",
-  "Schoonmaakschema bijgehouden en up to date",
-  "Gezamenlijke ruimtes geïnspecteerd op schade/slijtage",
-  "Inventaris eerste hulpset gecontroleerd",
-  "Huisregels zichtbaar opgehangen in elke woning",
-];
-const CHECKLIST_KWARTAAL = [
-  "SNF-registratie actueel en bewoners correct geregistreerd",
-  "Bewonersbestand volledig en up to date",
-  "Onderhoudsdossier per woning bijgewerkt",
-  "Brandveiligheid: vluchtwegen gemarkeerd en vrij",
-  "Elektrische installaties visueel gecontroleerd (geen beschadigde kabels)",
-  "Gasinstallatie visueel gecontroleerd op lekkages/geuren",
-  "Keukens: afzuiginstallaties gereinigd en werkend",
-  "Badkamers: grouting en siliconen gecontroleerd op slijtage",
-  "Buitenruimtes en parkeerplaats geïnspecteerd",
-  "Afspraken met bewoners geëvalueerd (kamerregels nageleefd?)",
-  "Energieverbruik gecontroleerd op afwijkingen",
-  "Sleutelregistratie volledig en correct",
-];
+// ─── CHECKLIST FALLBACK (worden geladen uit Supabase) ────────────────────────
+// Items worden dynamisch geladen — hier alleen lege arrays als fallback
+const CHECKLIST_WEKELIJKS_FB = [];
+const CHECKLIST_4WEKELIJKS_FB = [];
+const CHECKLIST_KWARTAAL_FB = [];
 
 // ─── DAGINDELING HUISMEESTER ──────────────────────────────────────────────────
 const DAGPLANNING = {
@@ -85,9 +53,16 @@ export default function App() {
   const [meldingen, setMeldingen] = useState([]);
   const [taken, setTaken] = useState([]);
   const [checklists, setChecklists] = useState([]);
+  const [checklistItems, setChecklistItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("melding");
   const [toast, setToast] = useState(null);
+
+  const loadChecklistItems = useCallback(async () => {
+    const { data, error } = await supabase.from("checklist_items").select("*").eq("actief", true).order("type").order("volgorde");
+    if (error) { console.error("checklist_items:", error); return; }
+    setChecklistItems(data || []);
+  }, []);
 
   const loadGebruikers = useCallback(async () => {
     const { data, error } = await supabase.from("gebruikers").select("*").eq("actief", true).order("rol").order("naam");
@@ -122,11 +97,11 @@ export default function App() {
   useEffect(() => {
     async function init() {
       setLoading(true);
-      await Promise.all([loadGebruikers(), loadHouses(), loadMeldingen(), loadTaken(), loadChecklists()]);
+      await Promise.all([loadGebruikers(), loadHouses(), loadMeldingen(), loadTaken(), loadChecklists(), loadChecklistItems()]);
       setLoading(false);
     }
     init();
-  }, [loadGebruikers, loadHouses, loadMeldingen, loadTaken, loadChecklists]);
+  }, [loadGebruikers, loadHouses, loadMeldingen, loadTaken, loadChecklists, loadChecklistItems]);
 
   useEffect(() => {
     const s1 = supabase.channel("mel-rt").on("postgres_changes",{event:"*",schema:"public",table:"meldingen"},()=>loadMeldingen()).subscribe();
@@ -134,8 +109,9 @@ export default function App() {
     const s3 = supabase.channel("tak-rt").on("postgres_changes",{event:"*",schema:"public",table:"taken"},()=>loadTaken()).subscribe();
     const s4 = supabase.channel("chk-rt").on("postgres_changes",{event:"*",schema:"public",table:"checklists"},()=>loadChecklists()).subscribe();
     const s5 = supabase.channel("gbr-rt").on("postgres_changes",{event:"*",schema:"public",table:"gebruikers"},()=>loadGebruikers()).subscribe();
-    return () => { supabase.removeChannel(s1); supabase.removeChannel(s2); supabase.removeChannel(s3); supabase.removeChannel(s4); supabase.removeChannel(s5); };
-  }, [loadHouses, loadMeldingen, loadTaken, loadChecklists, loadGebruikers]);
+    const s6 = supabase.channel("chi-rt").on("postgres_changes",{event:"*",schema:"public",table:"checklist_items"},()=>loadChecklistItems()).subscribe();
+    return () => { supabase.removeChannel(s1); supabase.removeChannel(s2); supabase.removeChannel(s3); supabase.removeChannel(s4); supabase.removeChannel(s5); supabase.removeChannel(s6); };
+  }, [loadHouses, loadMeldingen, loadTaken, loadChecklists, loadGebruikers, loadChecklistItems]);
 
   function showToast(msg, type="ok") { setToast({msg,type}); setTimeout(()=>setToast(null),3500); }
   function login(g) { setGebruiker(g); setTab(g.rol==="collega"?"melding":g.rol==="huismeester"?"dagplanning":"woningen"); }
@@ -330,10 +306,10 @@ export default function App() {
         {tab==="planning"&&<PlanningView houses={houses}/>}
         {rol==="huismeester"&&tab==="dagplanning"&&<DagplanningView meldingen={meldingen} taken={taken} houses={houses} onUpdate={updateMeldingStatus} onUpdateTaak={updateTaak} naam={naam}/>}
         {rol==="huismeester"&&tab==="meldingen"&&<HuismeesterTaken meldingen={meldingen} houses={houses} onUpdate={updateMeldingStatus} naam={naam}/>}
-        {tab==="checklist"&&<ChecklistView houses={houses} checklists={checklists} onSave={slaChecklistOp} gebruiker={gebruiker}/>}
+        {tab==="checklist"&&<ChecklistView houses={houses} checklists={checklists} checklistItems={checklistItems} onSave={slaChecklistOp} gebruiker={gebruiker}/>}
         {rol==="backoffice"&&tab==="inbox"&&<BackofficeInbox meldingen={meldingen} houses={houses} onUpdate={updateMeldingStatus} naam={naam} showToast={showToast}/>}
         {rol==="backoffice"&&tab==="log"&&<LogView meldingen={meldingen} houses={houses}/>}
-        {rol==="backoffice"&&isLiset&&tab==="beheer"&&<BeheerView houses={houses} onAdd={addWoning} onUpdate={updateWoning} onDelete={deleteWoning} showToast={showToast} gebruikers={gebruikers} onAddGebruiker={voegGebruikerToe} onUpdateGebruiker={updateGebruiker} onDeleteGebruiker={verwijderGebruiker}/>}
+        {rol==="backoffice"&&isLiset&&tab==="beheer"&&<BeheerView houses={houses} onAdd={addWoning} onUpdate={updateWoning} onDelete={deleteWoning} showToast={showToast} gebruikers={gebruikers} onAddGebruiker={voegGebruikerToe} onUpdateGebruiker={updateGebruiker} onDeleteGebruiker={verwijderGebruiker} checklistItems={checklistItems}/>}
       </div>
     </div>
   );
@@ -667,7 +643,7 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
 }
 
 // ─── CHECKLISTS ───────────────────────────────────────────────────────────────
-function ChecklistView({ houses, checklists, onSave, gebruiker }) {
+function ChecklistView({ houses, checklists, checklistItems, onSave, gebruiker }) {
   const weekNr = () => { const d=new Date(); const j=new Date(Date.UTC(d.getFullYear(),0,1)); return Math.ceil((((d-j)/86400000)+j.getDay()+1)/7); };
   const kwartaal = () => Math.ceil((new Date().getMonth()+1)/3);
   const jaar = new Date().getFullYear();
@@ -686,11 +662,8 @@ function ChecklistView({ houses, checklists, onSave, gebruiker }) {
     return kwartaalSleutel;
   }
 
-  function huidigeLijst() {
-    if (actief==="wekelijks") return CHECKLIST_WEKELIJKS;
-    if (actief==="4wekelijks") return CHECKLIST_4WEKELIJKS;
-    return CHECKLIST_KWARTAAL;
-  }
+  // Haal items uit Supabase
+  const lijst = checklistItems.filter(i => i.type === actief).map(i => i.tekst);
 
   const dbSleutel = `${actief}_${huidigeSleutel()}_${geselecteerdeWoning}`;
   const bestaand = checklists.find(c=>c.sleutel===dbSleutel);
@@ -711,13 +684,12 @@ function ChecklistView({ houses, checklists, onSave, gebruiker }) {
     setSaving(false);
   }
 
-  const lijst = huidigeLijst();
-  const pct = Math.round((afgevinkt.length/lijst.length)*100);
+  const pct = lijst.length > 0 ? Math.round((afgevinkt.length/lijst.length)*100) : 0;
 
   const typeInfo = {
-    wekelijks:  {label:"Wekelijks",  icon:"📋", kleur:C.blauw,  periode:`Week ${weekNr()}, ${jaar}`},
-    "4wekelijks":{label:"4-wekelijks",icon:"📅", kleur:C.groen,  periode:`Periode ${Math.ceil(weekNr()/4)}, ${jaar}`},
-    kwartaal:   {label:"Kwartaal",   icon:"🏆", kleur:"#7c3aed", periode:`Q${kwartaal()} ${jaar}`},
+    wekelijks:   {label:"Wekelijks",   icon:"📋", kleur:C.blauw,   periode:`Week ${weekNr()}, ${jaar}`},
+    "4wekelijks":{label:"4-wekelijks", icon:"📅", kleur:C.groen,   periode:`Periode ${Math.ceil(weekNr()/4)}, ${jaar}`},
+    kwartaal:    {label:"Kwartaal",    icon:"🏆", kleur:"#7c3aed", periode:`Q${kwartaal()} ${jaar}`},
   };
 
   const isBackoffice = gebruiker?.rol==="backoffice";
@@ -733,6 +705,7 @@ function ChecklistView({ houses, checklists, onSave, gebruiker }) {
             <div style={{fontSize:20,marginBottom:4}}>{v.icon}</div>
             <div style={{fontWeight:700,fontSize:14}}>{v.label}</div>
             <div style={{fontSize:11,opacity:.8,marginTop:2}}>{v.periode}</div>
+            <div style={{fontSize:11,opacity:.6,marginTop:1}}>{checklistItems.filter(i=>i.type===k).length} items</div>
           </button>
         ))}
       </div>
@@ -750,7 +723,7 @@ function ChecklistView({ houses, checklists, onSave, gebruiker }) {
       <div className="card" style={{borderTop:`4px solid ${typeInfo[actief].kleur}`}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
           <div>
-            <div style={{fontWeight:800,fontSize:16,color:typeInfo[actief].kleur}}>{typeInfo[actief].icon} {typeInfo[actief].label} checklist — {typeInfo[actief].periode}</div>
+            <div style={{fontWeight:800,fontSize:16,color:typeInfo[actief].kleur}}>{typeInfo[actief].icon} {typeInfo[actief].label} — {typeInfo[actief].periode}</div>
             {!isBackoffice&&<div style={{fontSize:13,color:C.muted,marginTop:2}}>Vink af wat je hebt gecontroleerd</div>}
           </div>
           <div style={{textAlign:"right"}}>
@@ -759,12 +732,16 @@ function ChecklistView({ houses, checklists, onSave, gebruiker }) {
           </div>
         </div>
 
-        {/* Voortgangsbalk */}
         <div style={{background:C.bg,borderRadius:99,height:8,marginBottom:20,overflow:"hidden"}}>
           <div style={{height:"100%",background:pct===100?C.groen:typeInfo[actief].kleur,borderRadius:99,width:`${pct}%`,transition:"width .3s"}}/>
         </div>
 
-        {lijst.map((item,i)=>{
+        {lijst.length === 0 ? (
+          <div style={{textAlign:"center",padding:"30px",color:C.muted,fontSize:13}}>
+            Nog geen items voor dit type checklist.<br/>
+            {isBackoffice && "Voeg items toe via Beheer → Checklists."}
+          </div>
+        ) : lijst.map((item,i)=>{
           const checked=afgevinkt.includes(item);
           return (
             <div key={i} className={`chk-item ${checked?"done":""}`}
@@ -778,7 +755,7 @@ function ChecklistView({ houses, checklists, onSave, gebruiker }) {
           );
         })}
 
-        {!isBackoffice&&(
+        {!isBackoffice&&lijst.length>0&&(
           <div style={{marginTop:20,display:"flex",gap:10}}>
             <button className="btn-g" style={{flex:1,padding:12}} onClick={opslaan} disabled={saving}>
               {saving?"⏳ Opslaan...":"💾 Voortgang opslaan"}
@@ -872,7 +849,7 @@ function MeldingForm({ houses, onSubmit, showToast }) {
       </div>
       {(type==="aankomst"||type==="reservering")&&(
         <div className="card" style={{marginBottom:16,display:"grid",gridTemplateColumns:"1fr 1fr",gap:18}}>
-          <div><label className="fl">Wie regelt aankomst?</label><input className="fi" value={wieRegelt} onChange={e=>setWieRegelt(e.target.value)} placeholder="bijv. NW, CB, HK, zelf..."/></div>
+          <div><label className="fl">Wie regelt aankomst?</label><input className="fi" value={wieRegelt} onChange={e=>setWieRegelt(e.target.value)} placeholder="bijv. NW CB, Hans, zelf..."/></div>
           {type==="aankomst"&&<div><label className="fl">Aantal sleutels ontvangen</label><select className="fs" value={sleutelAantal} onChange={e=>setSleutelAantal(Number(e.target.value))}>{[0,1,2,3].map(n=><option key={n} value={n}>{n}</option>)}</select></div>}
         </div>
       )}
@@ -1151,13 +1128,13 @@ function PlanningView({houses}) {
   );
 }
 
-function BeheerView({houses,onAdd,onUpdate,onDelete,showToast,gebruikers,onAddGebruiker,onUpdateGebruiker,onDeleteGebruiker}) {
+function BeheerView({houses,onAdd,onUpdate,onDelete,showToast,gebruikers,onAddGebruiker,onUpdateGebruiker,onDeleteGebruiker,checklistItems}) {
   const [subTab,setSubTab]=useState("woningen");
   return(
     <div>
       <SH titel="⚙️ Beheer" sub="Alleen beschikbaar voor Liset"/>
       <div style={{display:"flex",gap:6,marginBottom:24,borderBottom:`2px solid ${C.border}`,paddingBottom:0}}>
-        {[["woningen","🏠 Woningen & kamers"],["gebruikers","👥 Gebruikers & pincodes"]].map(([v,l])=>(
+        {[["woningen","🏠 Woningen & kamers"],["gebruikers","👥 Gebruikers & pincodes"],["checklists","✅ Checklists"]].map(([v,l])=>(
           <button key={v} onClick={()=>setSubTab(v)}
             style={{background:"none",border:"none",padding:"10px 20px",fontSize:14,fontWeight:700,color:subTab===v?C.blauw:C.muted,borderBottom:subTab===v?`3px solid ${C.blauw}`:"3px solid transparent",marginBottom:-2,cursor:"pointer",fontFamily:"inherit"}}>
             {l}
@@ -1166,6 +1143,7 @@ function BeheerView({houses,onAdd,onUpdate,onDelete,showToast,gebruikers,onAddGe
       </div>
       {subTab==="woningen"&&<WoningBeheer houses={houses} onAdd={onAdd} onUpdate={onUpdate} onDelete={onDelete} showToast={showToast}/>}
       {subTab==="gebruikers"&&<GebruikersBeheer gebruikers={gebruikers} onAdd={onAddGebruiker} onUpdate={onUpdateGebruiker} onDelete={onDeleteGebruiker} showToast={showToast}/>}
+      {subTab==="checklists"&&<ChecklistItemsBeheer checklistItems={checklistItems} showToast={showToast}/>}
     </div>
   );
 }
@@ -1377,7 +1355,132 @@ function GebruikerBewerken({g,onSave,onCancel}) {
   );
 }
 
-function LogView({meldingen,houses}) {
+// ─── CHECKLIST ITEMS BEHEER ───────────────────────────────────────────────────
+function ChecklistItemsBeheer({ checklistItems, showToast }) {
+  const [actief, setActief] = useState("wekelijks");
+  const [nieuwTekst, setNieuwTekst] = useState("");
+  const [bewerkId, setBewerkId] = useState(null);
+  const [bewerkTekst, setBewerkTekst] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const types = [
+    { id:"wekelijks",   label:"📋 Wekelijks",   kleur:C.blauw },
+    { id:"4wekelijks",  label:"📅 4-wekelijks",  kleur:C.groen },
+    { id:"kwartaal",    label:"🏆 Kwartaal",     kleur:"#7c3aed" },
+  ];
+
+  const huidigeLijst = checklistItems.filter(i => i.type === actief);
+  const actiefInfo = types.find(t => t.id === actief);
+
+  async function voegToe() {
+    if (!nieuwTekst.trim()) { showToast("Vul een omschrijving in", "err"); return; }
+    setSaving(true);
+    const maxVolgorde = huidigeLijst.length > 0 ? Math.max(...huidigeLijst.map(i => i.volgorde)) : 0;
+    const { error } = await supabase.from("checklist_items").insert([{
+      type: actief, tekst: nieuwTekst.trim(), volgorde: maxVolgorde + 1, actief: true
+    }]);
+    setSaving(false);
+    if (error) { showToast("Fout bij toevoegen", "err"); return; }
+    setNieuwTekst("");
+    showToast("✓ Item toegevoegd");
+  }
+
+  async function slaBewerk(id) {
+    if (!bewerkTekst.trim()) return;
+    setSaving(true);
+    const { error } = await supabase.from("checklist_items").update({ tekst: bewerkTekst.trim() }).eq("id", id);
+    setSaving(false);
+    if (error) { showToast("Fout bij opslaan", "err"); return; }
+    setBewerkId(null);
+    showToast("✓ Opgeslagen");
+  }
+
+  async function verwijder(id, tekst) {
+    if (!window.confirm(`"${tekst.substring(0,50)}..." verwijderen?`)) return;
+    const { error } = await supabase.from("checklist_items").update({ actief: false }).eq("id", id);
+    if (error) { showToast("Fout bij verwijderen", "err"); return; }
+    showToast("✓ Item verwijderd");
+  }
+
+  async function verschuif(item, richting) {
+    const lijst = [...huidigeLijst].sort((a,b) => a.volgorde - b.volgorde);
+    const idx = lijst.findIndex(i => i.id === item.id);
+    const swap = richting === "up" ? lijst[idx-1] : lijst[idx+1];
+    if (!swap) return;
+    await supabase.from("checklist_items").update({ volgorde: swap.volgorde }).eq("id", item.id);
+    await supabase.from("checklist_items").update({ volgorde: item.volgorde }).eq("id", swap.id);
+  }
+
+  return (
+    <div style={{ maxWidth: 800 }}>
+      <div style={{ display:"flex", gap:8, marginBottom:20 }}>
+        {types.map(t => (
+          <button key={t.id} onClick={() => setActief(t.id)}
+            style={{ flex:1, background:actief===t.id?t.kleur:"white", color:actief===t.id?"white":C.text, border:`2px solid ${actief===t.id?t.kleur:C.border}`, borderRadius:10, padding:"10px 16px", cursor:"pointer", fontFamily:"inherit", fontWeight:700, fontSize:13, transition:"all .2s" }}>
+            {t.label}
+            <div style={{ fontSize:11, opacity:.8, marginTop:2, fontWeight:400 }}>{checklistItems.filter(i=>i.type===t.id).length} items</div>
+          </button>
+        ))}
+      </div>
+
+      {/* Nieuw item toevoegen */}
+      <div className="card" style={{ marginBottom:16, borderTop:`3px solid ${actiefInfo.kleur}` }}>
+        <div style={{ fontWeight:700, fontSize:13, color:actiefInfo.kleur, marginBottom:12 }}>+ Item toevoegen aan {actiefInfo.label}</div>
+        <div style={{ display:"flex", gap:10 }}>
+          <input className="fi" value={nieuwTekst} onChange={e=>setNieuwTekst(e.target.value)}
+            onKeyDown={e=>e.key==="Enter"&&voegToe()}
+            placeholder="Omschrijving van de controletaak..."
+            style={{ flex:1 }} />
+          <button className="btn-b" style={{ padding:"10px 20px", flexShrink:0 }} onClick={voegToe} disabled={saving}>
+            {saving?"⏳":"+ Toevoegen"}
+          </button>
+        </div>
+      </div>
+
+      {/* Huidige items */}
+      <div className="card">
+        <div style={{ fontWeight:700, fontSize:13, color:C.blauw, marginBottom:16 }}>
+          {actiefInfo.label} — {huidigeLijst.length} items
+        </div>
+        {huidigeLijst.length === 0 && (
+          <div style={{ textAlign:"center", padding:"30px", color:C.muted, fontSize:13 }}>
+            Nog geen items. Voeg er hierboven een toe!
+          </div>
+        )}
+        {[...huidigeLijst].sort((a,b)=>a.volgorde-b.volgorde).map((item, idx, arr) => (
+          <div key={item.id} style={{ marginBottom:6 }}>
+            {bewerkId === item.id ? (
+              <div style={{ display:"flex", gap:8, padding:"8px", background:C.blauw+"08", borderRadius:8, border:`1.5px solid ${C.blauw}` }}>
+                <input className="fi" value={bewerkTekst} onChange={e=>setBewerkTekst(e.target.value)}
+                  onKeyDown={e=>e.key==="Enter"&&slaBewerk(item.id)}
+                  style={{ flex:1, fontSize:13 }} autoFocus />
+                <button className="btn-b" style={{ padding:"8px 14px", fontSize:12, flexShrink:0 }} onClick={()=>slaBewerk(item.id)} disabled={saving}>✓</button>
+                <button className="btn-out" style={{ padding:"8px 12px", fontSize:12, flexShrink:0 }} onClick={()=>setBewerkId(null)}>✗</button>
+              </div>
+            ) : (
+              <div className="br" style={{ gap:6 }}>
+                <span style={{ fontSize:11, fontWeight:700, color:C.muted, minWidth:24, fontFamily:"monospace" }}>{idx+1}</span>
+                <span style={{ flex:1, fontSize:13, color:C.text }}>{item.tekst}</span>
+                <div style={{ display:"flex", gap:4, flexShrink:0 }}>
+                  <button onClick={()=>verschuif(item,"up")} disabled={idx===0}
+                    style={{ background:"none", border:`1px solid ${C.border}`, borderRadius:6, padding:"4px 8px", cursor:idx===0?"not-allowed":"pointer", color:idx===0?C.border:C.muted, fontSize:12 }}>↑</button>
+                  <button onClick={()=>verschuif(item,"down")} disabled={idx===arr.length-1}
+                    style={{ background:"none", border:`1px solid ${C.border}`, borderRadius:6, padding:"4px 8px", cursor:idx===arr.length-1?"not-allowed":"pointer", color:idx===arr.length-1?C.border:C.muted, fontSize:12 }}>↓</button>
+                  <button className="btn-out" style={{ padding:"4px 10px", fontSize:11 }}
+                    onClick={()=>{ setBewerkId(item.id); setBewerkTekst(item.tekst); }}>✏️</button>
+                  <button className="btn-r" style={{ padding:"4px 10px", fontSize:11 }}
+                    onClick={()=>verwijder(item.id, item.tekst)}>🗑</button>
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── LOG VIEW ─────────────────────────────────────────────────────────────────
   function exportCSV() {
     let csv="Datum,Tijd,Type,Medewerker,Adres,Kamer,Wie regelt,Ingediend door,Status,Sleutel terug,Kamer schoon,Notitie\n";
     meldingen.forEach(m=>{const h=houses.find(h=>h.id===m.woning_id);const dt=m.created_at?new Date(m.created_at):new Date();csv+=`"${fmtDate(dt)}","${fmtTime(dt)}","${m.type}","${m.medewerker}","${h?.adres||""}","${m.kamer}","${m.wie_regelt||""}","${m.ingediend_door}","${m.status}","${m.sleutel_terug||""}","${m.kamer_schoon||""}","${m.notitie||""}"\n`;});
