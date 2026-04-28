@@ -323,7 +323,7 @@ export default function App() {
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",height:48,gap:8}}>
             <div style={{background:"white",borderRadius:7,padding:"3px 9px",display:"flex",alignItems:"center",flexShrink:0}}>
               <span style={{fontWeight:900,fontSize:13,color:C.blauw}}>KTP</span>
-              <span style={{fontWeight:900,fontSize:13,color:C.groen,marginLeft:3}}>IF</span>
+              <span style={{fontWeight:900,fontSize:13,color:C.groen,marginLeft:3}}>INTERFLEX</span>
             </div>
             <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
               <div style={{background:"rgba(255,255,255,.15)",borderRadius:16,padding:"4px 10px",display:"flex",alignItems:"center",gap:5}}>
@@ -342,7 +342,24 @@ export default function App() {
               <button className={`tp ${tab==="woningen"?"act":""}`} onClick={()=>setTab("woningen")}>🏠 Woningen</button>
               <button className={`tp ${tab==="autos"?"act":""}`} onClick={()=>setTab("autos")}>🚗 Auto's</button>
             </>)}
-            {isLiset&&rol==="backoffice"&&<button className={`tp ${tab==="beheer"?"act":""}`} onClick={()=>setTab("beheer")}>⚙️ Beheer</button>}
+            {rol==="huismeester" && (<>
+              <button className={`tp ${tab==="dagplanning"?"act":""}`} onClick={()=>setTab("dagplanning")}>📅 Mijn dag {totalNotifs>0&&<Notif n={totalNotifs}/>}</button>
+              <button className={`tp ${tab==="meldingen"?"act":""}`} onClick={()=>setTab("meldingen")}>🔔 Meldingen {openMeldingen.length>0&&<Notif n={openMeldingen.length}/>}</button>
+              <button className={`tp ${tab==="taken"?"act":""}`} onClick={()=>setTab("taken")}>📌 To-do {openTaken.length>0&&<Notif n={openTaken.length}/>}</button>
+              <button className={`tp ${tab==="checklist"?"act":""}`} onClick={()=>setTab("checklist")}>✅ Checklists</button>
+              <button className={`tp ${tab==="woningen"?"act":""}`} onClick={()=>setTab("woningen")}>🏠 Woningen</button>
+              <button className={`tp ${tab==="autos"?"act":""}`} onClick={()=>setTab("autos")}>🚗 Auto's</button>
+            </>)}
+            {rol==="backoffice" && (<>
+              <button className={`tp ${tab==="woningen"?"act":""}`} onClick={()=>setTab("woningen")}>🏠 Woningen</button>
+              <button className={`tp ${tab==="planning"?"act":""}`} onClick={()=>setTab("planning")}>📊 Status</button>
+              <button className={`tp ${tab==="taken"?"act":""}`} onClick={()=>setTab("taken")}>📌 To-do {openTaken.length>0&&<Notif n={openTaken.length}/>}</button>
+              <button className={`tp ${tab==="autos"?"act":""}`} onClick={()=>setTab("autos")}>🚗 Auto's</button>
+              <button className={`tp ${tab==="inbox"?"act":""}`} onClick={()=>setTab("inbox")}>📨 Inbox {openMeldingen.length>0&&<Notif n={openMeldingen.length}/>}</button>
+              <button className={`tp ${tab==="checklist"?"act":""}`} onClick={()=>setTab("checklist")}>✅ Checklists</button>
+              <button className={`tp ${tab==="log"?"act":""}`} onClick={()=>setTab("log")}>📝 Log</button>
+              {isLiset&&<button className={`tp ${tab==="beheer"?"act":""}`} onClick={()=>setTab("beheer")}>⚙️ Beheer</button>}
+            </>)}
           </div>
         </div>
       </div>
@@ -1239,20 +1256,26 @@ function WoningenDetail({houses}) {
                 {h.kamers.map(k=>{const c=STATUS_MAP[k.status]||{dot:C.muted};return <div key={k.k} title={`K${k.k}: ${k.naam||"leeg"} — ${k.status}`} style={{width:12,height:12,borderRadius:3,background:c.dot+"50",border:`1.5px solid ${c.dot}`}}/>;  })}
               </div>
               <div style={{borderTop:`1px solid ${C.border}`,paddingTop:10}}>
-                {h.kamers.map(k=>{const c=STATUS_MAP[k.status]||{bg:C.bg,text:C.muted,dot:C.muted};return(
-                  <div key={k.k} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 8px",borderRadius:7,marginBottom:2,background:k.status==="Controle"?"#fef2f2":k.status==="Beschikbaar"?C.blauw+"08":"transparent"}}>
-                    <div style={{width:6,height:6,borderRadius:2,background:c.dot,flexShrink:0}}/>
-                    <span style={{fontSize:11,fontWeight:700,color:C.muted,minWidth:28,fontFamily:"monospace"}}>K{k.k}</span>
-                    <span style={{flex:1,fontSize:13,color:k.naam?C.text:"#aab4c4",fontStyle:k.naam?"normal":"italic",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{k.naam||"leeg"}</span>
-                    {k.bedrijf&&<span style={{fontSize:11,color:C.muted,whiteSpace:"nowrap",flexShrink:0}}>{k.bedrijf}</span>}
-                    <span style={{padding:"2px 8px",borderRadius:4,background:c.bg,color:c.text,fontSize:10,fontWeight:600,whiteSpace:"nowrap",flexShrink:0}}>{k.status}</span>
-                  </div>
-                );})}
+                {h.kamers.map(k=>{
+                  const c=STATUS_MAP[k.status]||{bg:C.bg,text:C.muted,dot:C.muted};
+                  const rijBg = k.status==="Controle"?"#fef2f2":k.status==="Moet aan het werk"?"#fff7ed":k.status==="Beschikbaar"?C.blauw+"08":"transparent";
+                  return(
+                    <div key={k.k} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 8px",borderRadius:7,marginBottom:2,background:rijBg}}>
+                      <div style={{width:6,height:6,borderRadius:2,background:c.dot,flexShrink:0}}/>
+                      <span style={{fontSize:11,fontWeight:700,color:C.muted,minWidth:28,fontFamily:"monospace"}}>K{k.k}</span>
+                      <span style={{flex:1,fontSize:13,color:k.naam?C.text:"#aab4c4",fontStyle:k.naam?"normal":"italic",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{k.naam||"leeg"}</span>
+                      {k.bedrijf&&<span style={{fontSize:11,color:C.muted,whiteSpace:"nowrap",flexShrink:0}}>{k.bedrijf}</span>}
+                      <span style={{padding:"2px 8px",borderRadius:4,background:c.bg,color:c.text,fontSize:10,fontWeight:600,whiteSpace:"nowrap",flexShrink:0}}>{k.status}</span>
+                    </div>
+                  );
+                })}
               </div>
               <div style={{marginTop:10,paddingTop:10,borderTop:`1px solid ${C.border}`,display:"flex",gap:6,flexWrap:"wrap"}}>
                 {hasVrij&&<span style={{fontSize:10,fontWeight:600,color:C.blauw,background:C.blauw+"18",padding:"3px 8px",borderRadius:4}}>{h.kamers.filter(k=>k.status==="Beschikbaar").length} vrij</span>}
                 {h.kamers.filter(k=>k.status==="Gereserveerd").length>0&&<span style={{fontSize:10,fontWeight:600,color:"#b45309",background:"#fef3c7",padding:"3px 8px",borderRadius:4}}>{h.kamers.filter(k=>k.status==="Gereserveerd").length} gereserveerd</span>}
-                {hasIssue&&<span style={{fontSize:10,fontWeight:600,color:"#ef4444",background:"#fef2f2",padding:"3px 8px",borderRadius:4}}>⚠ actie vereist</span>}
+                {h.kamers.filter(k=>k.status==="Controle").length>0&&<span style={{fontSize:10,fontWeight:600,color:"#ef4444",background:"#fef2f2",padding:"3px 8px",borderRadius:4}}>⚠ {h.kamers.filter(k=>k.status==="Controle").length} controle</span>}
+                {h.kamers.filter(k=>k.status==="Moet aan het werk").length>0&&<span style={{fontSize:10,fontWeight:600,color:"#c2410c",background:"#fff7ed",padding:"3px 8px",borderRadius:4}}>⚠ {h.kamers.filter(k=>k.status==="Moet aan het werk").length} moet aan het werk</span>}
+                {h.kamers.filter(k=>k.status==="Vertrokken").length>0&&<span style={{fontSize:10,fontWeight:600,color:"#52525b",background:"#f4f4f5",padding:"3px 8px",borderRadius:4}}>{h.kamers.filter(k=>k.status==="Vertrokken").length} vertrokken</span>}
               </div>
             </div>
           );
