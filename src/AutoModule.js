@@ -1,7 +1,25 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "./supabaseClient";
 
-// ─── KLEUREN (zelfde als App.js) ──────────────────────────────────────────────
+// ─── EMAILJS ─────────────────────────────────────────────────────────────────
+const EMAILJS_SERVICE  = "service_1af258e";
+const EMAILJS_TEMPLATE = "template_2mjnbok";
+const EMAILJS_PUBLIC   = "CJEVdAOdA03ZQxE28";
+
+async function stuurMail(params) {
+  try {
+    await fetch("https://api.emailjs.com/api/v1.0/email/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        service_id:  EMAILJS_SERVICE,
+        template_id: EMAILJS_TEMPLATE,
+        user_id:     EMAILJS_PUBLIC,
+        template_params: params,
+      }),
+    });
+  } catch (e) { console.error("EmailJS:", e); }
+}
 const C = {
   blauw:"#1B3A6B", blauwDark:"#132b52", blauwLight:"#2a52a0",
   groen:"#4A9B3C", groenDark:"#357a2b", groenLight:"#5cb84d",
@@ -70,18 +88,34 @@ export function AutoModule({ gebruiker, showToast }) {
     const { error } = await supabase.from("auto_meldingen").insert([{...m, ingediend_door: gebruiker.naam, status:"open"}]);
     if (error) { showToast("Fout bij opslaan","err"); return false; }
 
-    // Update auto status als uitgifte of inname
+    // Auto status bijwerken
     if (m.kenteken && m.actie !== "geannuleerd") {
       const auto = autos.find(a => a.kenteken === m.kenteken);
       if (auto) {
-        const nieuweStatus = m.actie === "uitgifte" ? "Lopend" : "Beschikbaar";
-        const updates = {
+        const nieuweStatus = m.actie === "uitgifte" ? "Lopend" : m.actie === "storing" ? auto.status : "Beschikbaar";
+        await supabase.from("autos").update({
           status: nieuweStatus,
-          naam_medewerker: m.actie === "uitgifte" ? m.naam_medewerker : null,
-        };
-        await supabase.from("autos").update(updates).eq("id", auto.id);
+          naam_medewerker: m.actie === "uitgifte" ? m.naam_medewerker : (m.actie === "storing" ? auto.naam_medewerker : null),
+        }).eq("id", auto.id);
       }
     }
+
+    // ── E-mail sturen ──────────────────────────────────────────────────────
+    const actieTekst = {
+      uitgifte: "🚗 Auto uitgifte", inname: "🔑 Auto inname",
+      storing: "🔧 Auto storing/schade", geannuleerd: "❌ Auto geannuleerd",
+    };
+    stuurMail({
+      type:          actieTekst[m.actie] || m.actie,
+      type_icon:     actieTekst[m.actie]?.split(" ")[0] || "🚗",
+      medewerker:    m.naam_medewerker,
+      woning:        `Kenteken: ${m.kenteken}`,
+      kamer:         m.locatie ? `Locatie: ${m.locatie}` : "—",
+      datum:         m.datum_tijd ? new Date(m.datum_tijd).toLocaleDateString("nl-NL") : "—",
+      ingediend_door: gebruiker.naam,
+      opmerkingen:   m.opmerkingen || "—",
+    });
+
     showToast("✓ Auto melding ingediend");
     return true;
   }
