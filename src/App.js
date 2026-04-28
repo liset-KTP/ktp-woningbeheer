@@ -238,33 +238,54 @@ export default function App() {
         .tp.act{background:${C.groen};color:white;font-weight:700}
         .tp:hover{color:white}
         .badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600}
-        .mc{background:white;border:1px solid ${C.border};border-radius:10px;padding:16px;margin-bottom:10px;box-shadow:0 1px 3px rgba(27,58,107,.05)}
-        .rt{border:2px solid ${C.border};border-radius:10px;padding:14px;text-align:center;cursor:pointer;transition:all .2s;flex:1;background:white}
+        .mc{background:white;border:1px solid ${C.border};border-radius:10px;padding:14px;margin-bottom:10px;box-shadow:0 1px 3px rgba(27,58,107,.05)}
+        .rt{border:2px solid ${C.border};border-radius:10px;padding:10px 6px;text-align:center;cursor:pointer;transition:all .2s;flex:1;background:white;min-width:0}
         .rt.sel{border-color:${C.blauw};background:${C.blauw}10}
-        .cr{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid ${C.border}}
+        .cr{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid ${C.border};flex-wrap:wrap}
         .cr:last-child{border-bottom:none}
-        .cb{padding:5px 14px;border-radius:6px;font-size:12px;font-weight:600;border:1.5px solid;cursor:pointer;background:white}
+        .cb{padding:5px 12px;border-radius:6px;font-size:12px;font-weight:600;border:1.5px solid;cursor:pointer;background:white}
         .cb.ja{border-color:${C.groen};color:${C.groen}} .cb.ja.s{background:${C.groen};color:white}
         .cb.nee{border-color:#ef4444;color:#ef4444} .cb.nee.s{background:#ef4444;color:white}
-        .br{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;border:1px solid ${C.border};margin-bottom:6px;background:${C.bg}}
+        .br{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;border:1px solid ${C.border};margin-bottom:6px;background:${C.bg};flex-wrap:wrap}
         .chk-item{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:8px;margin-bottom:6px;background:${C.bg};border:1px solid ${C.border};cursor:pointer;transition:all .15s}
         .chk-item.done{background:#f0fdf4;border-color:${C.groen}40}
         .chk-item:hover{border-color:${C.blauw}60}
         .taak-card{background:white;border:1px solid ${C.border};border-radius:10px;padding:14px;margin-bottom:8px;border-left:4px solid ${C.groen}}
         .taak-card.urgent{border-left-color:#ef4444}
         .taak-card.gedaan{border-left-color:#aab4c4;opacity:.7}
+        .upload-zone{border:2px dashed ${C.border};border-radius:10px;padding:16px;text-align:center;cursor:pointer;transition:all .2s;background:${C.bg}}
+        .upload-zone:hover,.upload-zone.dragover{border-color:${C.blauw};background:${C.blauw}08}
+        .bijlage-chip{display:inline-flex;align-items:center;gap:6px;background:${C.bg};border:1px solid ${C.border};border-radius:20px;padding:4px 10px;font-size:12px;margin:3px}
+        @media(max-width:700px){
+          .card{padding:14px;border-radius:10px}
+          .fi,.fs{padding:10px 12px;font-size:16px}
+          .g2col{grid-template-columns:1fr!important}
+          .g4col{grid-template-columns:1fr 1fr!important}
+          .hide-mobile{display:none!important}
+        }
       `}</style>
 
-      {toast && <div style={{position:"fixed",bottom:24,right:24,zIndex:9999,background:toast.type==="ok"?C.groen:"#dc2626",color:"white",padding:"12px 22px",borderRadius:10,fontWeight:600,fontSize:14,boxShadow:"0 8px 30px rgba(0,0,0,.2)"}}>{toast.msg}</div>}
+      {toast && <div style={{position:"fixed",bottom:16,right:16,left:16,zIndex:9999,background:toast.type==="ok"?C.groen:"#dc2626",color:"white",padding:"12px 18px",borderRadius:10,fontWeight:600,fontSize:14,boxShadow:"0 8px 30px rgba(0,0,0,.2)",textAlign:"center"}}>{toast.msg}</div>}
 
-      {/* TOPBAR */}
-      <div style={{background:C.blauw,borderBottom:`2px solid ${C.groen}`,padding:"0 20px",position:"sticky",top:0,zIndex:100,boxShadow:"0 2px 12px rgba(27,58,107,.3)"}}>
-        <div style={{maxWidth:1400,margin:"0 auto",display:"flex",alignItems:"center",gap:12,height:56}}>
-          <div style={{background:"white",borderRadius:8,padding:"4px 10px",display:"flex",alignItems:"center",flexShrink:0}}>
-            <span style={{fontWeight:900,fontSize:14,color:C.blauw}}>KTP</span>
-            <span style={{fontWeight:900,fontSize:14,color:C.groen,marginLeft:4}}>INTERFLEX</span>
+      {/* TOPBAR — mobiel scrollbaar */}
+      <div style={{background:C.blauw,borderBottom:`2px solid ${C.groen}`,position:"sticky",top:0,zIndex:100,boxShadow:"0 2px 12px rgba(27,58,107,.3)"}}>
+        <div style={{maxWidth:1400,margin:"0 auto",padding:"0 12px"}}>
+          {/* Logo + user rij */}
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",height:48,gap:8}}>
+            <div style={{background:"white",borderRadius:7,padding:"3px 9px",display:"flex",alignItems:"center",flexShrink:0}}>
+              <span style={{fontWeight:900,fontSize:13,color:C.blauw}}>KTP</span>
+              <span style={{fontWeight:900,fontSize:13,color:C.groen,marginLeft:3}}>IF</span>
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
+              <div style={{background:"rgba(255,255,255,.15)",borderRadius:16,padding:"4px 10px",display:"flex",alignItems:"center",gap:5}}>
+                <span style={{fontSize:12}}>{rolIcon}</span>
+                <span style={{fontSize:12,color:"white",fontWeight:600}}>{naam}</span>
+              </div>
+              <button style={{background:"rgba(255,255,255,.15)",border:"none",borderRadius:7,padding:"5px 10px",fontSize:12,color:"white",cursor:"pointer",fontFamily:"inherit"}} onClick={logout}>↩</button>
+            </div>
           </div>
-          <div style={{display:"flex",gap:2,flex:1,justifyContent:"center",flexWrap:"wrap"}}>
+          {/* Tab navigatie — horizontaal scrollbaar op mobiel */}
+          <div style={{display:"flex",gap:2,overflowX:"auto",paddingBottom:6,scrollbarWidth:"none",msOverflowStyle:"none"}}>
             {rol==="collega" && (<>
               <button className={`tp ${tab==="melding"?"act":""}`} onClick={()=>setTab("melding")}>👤 Melding</button>
               <button className={`tp ${tab==="mijn"?"act":""}`} onClick={()=>setTab("mijn")}>📋 Mijn {mijnMeldingen.length>0&&<Notif n={mijnMeldingen.length}/>}</button>
@@ -272,37 +293,13 @@ export default function App() {
               <button className={`tp ${tab==="woningen"?"act":""}`} onClick={()=>setTab("woningen")}>🏠 Woningen</button>
               <button className={`tp ${tab==="autos"?"act":""}`} onClick={()=>setTab("autos")}>🚗 Auto's</button>
             </>)}
-            {rol==="huismeester" && (<>
-              <button className={`tp ${tab==="dagplanning"?"act":""}`} onClick={()=>setTab("dagplanning")}>📅 Mijn dag {totalNotifs>0&&<Notif n={totalNotifs}/>}</button>
-              <button className={`tp ${tab==="meldingen"?"act":""}`} onClick={()=>setTab("meldingen")}>🔔 Meldingen {openMeldingen.length>0&&<Notif n={openMeldingen.length}/>}</button>
-              <button className={`tp ${tab==="taken"?"act":""}`} onClick={()=>setTab("taken")}>📌 To-do {openTaken.length>0&&<Notif n={openTaken.length}/>}</button>
-              <button className={`tp ${tab==="checklist"?"act":""}`} onClick={()=>setTab("checklist")}>✅ Checklists</button>
-              <button className={`tp ${tab==="woningen"?"act":""}`} onClick={()=>setTab("woningen")}>🏠 Woningen</button>
-              <button className={`tp ${tab==="autos"?"act":""}`} onClick={()=>setTab("autos")}>🚗 Auto's</button>
-            </>)}
-            {rol==="backoffice" && (<>
-              <button className={`tp ${tab==="woningen"?"act":""}`} onClick={()=>setTab("woningen")}>🏠 Woningen</button>
-              <button className={`tp ${tab==="planning"?"act":""}`} onClick={()=>setTab("planning")}>📊 Status</button>
-              <button className={`tp ${tab==="taken"?"act":""}`} onClick={()=>setTab("taken")}>📌 To-do {openTaken.length>0&&<Notif n={openTaken.length}/>}</button>
-              <button className={`tp ${tab==="autos"?"act":""}`} onClick={()=>setTab("autos")}>🚗 Auto's</button>
-              <button className={`tp ${tab==="inbox"?"act":""}`} onClick={()=>setTab("inbox")}>📨 Inbox {openMeldingen.length>0&&<Notif n={openMeldingen.length}/>}</button>
-              <button className={`tp ${tab==="checklist"?"act":""}`} onClick={()=>setTab("checklist")}>✅ Checklists</button>
-              <button className={`tp ${tab==="log"?"act":""}`} onClick={()=>setTab("log")}>📝 Log</button>
-              {isLiset&&<button className={`tp ${tab==="beheer"?"act":""}`} onClick={()=>setTab("beheer")}>⚙️ Beheer</button>}
-            </>)}
-          </div>
-          <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
-            <div style={{background:"rgba(255,255,255,.15)",borderRadius:20,padding:"5px 12px",display:"flex",alignItems:"center",gap:6}}>
-              <span style={{fontSize:14}}>{rolIcon}</span>
-              <span style={{fontSize:13,color:"white",fontWeight:600}}>{naam}</span>
-            </div>
-            <button className="btn-out" style={{padding:"5px 12px",fontSize:12,borderColor:"rgba(255,255,255,.3)",color:"rgba(255,255,255,.8)"}} onClick={logout}>Uitloggen</button>
+            {isLiset&&rol==="backoffice"&&<button className={`tp ${tab==="beheer"?"act":""}`} onClick={()=>setTab("beheer")}>⚙️ Beheer</button>}
           </div>
         </div>
       </div>
 
       {/* CONTENT */}
-      <div style={{maxWidth:1400,margin:"0 auto",padding:"28px 20px"}}>
+      <div style={{maxWidth:1400,margin:"0 auto",padding:"20px 12px"}}>
         {rol==="collega"&&tab==="melding"&&<MeldingForm houses={houses} onSubmit={addMelding} showToast={showToast}/>}
         {rol==="collega"&&tab==="mijn"&&<MijnMeldingen meldingen={mijnMeldingen} houses={houses}/>}
         {tab==="taken"&&<TakenView taken={taken} houses={houses} gebruiker={gebruiker} onAdd={addTaak} onUpdate={updateTaak} showToast={showToast}/>}
@@ -787,18 +784,43 @@ function MeldingForm({ houses, onSubmit, showToast }) {
   const [kamerSchoon,setKamerSchoon]=useState(null);
   const [sleutelAantal,setSleutelAantal]=useState(1);
   const [opmerkingen,setOpmerkingen]=useState("");
+  // Verhuizing extra velden
+  const [vanHuisId,setVanHuisId]=useState("");
+  const [vanKamer,setVanKamer]=useState("");
+  const [naarHuisId,setNaarHuisId]=useState("");
+  const [naarKamer,setNaarKamer]=useState("");
+  // Bijlages
+  const [bijlages,setBijlages]=useState([]);
   const [submitted,setSubmitted]=useState(false);
   const [saving,setSaving]=useState(false);
   const selectedHouse=houses.find(h=>h.id===Number(huisId));
+  const vanHuis=houses.find(h=>h.id===Number(vanHuisId));
+  const naarHuis=houses.find(h=>h.id===Number(naarHuisId));
 
   async function handleSubmit() {
     if(!medewerker.trim()){showToast("Vul naam medewerker in","err");return;}
-    if(!kamer){showToast("Selecteer een kamer","err");return;}
-    if(type==="vertrek"&&(sleutelTerug===null||kamerSchoon===null)){showToast("Vul sleutel & schoonmaak in","err");return;}
+    if(type==="verhuizing"){
+      if(!vanHuisId||!vanKamer){showToast("Vul de huidige woning/kamer in","err");return;}
+      if(!naarHuisId||!naarKamer){showToast("Vul de nieuwe woning/kamer in","err");return;}
+    } else {
+      if(!kamer){showToast("Selecteer een kamer","err");return;}
+      if(type==="vertrek"&&(sleutelTerug===null||kamerSchoon===null)){showToast("Vul sleutel & schoonmaak in","err");return;}
+    }
     setSaving(true);
-    await onSubmit({type,medewerker:medewerker.trim(),datum,huisId:Number(huisId),kamer,wieRegelt,sleutelTerug,kamerSchoon,sleutelAantal,opmerkingen});
+    const meldingData = {
+      type, medewerker:medewerker.trim(), datum,
+      huisId: type==="verhuizing" ? Number(naarHuisId) : Number(huisId),
+      kamer: type==="verhuizing" ? naarKamer : kamer,
+      wieRegelt, sleutelTerug, kamerSchoon, sleutelAantal,
+      opmerkingen: type==="verhuizing"
+        ? `Verhuizing van ${vanHuis?.adres} K${vanKamer} naar ${naarHuis?.adres} K${naarKamer}${opmerkingen?". "+opmerkingen:""}`
+        : opmerkingen,
+      bijlages,
+    };
+    await onSubmit(meldingData);
     setSaving(false);
     setMedewerker("");setOpmerkingen("");setKamer("");setSleutelTerug(null);setKamerSchoon(null);setWieRegelt("");
+    setVanHuisId("");setVanKamer("");setNaarHuisId("");setNaarKamer("");setBijlages([]);
     setSubmitted(true);setTimeout(()=>setSubmitted(false),2500);
   }
 
@@ -811,9 +833,20 @@ function MeldingForm({ houses, onSubmit, showToast }) {
     </div>
   );
 
-  const types=[{id:"aankomst",icon:"🚗",label:"AANKOMST",color:C.groen},{id:"vertrek",icon:"🧳",label:"VERTREK",color:"#ef4444"},{id:"reservering",icon:"📅",label:"RESERVERING",color:C.blauw},{id:"overig",icon:"💬",label:"OVERIG",color:C.muted}];
+  const types=[
+    {id:"aankomst",    icon:"🚗", label:"AANKOMST",    color:C.groen},
+    {id:"vertrek",     icon:"🧳", label:"VERTREK",     color:"#ef4444"},
+    {id:"reservering", icon:"📅", label:"RESERVERING", color:C.blauw},
+    {id:"verhuizing",  icon:"📦", label:"VERHUIZING",  color:"#7c3aed"},
+    {id:"overig",      icon:"💬", label:"OVERIG",      color:C.muted},
+  ];
 
-  // Groepeer woningen per stad
+  function handleBijlage(e) {
+    const files = Array.from(e.target.files||[]);
+    setBijlages(prev=>[...prev,...files.map(f=>({naam:f.name,type:f.type,grootte:f.size,bestand:f}))]);
+  }
+
+  // Steden voor dropdown
   const steden=[...new Set(houses.map(h=>h.stad))].sort();
 
   return (
@@ -831,27 +864,67 @@ function MeldingForm({ houses, onSubmit, showToast }) {
           ))}
         </div>
       </div>
-      <div className="card" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:18,marginBottom:16}}>
-        <div><label className="fl">Naam medewerker</label><input className="fi" value={medewerker} onChange={e=>setMedewerker(e.target.value)} placeholder="Voor- en achternaam"/></div>
-        <div><label className="fl">Datum</label><input className="fi" type="date" value={datum} onChange={e=>setDatum(e.target.value)}/></div>
-        <div>
-          <label className="fl">Woning</label>
-          <select className="fs" value={huisId} onChange={e=>{setHuisId(e.target.value);setKamer("");}}>
-            {steden.map(stad=>(
-              <optgroup key={stad} label={stad}>
-                {houses.filter(h=>h.stad===stad).map(h=><option key={h.id} value={h.id}>{h.adres}</option>)}
-              </optgroup>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="fl">Kamernummer</label>
-          <select className="fs" value={kamer} onChange={e=>setKamer(e.target.value)}>
-            <option value="">Selecteer kamer</option>
-            {selectedHouse?.kamers.map(k=><option key={k.k} value={k.k}>Kamer {k.k}{k.naam?` – ${k.naam}`:""} [{k.status}]</option>)}
-          </select>
-        </div>
+      <div className="card" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}} >
+        <div style={{gridColumn:"1"}}><label className="fl">Naam medewerker</label><input className="fi" value={medewerker} onChange={e=>setMedewerker(e.target.value)} placeholder="Voor- en achternaam"/></div>
+        <div style={{gridColumn:"2"}}><label className="fl">Datum</label><input className="fi" type="date" value={datum} onChange={e=>setDatum(e.target.value)}/></div>
+        {type!=="verhuizing"&&<>
+          <div>
+            <label className="fl">Woning</label>
+            <select className="fs" value={huisId} onChange={e=>{setHuisId(e.target.value);setKamer("");}}>
+              {steden.map(stad=>(<optgroup key={stad} label={stad}>{houses.filter(h=>h.stad===stad).map(h=><option key={h.id} value={h.id}>{h.adres}</option>)}</optgroup>))}
+            </select>
+          </div>
+          <div>
+            <label className="fl">Kamernummer</label>
+            <select className="fs" value={kamer} onChange={e=>setKamer(e.target.value)}>
+              <option value="">Selecteer kamer</option>
+              {selectedHouse?.kamers.map(k=><option key={k.k} value={k.k}>Kamer {k.k}{k.naam?` – ${k.naam}`:""} [{k.status}]</option>)}
+            </select>
+          </div>
+        </>}
       </div>
+
+      {/* VERHUIZING velden */}
+      {type==="verhuizing"&&(
+        <div className="card" style={{marginBottom:16,borderTop:`3px solid #7c3aed`}}>
+          <div style={{fontWeight:700,fontSize:14,color:"#7c3aed",marginBottom:14}}>📦 Verhuizingsgegevens</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:12}}>
+            <div>
+              <label className="fl">Van woning</label>
+              <select className="fs" value={vanHuisId} onChange={e=>{setVanHuisId(e.target.value);setVanKamer("");}}>
+                <option value="">Huidige woning</option>
+                {steden.map(stad=>(<optgroup key={stad} label={stad}>{houses.filter(h=>h.stad===stad).map(h=><option key={h.id} value={h.id}>{h.adres}</option>)}</optgroup>))}
+              </select>
+            </div>
+            <div>
+              <label className="fl">Van kamer</label>
+              <select className="fs" value={vanKamer} onChange={e=>setVanKamer(e.target.value)} disabled={!vanHuisId}>
+                <option value="">Kamer</option>
+                {vanHuis?.kamers.map(k=><option key={k.k} value={k.k}>K{k.k}{k.naam?` – ${k.naam}`:""}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="fl">Naar woning</label>
+              <select className="fs" value={naarHuisId} onChange={e=>{setNaarHuisId(e.target.value);setNaarKamer("");}}>
+                <option value="">Nieuwe woning</option>
+                {steden.map(stad=>(<optgroup key={stad} label={stad}>{houses.filter(h=>h.stad===stad).map(h=><option key={h.id} value={h.id}>{h.adres}</option>)}</optgroup>))}
+              </select>
+            </div>
+            <div>
+              <label className="fl">Naar kamer</label>
+              <select className="fs" value={naarKamer} onChange={e=>setNaarKamer(e.target.value)} disabled={!naarHuisId}>
+                <option value="">Kamer</option>
+                {naarHuis?.kamers.map(k=><option key={k.k} value={k.k}>K{k.k}{k.naam?` – ${k.naam}`:""} [{k.status}]</option>)}
+              </select>
+            </div>
+          </div>
+          {vanHuisId&&vanKamer&&naarHuisId&&naarKamer&&(
+            <div style={{background:"#f5f3ff",border:"1px solid #c4b5fd",borderRadius:8,padding:"10px 14px",fontSize:13,color:"#6d28d9",fontWeight:500}}>
+              📦 {vanHuis?.adres} K{vanKamer} → {naarHuis?.adres} K{naarKamer}
+            </div>
+          )}
+        </div>
+      )}
       {(type==="aankomst"||type==="reservering")&&(
         <div className="card" style={{marginBottom:16,display:"grid",gridTemplateColumns:"1fr 1fr",gap:18}}>
           <div><label className="fl">Wie regelt aankomst?</label><input className="fi" value={wieRegelt} onChange={e=>setWieRegelt(e.target.value)} placeholder="bijv. NW CB, Hans, zelf..."/></div>
@@ -888,8 +961,33 @@ function MeldingForm({ houses, onSubmit, showToast }) {
           {kamerSchoon==="controle"&&<div style={{marginTop:8,padding:"10px 14px",background:"#fef3c7",border:"1px solid #fcd34d",borderRadius:8,fontSize:13,color:"#b45309",fontWeight:500}}>🔍 Schoonmaak in controle → huismeester wordt gevraagd te inspecteren</div>}
         </div>
       )}
-      <div className="card" style={{marginBottom:20}}><label className="fl">Opmerkingen</label><textarea className="fi" value={opmerkingen} onChange={e=>setOpmerkingen(e.target.value)} placeholder="Eventuele bijzonderheden..." rows={3} style={{resize:"vertical"}}/></div>
-      <button className="btn-b" style={{width:"100%",padding:14,fontSize:15}} onClick={handleSubmit} disabled={saving}>{saving?"⏳ Opslaan...":`✓ ${type.charAt(0).toUpperCase()+type.slice(1)} doorgeven`}</button>
+      <div className="card" style={{marginBottom:16}}><label className="fl">Opmerkingen</label><textarea className="fi" value={opmerkingen} onChange={e=>setOpmerkingen(e.target.value)} placeholder="Eventuele bijzonderheden..." rows={3} style={{resize:"vertical"}}/></div>
+
+      {/* BIJLAGES */}
+      <div className="card" style={{marginBottom:20}}>
+        <label className="fl">📎 Bijlages toevoegen (optioneel)</label>
+        <label style={{display:"block",cursor:"pointer"}}>
+          <div className="upload-zone">
+            <div style={{fontSize:28,marginBottom:6}}>📎</div>
+            <div style={{fontSize:14,fontWeight:600,color:C.blauw,marginBottom:4}}>Klik om bestanden te kiezen</div>
+            <div style={{fontSize:12,color:C.muted}}>Foto's, PDF's of documenten — bijv. schadefotos</div>
+            <input type="file" multiple accept="image/*,.pdf,.doc,.docx" onChange={handleBijlage} style={{display:"none"}}/>
+          </div>
+        </label>
+        {bijlages.length>0&&(
+          <div style={{marginTop:10,display:"flex",flexWrap:"wrap",gap:6}}>
+            {bijlages.map((b,i)=>(
+              <div key={i} className="bijlage-chip">
+                <span>{b.naam.length>20?b.naam.slice(0,20)+"...":b.naam}</span>
+                <span style={{color:C.muted,fontSize:11}}>({Math.round(b.grootte/1024)}KB)</span>
+                <button onClick={()=>setBijlages(prev=>prev.filter((_,j)=>j!==i))}
+                  style={{background:"none",border:"none",color:"#ef4444",cursor:"pointer",fontFamily:"inherit",fontSize:14,lineHeight:1,padding:"0 2px"}}>×</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      <button className="btn-b" style={{width:"100%",padding:14,fontSize:15}} onClick={handleSubmit} disabled={saving}>{saving?"⏳ Opslaan...":`✓ ${type==="verhuizing"?"Verhuizing":type.charAt(0).toUpperCase()+type.slice(1)} doorgeven`}</button>
     </div>
   );
 }
@@ -900,8 +998,8 @@ function MijnMeldingen({meldingen,houses}) {
 }
 
 function MeldingItem({m,houses}) {
-  const ti={aankomst:"🚗",vertrek:"🧳",reservering:"📅",overig:"💬"};
-  const tc={aankomst:C.groen,vertrek:"#ef4444",reservering:C.blauw,overig:C.muted};
+  const ti={aankomst:"🚗",vertrek:"🧳",reservering:"📅",verhuizing:"📦",overig:"💬"};
+  const tc={aankomst:C.groen,vertrek:"#ef4444",reservering:C.blauw,verhuizing:"#7c3aed",overig:C.muted};
   const huis=houses.find(h=>h.id===m.woning_id);
   return(
     <div className="mc" style={{borderLeft:`3px solid ${m.sleutel_terug==="nee"||m.kamer_schoon==="nee"?"#ef4444":tc[m.type]||C.muted}`}}>
