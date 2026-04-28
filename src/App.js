@@ -2,6 +2,29 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "./supabaseClient";
 import { AutoModule } from "./AutoModule";
 
+// ─── EMAILJS ──────────────────────────────────────────────────────────────────
+const EMAILJS_SERVICE  = "service_1af258e";
+const EMAILJS_TEMPLATE = "template_2mjnbok";
+const EMAILJS_PUBLIC   = "CJEVdAOdA03ZQxE28";
+
+async function stuurMail(params) {
+  try {
+    const res = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        service_id:  EMAILJS_SERVICE,
+        template_id: EMAILJS_TEMPLATE,
+        user_id:     EMAILJS_PUBLIC,
+        template_params: params,
+      }),
+    });
+    if (!res.ok) console.error("EmailJS fout:", await res.text());
+  } catch (e) {
+    console.error("EmailJS fout:", e);
+  }
+}
+
 // ─── KLEUREN HUISSTIJL ────────────────────────────────────────────────────────
 const C = {
   blauw:     "#1B3A6B", blauwDark: "#132b52", blauwLight:"#2a52a0",
@@ -143,6 +166,8 @@ export default function App() {
       opmerkingen:m.opmerkingen||null, ingediend_door:gebruiker.naam, status:"open",
     }]);
     if (error) { showToast("Fout bij opslaan","err"); return; }
+
+    // Kamerstatus bijwerken
     const huis = houses.find(h=>h.id===m.huisId);
     if (huis) {
       const nk = huis.kamers.map(k => {
@@ -154,6 +179,30 @@ export default function App() {
       });
       await supabase.from("woningen").update({kamers:nk}).eq("id",m.huisId);
     }
+
+    // ── E-mail sturen ──────────────────────────────────────────────────────
+    const typeIcons = {
+      aankomst:"🚗 Aankomst", vertrek:"🧳 Vertrek",
+      reservering:"📅 Reservering", verhuizing:"📦 Verhuizing",
+      overig:"💬 Overig",
+    };
+    const huisNaam = huis ? `${huis.adres}, ${huis.stad}` : "Onbekend";
+    let opmerkingenTxt = m.opmerkingen || "—";
+    if (m.type==="vertrek") {
+      opmerkingenTxt += `\nSleutel terug: ${m.sleutelTerug||"?"}`;
+      opmerkingenTxt += `\nKamer schoon: ${m.kamerSchoon||"?"}`;
+    }
+    stuurMail({
+      type:         typeIcons[m.type] || m.type,
+      type_icon:    typeIcons[m.type]?.split(" ")[0] || "📋",
+      medewerker:   m.medewerker,
+      woning:       huisNaam,
+      kamer:        `Kamer ${m.kamer}`,
+      datum:        m.datum,
+      ingediend_door: gebruiker.naam,
+      opmerkingen:  opmerkingenTxt,
+    });
+
     showToast("✓ Melding verzonden");
   }
 
