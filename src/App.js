@@ -80,6 +80,7 @@ export default function App() {
   const [taken, setTaken] = useState([]);
   const [checklists, setChecklists] = useState([]);
   const [checklistItems, setChecklistItems] = useState([]);
+  const [activiteiten, setActiviteiten] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTabState] = useState("melding");
   function setTab(t) {
@@ -100,6 +101,12 @@ export default function App() {
     const { data, error } = await supabase.from("checklist_items").select("*").eq("actief", true).order("type").order("volgorde");
     if (error) { console.error("checklist_items:", error); return; }
     setChecklistItems(data || []);
+  }, []);
+
+  const loadActiviteiten = useCallback(async () => {
+    const { data, error } = await supabase.from("activiteiten").select("*").order("created_at", { ascending: false }).limit(200);
+    if (error) { console.error("activiteiten:", error); return; }
+    setActiviteiten(data || []);
   }, []);
 
   const loadGebruikers = useCallback(async () => {
@@ -135,11 +142,11 @@ export default function App() {
   useEffect(() => {
     async function init() {
       setLoading(true);
-      await Promise.all([loadGebruikers(), loadHouses(), loadMeldingen(), loadTaken(), loadChecklists(), loadChecklistItems()]);
+      await Promise.all([loadGebruikers(), loadHouses(), loadMeldingen(), loadTaken(), loadChecklists(), loadChecklistItems(), loadActiviteiten()]);
       setLoading(false);
     }
     init();
-  }, [loadGebruikers, loadHouses, loadMeldingen, loadTaken, loadChecklists, loadChecklistItems]);
+  }, [loadGebruikers, loadHouses, loadMeldingen, loadTaken, loadChecklists, loadChecklistItems, loadActiviteiten]);
 
   useEffect(() => {
     const s1 = supabase.channel("mel-rt").on("postgres_changes",{event:"*",schema:"public",table:"meldingen"},()=>loadMeldingen()).subscribe();
@@ -148,8 +155,9 @@ export default function App() {
     const s4 = supabase.channel("chk-rt").on("postgres_changes",{event:"*",schema:"public",table:"checklists"},()=>loadChecklists()).subscribe();
     const s5 = supabase.channel("gbr-rt").on("postgres_changes",{event:"*",schema:"public",table:"gebruikers"},()=>loadGebruikers()).subscribe();
     const s6 = supabase.channel("chi-rt").on("postgres_changes",{event:"*",schema:"public",table:"checklist_items"},()=>loadChecklistItems()).subscribe();
-    return () => { supabase.removeChannel(s1); supabase.removeChannel(s2); supabase.removeChannel(s3); supabase.removeChannel(s4); supabase.removeChannel(s5); supabase.removeChannel(s6); };
-  }, [loadHouses, loadMeldingen, loadTaken, loadChecklists, loadGebruikers, loadChecklistItems]);
+    const s7 = supabase.channel("act-rt").on("postgres_changes",{event:"*",schema:"public",table:"activiteiten"},()=>loadActiviteiten()).subscribe();
+    return () => { supabase.removeChannel(s1); supabase.removeChannel(s2); supabase.removeChannel(s3); supabase.removeChannel(s4); supabase.removeChannel(s5); supabase.removeChannel(s6); supabase.removeChannel(s7); };
+  }, [loadHouses, loadMeldingen, loadTaken, loadChecklists, loadGebruikers, loadChecklistItems, loadActiviteiten]);
 
   function showToast(msg, type="ok") { setToast({msg,type}); setTimeout(()=>setToast(null),3500); }
 
@@ -228,10 +236,22 @@ export default function App() {
     showToast("✓ Melding verzonden");
   }
 
+  async function logActiviteit(type, omschrijving, extra={}) {
+    await supabase.from("activiteiten").insert([{ type, omschrijving, gedaan_door: gebruiker.naam, extra }]);
+    await loadActiviteiten();
+  }
+
   async function updateMeldingStatus(id, newStatus, notitie="") {
+    const m = meldingen.find(m=>m.id===id);
+    const huis = houses.find(h=>h.id===m?.woning_id);
     const { error } = await supabase.from("meldingen").update({status:newStatus,afgehandeld_door:gebruiker.naam,afgehandeld_op:new Date().toISOString(),notitie:notitie||null}).eq("id",id);
     if (error) showToast("Fout bij updaten","err");
-    else { showToast("✓ Status bijgewerkt"); await loadMeldingen(); }
+    else {
+      showToast("✓ Status bijgewerkt");
+      await loadMeldingen();
+      const statusTekst = newStatus==="afgehandeld"?"✅ Afgehandeld":newStatus==="verwerkt"?"📋 Verwerkt":newStatus==="in_behandeling"?"🔄 In behandeling":"📝 Status gewijzigd";
+      logActiviteit("melding_status", `${statusTekst}: ${m?.medewerker||"?"} — ${m?.type||""} — ${huis?.adres||"?"} K${m?.kamer||"?"}${notitie?` (${notitie})`:""}`, {melding_id:id, status:newStatus});
+    }
   }
 
   async function addTaak(taak) {
@@ -241,8 +261,16 @@ export default function App() {
   }
 
   async function updateTaak(id, updates) {
+    const t = taken.find(t=>t.id===id);
+    const huis = houses.find(h=>h.id===t?.woning_id);
     const { error } = await supabase.from("taken").update(updates).eq("id",id);
-    if (error) showToast("Fout","err"); else { showToast("✓ Opgeslagen"); await loadTaken(); }
+    if (error) showToast("Fout","err");
+    else {
+      showToast("✓ Opgeslagen"); await loadTaken();
+      if (updates.status==="gedaan") {
+        logActiviteit("taak_gedaan", `✅ Taak gedaan: ${t?.titel||"?"} — ${huis?.adres||"Algemeen"}${t?.kamer?` K${t.kamer}`:""}`, {taak_id:id});
+      }
+    }
   }
 
   async function addWoning(w) {
@@ -266,12 +294,15 @@ export default function App() {
   async function slaChecklistOp(type, week, items, huisId) {
     const key = `${type}_${week}_${huisId||"all"}`;
     const bestaand = checklists.find(c=>c.sleutel===key);
+    const huis = houses.find(h=>h.id===huisId);
     if (bestaand) {
       await supabase.from("checklists").update({items,bijgewerkt_door:gebruiker.naam,updated_at:new Date().toISOString()}).eq("id",bestaand.id);
     } else {
       await supabase.from("checklists").insert([{sleutel:key,type,week_jaar:week,woning_id:huisId||null,items,aangemaakt_door:gebruiker.naam}]);
     }
     await loadChecklists();
+    const typeLabel = type==="wekelijks"?"📋 Wekelijkse":type==="4wekelijks"?"📅 4-wekelijkse":"🏆 Kwartaal";
+    logActiviteit("checklist", `${typeLabel} checklist opgeslagen: ${items.length} items afgevinkt${huis?` — ${huis.adres}`:""}`, {type, week, items_count: items.length});
   }
 
   const openMeldingen = meldingen.filter(m=>m.status==="open");
@@ -400,7 +431,7 @@ export default function App() {
         {rol==="huismeester"&&tab==="meldingen"&&<HuismeesterTaken meldingen={meldingen} houses={houses} onUpdate={updateMeldingStatus} naam={naam}/>}
         {tab==="checklist"&&<ChecklistView houses={houses} checklists={checklists} checklistItems={checklistItems} onSave={slaChecklistOp} gebruiker={gebruiker}/>}
         {rol==="backoffice"&&tab==="inbox"&&<BackofficeInbox meldingen={meldingen} houses={houses} onUpdate={updateMeldingStatus} naam={naam} showToast={showToast}/>}
-        {rol==="backoffice"&&tab==="log"&&<LogView meldingen={meldingen} houses={houses}/>}
+        {rol==="backoffice"&&tab==="log"&&<LogView meldingen={meldingen} houses={houses} activiteiten={activiteiten}/>}
         {rol==="backoffice"&&isLiset&&tab==="beheer"&&<BeheerView houses={houses} onAdd={addWoning} onUpdate={updateWoning} onDelete={deleteWoning} showToast={showToast} gebruikers={gebruikers} onAddGebruiker={voegGebruikerToe} onUpdateGebruiker={updateGebruiker} onDeleteGebruiker={verwijderGebruiker} checklistItems={checklistItems}/>}
       </div>
     </div>
@@ -1708,31 +1739,91 @@ function ChecklistItemsBeheer({ checklistItems, showToast }) {
 }
 
 // ─── LOG VIEW ─────────────────────────────────────────────────────────────────
-function LogView({meldingen,houses}) {
+function LogView({meldingen,houses,activiteiten}) {
+  const [subTab, setSubTab] = useState("meldingen");
+
   function exportCSV() {
     let csv="Datum,Tijd,Type,Medewerker,Adres,Kamer,Wie regelt,Ingediend door,Status,Sleutel terug,Kamer schoon,Notitie\n";
     meldingen.forEach(m=>{const h=houses.find(h=>h.id===m.woning_id);const dt=m.created_at?new Date(m.created_at):new Date();csv+=`"${fmtDate(dt)}","${fmtTime(dt)}","${m.type}","${m.medewerker}","${h?.adres||""}","${m.kamer}","${m.wie_regelt||""}","${m.ingediend_door}","${m.status}","${m.sleutel_terug||""}","${m.kamer_schoon||""}","${m.notitie||""}"\n`;});
     const blob=new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"});
     const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`KTP_meldingen_${todayISO()}.csv`;a.click();URL.revokeObjectURL(url);
   }
-  return(
+
+  const typeKleur = {
+    melding_status: C.groen, taak_gedaan: C.blauw,
+    checklist: "#7c3aed", kamer_wijziging: C.oranje||"#f59e0b", gebruiker: C.muted,
+  };
+  const typeLabel = {
+    melding_status:"Melding", taak_gedaan:"Taak", checklist:"Checklist",
+    kamer_wijziging:"Kamer", gebruiker:"Gebruiker",
+  };
+
+  return (
     <div>
-      <SH titel="Volledig log" sub={`${meldingen.length} meldingen totaal`} actie={<button className="btn-out" onClick={exportCSV}>⬇ Exporteer CSV</button>}/>
-      {meldingen.length===0?<div className="card" style={{textAlign:"center",padding:"50px"}}><div style={{fontSize:40,marginBottom:10}}>📝</div><div style={{color:C.muted}}>Nog geen meldingen</div></div>:(
-        <div className="card" style={{padding:0,overflow:"hidden"}}>
-          <div style={{display:"grid",gridTemplateColumns:"80px 60px 100px 1fr 1fr 50px 80px 80px",padding:"10px 16px",fontSize:10,fontWeight:700,color:C.muted,letterSpacing:".6px",textTransform:"uppercase",borderBottom:`1px solid ${C.border}`,background:C.bg}}>
-            <span>Datum</span><span>Tijd</span><span>Type</span><span>Medewerker</span><span>Adres</span><span>Kamer</span><span>Door</span><span>Status</span>
-          </div>
-          {meldingen.map((m,i)=>{const h=houses.find(h=>h.id===m.woning_id);const tc={aankomst:C.groen,vertrek:"#ef4444",reservering:C.blauw,overig:C.muted};const dt=m.created_at?new Date(m.created_at):new Date();return(
-            <div key={m.id} style={{display:"grid",gridTemplateColumns:"80px 60px 100px 1fr 1fr 50px 80px 80px",padding:"10px 16px",fontSize:12,borderBottom:i<meldingen.length-1?`1px solid ${C.border}`:"none",alignItems:"center",background:i%2===0?"white":C.bg+"60"}}>
-              <span style={{color:C.muted}}>{fmtDate(dt)}</span><span style={{color:C.muted}}>{fmtTime(dt)}</span>
-              <span style={{color:tc[m.type]||C.muted,fontWeight:700,fontSize:10,textTransform:"uppercase"}}>{m.type}</span>
-              <span style={{fontWeight:600,color:C.text}}>{m.medewerker}</span><span style={{color:C.muted}}>{h?.adres}</span>
-              <span style={{fontFamily:"monospace",color:C.muted}}>K{m.kamer}</span><span style={{color:C.muted}}>{m.ingediend_door}</span>
-              <span style={{fontSize:10,fontWeight:700,color:m.status==="open"?C.blauw:C.groen}}>{(m.status||"").toUpperCase()}</span>
+      <SH titel="📝 Log" sub={`${meldingen.length} meldingen · ${activiteiten.length} activiteiten`}
+        actie={subTab==="meldingen"&&<button className="btn-out" onClick={exportCSV}>⬇ Exporteer CSV</button>}/>
+
+      {/* Sub-tabs */}
+      <div style={{display:"flex",gap:6,marginBottom:20,borderBottom:`2px solid ${C.border}`,paddingBottom:0}}>
+        {[["meldingen","📋 Meldingen"],["activiteiten","⚡ Activiteiten"]].map(([v,l])=>(
+          <button key={v} onClick={()=>setSubTab(v)}
+            style={{background:"none",border:"none",padding:"10px 18px",fontSize:14,fontWeight:700,color:subTab===v?C.blauw:C.muted,borderBottom:subTab===v?`3px solid ${C.blauw}`:"3px solid transparent",marginBottom:-2,cursor:"pointer",fontFamily:"inherit"}}>
+            {l} <span style={{fontSize:12,fontWeight:400,color:C.muted}}>({subTab===v||true?(v==="meldingen"?meldingen.length:activiteiten.length):""})</span>
+          </button>
+        ))}
+      </div>
+
+      {/* MELDINGEN TAB */}
+      {subTab==="meldingen"&&(
+        meldingen.length===0?<div className="card" style={{textAlign:"center",padding:"50px"}}><div style={{fontSize:40,marginBottom:10}}>📝</div><div style={{color:C.muted}}>Nog geen meldingen</div></div>:(
+          <div className="card" style={{padding:0,overflow:"hidden"}}>
+            <div style={{display:"grid",gridTemplateColumns:"80px 60px 100px 1fr 1fr 50px 80px 80px",padding:"10px 16px",fontSize:10,fontWeight:700,color:C.muted,letterSpacing:".6px",textTransform:"uppercase",borderBottom:`1px solid ${C.border}`,background:C.bg}}>
+              <span>Datum</span><span>Tijd</span><span>Type</span><span>Medewerker</span><span>Adres</span><span>Kamer</span><span>Door</span><span>Status</span>
             </div>
-          );})}
-        </div>
+            {meldingen.map((m,i)=>{const h=houses.find(h=>h.id===m.woning_id);const tc={aankomst:C.groen,vertrek:"#ef4444",reservering:C.blauw,verhuizing:"#7c3aed",overig:C.muted};const dt=m.created_at?new Date(m.created_at):new Date();return(
+              <div key={m.id} style={{display:"grid",gridTemplateColumns:"80px 60px 100px 1fr 1fr 50px 80px 80px",padding:"10px 16px",fontSize:12,borderBottom:i<meldingen.length-1?`1px solid ${C.border}`:"none",alignItems:"center",background:i%2===0?"white":C.bg+"60"}}>
+                <span style={{color:C.muted}}>{fmtDate(dt)}</span>
+                <span style={{color:C.muted}}>{fmtTime(dt)}</span>
+                <span style={{color:tc[m.type]||C.muted,fontWeight:700,fontSize:10,textTransform:"uppercase"}}>{m.type}</span>
+                <span style={{fontWeight:600,color:C.text}}>{m.medewerker}</span>
+                <span style={{color:C.muted}}>{h?.adres}</span>
+                <span style={{fontFamily:"monospace",color:C.muted}}>K{m.kamer}</span>
+                <span style={{color:C.muted}}>{m.ingediend_door}</span>
+                <span style={{fontSize:10,fontWeight:700,color:m.status==="open"?C.blauw:C.groen}}>{(m.status||"").toUpperCase()}</span>
+              </div>
+            );})}
+          </div>
+        )
+      )}
+
+      {/* ACTIVITEITEN TAB */}
+      {subTab==="activiteiten"&&(
+        activiteiten.length===0?
+          <div className="card" style={{textAlign:"center",padding:"50px"}}>
+            <div style={{fontSize:40,marginBottom:10}}>⚡</div>
+            <div style={{color:C.muted}}>Nog geen activiteiten geregistreerd</div>
+            <div style={{fontSize:12,color:C.muted,marginTop:6}}>Activiteiten worden bijgehouden zodra iemand iets afhandelt of afvinkt</div>
+          </div>
+        :(
+          <div className="card" style={{padding:0,overflow:"hidden"}}>
+            <div style={{display:"grid",gridTemplateColumns:"80px 60px 120px 1fr 120px",padding:"10px 16px",fontSize:10,fontWeight:700,color:C.muted,letterSpacing:".6px",textTransform:"uppercase",borderBottom:`1px solid ${C.border}`,background:C.bg}}>
+              <span>Datum</span><span>Tijd</span><span>Type</span><span>Omschrijving</span><span>Gedaan door</span>
+            </div>
+            {activiteiten.map((a,i)=>{
+              const dt=a.created_at?new Date(a.created_at):new Date();
+              const kleur=typeKleur[a.type]||C.muted;
+              return(
+                <div key={a.id} style={{display:"grid",gridTemplateColumns:"80px 60px 120px 1fr 120px",padding:"10px 16px",fontSize:12,borderBottom:i<activiteiten.length-1?`1px solid ${C.border}`:"none",alignItems:"center",background:i%2===0?"white":C.bg+"60"}}>
+                  <span style={{color:C.muted}}>{fmtDate(dt)}</span>
+                  <span style={{color:C.muted}}>{fmtTime(dt)}</span>
+                  <span style={{padding:"2px 8px",borderRadius:4,background:kleur+"18",color:kleur,fontSize:10,fontWeight:700,whiteSpace:"nowrap"}}>{typeLabel[a.type]||a.type}</span>
+                  <span style={{color:C.text,fontSize:13}}>{a.omschrijving}</span>
+                  <span style={{fontWeight:600,color:C.blauw,fontSize:12}}>{a.gedaan_door}</span>
+                </div>
+              );
+            })}
+          </div>
+        )
       )}
     </div>
   );
