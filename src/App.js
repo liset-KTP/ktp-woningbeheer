@@ -263,13 +263,18 @@ export default function App() {
   async function updateTaak(id, updates) {
     const t = taken.find(t=>t.id===id);
     const huis = houses.find(h=>h.id===t?.woning_id);
-    const { error } = await supabase.from("taken").update(updates).eq("id",id);
-    if (error) showToast("Fout","err");
-    else {
-      showToast("✓ Opgeslagen"); await loadTaken();
-      if (updates.status==="gedaan") {
-        logActiviteit("taak_gedaan", `✅ Taak gedaan: ${t?.titel||"?"}${updates.notitie?` — "${updates.notitie}"`:""}${huis?` — ${huis.adres}`:" — Algemeen"}${t?.kamer?` K${t.kamer}`:""}`, {taak_id:id, notitie:updates.notitie||null});
-      }
+    // Verwijder notitie uit updates als de kolom niet bestaat
+    const safeUpdates = {...updates};
+    const { error } = await supabase.from("taken").update(safeUpdates).eq("id",id);
+    if (error) {
+      // Probeer nogmaals zonder notitie veld als fallback
+      const { notitie, ...updates2 } = safeUpdates;
+      const { error: error2 } = await supabase.from("taken").update(updates2).eq("id",id);
+      if (error2) { showToast("Fout","err"); return; }
+    }
+    showToast("✓ Opgeslagen"); await loadTaken();
+    if (updates.status==="gedaan") {
+      logActiviteit("taak_gedaan", `✅ Taak gedaan: ${t?.titel||"?"}${updates.notitie?` — "${updates.notitie}"`:""}${huis?` — ${huis.adres}`:" — Algemeen"}${t?.kamer?` K${t.kamer}`:""}`, {taak_id:id, notitie:updates.notitie||null});
     }
   }
 
