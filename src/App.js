@@ -268,7 +268,7 @@ export default function App() {
     else {
       showToast("✓ Opgeslagen"); await loadTaken();
       if (updates.status==="gedaan") {
-        logActiviteit("taak_gedaan", `✅ Taak gedaan: ${t?.titel||"?"} — ${huis?.adres||"Algemeen"}${t?.kamer?` K${t.kamer}`:""}`, {taak_id:id});
+        logActiviteit("taak_gedaan", `✅ Taak gedaan: ${t?.titel||"?"}${updates.notitie?` — "${updates.notitie}"`:""}${huis?` — ${huis.adres}`:" — Algemeen"}${t?.kamer?` K${t.kamer}`:""}`, {taak_id:id, notitie:updates.notitie||null});
       }
     }
   }
@@ -636,7 +636,7 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
                     <div style={{fontWeight:600,fontSize:13,color:C.text}}>{t.titel}</div>
                     <div style={{fontSize:12,color:C.muted}}>{huis?.adres||"Algemeen"}{t.kamer?` · K${t.kamer}`:""}</div>
                   </div>
-                  <button className="btn-b" style={{padding:"5px 12px",fontSize:11}} onClick={()=>onUpdateTaak(t.id,{status:"gedaan",afgehandeld_door:naam,afgehandeld_op:new Date().toISOString()})}>✓</button>
+                  <button className="btn-b" style={{padding:"5px 12px",fontSize:11}} onClick={()=>onUpdateTaak(t.id,{status:"gedaan",afgehandeld_door:naam,afgehandeld_op:new Date().toISOString(),notitie:null})}>✓</button>
                 </div>
               );
             })}
@@ -654,6 +654,8 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
   const [filter, setFilter] = useState("open");
   const [nieuw, setNieuw] = useState({titel:"",omschrijving:"",woning_id:"",kamer:"",prioriteit:"middel"});
   const [saving, setSaving] = useState(false);
+  const [notitieMap, setNotitieMap] = useState({});
+  const [bevestigMap, setBevestigMap] = useState({});
 
   const gefilterd = taken.filter(t=> filter==="open"?t.status==="open": filter==="gedaan"?t.status==="gedaan": true);
   const selectedHouse = houses.find(h=>h.id===Number(nieuw.woning_id));
@@ -749,15 +751,38 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                   {" · "}Toegevoegd door {t.aangemaakt_door}{t.created_at?` · ${fmtFull(t.created_at)}`:""}
                 </div>
                 {t.omschrijving&&<div style={{fontSize:13,color:C.muted,marginTop:4,fontStyle:"italic"}}>"{t.omschrijving}"</div>}
-                {gedaan&&t.afgehandeld_door&&<div style={{fontSize:12,color:C.groen,marginTop:4}}>✓ Afgehandeld door {t.afgehandeld_door}</div>}
+                {gedaan&&t.afgehandeld_door&&(
+                  <div style={{marginTop:6}}>
+                    <div style={{fontSize:12,color:C.groen}}>✓ Afgehandeld door {t.afgehandeld_door}{t.afgehandeld_op?` · ${fmtFull(t.afgehandeld_op)}`:""}</div>
+                    {t.notitie&&<div style={{fontSize:13,color:C.muted,marginTop:3,fontStyle:"italic"}}>💬 "{t.notitie}"</div>}
+                  </div>
+                )}
               </div>
-              {!gedaan&&(
-                <button className="btn-g" style={{padding:"7px 14px",fontSize:12,flexShrink:0}}
-                  onClick={()=>onUpdate(t.id,{status:"gedaan",afgehandeld_door:gebruiker.naam,afgehandeld_op:new Date().toISOString()})}>
-                  ✓ Gedaan
-                </button>
-              )}
             </div>
+            {!gedaan&&(
+              bevestigMap[t.id] ? (
+                <div style={{marginTop:12,padding:"12px",background:C.groen+"08",border:`1px solid ${C.groen}30`,borderRadius:10}}>
+                  <label className="fl">Opmerking bij afhandeling (optioneel)</label>
+                  <input className="fi" value={notitieMap[t.id]||""} onChange={e=>setNotitieMap(p=>({...p,[t.id]:e.target.value}))}
+                    placeholder="bijv. Lamp vervangen, kraan gerepareerd..." style={{marginBottom:10}}
+                    autoFocus onKeyDown={e=>e.key==="Enter"&&onUpdate(t.id,{status:"gedaan",afgehandeld_door:gebruiker.naam,afgehandeld_op:new Date().toISOString(),notitie:notitieMap[t.id]||null})}/>
+                  <div style={{display:"flex",gap:8}}>
+                    <button className="btn-g" style={{flex:1,padding:"9px"}}
+                      onClick={()=>onUpdate(t.id,{status:"gedaan",afgehandeld_door:gebruiker.naam,afgehandeld_op:new Date().toISOString(),notitie:notitieMap[t.id]||null})}>
+                      ✓ Bevestig als gedaan
+                    </button>
+                    <button className="btn-out" style={{padding:"9px 14px"}} onClick={()=>setBevestigMap(p=>({...p,[t.id]:false}))}>Annuleren</button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{marginTop:8,display:"flex",justifyContent:"flex-end"}}>
+                  <button className="btn-g" style={{padding:"8px 16px",fontSize:13}}
+                    onClick={()=>setBevestigMap(p=>({...p,[t.id]:true}))}>
+                    ✓ Gedaan
+                  </button>
+                </div>
+              )
+            )}
           </div>
         );
       })}
