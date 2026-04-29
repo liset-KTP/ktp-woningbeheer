@@ -429,7 +429,7 @@ export default function App() {
         {rol==="collega"&&tab==="melding"&&<MeldingForm houses={houses} onSubmit={addMelding} showToast={showToast}/>}
         {rol==="collega"&&tab==="mijn"&&<MijnMeldingen meldingen={mijnMeldingen} houses={houses}/>}
         {tab==="taken"&&<TakenView taken={taken} houses={houses} gebruiker={gebruiker} onAdd={addTaak} onUpdate={updateTaak} showToast={showToast}/>}
-        {tab==="woningen"&&<WoningenDetail houses={houses}/>}
+        {tab==="woningen"&&<WoningenDetail houses={houses} onUpdateWoning={rol==="backoffice"||rol==="huismeester"?updateWoning:null}/>}
         {tab==="planning"&&<PlanningView houses={houses}/>}
         {tab==="autos"&&<AutoModule gebruiker={gebruiker} showToast={showToast}/>}
         {rol==="huismeester"&&tab==="dagplanning"&&<DagplanningView meldingen={meldingen} taken={taken} houses={houses} onUpdate={updateMeldingStatus} onUpdateTaak={updateTaak} naam={naam}/>}
@@ -1290,10 +1290,14 @@ function BackofficeInbox({meldingen,houses,onUpdate,naam,showToast}) {
   );
 }
 
-function WoningenDetail({houses}) {
+function WoningenDetail({houses, onUpdateWoning}) {
   const [filterStad,setFilterStad]=useState("Alle");
   const [filterStatus,setFilterStatus]=useState("Alle");
   const [zoek,setZoek]=useState("");
+  const [bewerkKamer,setBewerkKamer]=useState(null); // {huisId, kamerNr}
+  const [bewerkWaarden,setBewerkWaarden]=useState({naam:"",bedrijf:"",status:""});
+  const [saving,setSaving]=useState(false);
+
   const steden=["Alle",...Array.from(new Set(houses.map(h=>h.stad))).sort()];
   const total=houses.reduce((s,h)=>s+h.kamers.length,0);
   const bezet=houses.reduce((s,h)=>s+h.kamers.filter(k=>k.naam&&k.status==="Lopend").length,0);
@@ -1306,6 +1310,21 @@ function WoningenDetail({houses}) {
     if(zoek.trim()){const q=zoek.toLowerCase();return h.adres.toLowerCase().includes(q)||h.stad.toLowerCase().includes(q)||h.kamers.some(k=>k.naam.toLowerCase().includes(q)||(k.bedrijf||"").toLowerCase().includes(q));}
     return true;
   });
+
+  function startBewerk(huis, k) {
+    setBewerkKamer({huisId:huis.id, kamerNr:k.k});
+    setBewerkWaarden({naam:k.naam||"", bedrijf:k.bedrijf||"", status:k.status||"Beschikbaar"});
+  }
+
+  async function slaBewerk(huis) {
+    setSaving(true);
+    const nieuweKamers = huis.kamers.map(k =>
+      k.k===bewerkKamer.kamerNr ? {...k,...bewerkWaarden} : k
+    );
+    await onUpdateWoning(huis.id, {kamers:nieuweKamers});
+    setSaving(false);
+    setBewerkKamer(null);
+  }
 
   return(
     <div>
@@ -1343,14 +1362,55 @@ function WoningenDetail({houses}) {
               <div style={{borderTop:`1px solid ${C.border}`,paddingTop:10}}>
                 {h.kamers.map(k=>{
                   const c=STATUS_MAP[k.status]||{bg:C.bg,text:C.muted,dot:C.muted};
-                  const rijBg = k.status==="Controle"?"#fef2f2":k.status==="Moet aan het werk"?"#fff7ed":k.status==="Beschikbaar"?C.blauw+"08":"transparent";
+                  const rijBg=k.status==="Controle"?"#fef2f2":k.status==="Moet aan het werk"?"#fff7ed":k.status==="Beschikbaar"?C.blauw+"08":"transparent";
+                  const isBezig=bewerkKamer?.huisId===h.id&&bewerkKamer?.kamerNr===k.k;
+
                   return(
-                    <div key={k.k} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 8px",borderRadius:7,marginBottom:2,background:rijBg}}>
-                      <div style={{width:6,height:6,borderRadius:2,background:c.dot,flexShrink:0}}/>
-                      <span style={{fontSize:11,fontWeight:700,color:C.muted,minWidth:28,fontFamily:"monospace"}}>K{k.k}</span>
-                      <span style={{flex:1,fontSize:13,color:k.naam?C.text:"#aab4c4",fontStyle:k.naam?"normal":"italic",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{k.naam||"leeg"}</span>
-                      {k.bedrijf&&<span style={{fontSize:11,color:C.muted,whiteSpace:"nowrap",flexShrink:0}}>{k.bedrijf}</span>}
-                      <span style={{padding:"2px 8px",borderRadius:4,background:c.bg,color:c.text,fontSize:10,fontWeight:600,whiteSpace:"nowrap",flexShrink:0}}>{k.status}</span>
+                    <div key={k.k}>
+                      {isBezig ? (
+                        // ── Inline bewerk formulier ──
+                        <div style={{background:C.blauw+"08",border:`1.5px solid ${C.blauw}`,borderRadius:8,padding:10,marginBottom:4}}>
+                          <div style={{fontSize:11,fontWeight:700,color:C.blauw,marginBottom:8}}>✏️ Kamer {k.k} bewerken</div>
+                          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:6}}>
+                            <div>
+                              <label style={{fontSize:10,fontWeight:600,color:C.muted,display:"block",marginBottom:3,textTransform:"uppercase",letterSpacing:".5px"}}>Naam bewoner</label>
+                              <input className="fi" value={bewerkWaarden.naam} onChange={e=>setBewerkWaarden(p=>({...p,naam:e.target.value}))} placeholder="Naam..." style={{fontSize:12,padding:"6px 10px"}}/>
+                            </div>
+                            <div>
+                              <label style={{fontSize:10,fontWeight:600,color:C.muted,display:"block",marginBottom:3,textTransform:"uppercase",letterSpacing:".5px"}}>Bedrijf</label>
+                              <input className="fi" value={bewerkWaarden.bedrijf} onChange={e=>setBewerkWaarden(p=>({...p,bedrijf:e.target.value}))} placeholder="Bedrijf..." style={{fontSize:12,padding:"6px 10px"}}/>
+                            </div>
+                          </div>
+                          <div style={{marginBottom:8}}>
+                            <label style={{fontSize:10,fontWeight:600,color:C.muted,display:"block",marginBottom:3,textTransform:"uppercase",letterSpacing:".5px"}}>Status</label>
+                            <select className="fs" value={bewerkWaarden.status} onChange={e=>setBewerkWaarden(p=>({...p,status:e.target.value}))} style={{fontSize:12,padding:"6px 10px"}}>
+                              {STATUSSEN.map(s=><option key={s}>{s}</option>)}
+                            </select>
+                          </div>
+                          <div style={{display:"flex",gap:6}}>
+                            <button className="btn-b" style={{flex:1,padding:"7px",fontSize:12}} onClick={()=>slaBewerk(h)} disabled={saving}>
+                              {saving?"⏳":"✓ Opslaan"}
+                            </button>
+                            <button className="btn-out" style={{padding:"7px 12px",fontSize:12}} onClick={()=>setBewerkKamer(null)}>Annuleren</button>
+                          </div>
+                        </div>
+                      ) : (
+                        // ── Normale weergave met bewerk-knop ──
+                        <div style={{display:"flex",alignItems:"center",gap:8,padding:"6px 8px",borderRadius:7,marginBottom:2,background:rijBg,cursor:"pointer"}}
+                          onMouseEnter={e=>e.currentTarget.style.background=C.blauw+"08"}
+                          onMouseLeave={e=>e.currentTarget.style.background=rijBg}>
+                          <div style={{width:6,height:6,borderRadius:2,background:c.dot,flexShrink:0}}/>
+                          <span style={{fontSize:11,fontWeight:700,color:C.muted,minWidth:28,fontFamily:"monospace"}}>K{k.k}</span>
+                          <span style={{flex:1,fontSize:13,color:k.naam?C.text:"#aab4c4",fontStyle:k.naam?"normal":"italic",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{k.naam||"leeg"}</span>
+                          {k.bedrijf&&<span style={{fontSize:11,color:C.muted,whiteSpace:"nowrap",flexShrink:0}}>{k.bedrijf}</span>}
+                          <span style={{padding:"2px 8px",borderRadius:4,background:c.bg,color:c.text,fontSize:10,fontWeight:600,whiteSpace:"nowrap",flexShrink:0}}>{k.status}</span>
+                          {onUpdateWoning&&(
+                            <button onClick={()=>startBewerk(h,k)}
+                              style={{background:"none",border:`1px solid ${C.border}`,borderRadius:5,padding:"2px 7px",fontSize:11,cursor:"pointer",color:C.muted,flexShrink:0,transition:"all .15s"}}
+                              title="Bewerken">✏️</button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
