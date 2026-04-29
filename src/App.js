@@ -81,14 +81,20 @@ export default function App() {
   const [checklists, setChecklists] = useState([]);
   const [checklistItems, setChecklistItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTabState] = useState(() => {
-    try { return localStorage.getItem("ktp_tab") || "melding"; } catch { return "melding"; }
-  });
+  const [tab, setTabState] = useState("melding");
   function setTab(t) {
     try { localStorage.setItem("ktp_tab", t); } catch {}
     setTabState(t);
   }
   const [toast, setToast] = useState(null);
+
+  // Herstel tab na refresh op basis van opgeslagen waarde
+  useEffect(() => {
+    try {
+      const opgeslagenTab = localStorage.getItem("ktp_tab");
+      if (opgeslagenTab) setTabState(opgeslagenTab);
+    } catch {}
+  }, []);
 
   const loadChecklistItems = useCallback(async () => {
     const { data, error } = await supabase.from("checklist_items").select("*").eq("actief", true).order("type").order("volgorde");
@@ -145,13 +151,15 @@ export default function App() {
     return () => { supabase.removeChannel(s1); supabase.removeChannel(s2); supabase.removeChannel(s3); supabase.removeChannel(s4); supabase.removeChannel(s5); supabase.removeChannel(s6); };
   }, [loadHouses, loadMeldingen, loadTaken, loadChecklists, loadGebruikers, loadChecklistItems]);
 
+  function showToast(msg, type="ok") { setToast({msg,type}); setTimeout(()=>setToast(null),3500); }
+
   function login(g) {
     try { localStorage.setItem("ktp_sessie", JSON.stringify(g)); } catch {}
     setGebruiker(g);
     setTab(g.rol==="collega"?"melding":g.rol==="huismeester"?"dagplanning":"woningen");
   }
   function logout() {
-    try { localStorage.removeItem("ktp_sessie"); } catch {}
+    try { localStorage.removeItem("ktp_sessie"); localStorage.removeItem("ktp_tab"); } catch {}
     setGebruiker(null);
   }
   async function voegGebruikerToe(g) {
