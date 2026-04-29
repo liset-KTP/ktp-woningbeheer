@@ -71,7 +71,9 @@ function dagVanDeWeek() { return ["zo","ma","di","wo","do","vr","za"][new Date()
 
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 export default function App() {
-  const [gebruiker, setGebruiker] = useState(null);
+  const [gebruiker, setGebruiker] = useState(() => {
+    try { const g = localStorage.getItem("ktp_sessie"); return g ? JSON.parse(g) : null; } catch { return null; }
+  });
   const [gebruikers, setGebruikers] = useState([]);
   const [houses, setHouses] = useState([]);
   const [meldingen, setMeldingen] = useState([]);
@@ -79,7 +81,13 @@ export default function App() {
   const [checklists, setChecklists] = useState([]);
   const [checklistItems, setChecklistItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState("melding");
+  const [tab, setTabState] = useState(() => {
+    try { return localStorage.getItem("ktp_tab") || "melding"; } catch { return "melding"; }
+  });
+  function setTab(t) {
+    try { localStorage.setItem("ktp_tab", t); } catch {}
+    setTabState(t);
+  }
   const [toast, setToast] = useState(null);
 
   const loadChecklistItems = useCallback(async () => {
@@ -137,25 +145,31 @@ export default function App() {
     return () => { supabase.removeChannel(s1); supabase.removeChannel(s2); supabase.removeChannel(s3); supabase.removeChannel(s4); supabase.removeChannel(s5); supabase.removeChannel(s6); };
   }, [loadHouses, loadMeldingen, loadTaken, loadChecklists, loadGebruikers, loadChecklistItems]);
 
-  function showToast(msg, type="ok") { setToast({msg,type}); setTimeout(()=>setToast(null),3500); }
-  function login(g) { setGebruiker(g); setTab(g.rol==="collega"?"melding":g.rol==="huismeester"?"dagplanning":"woningen"); }
-  function logout() { setGebruiker(null); }
+  function login(g) {
+    try { localStorage.setItem("ktp_sessie", JSON.stringify(g)); } catch {}
+    setGebruiker(g);
+    setTab(g.rol==="collega"?"melding":g.rol==="huismeester"?"dagplanning":"woningen");
+  }
+  function logout() {
+    try { localStorage.removeItem("ktp_sessie"); } catch {}
+    setGebruiker(null);
+  }
   async function voegGebruikerToe(g) {
     const { error } = await supabase.from("gebruikers").insert([g]);
     if (error) { showToast("Fout bij toevoegen gebruiker", "err"); return false; }
-    showToast(`✓ ${g.naam} toegevoegd`); return true;
+    showToast(`✓ ${g.naam} toegevoegd`); await loadGebruikers(); return true;
   }
 
   async function updateGebruiker(id, updates) {
     const { error } = await supabase.from("gebruikers").update(updates).eq("id", id);
     if (error) { showToast("Fout bij opslaan", "err"); return false; }
-    showToast("✓ Opgeslagen"); return true;
+    showToast("✓ Opgeslagen"); await loadGebruikers(); return true;
   }
 
   async function verwijderGebruiker(id) {
     const { error } = await supabase.from("gebruikers").update({ actief: false }).eq("id", id);
     if (error) { showToast("Fout bij verwijderen", "err"); return false; }
-    showToast("✓ Gebruiker verwijderd"); return true;
+    showToast("✓ Gebruiker verwijderd"); await loadGebruikers(); return true;
   }
 
   async function addMelding(m) {
@@ -208,36 +222,37 @@ export default function App() {
 
   async function updateMeldingStatus(id, newStatus, notitie="") {
     const { error } = await supabase.from("meldingen").update({status:newStatus,afgehandeld_door:gebruiker.naam,afgehandeld_op:new Date().toISOString(),notitie:notitie||null}).eq("id",id);
-    if (error) showToast("Fout bij updaten","err"); else showToast("✓ Status bijgewerkt");
+    if (error) showToast("Fout bij updaten","err");
+    else { showToast("✓ Status bijgewerkt"); await loadMeldingen(); }
   }
 
   async function addTaak(taak) {
     const { error } = await supabase.from("taken").insert([{...taak, aangemaakt_door: gebruiker.naam, status:"open"}]);
     if (error) { showToast("Fout bij opslaan taak","err"); return false; }
-    showToast("✓ Taak toegevoegd"); return true;
+    showToast("✓ Taak toegevoegd"); await loadTaken(); return true;
   }
 
   async function updateTaak(id, updates) {
     const { error } = await supabase.from("taken").update(updates).eq("id",id);
-    if (error) showToast("Fout","err"); else showToast("✓ Opgeslagen");
+    if (error) showToast("Fout","err"); else { showToast("✓ Opgeslagen"); await loadTaken(); }
   }
 
   async function addWoning(w) {
     const { error } = await supabase.from("woningen").insert([w]);
     if (error) { showToast("Fout bij toevoegen woning","err"); return false; }
-    showToast("✓ Woning toegevoegd"); return true;
+    showToast("✓ Woning toegevoegd"); await loadHouses(); return true;
   }
 
   async function updateWoning(id, updates) {
     const { error } = await supabase.from("woningen").update(updates).eq("id",id);
     if (error) { showToast("Fout bij opslaan","err"); return false; }
-    showToast("✓ Opgeslagen"); return true;
+    showToast("✓ Opgeslagen"); await loadHouses(); return true;
   }
 
   async function deleteWoning(id) {
     const { error } = await supabase.from("woningen").delete().eq("id",id);
     if (error) { showToast("Fout bij verwijderen","err"); return false; }
-    showToast("✓ Woning verwijderd"); return true;
+    showToast("✓ Woning verwijderd"); await loadHouses(); return true;
   }
 
   async function slaChecklistOp(type, week, items, huisId) {
@@ -248,6 +263,7 @@ export default function App() {
     } else {
       await supabase.from("checklists").insert([{sleutel:key,type,week_jaar:week,woning_id:huisId||null,items,aangemaakt_door:gebruiker.naam}]);
     }
+    await loadChecklists();
   }
 
   const openMeldingen = meldingen.filter(m=>m.status==="open");
