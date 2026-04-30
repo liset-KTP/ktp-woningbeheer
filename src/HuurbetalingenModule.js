@@ -1,6 +1,21 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "./supabaseClient";
 
+// ─── EMAILJS ──────────────────────────────────────────────────────────────────
+const EMAILJS_SERVICE  = "service_1af258e";
+const EMAILJS_TEMPLATE = "template_2mjnbok";
+const EMAILJS_PUBLIC   = "CJEVdAOdA03ZQxE28";
+
+async function stuurMail(params) {
+  try {
+    const res = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ service_id: EMAILJS_SERVICE, template_id: EMAILJS_TEMPLATE, user_id: EMAILJS_PUBLIC, template_params: params }),
+    });
+    if (!res.ok) console.error("EmailJS fout:", await res.text());
+  } catch (e) { console.error("EmailJS fout:", e); }
+}
+
 const C = {
   blauw:"#1B3A6B", blauwDark:"#132b52", blauwLight:"#2a52a0",
   groen:"#4A9B3C", groenDark:"#357a2b",
@@ -39,12 +54,12 @@ function berekenOpenstaand(schuld) {
   return Math.max(0, berekenTotaalVerschuldigd(schuld) - berekenTotaalBetaald(schuld));
 }
 
-export function HuurbetalingenModule({ gebruiker, showToast }) {
+export function HuurbetalingenModule({ gebruiker, showToast, readonly = false }) {
   const [schulden, setSchulden] = useState([]);
   const [loading, setLoading] = useState(true);
   const [subTab, setSubTab] = useState("overzicht");
 
-  const isBackoffice = gebruiker?.rol === "backoffice";
+  const isBackoffice = gebruiker?.rol === "backoffice" && !readonly;
 
   const loadSchulden = useCallback(async () => {
     const { data: schuldData, error } = await supabase
@@ -117,7 +132,7 @@ export function HuurbetalingenModule({ gebruiker, showToast }) {
 
   const tabs = [
     { id:"overzicht", label:`💶 Openstaand (${actief.length})` },
-    { id:"historie",  label:`📋 Afgesloten (${gesloten.length})` },
+    ...(!readonly ? [{ id:"historie", label:`📋 Afgesloten (${gesloten.length})` }] : []),
     ...(isBackoffice ? [{ id:"nieuw", label:"+ Nieuwe schuld" }] : []),
   ];
 
@@ -171,14 +186,14 @@ function SchuldenLijst({ schulden, gebruiker, isBackoffice, onBetaling, onAfslui
   return (
     <div style={{display:"grid",gap:16}}>
       {schulden.map(s => (
-        <SchuldKaart key={s.id} schuld={s} isBackoffice={isBackoffice} onBetaling={onBetaling} onAfsluiten={onAfsluiten} onOpmerking={onOpmerking} showToast={showToast} readonly={readonly} />
+        <SchuldKaart key={s.id} schuld={s} isBackoffice={isBackoffice} onBetaling={onBetaling} onAfsluiten={onAfsluiten} onOpmerking={onOpmerking} showToast={showToast} readonly={readonly} gebruiker={gebruiker} />
       ))}
     </div>
   );
 }
 
 // ─── SCHULD KAART ─────────────────────────────────────────────────────────────
-function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerking, showToast, readonly }) {
+function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerking, showToast, readonly, gebruiker }) {
   const [toonBetalingen, setToonBetalingen] = useState(false);
   const [toonBetalingForm, setToonBetalingForm] = useState(false);
   const [toonExtraForm, setToonExtraForm] = useState(false);
@@ -188,6 +203,9 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerkin
   const [extraOpmerking, setExtraOpmerking] = useState("");
   const [betalingOpmerking, setBetalingOpmerking] = useState("");
   const [nieuweOpmerking, setNieuweOpmerking] = useState("");
+  const [toonCollegaOpmerkingForm, setToonCollegaOpmerkingForm] = useState(false);
+  const [collegaOpmerking, setCollegaOpmerking] = useState("");
+  const [savingCollegaOpm, setSavingCollegaOpm] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const openstaand    = berekenOpenstaand(schuld);
@@ -276,6 +294,52 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerkin
       )}
 
       {/* Acties voor backoffice */}
+      {/* Readonly: collega mag opmerking plaatsen */}
+      {readonly && (
+        <div style={{marginTop:12}}>
+          {toonCollegaOpmerkingForm ? (
+            <div style={{background:C.bg,border:`1px solid ${C.border}`,borderRadius:10,padding:16}}>
+              <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Opmerking plaatsen</label>
+              <input value={collegaOpmerking} onChange={e=>setCollegaOpmerking(e.target.value)}
+                placeholder="bijv. ik betaal op 15 mei de helft..."
+                style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"10px 14px",fontSize:14,outline:"none",fontFamily:"inherit",boxSizing:"border-box",marginBottom:10}}
+                autoFocus/>
+              <div style={{display:"flex",gap:8}}>
+                <button onClick={async()=>{
+                  if(!collegaOpmerking.trim()){return;}
+                  setSavingCollegaOpm(true);
+                  stuurMail({
+                    type: "💬 Opmerking huurschuld",
+                    type_icon: "💬",
+                    medewerker: schuld.naam_medewerker,
+                    woning: "Huurschuld",
+                    kamer: "—",
+                    datum: new Date().toISOString().slice(0,10),
+                    ingediend_door: gebruiker?.naam || "Collega",
+                    opmerkingen: collegaOpmerking.trim(),
+                  });
+                  setSavingCollegaOpm(false);
+                  setCollegaOpmerking(""); setToonCollegaOpmerkingForm(false);
+                  showToast("✓ Opmerking verstuurd naar backoffice");
+                }} disabled={savingCollegaOpm}
+                  style={{background:C.blauw,color:"white",border:"none",borderRadius:8,padding:"9px 18px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                  {savingCollegaOpm ? "⏳" : "✓ Verstuur naar backoffice"}
+                </button>
+                <button onClick={()=>setToonCollegaOpmerkingForm(false)}
+                  style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"9px 14px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
+                  Annuleren
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button onClick={()=>setToonCollegaOpmerkingForm(true)}
+              style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"9px 14px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
+              💬 Opmerking plaatsen
+            </button>
+          )}
+        </div>
+      )}
+
       {isBackoffice && !readonly && (
         <div>
           {toonExtraForm ? (
