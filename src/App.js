@@ -429,7 +429,6 @@ export default function App() {
             </>)}
             {rol==="backoffice" && (<>
               <button className={`tp ${tab==="woningen"?"act":""}`} onClick={()=>setTab("woningen")}>🏠 Woningen</button>
-              <button className={`tp ${tab==="planning"?"act":""}`} onClick={()=>setTab("planning")}>📊 Status</button>
               <button className={`tp ${tab==="taken"?"act":""}`} onClick={()=>setTab("taken")}>📌 To-do {openTaken.length>0&&<Notif n={openTaken.length}/>}</button>
               <button className={`tp ${tab==="autos"?"act":""}`} onClick={()=>setTab("autos")}>🚗 Auto's</button>
               <button className={`tp ${tab==="fietsen"?"act":""}`} onClick={()=>setTab("fietsen")}>🚲 Fietsen</button>
@@ -449,7 +448,6 @@ export default function App() {
         {rol==="collega"&&tab==="mijn"&&<MijnMeldingen meldingen={mijnMeldingen} houses={houses}/>}
         {tab==="taken"&&<TakenView taken={taken} houses={houses} gebruiker={gebruiker} onAdd={addTaak} onUpdate={updateTaak} showToast={showToast}/>}
         {tab==="woningen"&&<WoningenDetail houses={houses} onUpdateWoning={rol==="backoffice"||rol==="huismeester"?updateWoning:null}/>}
-        {tab==="planning"&&<PlanningView houses={houses}/>}
         {tab==="autos"&&<AutoModule gebruiker={gebruiker} showToast={showToast}/>}
         {tab==="fietsen"&&<FietsModule gebruiker={gebruiker} showToast={showToast}/>}
         {rol==="huismeester"&&tab==="dagplanning"&&<DagplanningView meldingen={meldingen} taken={taken} houses={houses} onUpdate={updateMeldingStatus} onUpdateTaak={updateTaak} naam={naam}/>}
