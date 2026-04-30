@@ -23,26 +23,20 @@ function Input(props) {
 }
 
 // Bereken openstaand bedrag: €20 per dag vanaf startdatum, minus betalingen
-function berekenOpenstaand(schuld) {
-  if (!schuld.startdatum) return 0;
-  const start = new Date(schuld.startdatum);
-  const eind  = schuld.einddatum ? new Date(schuld.einddatum) : new Date();
-  const dagen = Math.max(0, Math.floor((eind - start) / 86400000));
-  const totaalVerschuldigd = dagen * 20;
-  const totaalBetaald = (schuld.betalingen || []).reduce((s, b) => s + Number(b.bedrag), 0);
-  return Math.max(0, totaalVerschuldigd - totaalBetaald);
-}
-
 function berekenTotaalVerschuldigd(schuld) {
   if (!schuld.startdatum) return 0;
   const start = new Date(schuld.startdatum);
   const eind  = schuld.einddatum ? new Date(schuld.einddatum) : new Date();
   const dagen = Math.max(0, Math.floor((eind - start) / 86400000));
-  return dagen * 20;
+  return (dagen * 20) + Number(schuld.beginsaldo || 0) + (schuld.betalingen || []).filter(b => b.bedrag < 0).reduce((s,b) => s + Math.abs(Number(b.bedrag)), 0);
 }
 
 function berekenTotaalBetaald(schuld) {
-  return (schuld.betalingen || []).reduce((s, b) => s + Number(b.bedrag), 0);
+  return (schuld.betalingen || []).filter(b => Number(b.bedrag) > 0).reduce((s, b) => s + Number(b.bedrag), 0);
+}
+
+function berekenOpenstaand(schuld) {
+  return Math.max(0, berekenTotaalVerschuldigd(schuld) - berekenTotaalBetaald(schuld));
 }
 
 export function HuurbetalingenModule({ gebruiker, showToast }) {
@@ -80,6 +74,7 @@ export function HuurbetalingenModule({ gebruiker, showToast }) {
       opmerkingen: data.opmerkingen || null,
       aangemaakt_door: gebruiker.naam,
       actief: true,
+      beginsaldo: data.beginsaldo || 0,
     }]);
     if (error) { showToast("Fout bij opslaan","err"); return false; }
     showToast("✓ Huurschuld aangemaakt"); return true;
@@ -186,8 +181,11 @@ function SchuldenLijst({ schulden, gebruiker, isBackoffice, onBetaling, onAfslui
 function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerking, showToast, readonly }) {
   const [toonBetalingen, setToonBetalingen] = useState(false);
   const [toonBetalingForm, setToonBetalingForm] = useState(false);
+  const [toonExtraForm, setToonExtraForm] = useState(false);
   const [toonOpmerkingForm, setToonOpmerkingForm] = useState(false);
   const [bedrag, setBedrag] = useState("");
+  const [extraBedrag, setExtraBedrag] = useState("");
+  const [extraOpmerking, setExtraOpmerking] = useState("");
   const [betalingOpmerking, setBetalingOpmerking] = useState("");
   const [nieuweOpmerking, setNieuweOpmerking] = useState("");
   const [saving, setSaving] = useState(false);
@@ -280,7 +278,39 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerkin
       {/* Acties voor backoffice */}
       {isBackoffice && !readonly && (
         <div>
-          {toonBetalingForm ? (
+          {toonExtraForm ? (
+            <div style={{background:"#fffbeb",border:"1px solid #fcd34d",borderRadius:10,padding:16,marginBottom:10}}>
+              <div style={{fontWeight:700,fontSize:13,color:"#b45309",marginBottom:12}}>➕ Extra bedrag toevoegen</div>
+              <div style={{fontSize:12,color:"#b45309",marginBottom:12}}>Voeg een extra bedrag toe aan de schuld (bijv. boete, schade of correctie). Dit verhoogt het openstaande bedrag.</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
+                <div>
+                  <Label>Bedrag (€) *</Label>
+                  <Input type="number" step="0.01" min="0.01" value={extraBedrag} onChange={e=>setExtraBedrag(e.target.value)} placeholder="bijv. 60.00" autoFocus/>
+                </div>
+                <div>
+                  <Label>Reden *</Label>
+                  <Input value={extraOpmerking} onChange={e=>setExtraOpmerking(e.target.value)} placeholder="bijv. schade aan kamer, boete..."/>
+                </div>
+              </div>
+              <div style={{display:"flex",gap:8}}>
+                <button onClick={async()=>{
+                  if(!extraBedrag||isNaN(Number(extraBedrag))||Number(extraBedrag)<=0){showToast("Vul een geldig bedrag in","err");return;}
+                  if(!extraOpmerking.trim()){showToast("Vul een reden in","err");return;}
+                  setSaving(true);
+                  await onBetaling(schuld.id, -Number(extraBedrag), "➕ Extra: "+extraOpmerking);
+                  setSaving(false);
+                  setExtraBedrag(""); setExtraOpmerking(""); setToonExtraForm(false);
+                }} disabled={saving}
+                  style={{background:"#f59e0b",color:"white",border:"none",borderRadius:8,padding:"10px 20px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                  {saving ? "⏳" : "✓ Toevoegen aan schuld"}
+                </button>
+                <button onClick={()=>setToonExtraForm(false)}
+                  style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"10px 14px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
+                  Annuleren
+                </button>
+              </div>
+            </div>
+          ) : toonBetalingForm ? (
             <div style={{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:10,padding:16,marginBottom:10}}>
               <div style={{fontWeight:700,fontSize:13,color:C.groen,marginBottom:12}}>💶 Betaling registreren</div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
@@ -325,6 +355,10 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerkin
                 style={{background:C.groen,color:"white",border:"none",borderRadius:8,padding:"9px 18px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
                 💶 Betaling toevoegen
               </button>
+              <button onClick={()=>setToonExtraForm(true)}
+                style={{background:"white",border:`1.5px solid #f59e0b`,color:"#b45309",borderRadius:8,padding:"9px 14px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                ➕ Extra bedrag
+              </button>
               <button onClick={()=>setToonOpmerkingForm(true)}
                 style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"9px 14px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
                 💬 Opmerking
@@ -349,6 +383,7 @@ function NieuweSchuld({ onSubmit, showToast }) {
   const [startdatum, setStart]    = useState(todayISO());
   const [einddatum, setEind]      = useState("");
   const [opmerkingen, setOpm]     = useState("");
+  const [beginsaldo, setBeginsaldo] = useState("");
   const [saving, setSaving]       = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -356,7 +391,7 @@ function NieuweSchuld({ onSubmit, showToast }) {
     if (!naam.trim())      { showToast("Vul naam medewerker in","err"); return; }
     if (!startdatum)       { showToast("Vul een startdatum in","err"); return; }
     setSaving(true);
-    const ok = await onSubmit({ naam_medewerker: naam.trim(), startdatum, einddatum, opmerkingen });
+    const ok = await onSubmit({ naam_medewerker: naam.trim(), startdatum, einddatum, opmerkingen, beginsaldo: beginsaldo ? Number(beginsaldo) : 0 });
     setSaving(false);
     if (ok) { setNaam(""); setStart(todayISO()); setEind(""); setOpm(""); setSubmitted(true); setTimeout(()=>setSubmitted(false),2000); }
   }
@@ -387,6 +422,11 @@ function NieuweSchuld({ onSubmit, showToast }) {
           <Label>Einddatum (indien bekend)</Label>
           <Input type="date" value={einddatum} onChange={e=>setEind(e.target.value)}/>
           <div style={{fontSize:11,color:C.muted,marginTop:4}}>Leeg = teller loopt nog</div>
+        </div>
+        <div>
+          <Label>Beginsaldo (€) — bestaande achterstand</Label>
+          <Input type="number" step="0.01" min="0" value={beginsaldo} onChange={e=>setBeginsaldo(e.target.value)} placeholder="bijv. 200.00 — laat leeg als er geen achterstand is"/>
+          <div style={{fontSize:11,color:C.muted,marginTop:4}}>Dit bedrag wordt direct bovenop de dagelijkse teller gezet</div>
         </div>
         <div style={{gridColumn:"1/-1"}}>
           <Label>Opmerking</Label>
