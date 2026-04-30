@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "./supabaseClient";
 import { AutoModule } from "./AutoModule";
 import { FietsModule } from "./FietsModule";
+import { HuurbetalingenModule } from "./HuurbetalingenModule";
+import { BijlageUploader, BijlageWeergave, uploadBijlages } from "./BijlageUploader";
 
 // ─── EMAILJS ──────────────────────────────────────────────────────────────────
 const EMAILJS_SERVICE  = "service_1af258e";
@@ -421,6 +423,7 @@ export default function App() {
               <button className={`tp ${tab==="fietsen"?"act":""}`} onClick={()=>setTab("fietsen")}>🚲 Fietsen</button>
               <button className={`tp ${tab==="inbox"?"act":""}`} onClick={()=>setTab("inbox")}>📨 Inbox {openMeldingen.length>0&&<Notif n={openMeldingen.length}/>}</button>
               <button className={`tp ${tab==="checklist"?"act":""}`} onClick={()=>setTab("checklist")}>✅ Checklists</button>
+              <button className={`tp ${tab==="huurbetalingen"?"act":""}`} onClick={()=>setTab("huurbetalingen")}>💶 Huurbetalingen</button>
               <button className={`tp ${tab==="log"?"act":""}`} onClick={()=>setTab("log")}>📝 Log</button>
               {isLiset&&<button className={`tp ${tab==="beheer"?"act":""}`} onClick={()=>setTab("beheer")}>⚙️ Beheer</button>}
             </>)}
@@ -442,6 +445,7 @@ export default function App() {
         {tab==="checklist"&&<ChecklistView houses={houses} checklists={checklists} checklistItems={checklistItems} onSave={slaChecklistOp} gebruiker={gebruiker}/>}
         {rol==="backoffice"&&tab==="inbox"&&<BackofficeInbox meldingen={meldingen} houses={houses} onUpdate={updateMeldingStatus} naam={naam} showToast={showToast}/>}
         {rol==="backoffice"&&tab==="log"&&<LogView meldingen={meldingen} houses={houses} activiteiten={activiteiten}/>}
+        {tab==="huurbetalingen"&&rol==="backoffice"&&<HuurbetalingenModule gebruiker={gebruiker} showToast={showToast}/>}
         {rol==="backoffice"&&isLiset&&tab==="beheer"&&<BeheerView houses={houses} onAdd={addWoning} onUpdate={updateWoning} onDelete={deleteWoning} showToast={showToast} gebruikers={gebruikers} onAddGebruiker={voegGebruikerToe} onUpdateGebruiker={updateGebruiker} onDeleteGebruiker={verwijderGebruiker} checklistItems={checklistItems}/>}
       </div>
     </div>
@@ -666,6 +670,7 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
   const [saving, setSaving] = useState(false);
   const [notitieMap, setNotitieMap] = useState({});
   const [bevestigMap, setBevestigMap] = useState({});
+  const [fotoMap, setFotoMap] = useState({});
 
   const gefilterd = taken.filter(t=> filter==="open"?t.status==="open": filter==="gedaan"?t.status==="gedaan": true);
   const selectedHouse = houses.find(h=>h.id===Number(nieuw.woning_id));
@@ -765,6 +770,7 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                   <div style={{marginTop:6}}>
                     <div style={{fontSize:12,color:C.groen}}>✓ Afgehandeld door {t.afgehandeld_door}{t.afgehandeld_op?` · ${fmtFull(t.afgehandeld_op)}`:""}</div>
                     {t.notitie&&<div style={{fontSize:13,color:C.muted,marginTop:3,fontStyle:"italic"}}>💬 "{t.notitie}"</div>}
+                    {t.bijlages&&<BijlageWeergave bijlages={JSON.parse(t.bijlages||"[]")}/>}
                   </div>
                 )}
               </div>
@@ -775,10 +781,19 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                   <label className="fl">Opmerking bij afhandeling (optioneel)</label>
                   <input className="fi" value={notitieMap[t.id]||""} onChange={e=>setNotitieMap(p=>({...p,[t.id]:e.target.value}))}
                     placeholder="bijv. Lamp vervangen, kraan gerepareerd..." style={{marginBottom:10}}
-                    autoFocus onKeyDown={e=>e.key==="Enter"&&onUpdate(t.id,{status:"gedaan",afgehandeld_door:gebruiker.naam,afgehandeld_op:new Date().toISOString(),notitie:notitieMap[t.id]||null})}/>
+                    autoFocus/>
+                  <div style={{marginBottom:12}}>
+                    <BijlageUploader bestanden={fotoMap[t.id]||[]} setBestanden={v=>setFotoMap(p=>({...p,[t.id]:typeof v==="function"?v(p[t.id]||[]):v}))} label="📸 Foto's toevoegen (optioneel)"/>
+                  </div>
                   <div style={{display:"flex",gap:8}}>
                     <button className="btn-g" style={{flex:1,padding:"9px"}}
-                      onClick={()=>onUpdate(t.id,{status:"gedaan",afgehandeld_door:gebruiker.naam,afgehandeld_op:new Date().toISOString(),notitie:notitieMap[t.id]||null})}>
+                      onClick={async()=>{
+                        const fotos = fotoMap[t.id]||[];
+                        let fotoUrls = [];
+                        if(fotos.length>0) fotoUrls = await uploadBijlages(fotos, "taken");
+                        onUpdate(t.id,{status:"gedaan",afgehandeld_door:gebruiker.naam,afgehandeld_op:new Date().toISOString(),notitie:notitieMap[t.id]||null,bijlages:fotoUrls.length>0?JSON.stringify(fotoUrls):null});
+                        setFotoMap(p=>({...p,[t.id]:[]}));
+                      }}>
                       ✓ Bevestig als gedaan
                     </button>
                     <button className="btn-out" style={{padding:"9px 14px"}} onClick={()=>setBevestigMap(p=>({...p,[t.id]:false}))}>Annuleren</button>
