@@ -1,6 +1,27 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "./supabaseClient";
 
+// ─── EMAILJS ──────────────────────────────────────────────────────────────────
+const EMAILJS_SERVICE  = "service_1af258e";
+const EMAILJS_TEMPLATE = "template_2mjnbok";
+const EMAILJS_PUBLIC   = "CJEVdAOdA03ZQxE28";
+
+async function stuurMail(params) {
+  try {
+    const res = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        service_id:  EMAILJS_SERVICE,
+        template_id: EMAILJS_TEMPLATE,
+        user_id:     EMAILJS_PUBLIC,
+        template_params: params,
+      }),
+    });
+    if (!res.ok) console.error("EmailJS fout:", await res.text());
+  } catch (e) { console.error("EmailJS fout:", e); }
+}
+
 const C = {
   blauw:"#1B3A6B", blauwDark:"#132b52", blauwLight:"#2a52a0",
   groen:"#4A9B3C", groenDark:"#357a2b", groenLight:"#5cb84d",
@@ -139,6 +160,16 @@ export function FietsModule({ gebruiker, showToast }) {
       bericht: "💰 Borg inhouden — fiets " + fiets.fietsnummer + (fiets.merk ? " (" + fiets.merk + ")" : "") + " uitgegeven aan " + data.naam_medewerker + " op " + data.datum,
     }]);
 
+    stuurMail({
+      type: "🚲 Fiets uitgifte",
+      type_icon: "🚲",
+      medewerker: data.naam_medewerker,
+      woning: "Fiets " + fiets.fietsnummer + (fiets.merk ? " (" + fiets.merk + ")" : ""),
+      kamer: "—",
+      datum: data.datum,
+      ingediend_door: gebruiker.naam,
+      opmerkingen: "Fiets uitgegeven" + (data.opmerkingen ? ". " + data.opmerkingen : "") + ". Let op: borg inhouden!",
+    });
     showToast("✓ Uitgifte geregistreerd — taak & borgmelding aangemaakt");
     return true;
   }
@@ -178,6 +209,16 @@ export function FietsModule({ gebruiker, showToast }) {
       bericht: "💶 Borg terugbetalen — fiets " + fiets.fietsnummer + (fiets.merk ? " (" + fiets.merk + ")" : "") + " ingenomen van " + (fiets.naam_medewerker || data.naam_medewerker) + " op " + data.datum + (data.opmerkingen ? ". Opmerking: " + data.opmerkingen : ""),
     }]);
 
+    stuurMail({
+      type: "🚲 Fiets inname",
+      type_icon: "🚲",
+      medewerker: fiets.naam_medewerker || data.naam_medewerker,
+      woning: "Fiets " + fiets.fietsnummer + (fiets.merk ? " (" + fiets.merk + ")" : ""),
+      kamer: "—",
+      datum: data.datum,
+      ingediend_door: gebruiker.naam,
+      opmerkingen: "Fiets ingenomen" + (data.opmerkingen ? ". " + data.opmerkingen : "") + ". Borg terugbetalen!",
+    });
     showToast("✓ Inname geregistreerd — borgmelding aangemaakt");
     return true;
   }
@@ -231,7 +272,21 @@ export function FietsModule({ gebruiker, showToast }) {
       {subTab === "overzicht"  && <FietsOverzicht fietsen={fietsen} />}
       {subTab === "uitgifte"   && <FietsUitgifte fietsen={fietsen} gebruiker={gebruiker} onUitgifte={registreerUitgifte} onInname={registreerInname} showToast={showToast} />}
       {subTab === "log"        && <FietsLogView log={fietsLog} fietsen={fietsen} />}
-      {subTab === 'borg' && isBackoffice && <FietsBorg borgmeldingen={borgmeldingen} gebruiker={gebruiker} onVerwerk={async (id) => { await supabase.from('fiets_borgmeldingen').update({status:'verwerkt', afgehandeld_door: gebruiker.naam, afgehandeld_op: new Date().toISOString()}).eq('id', id); showToast('✓ Borgmelding verwerkt'); await loadBorgmeldingen(); }} />}
+      {subTab === 'borg' && isBackoffice && <FietsBorg borgmeldingen={borgmeldingen} gebruiker={gebruiker} onVerwerk={async (id) => {
+          const bm = borgmeldingen.find(b => b.id === id);
+          await supabase.from('fiets_borgmeldingen').update({status:'verwerkt', afgehandeld_door: gebruiker.naam, afgehandeld_op: new Date().toISOString()}).eq('id', id);
+          stuurMail({
+            type: bm?.actie === 'borg_inhouden' ? '💰 Borg ingehouden' : '💶 Borg terugbetaald',
+            type_icon: bm?.actie === 'borg_inhouden' ? '💰' : '💶',
+            medewerker: bm?.naam_medewerker || '—',
+            woning: 'Fiets ' + (bm?.fietsnummer || '—'),
+            kamer: '—',
+            datum: new Date().toISOString().slice(0,10),
+            ingediend_door: gebruiker.naam,
+            opmerkingen: bm?.bericht || '—',
+          });
+          showToast('✓ Borgmelding verwerkt'); await loadBorgmeldingen();
+        }} />}
       {subTab === "beheer" && magBeheren && <FietsBeheer fietsen={fietsen} onAdd={addFiets} onUpdate={updateFiets} onDelete={deleteFiets} showToast={showToast} />}
     </div>
   );
