@@ -254,6 +254,15 @@ export default function App() {
       await loadMeldingen();
       const statusTekst = newStatus==="afgehandeld"?"✅ Afgehandeld":newStatus==="verwerkt"?"📋 Verwerkt":newStatus==="in_behandeling"?"🔄 In behandeling":"📝 Status gewijzigd";
       logActiviteit("melding_status", `${statusTekst}: ${m?.medewerker||"?"} — ${m?.type||""} — ${huis?.adres||"?"} K${m?.kamer||"?"}${notitie?` (${notitie})`:""}`, {melding_id:id, status:newStatus});
+      // Als vertrek verwerkt wordt: zet kamerstatus terug naar Beschikbaar
+      if ((newStatus==="verwerkt"||newStatus==="afgehandeld") && m?.type==="vertrek" && huis) {
+        const kamer = huis.kamers.find(k=>k.k===m.kamer);
+        if (kamer && kamer.status==="Controle") {
+          const nk = huis.kamers.map(k=>k.k===m.kamer?{...k,status:"Beschikbaar",naam:""}:k);
+          await supabase.from("woningen").update({kamers:nk}).eq("id",huis.id);
+          await loadHouses();
+        }
+      }
     }
   }
 
