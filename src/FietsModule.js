@@ -518,7 +518,7 @@ function FietsBeheer({ fietsen, onAdd, onUpdate, onDelete, showToast }) {
   async function voegToe() {
     if (!nieuw.fietsnummer.trim()) { showToast("Vul een fietsnummer in","err"); return; }
     setSaving(true);
-    await onAdd({ ...nieuw, fietsnummer: nieuw.fietsnummer.trim() });
+    await onAdd({ ...nieuw, fietsnummer: nieuw.fietsnummer.trim(), datum_uitgifte: nieuw.datum_uitgifte || null, datum_inname: nieuw.datum_inname || null, naam_medewerker: nieuw.naam_medewerker || null, merk: nieuw.merk || null });
     setSaving(false);
     setNieuw({ fietsnummer:"", merk:"", status:"Beschikbaar", naam_medewerker:"", datum_uitgifte:"", datum_inname:"" });
     setToonNieuwe(false);
