@@ -278,6 +278,16 @@ export default function App() {
     showToast("✓ Opgeslagen"); await loadTaken();
     if (updates.status==="gedaan") {
       logActiviteit("taak_gedaan", `✅ Taak gedaan: ${t?.titel||"?"}${updates.notitie?` — "${updates.notitie}"`:""}${huis?` — ${huis.adres}`:" — Algemeen"}${t?.kamer?` K${t.kamer}`:""}`, {taak_id:id, notitie:updates.notitie||null});
+      stuurMail({
+        type: "✅ Taak afgevinkt",
+        type_icon: "✅",
+        medewerker: updates.afgehandeld_door || "—",
+        woning: huis ? `${huis.adres}, ${huis.stad}` : "Algemeen",
+        kamer: t?.kamer ? `Kamer ${t.kamer}` : "—",
+        datum: new Date().toISOString().slice(0,10),
+        ingediend_door: updates.afgehandeld_door || gebruiker.naam,
+        opmerkingen: `Taak: ${t?.titel||"?"}${updates.notitie ? `. Opmerking: ${updates.notitie}` : ""}`,
+      });
     }
   }
 
