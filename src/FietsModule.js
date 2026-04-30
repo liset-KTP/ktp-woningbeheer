@@ -53,6 +53,7 @@ function Input({ ...props }) {
 export function FietsModule({ gebruiker, showToast }) {
   const [fietsen, setFietsen] = useState([]);
   const [fietsLog, setFietsLog] = useState([]);
+  const [borgmeldingen, setBorgmeldingen] = useState([]);
   const [subTab, setSubTab] = useState("overzicht");
   const [loading, setLoading] = useState(true);
 
@@ -72,25 +73,33 @@ export function FietsModule({ gebruiker, showToast }) {
     setFietsLog(data || []);
   }, []);
 
+  const loadBorgmeldingen = useCallback(async () => {
+    const { data, error } = await supabase.from("fiets_borgmeldingen").select("*").order("created_at", { ascending: false });
+    if (error) { console.error(error); return; }
+    setBorgmeldingen(data || []);
+  }, []);
+
   useEffect(() => {
     async function init() {
       setLoading(true);
-      await Promise.all([loadFietsen(), loadFietsLog()]);
+      await Promise.all([loadFietsen(), loadFietsLog(), loadBorgmeldingen()]);
       setLoading(false);
     }
     init();
-  }, [loadFietsen, loadFietsLog]);
+  }, [loadFietsen, loadFietsLog, loadBorgmeldingen]);
 
   useEffect(() => {
     const s1 = supabase.channel("fie-rt").on("postgres_changes",{event:"*",schema:"public",table:"fietsen"},()=>loadFietsen()).subscribe();
     const s2 = supabase.channel("flo-rt").on("postgres_changes",{event:"*",schema:"public",table:"fiets_log"},()=>loadFietsLog()).subscribe();
-    return () => { supabase.removeChannel(s1); supabase.removeChannel(s2); };
-  }, [loadFietsen, loadFietsLog]);
+    const s3 = supabase.channel("fbo-rt").on("postgres_changes",{event:"*",schema:"public",table:"fiets_borgmeldingen"},()=>loadBorgmeldingen()).subscribe();
+    return () => { supabase.removeChannel(s1); supabase.removeChannel(s2); supabase.removeChannel(s3); };
+  }, [loadFietsen, loadFietsLog, loadBorgmeldingen]);
 
   async function registreerUitgifte(data) {
     const fiets = fietsen.find(f => f.id === data.fiets_id);
     if (!fiets) { showToast("Fiets niet gevonden","err"); return false; }
 
+    // 1. Log opslaan
     const { error: logErr } = await supabase.from("fiets_log").insert([{
       fiets_id: data.fiets_id,
       fietsnummer: fiets.fietsnummer,
@@ -102,13 +111,35 @@ export function FietsModule({ gebruiker, showToast }) {
     }]);
     if (logErr) { showToast("Fout bij opslaan","err"); return false; }
 
+    // 2. Fietsstatus bijwerken
     await supabase.from("fietsen").update({
       status: "In gebruik",
       naam_medewerker: data.naam_medewerker,
       datum_uitgifte: data.datum,
     }).eq("id", data.fiets_id);
 
-    showToast("✓ Uitgifte geregistreerd");
+    // 3. Taak voor huismeester: staat controleren bij inname
+    await supabase.from("taken").insert([{
+      titel: "🚲 Fiets controleren bij inname — " + data.naam_medewerker,
+      omschrijving: "Fiets " + fiets.fietsnummer + (fiets.merk ? " (" + fiets.merk + ")" : "") + " is uitgegeven op " + data.datum + ". Controleer bij inname of de fiets in goede staat is (geen schade, banden goed, slot werkt).",
+      prioriteit: "middel",
+      aangemaakt_door: gebruiker.naam,
+      status: "open",
+    }]);
+
+    // 4. Borgmelding voor backoffice
+    await supabase.from("fiets_borgmeldingen").insert([{
+      fiets_id: data.fiets_id,
+      fietsnummer: fiets.fietsnummer,
+      naam_medewerker: data.naam_medewerker,
+      actie: "borg_inhouden",
+      datum: data.datum,
+      ingediend_door: gebruiker.naam,
+      status: "open",
+      bericht: "💰 Borg inhouden — fiets " + fiets.fietsnummer + (fiets.merk ? " (" + fiets.merk + ")" : "") + " uitgegeven aan " + data.naam_medewerker + " op " + data.datum,
+    }]);
+
+    showToast("✓ Uitgifte geregistreerd — taak & borgmelding aangemaakt");
     return true;
   }
 
@@ -116,6 +147,7 @@ export function FietsModule({ gebruiker, showToast }) {
     const fiets = fietsen.find(f => f.id === data.fiets_id);
     if (!fiets) { showToast("Fiets niet gevonden","err"); return false; }
 
+    // 1. Log opslaan
     const { error: logErr } = await supabase.from("fiets_log").insert([{
       fiets_id: data.fiets_id,
       fietsnummer: fiets.fietsnummer,
@@ -127,13 +159,26 @@ export function FietsModule({ gebruiker, showToast }) {
     }]);
     if (logErr) { showToast("Fout bij opslaan","err"); return false; }
 
+    // 2. Fietsstatus bijwerken
     await supabase.from("fietsen").update({
       status: "Ingeleverd",
       naam_medewerker: null,
       datum_inname: data.datum,
     }).eq("id", data.fiets_id);
 
-    showToast("✓ Inname geregistreerd");
+    // 3. Borg terugbetaalmelding voor backoffice
+    await supabase.from("fiets_borgmeldingen").insert([{
+      fiets_id: data.fiets_id,
+      fietsnummer: fiets.fietsnummer,
+      naam_medewerker: fiets.naam_medewerker || data.naam_medewerker,
+      actie: "borg_terugbetalen",
+      datum: data.datum,
+      ingediend_door: gebruiker.naam,
+      status: "open",
+      bericht: "💶 Borg terugbetalen — fiets " + fiets.fietsnummer + (fiets.merk ? " (" + fiets.merk + ")" : "") + " ingenomen van " + (fiets.naam_medewerker || data.naam_medewerker) + " op " + data.datum + (data.opmerkingen ? ". Opmerking: " + data.opmerkingen : ""),
+    }]);
+
+    showToast("✓ Inname geregistreerd — borgmelding aangemaakt");
     return true;
   }
 
@@ -157,10 +202,13 @@ export function FietsModule({ gebruiker, showToast }) {
 
   if (loading) return <div style={{textAlign:"center",padding:"60px",color:C.muted}}>⏳ Laden...</div>;
 
+  const openBorg = borgmeldingen.filter(b => b.status === "open");
+
   const tabs = [
     { id:"overzicht", label:"🚲 Overzicht" },
     { id:"uitgifte",  label:"📋 Uitgifte / Inname" },
     { id:"log",       label:"📝 Log" },
+    ...(isBackoffice ? [{ id:"borg", label:`💰 Borg${openBorg.length > 0 ? ` (${openBorg.length})` : ""}` }] : []),
     ...(magBeheren ? [{ id:"beheer", label:"⚙️ Beheer" }] : []),
   ];
 
@@ -183,6 +231,7 @@ export function FietsModule({ gebruiker, showToast }) {
       {subTab === "overzicht"  && <FietsOverzicht fietsen={fietsen} />}
       {subTab === "uitgifte"   && <FietsUitgifte fietsen={fietsen} gebruiker={gebruiker} onUitgifte={registreerUitgifte} onInname={registreerInname} showToast={showToast} />}
       {subTab === "log"        && <FietsLogView log={fietsLog} fietsen={fietsen} />}
+      {subTab === 'borg' && isBackoffice && <FietsBorg borgmeldingen={borgmeldingen} gebruiker={gebruiker} onVerwerk={async (id) => { await supabase.from('fiets_borgmeldingen').update({status:'verwerkt', afgehandeld_door: gebruiker.naam, afgehandeld_op: new Date().toISOString()}).eq('id', id); showToast('✓ Borgmelding verwerkt'); await loadBorgmeldingen(); }} />}
       {subTab === "beheer" && magBeheren && <FietsBeheer fietsen={fietsen} onAdd={addFiets} onUpdate={updateFiets} onDelete={deleteFiets} showToast={showToast} />}
     </div>
   );
@@ -595,6 +644,85 @@ function FietsBewerken({ fiets, onSave, onCancel, saving }) {
           Annuleren
         </button>
       </div>
+    </div>
+  );
+}
+
+// ─── BORG MELDINGEN (backoffice) ──────────────────────────────────────────────
+function FietsBorg({ borgmeldingen, gebruiker, onVerwerk }) {
+  const [filter, setFilter] = useState("open");
+
+  const gefilterd = borgmeldingen.filter(b =>
+    filter === "alle" ? true : b.status === filter
+  );
+
+  const openCount = borgmeldingen.filter(b => b.status === "open").length;
+
+  return (
+    <div>
+      <div style={{marginBottom:20}}>
+        <h3 style={{fontSize:18,fontWeight:800,color:C.blauw}}>💰 Borgmeldingen</h3>
+        <p style={{fontSize:13,color:C.muted,marginTop:2}}>{openCount} openstaand · {borgmeldingen.length} totaal</p>
+      </div>
+
+      {openCount > 0 && (
+        <div style={{background:"#fef3c7",border:"1px solid #fcd34d",borderRadius:12,padding:"12px 18px",marginBottom:20}}>
+          <div style={{fontWeight:700,color:"#b45309"}}>⚠️ {openCount} borgmelding{openCount > 1 ? "en" : ""} wacht{openCount === 1 ? "" : "en"} op afhandeling</div>
+          <div style={{fontSize:13,color:"#b45309",marginTop:4}}>Controleer hieronder of er borg ingehouden of terugbetaald moet worden.</div>
+        </div>
+      )}
+
+      <div style={{display:"flex",gap:6,marginBottom:20}}>
+        {[["open","Open"],["verwerkt","Verwerkt"],["alle","Alle"]].map(([v,l]) => (
+          <button key={v} onClick={()=>setFilter(v)}
+            style={{background:filter===v?C.blauw:"white",color:filter===v?"white":C.muted,border:`1.5px solid ${filter===v?C.blauw:C.border}`,borderRadius:20,padding:"6px 16px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+            {l}{v==="open"&&openCount>0&&<span style={{background:"#ef444430",color:"#ef4444",borderRadius:10,padding:"1px 6px",fontSize:11,marginLeft:6}}>{openCount}</span>}
+          </button>
+        ))}
+      </div>
+
+      {gefilterd.length === 0 ? (
+        <div className="card" style={{textAlign:"center",padding:"50px",color:C.muted}}>
+          <div style={{fontSize:40,marginBottom:10}}>💰</div>
+          <div>{filter === "open" ? "Geen openstaande borgmeldingen 🎉" : "Geen meldingen gevonden"}</div>
+        </div>
+      ) : gefilterd.map(b => {
+        const isInhouden = b.actie === "borg_inhouden";
+        const kleur = isInhouden ? "#f59e0b" : C.groen;
+        const verwerkt = b.status === "verwerkt";
+        return (
+          <div key={b.id} style={{background:"white",border:`1px solid ${C.border}`,borderLeft:`4px solid ${verwerkt ? C.muted : kleur}`,borderRadius:10,padding:16,marginBottom:10,boxShadow:`0 1px 3px rgba(27,58,107,.05)`,opacity:verwerkt?0.7:1}}>
+            <div style={{display:"flex",alignItems:"flex-start",gap:12}}>
+              <span style={{fontSize:24}}>{isInhouden ? "💰" : "💶"}</span>
+              <div style={{flex:1}}>
+                <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",marginBottom:6}}>
+                  <span style={{fontWeight:800,fontSize:15,color:C.text,fontFamily:"monospace"}}>{b.fietsnummer}</span>
+                  <span style={{fontWeight:600,fontSize:14,color:C.text}}>{b.naam_medewerker}</span>
+                  <span style={{padding:"3px 10px",borderRadius:20,background:kleur+"18",color:kleur,fontSize:11,fontWeight:700}}>
+                    {isInhouden ? "BORG INHOUDEN" : "BORG TERUGBETALEN"}
+                  </span>
+                  {verwerkt && (
+                    <span style={{padding:"3px 10px",borderRadius:20,background:"#f0fdf4",color:C.groen,fontSize:11,fontWeight:700}}>✓ VERWERKT</span>
+                  )}
+                </div>
+                <div style={{fontSize:13,color:C.muted,marginBottom:6}}>{b.bericht}</div>
+                <div style={{fontSize:12,color:C.muted}}>
+                  📅 {b.datum} · Ingediend door: {b.ingediend_door}
+                  {verwerkt && b.afgehandeld_door && ` · ✓ Afgehandeld door ${b.afgehandeld_door}`}
+                </div>
+              </div>
+            </div>
+            {!verwerkt && (
+              <div style={{marginTop:12,display:"flex",justifyContent:"flex-end"}}>
+                <button onClick={() => onVerwerk(b.id)}
+                  style={{background:C.groen,color:"white",border:"none",borderRadius:8,padding:"9px 20px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                  ✓ {isInhouden ? "Borg ingehouden" : "Borg terugbetaald"}
+                </button>
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
