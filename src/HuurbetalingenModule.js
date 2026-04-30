@@ -162,7 +162,7 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
       </div>
 
       {subTab === "overzicht" && (
-        <SchuldenLijst schulden={actief} gebruiker={gebruiker} isBackoffice={isBackoffice} onBetaling={addBetaling} onAfsluiten={sluitAf} onOpmerking={addOpmerking} showToast={showToast} />
+        <SchuldenLijst schulden={actief} gebruiker={gebruiker} isBackoffice={isBackoffice} onBetaling={addBetaling} onAfsluiten={sluitAf} onOpmerking={addOpmerking} showToast={showToast} readonly={readonly} />
       )}
       {subTab === "historie" && (
         <SchuldenLijst schulden={gesloten} gebruiker={gebruiker} isBackoffice={isBackoffice} onBetaling={addBetaling} onAfsluiten={sluitAf} onOpmerking={addOpmerking} showToast={showToast} readonly />
