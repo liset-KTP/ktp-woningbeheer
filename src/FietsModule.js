@@ -117,7 +117,7 @@ export function FietsModule({ gebruiker, showToast }) {
   }, [loadFietsen, loadFietsLog, loadBorgmeldingen]);
 
   async function registreerUitgifte(data) {
-    const fiets = fietsen.find(f => f.id === data.fiets_id);
+    const fiets = fietsen.find(f => f.id === data.fiets_id || f.id === parseInt(data.fiets_id));
     if (!fiets) { showToast("Fiets niet gevonden","err"); return false; }
 
     // 1. Log opslaan
@@ -175,7 +175,7 @@ export function FietsModule({ gebruiker, showToast }) {
   }
 
   async function registreerInname(data) {
-    const fiets = fietsen.find(f => f.id === data.fiets_id);
+    const fiets = fietsen.find(f => f.id === data.fiets_id || f.id === parseInt(data.fiets_id));
     if (!fiets) { showToast("Fiets niet gevonden","err"); return false; }
 
     // 1. Log opslaan
@@ -392,7 +392,7 @@ function FietsUitgifte({ fietsen, gebruiker, onUitgifte, onInname, showToast }) 
     if (!fietsId) { showToast("Selecteer een fiets","err"); return; }
     if (!naamMedewerker.trim()) { showToast("Vul naam medewerker in","err"); return; }
     setSaving(true);
-    const payload = { fiets_id: fietsId, naam_medewerker: naamMedewerker.trim(), datum, opmerkingen };
+    const payload = { fiets_id: parseInt(fietsId), naam_medewerker: naamMedewerker.trim(), datum, opmerkingen };
     const ok = actie === "uitgifte" ? await onUitgifte(payload) : await onInname(payload);
     setSaving(false);
     if (ok) {
