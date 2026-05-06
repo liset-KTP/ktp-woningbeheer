@@ -160,7 +160,7 @@ export default function App() {
     async function init() {
       setLoading(true);
       await Promise.all([loadGebruikers(), loadHouses(), loadMeldingen(), loadTaken(), loadChecklists(), loadChecklistItems(), loadActiviteiten(), loadDagplanning()]);
-      await loadOngelzenAutoReacties(g?.naam);
+      // Wordt geladen na login via realtime
       setLoading(false);
     }
     init();
@@ -184,6 +184,7 @@ export default function App() {
     try { localStorage.setItem("ktp_sessie", JSON.stringify(g)); } catch {}
     setGebruiker(g);
     setTab(g.rol==="collega"?"melding":g.rol==="huismeester"?"dagplanning":g.rol==="financieel"?"huurbetalingen":"woningen");
+    loadOngelzenAutoReacties(g.naam);
   }
   function logout() {
     try { localStorage.removeItem("ktp_sessie"); localStorage.removeItem("ktp_tab"); } catch {}
