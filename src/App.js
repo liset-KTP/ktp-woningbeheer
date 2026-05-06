@@ -840,9 +840,13 @@ function ChecklistView({ houses, checklists, checklistItems, onSave, gebruiker }
   const kwartaal = () => Math.ceil((new Date().getMonth()+1)/3);
   const jaar = new Date().getFullYear();
 
+  const isBackoffice = gebruiker?.rol==="backoffice";
+  const isHuismeester = gebruiker?.rol==="huismeester";
+
   const [actief, setActief] = useState("wekelijks");
-  const [geselecteerdeWoning, setGeselecteerdeWoning] = useState("all");
+  const [geselecteerdeWoning, setGeselecteerdeWoning] = useState(isHuismeester ? (houses[0]?.id?.toString()||"all") : "all");
   const [saving, setSaving] = useState(false);
+  const [toonHistorie, setToonHistorie] = useState(false);
 
   const weekSleutel = `${jaar}-W${weekNr()}`;
   const maandSleutel = `${jaar}-4W${Math.ceil(weekNr()/4)}`;
@@ -854,9 +858,7 @@ function ChecklistView({ houses, checklists, checklistItems, onSave, gebruiker }
     return kwartaalSleutel;
   }
 
-  // Haal items uit Supabase
   const lijst = checklistItems.filter(i => i.type === actief).map(i => i.tekst);
-
   const dbSleutel = `${actief}_${huidigeSleutel()}_${geselecteerdeWoning}`;
   const bestaand = checklists.find(c=>c.sleutel===dbSleutel);
   const [afgevinkt, setAfgevinkt] = useState(bestaand?.items||[]);
@@ -884,12 +886,22 @@ function ChecklistView({ houses, checklists, checklistItems, onSave, gebruiker }
     kwartaal:    {label:"Kwartaal",    icon:"🏆", kleur:"#7c3aed", periode:`Q${kwartaal()} ${jaar}`},
   };
 
-  const isBackoffice = gebruiker?.rol==="backoffice";
+  // Historie: alle opgeslagen checklists voor huidige woning + type, gesorteerd op datum
+  const historieItems = checklists
+    .filter(c => {
+      const woningMatch = geselecteerdeWoning==="all" ? !c.woning_id : c.woning_id===Number(geselecteerdeWoning);
+      return c.sleutel?.startsWith(actief) && woningMatch && c.sleutel !== dbSleutel;
+    })
+    .sort((a,b) => new Date(b.updated_at||b.created_at) - new Date(a.updated_at||a.created_at))
+    .slice(0, 10);
+
+  const geselecteerdeHuis = houses.find(h=>h.id===Number(geselecteerdeWoning));
 
   return (
     <div>
-      <SH titel="✅ Checklists" sub="SNF-gecertificeerde controles voor alle woningen" />
+      <SH titel="✅ Checklists" sub="SNF-gecertificeerde controles per woning" />
 
+      {/* Type selector */}
       <div style={{display:"flex",gap:10,marginBottom:20,flexWrap:"wrap"}}>
         {Object.entries(typeInfo).map(([k,v])=>(
           <button key={k} onClick={()=>setActief(k)}
@@ -902,21 +914,23 @@ function ChecklistView({ houses, checklists, checklistItems, onSave, gebruiker }
         ))}
       </div>
 
-      {isBackoffice && (
-        <div style={{marginBottom:20}}>
-          <label className="fl">Bekijk checklist voor woning</label>
-          <select className="fs" style={{maxWidth:400}} value={geselecteerdeWoning} onChange={e=>setGeselecteerdeWoning(e.target.value)}>
-            <option value="all">Alle woningen (algemeen)</option>
-            {houses.map(h=><option key={h.id} value={h.id}>{h.adres}, {h.stad}</option>)}
-          </select>
-        </div>
-      )}
+      {/* Woning selector — altijd zichtbaar voor huismeester en backoffice */}
+      <div style={{marginBottom:20}}>
+        <label className="fl">Woning selecteren</label>
+        <select className="fs" style={{maxWidth:400}} value={geselecteerdeWoning} onChange={e=>setGeselecteerdeWoning(e.target.value)}>
+          {isBackoffice && <option value="all">Alle woningen (overzicht)</option>}
+          {houses.map(h=><option key={h.id} value={h.id}>{h.adres}, {h.stad}</option>)}
+        </select>
+      </div>
 
-      <div className="card" style={{borderTop:`4px solid ${typeInfo[actief].kleur}`}}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+      {/* Checklist voor geselecteerde woning */}
+      <div className="card" style={{borderTop:`4px solid ${typeInfo[actief].kleur}`,marginBottom:16}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
           <div>
             <div style={{fontWeight:800,fontSize:16,color:typeInfo[actief].kleur}}>{typeInfo[actief].icon} {typeInfo[actief].label} — {typeInfo[actief].periode}</div>
-            {!isBackoffice&&<div style={{fontSize:13,color:C.muted,marginTop:2}}>Vink af wat je hebt gecontroleerd</div>}
+            <div style={{fontSize:13,color:C.muted,marginTop:2}}>
+              {geselecteerdeHuis ? `${geselecteerdeHuis.adres}, ${geselecteerdeHuis.stad}` : "Alle woningen"}
+            </div>
           </div>
           <div style={{textAlign:"right"}}>
             <div style={{fontSize:28,fontWeight:800,color:pct===100?C.groen:typeInfo[actief].kleur}}>{pct}%</div>
@@ -930,15 +944,15 @@ function ChecklistView({ houses, checklists, checklistItems, onSave, gebruiker }
 
         {lijst.length === 0 ? (
           <div style={{textAlign:"center",padding:"30px",color:C.muted,fontSize:13}}>
-            Nog geen items voor dit type checklist.<br/>
-            {isBackoffice && "Voeg items toe via Beheer → Checklists."}
+            Nog geen items voor dit type checklist.
+            {isBackoffice && " Voeg items toe via Beheer → Checklists."}
           </div>
         ) : lijst.map((item,i)=>{
           const checked=afgevinkt.includes(item);
           return (
             <div key={i} className={`chk-item ${checked?"done":""}`}
-              onClick={()=>!isBackoffice&&toggleItem(item)}
-              style={{cursor:isBackoffice?"default":"pointer"}}>
+              onClick={()=>toggleItem(item)}
+              style={{cursor:"pointer"}}>
               <div style={{width:22,height:22,borderRadius:6,border:`2px solid ${checked?C.groen:C.border}`,background:checked?C.groen:"white",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all .15s"}}>
                 {checked&&<span style={{color:"white",fontSize:13,fontWeight:700}}>✓</span>}
               </div>
@@ -947,7 +961,7 @@ function ChecklistView({ houses, checklists, checklistItems, onSave, gebruiker }
           );
         })}
 
-        {!isBackoffice&&lijst.length>0&&(
+        {lijst.length>0&&(
           <div style={{marginTop:20,display:"flex",gap:10}}>
             <button className="btn-g" style={{flex:1,padding:12}} onClick={opslaan} disabled={saving}>
               {saving?"⏳ Opslaan...":"💾 Voortgang opslaan"}
@@ -958,6 +972,47 @@ function ChecklistView({ houses, checklists, checklistItems, onSave, gebruiker }
 
         {bestaand&&<div style={{marginTop:12,fontSize:12,color:C.muted}}>Laatst opgeslagen door {bestaand.aangemaakt_door} — {bestaand.updated_at?fmtFull(bestaand.updated_at):fmtFull(bestaand.created_at)}</div>}
       </div>
+
+      {/* Historie */}
+      {historieItems.length > 0 && (
+        <div>
+          <button onClick={()=>setToonHistorie(!toonHistorie)}
+            style={{background:"none",border:"none",color:C.blauw,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit",padding:"4px 0",marginBottom:10}}>
+            {toonHistorie?"▲":"▼"} Vorige weken bekijken ({historieItems.length})
+          </button>
+          {toonHistorie && (
+            <div style={{display:"grid",gap:10}}>
+              {historieItems.map((c,i)=>{
+                const itemsLijst = checklistItems.filter(it=>it.type===actief);
+                const totaal = itemsLijst.length;
+                const gedaan = (c.items||[]).length;
+                const p = totaal>0?Math.round((gedaan/totaal)*100):0;
+                const periode = c.sleutel?.split("_")?.[1]||"?";
+                return (
+                  <div key={i} className="card" style={{padding:"14px 18px",opacity:.85}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                      <div>
+                        <div style={{fontWeight:700,fontSize:13,color:C.text}}>{periode}</div>
+                        <div style={{fontSize:12,color:C.muted}}>Opgeslagen door {c.aangemaakt_door} — {fmtFull(c.updated_at||c.created_at)}</div>
+                      </div>
+                      <div style={{fontWeight:800,fontSize:18,color:p===100?C.groen:p>50?"#f59e0b":C.rood||"#ef4444"}}>{p}%</div>
+                    </div>
+                    <div style={{background:C.bg,borderRadius:99,height:6,overflow:"hidden"}}>
+                      <div style={{height:"100%",background:p===100?C.groen:p>50?"#f59e0b":"#ef4444",borderRadius:99,width:`${p}%`}}/>
+                    </div>
+                    <div style={{marginTop:8,fontSize:12,color:C.muted}}>
+                      {gedaan}/{totaal} afgevinkt
+                      {(c.items||[]).length>0 && (
+                        <span style={{marginLeft:10}}>— ✓ {(c.items||[]).join(", ").slice(0,80)}{(c.items||[]).join(", ").length>80?"...":""}</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
