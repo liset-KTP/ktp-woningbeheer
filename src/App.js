@@ -480,7 +480,7 @@ export default function App() {
         {rol==="backoffice"&&tab==="inbox"&&<BackofficeInbox meldingen={meldingen} houses={houses} onUpdate={updateMeldingStatus} naam={naam} showToast={showToast}/>}
         {rol==="backoffice"&&tab==="log"&&<LogView meldingen={meldingen} houses={houses} activiteiten={activiteiten}/>}
         {tab==="huurbetalingen"&&<HuurbetalingenModule gebruiker={gebruiker} showToast={showToast} readonly={rol!=="backoffice"&&rol!=="financieel"}/>}
-        {tab==="huismeesterplanning"&&<HuismeesterPlanningView dagplanningDB={dagplanningDB} houses={houses}/>}
+        {tab==="huismeesterplanning"&&<HuismeesterPlanningView dagplanningDB={dagplanningDB} houses={houses} taken={taken} meldingen={meldingen}/>}
         {rol==="backoffice"&&isLiset&&tab==="beheer"&&<BeheerView houses={houses} onAdd={addWoning} onUpdate={updateWoning} onDelete={deleteWoning} showToast={showToast} gebruikers={gebruikers} onAddGebruiker={voegGebruikerToe} onUpdateGebruiker={updateGebruiker} onDeleteGebruiker={verwijderGebruiker} checklistItems={checklistItems} dagplanningDB={dagplanningDB}/>}
       </div>
     </div>
@@ -1062,35 +1062,78 @@ function ChecklistView({ houses, checklists, checklistItems, onSave, gebruiker }
 
 // ─── MELDING FORM ─────────────────────────────────────────────────────────────
 // ─── WEEKPLANNING CRISTIAN (voor collega's) ───────────────────────────────────
-function HuismeesterPlanningView({ dagplanningDB, houses }) {
+function HuismeesterPlanningView({ dagplanningDB, houses, taken=[], meldingen=[] }) {
   const dag = dagVanDeWeek();
-  const dagNamen = ["ma","di","wo","do","vr"];
-  const dagLabels = { ma:"Maandag", di:"Dinsdag", wo:"Woensdag", do:"Donderdag", vr:"Vrijdag" };
+  const openTaken = taken.filter(t => t.status === "open");
+  const openMeldingen = meldingen.filter(m => m.status === "open");
 
   return (
     <div>
-      <SH titel="📅 Planning Cristian" sub="Overzicht van welke woningen Cristian welke dag bezoekt" />
+      <SH titel="📅 Planning Cristian" sub="Overzicht van welke woningen Cristian welke dag bezoekt, inclusief openstaande klusjes" />
       <div style={{display:"grid",gap:12}}>
         {dagplanningDB.map(d => {
           const isVandaag = d.dag === dag;
           const woningen = (d.woning_ids||[]).map(id => houses.find(h=>h.id===id)).filter(Boolean);
+
+          // Verzamel taken + meldingen per woning voor deze dag
+          const dagItems = woningen.map(h => {
+            const wTaken = openTaken.filter(t => t.woning_id === h.id);
+            const wMeldingen = openMeldingen.filter(m => m.woning_id === h.id && m.type !== "aankomst" && m.type !== "vertrek");
+            return { huis: h, taken: wTaken, meldingen: wMeldingen };
+          });
+          const totaalKlusjes = dagItems.reduce((s,w) => s + w.taken.length + w.meldingen.length, 0);
+
           return (
             <div key={d.id} style={{background:"white",border:`1px solid ${C.border}`,borderLeft:`4px solid ${d.kleur}`,borderRadius:12,padding:"16px 20px",boxShadow:isVandaag?"0 0 0 2px "+d.kleur:"none"}}>
-              <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:woningen.length>0?12:0}}>
-                <span style={{fontSize:22}}>{d.icon}</span>
-                <div>
-                  <div style={{display:"flex",alignItems:"center",gap:8}}>
-                    <span style={{fontWeight:800,fontSize:15,color:d.kleur}}>{d.label}</span>
-                    {isVandaag && <span style={{background:d.kleur,color:"white",fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:10}}>VANDAAG</span>}
+              {/* Dag header */}
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:woningen.length>0?12:0}}>
+                <div style={{display:"flex",alignItems:"center",gap:12}}>
+                  <span style={{fontSize:22}}>{d.icon}</span>
+                  <div>
+                    <div style={{display:"flex",alignItems:"center",gap:8}}>
+                      <span style={{fontWeight:800,fontSize:15,color:d.kleur}}>{d.label}</span>
+                      {isVandaag && <span style={{background:d.kleur,color:"white",fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:10}}>VANDAAG</span>}
+                    </div>
+                    <div style={{fontSize:12,color:C.muted,marginTop:2}}>{d.focus}</div>
                   </div>
-                  <div style={{fontSize:12,color:C.muted,marginTop:2}}>{d.focus}</div>
                 </div>
+                {totaalKlusjes > 0 && (
+                  <span style={{background:"#fef3c7",color:"#b45309",fontSize:11,fontWeight:700,padding:"4px 10px",borderRadius:20,border:"1px solid #fcd34d"}}>
+                    🔧 {totaalKlusjes} klusje{totaalKlusjes>1?"s":""}
+                  </span>
+                )}
               </div>
+
               {woningen.length > 0 ? (
-                <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
-                  {woningen.map(h => (
-                    <div key={h.id} style={{padding:"6px 14px",borderRadius:20,fontSize:12,fontWeight:600,background:d.kleur+"15",color:d.kleur,border:`1px solid ${d.kleur}30`}}>
-                      📍 {h.adres}, {h.stad}
+                <div style={{display:"grid",gap:8}}>
+                  {dagItems.map(({huis: h, taken: wTaken, meldingen: wMeldingen}) => (
+                    <div key={h.id} style={{background:C.bg,borderRadius:10,padding:"10px 14px",border:`1px solid ${C.border}`}}>
+                      <div style={{fontWeight:700,fontSize:13,color:d.kleur,marginBottom:wTaken.length+wMeldingen.length>0?8:0}}>
+                        📍 {h.adres}, {h.stad}
+                      </div>
+                      {/* Open taken voor deze woning */}
+                      {wTaken.map(t => (
+                        <div key={t.id} style={{display:"flex",alignItems:"flex-start",gap:8,padding:"5px 0",borderTop:`1px solid ${C.border}`,fontSize:12}}>
+                          <span style={{color:"#f59e0b",fontWeight:700,flexShrink:0}}>🔧</span>
+                          <div>
+                            <div style={{fontWeight:600,color:C.text}}>{t.titel}</div>
+                            {t.omschrijving && <div style={{color:C.muted,fontSize:11,marginTop:2}}>{t.omschrijving.slice(0,80)}{t.omschrijving.length>80?"...":""}</div>}
+                          </div>
+                        </div>
+                      ))}
+                      {/* Open meldingen voor deze woning */}
+                      {wMeldingen.map(m => (
+                        <div key={m.id} style={{display:"flex",alignItems:"flex-start",gap:8,padding:"5px 0",borderTop:`1px solid ${C.border}`,fontSize:12}}>
+                          <span style={{color:"#ef4444",fontWeight:700,flexShrink:0}}>⚠️</span>
+                          <div>
+                            <div style={{fontWeight:600,color:C.text}}>{m.type} — {m.medewerker}</div>
+                            {m.opmerkingen && <div style={{color:C.muted,fontSize:11,marginTop:2}}>{m.opmerkingen.slice(0,80)}{m.opmerkingen.length>80?"...":""}</div>}
+                          </div>
+                        </div>
+                      ))}
+                      {wTaken.length===0 && wMeldingen.length===0 && (
+                        <div style={{fontSize:11,color:C.groen,marginTop:4}}>✓ Geen openstaande items</div>
+                      )}
                     </div>
                   ))}
                 </div>
