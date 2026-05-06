@@ -139,13 +139,24 @@ export function FietsModule({ gebruiker, showToast }) {
       datum_uitgifte: data.datum,
     }).eq("id", data.fiets_id);
 
-    // 3. Taak voor huismeester: staat controleren bij inname
+    // 3. Taak voor huismeester: fiets ophalen en klaar zetten
+    await supabase.from("taken").insert([{
+      titel: "🚲 Fiets regelen voor " + data.naam_medewerker,
+      omschrijving: "Fiets " + fiets.fietsnummer + (fiets.merk ? " (" + fiets.merk + ")" : "") + " is uitgegeven aan " + data.naam_medewerker + " op " + data.datum + ". Zorg dat de fiets klaarstaat voor de medewerker (band controleren, slot aanwezig, eventuele sleutel overhandigen).",
+      prioriteit: "hoog",
+      aangemaakt_door: gebruiker.naam,
+      status: "open",
+      type: "fiets",
+    }]);
+
+    // Taak: controleren bij inname
     await supabase.from("taken").insert([{
       titel: "🚲 Fiets controleren bij inname — " + data.naam_medewerker,
       omschrijving: "Fiets " + fiets.fietsnummer + (fiets.merk ? " (" + fiets.merk + ")" : "") + " is uitgegeven op " + data.datum + ". Controleer bij inname of de fiets in goede staat is (geen schade, banden goed, slot werkt).",
       prioriteit: "middel",
       aangemaakt_door: gebruiker.naam,
       status: "open",
+      type: "fiets",
     }]);
 
     // 4. Borgmelding voor backoffice
