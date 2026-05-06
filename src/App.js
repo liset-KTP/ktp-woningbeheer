@@ -84,6 +84,7 @@ export default function App() {
   const [checklists, setChecklists] = useState([]);
   const [checklistItems, setChecklistItems] = useState([]);
   const [activiteiten, setActiviteiten] = useState([]);
+  const [dagplanningDB, setDagplanningDB] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTabState] = useState("melding");
   function setTab(t) {
@@ -110,6 +111,12 @@ export default function App() {
     const { data, error } = await supabase.from("activiteiten").select("*").order("created_at", { ascending: false }).limit(200);
     if (error) { console.error("activiteiten:", error); return; }
     setActiviteiten(data || []);
+  }, []);
+
+  const loadDagplanning = useCallback(async () => {
+    const { data, error } = await supabase.from("dagplanning").select("*").order("volgorde");
+    if (error) { console.error("dagplanning:", error); return; }
+    setDagplanningDB(data || []);
   }, []);
 
   const loadGebruikers = useCallback(async () => {
@@ -145,7 +152,7 @@ export default function App() {
   useEffect(() => {
     async function init() {
       setLoading(true);
-      await Promise.all([loadGebruikers(), loadHouses(), loadMeldingen(), loadTaken(), loadChecklists(), loadChecklistItems(), loadActiviteiten()]);
+      await Promise.all([loadGebruikers(), loadHouses(), loadMeldingen(), loadTaken(), loadChecklists(), loadChecklistItems(), loadActiviteiten(), loadDagplanning()]);
       setLoading(false);
     }
     init();
@@ -159,8 +166,9 @@ export default function App() {
     const s5 = supabase.channel("gbr-rt").on("postgres_changes",{event:"*",schema:"public",table:"gebruikers"},()=>loadGebruikers()).subscribe();
     const s6 = supabase.channel("chi-rt").on("postgres_changes",{event:"*",schema:"public",table:"checklist_items"},()=>loadChecklistItems()).subscribe();
     const s7 = supabase.channel("act-rt").on("postgres_changes",{event:"*",schema:"public",table:"activiteiten"},()=>loadActiviteiten()).subscribe();
+    const s8 = supabase.channel("dag-rt").on("postgres_changes",{event:"*",schema:"public",table:"dagplanning"},()=>loadDagplanning()).subscribe();
     return () => { supabase.removeChannel(s1); supabase.removeChannel(s2); supabase.removeChannel(s3); supabase.removeChannel(s4); supabase.removeChannel(s5); supabase.removeChannel(s6); supabase.removeChannel(s7); };
-  }, [loadHouses, loadMeldingen, loadTaken, loadChecklists, loadGebruikers, loadChecklistItems, loadActiviteiten]);
+  }, [loadHouses, loadMeldingen, loadTaken, loadChecklists, loadGebruikers, loadChecklistItems, loadActiviteiten, loadDagplanning]);
 
   function showToast(msg, type="ok") { setToast({msg,type}); setTimeout(()=>setToast(null),3500); }
 
@@ -465,13 +473,13 @@ export default function App() {
         {tab==="woningen"&&<WoningenDetail houses={houses} onUpdateWoning={rol==="backoffice"||rol==="huismeester"?updateWoning:null}/>}
         {tab==="autos"&&<AutoModule gebruiker={gebruiker} showToast={showToast}/>}
         {tab==="fietsen"&&<FietsModule gebruiker={gebruiker} showToast={showToast}/>}
-        {rol==="huismeester"&&tab==="dagplanning"&&<DagplanningView meldingen={meldingen} taken={taken} houses={houses} onUpdate={updateMeldingStatus} onUpdateTaak={updateTaak} naam={naam}/>}
+        {rol==="huismeester"&&tab==="dagplanning"&&<DagplanningView meldingen={meldingen} taken={taken} houses={houses} onUpdate={updateMeldingStatus} onUpdateTaak={updateTaak} naam={naam} dagplanningDB={dagplanningDB}/>}
         {rol==="huismeester"&&tab==="meldingen"&&<HuismeesterTaken meldingen={meldingen} houses={houses} onUpdate={updateMeldingStatus} naam={naam}/>}
         {tab==="checklist"&&<ChecklistView houses={houses} checklists={checklists} checklistItems={checklistItems} onSave={slaChecklistOp} gebruiker={gebruiker}/>}
         {rol==="backoffice"&&tab==="inbox"&&<BackofficeInbox meldingen={meldingen} houses={houses} onUpdate={updateMeldingStatus} naam={naam} showToast={showToast}/>}
         {rol==="backoffice"&&tab==="log"&&<LogView meldingen={meldingen} houses={houses} activiteiten={activiteiten}/>}
         {tab==="huurbetalingen"&&<HuurbetalingenModule gebruiker={gebruiker} showToast={showToast} readonly={rol!=="backoffice"&&rol!=="financieel"}/>}
-        {rol==="backoffice"&&isLiset&&tab==="beheer"&&<BeheerView houses={houses} onAdd={addWoning} onUpdate={updateWoning} onDelete={deleteWoning} showToast={showToast} gebruikers={gebruikers} onAddGebruiker={voegGebruikerToe} onUpdateGebruiker={updateGebruiker} onDeleteGebruiker={verwijderGebruiker} checklistItems={checklistItems}/>}
+        {rol==="backoffice"&&isLiset&&tab==="beheer"&&<BeheerView houses={houses} onAdd={addWoning} onUpdate={updateWoning} onDelete={deleteWoning} showToast={showToast} gebruikers={gebruikers} onAddGebruiker={voegGebruikerToe} onUpdateGebruiker={updateGebruiker} onDeleteGebruiker={verwijderGebruiker} checklistItems={checklistItems} dagplanningDB={dagplanningDB}/>}
       </div>
     </div>
   );
@@ -600,12 +608,16 @@ function SK({label,val,color}) {
 }
 
 // ─── DAGPLANNING HUISMEESTER ──────────────────────────────────────────────────
-function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naam }) {
+function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naam, dagplanningDB = [] }) {
   const dag = dagVanDeWeek();
-  const vandaag = DAGPLANNING[dag];
-  const dagNamen = ["ma","di","wo","do","vr"];
-  const [gekozenDag, setGekozenDag] = useState(dag in DAGPLANNING ? dag : "ma");
-  const getoondeDag = DAGPLANNING[gekozenDag];
+  // Gebruik database planning als beschikbaar, anders fallback naar hardcoded
+  const planningMap = dagplanningDB.length > 0
+    ? Object.fromEntries(dagplanningDB.map(d => [d.dag, { label: d.label, kleur: d.kleur, icon: d.icon, focus: d.focus, taken: d.taken }]))
+    : DAGPLANNING;
+  const vandaag = planningMap[dag];
+  const dagNamen = dagplanningDB.length > 0 ? dagplanningDB.map(d => d.dag) : ["ma","di","wo","do","vr"];
+  const [gekozenDag, setGekozenDag] = useState(dag in planningMap ? dag : "ma");
+  const getoondeDag = planningMap[gekozenDag];
   const openMeldingen = meldingen.filter(m=>m.status==="open");
   const openTaken = taken.filter(t=>t.status==="open");
   const [notitieMap, setNotitieMap] = useState({});
@@ -617,7 +629,7 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
       {/* Dagknoppen */}
       <div style={{display:"flex",gap:8,marginBottom:24,flexWrap:"wrap"}}>
         {dagNamen.map(d=>{
-          const info = DAGPLANNING[d];
+          const info = planningMap[d];
           const isVandaag = d===dag;
           return (
             <button key={d} onClick={()=>setGekozenDag(d)}
@@ -1577,13 +1589,13 @@ function PlanningView({houses}) {
   );
 }
 
-function BeheerView({houses,onAdd,onUpdate,onDelete,showToast,gebruikers,onAddGebruiker,onUpdateGebruiker,onDeleteGebruiker,checklistItems}) {
+function BeheerView({houses,onAdd,onUpdate,onDelete,showToast,gebruikers,onAddGebruiker,onUpdateGebruiker,onDeleteGebruiker,checklistItems,dagplanningDB}) {
   const [subTab,setSubTab]=useState("woningen");
   return(
     <div>
       <SH titel="⚙️ Beheer" sub="Alleen beschikbaar voor Liset"/>
       <div style={{display:"flex",gap:6,marginBottom:24,borderBottom:`2px solid ${C.border}`,paddingBottom:0}}>
-        {[["woningen","🏠 Woningen & kamers"],["gebruikers","👥 Gebruikers & pincodes"],["checklists","✅ Checklists"]].map(([v,l])=>(
+        {[["woningen","🏠 Woningen & kamers"],["gebruikers","👥 Gebruikers & pincodes"],["checklists","✅ Checklists"],["dagplanning","📅 Dagplanning huismeester"]].map(([v,l])=>(
           <button key={v} onClick={()=>setSubTab(v)}
             style={{background:"none",border:"none",padding:"10px 20px",fontSize:14,fontWeight:700,color:subTab===v?C.blauw:C.muted,borderBottom:subTab===v?`3px solid ${C.blauw}`:"3px solid transparent",marginBottom:-2,cursor:"pointer",fontFamily:"inherit"}}>
             {l}
@@ -1593,6 +1605,121 @@ function BeheerView({houses,onAdd,onUpdate,onDelete,showToast,gebruikers,onAddGe
       {subTab==="woningen"&&<WoningBeheer houses={houses} onAdd={onAdd} onUpdate={onUpdate} onDelete={onDelete} showToast={showToast}/>}
       {subTab==="gebruikers"&&<GebruikersBeheer gebruikers={gebruikers} onAdd={onAddGebruiker} onUpdate={onUpdateGebruiker} onDelete={onDeleteGebruiker} showToast={showToast}/>}
       {subTab==="checklists"&&<ChecklistItemsBeheer checklistItems={checklistItems} showToast={showToast}/>}
+      {subTab==="dagplanning"&&<DagplanningBeheer dagplanningDB={dagplanningDB} showToast={showToast}/>}
+    </div>
+  );
+}
+
+// ─── DAGPLANNING BEHEER ───────────────────────────────────────────────────────
+function DagplanningBeheer({ dagplanningDB, showToast }) {
+  const [bewerkId, setBewerkId] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  async function slaOp(dag) {
+    setSaving(true);
+    const { error } = await supabase.from("dagplanning").update({
+      focus: dag.focus,
+      taken: dag.taken,
+      updated_at: new Date().toISOString(),
+    }).eq("id", dag.id);
+    setSaving(false);
+    if (error) { showToast("Fout bij opslaan","err"); return; }
+    showToast("✓ Dagplanning opgeslagen");
+    setBewerkId(null);
+  }
+
+  return (
+    <div>
+      <div style={{marginBottom:20}}>
+        <h3 style={{fontSize:16,fontWeight:800,color:C.blauw}}>📅 Dagplanning huismeester</h3>
+        <p style={{fontSize:13,color:C.muted,marginTop:4}}>Pas per dag de focus en taken aan. De huismeester ziet dit direct in zijn "Mijn dag" overzicht.</p>
+      </div>
+      <div style={{display:"grid",gap:16}}>
+        {dagplanningDB.map(dag => (
+          <DagKaart key={dag.id} dag={dag} isBewerken={bewerkId===dag.id}
+            onBewerken={()=>setBewerkId(dag.id)}
+            onAnnuleren={()=>setBewerkId(null)}
+            onOpslaan={slaOp}
+            saving={saving}/>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DagKaart({ dag, isBewerken, onBewerken, onAnnuleren, onOpslaan, saving }) {
+  const [focus, setFocus] = useState(dag.focus);
+  const [taken, setTaken] = useState([...dag.taken]);
+
+  useEffect(() => { setFocus(dag.focus); setTaken([...dag.taken]); }, [dag]);
+
+  function updateTaak(i, val) { setTaken(prev => prev.map((t,j) => j===i ? val : t)); }
+  function verwijderTaak(i) { setTaken(prev => prev.filter((_,j) => j!==i)); }
+  function voegToe() { setTaken(prev => [...prev, ""]); }
+
+  return (
+    <div style={{background:"white",border:`1px solid ${C.border}`,borderLeft:`4px solid ${dag.kleur}`,borderRadius:12,padding:20}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:isBewerken?16:0}}>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <span style={{fontSize:24}}>{dag.icon}</span>
+          <div>
+            <div style={{fontWeight:800,fontSize:15,color:dag.kleur}}>{dag.label}</div>
+            {!isBewerken && <div style={{fontSize:13,color:C.muted,marginTop:2}}>{dag.focus}</div>}
+          </div>
+        </div>
+        {!isBewerken && (
+          <button onClick={onBewerken}
+            style={{background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,padding:"7px 16px",fontSize:13,cursor:"pointer",fontFamily:"inherit",color:C.muted}}>
+            ✏️ Aanpassen
+          </button>
+        )}
+      </div>
+
+      {!isBewerken && (
+        <div style={{marginTop:12}}>
+          {dag.taken.map((t,i) => (
+            <div key={i} style={{display:"flex",gap:10,padding:"6px 0",borderBottom:i<dag.taken.length-1?`1px solid ${C.border}`:"none",fontSize:13,color:C.text}}>
+              <span style={{color:dag.kleur,fontWeight:700}}>{i+1}.</span> {t}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {isBewerken && (
+        <div>
+          <div style={{marginBottom:14}}>
+            <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Focus van de dag</label>
+            <input value={focus} onChange={e=>setFocus(e.target.value)}
+              style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"10px 14px",fontSize:14,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
+          </div>
+          <div style={{marginBottom:14}}>
+            <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:8,display:"block"}}>Taken</label>
+            {taken.map((t,i) => (
+              <div key={i} style={{display:"flex",gap:8,marginBottom:8,alignItems:"center"}}>
+                <span style={{color:dag.kleur,fontWeight:700,fontSize:13,minWidth:20}}>{i+1}.</span>
+                <input value={t} onChange={e=>updateTaak(i,e.target.value)}
+                  style={{flex:1,background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"8px 12px",fontSize:13,outline:"none",fontFamily:"inherit"}}/>
+                <button onClick={()=>verwijderTaak(i)}
+                  style={{background:"#fef2f2",border:"1px solid #fecaca",color:"#ef4444",borderRadius:6,padding:"6px 10px",cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>🗑</button>
+              </div>
+            ))}
+            <button onClick={voegToe}
+              style={{background:C.bg,border:`1.5px dashed ${C.border}`,borderRadius:8,padding:"8px 16px",fontSize:13,cursor:"pointer",fontFamily:"inherit",color:C.muted,width:"100%",marginTop:4}}>
+              + Taak toevoegen
+            </button>
+          </div>
+          <div style={{display:"flex",gap:8}}>
+            <button onClick={()=>onOpslaan({...dag, focus, taken})} disabled={saving}
+              style={{background:C.blauw,color:"white",border:"none",borderRadius:8,padding:"10px 24px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+              {saving?"⏳ Opslaan...":"✓ Opslaan"}
+            </button>
+            <button onClick={onAnnuleren}
+              style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"10px 16px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
+              Annuleren
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
