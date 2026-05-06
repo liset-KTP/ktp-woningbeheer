@@ -127,24 +127,38 @@ export function AutoModule({ gebruiker, showToast }) {
   }
 
   async function stuurReactie(melding, tekst) {
-    const { error } = await supabase.from("auto_meldingen").update({
+    // Opslaan in auto_meldingen (voor weergave in log)
+    await supabase.from("auto_meldingen").update({
       backoffice_reactie: tekst,
       reactie_door: gebruiker.naam,
       reactie_op: new Date().toISOString(),
       reactie_gelezen: false,
     }).eq("id", melding.id);
+
+    // OOK opslaan in berichten (centrale berichtenmodule)
+    const { error } = await supabase.from("berichten").insert([{
+      tekst: tekst,
+      van: gebruiker.naam,
+      aan: melding.ingediend_door,
+      onderwerp: `Reactie op auto-melding: ${melding.kenteken}`,
+      koppeling_type: "auto",
+      koppeling_id: melding.id,
+      koppeling_label: `Auto ${melding.kenteken} — ${melding.naam_medewerker}`,
+      gelezen_door: [gebruiker.naam],
+    }]);
     if (error) { showToast("Fout bij versturen","err"); return false; }
+
     stuurMail({
       type: "💬 Reactie op auto-melding",
       type_icon: "💬",
-      medewerker: melding.naam_medewerker,
+      medewerker: melding.ingediend_door,
       woning: `Auto ${melding.kenteken}`,
       kamer: "—",
       datum: new Date().toISOString().slice(0,10),
       ingediend_door: gebruiker.naam,
-      opmerkingen: `Reactie van backoffice op jouw melding: "${tekst}"`,
+      opmerkingen: `Reactie van backoffice: "${tekst}"`,
     });
-    showToast("✓ Reactie verstuurd");
+    showToast("✓ Reactie verstuurd — zichtbaar in Berichten");
     return true;
   }
 
