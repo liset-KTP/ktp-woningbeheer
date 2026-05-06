@@ -99,7 +99,7 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
   const [loading, setLoading] = useState(true);
   const [subTab, setSubTab] = useState("overzicht");
 
-  const isBackoffice = gebruiker?.rol === "backoffice" && !readonly;
+  const isBackoffice = (gebruiker?.rol === "backoffice" || gebruiker?.rol === "financieel") && !readonly;
 
   const loadSchulden = useCallback(async () => {
     const { data: schuldData, error } = await supabase
