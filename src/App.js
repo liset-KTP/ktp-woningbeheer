@@ -345,7 +345,7 @@ export default function App() {
   const mijnMeldingen = meldingen.filter(m=>m.ingediend_door===gebruiker?.naam);
   const rol = gebruiker?.rol;
   const naam = gebruiker?.naam;
-  const isLiset = naam==="Liset";
+  const isLiset = naam==="Liset" || naam==="Warscha";
 
   if (loading) return <LoadingScreen />;
   if (!gebruiker) return <LoginScreen gebruikers={gebruikers} onLogin={login} />;
