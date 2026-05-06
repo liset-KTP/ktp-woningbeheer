@@ -126,6 +126,32 @@ export function AutoModule({ gebruiker, showToast }) {
     else showToast("✓ Bijgewerkt");
   }
 
+  async function stuurReactie(melding, tekst) {
+    const { error } = await supabase.from("auto_meldingen").update({
+      backoffice_reactie: tekst,
+      reactie_door: gebruiker.naam,
+      reactie_op: new Date().toISOString(),
+      reactie_gelezen: false,
+    }).eq("id", melding.id);
+    if (error) { showToast("Fout bij versturen","err"); return false; }
+    stuurMail({
+      type: "💬 Reactie op auto-melding",
+      type_icon: "💬",
+      medewerker: melding.naam_medewerker,
+      woning: `Auto ${melding.kenteken}`,
+      kamer: "—",
+      datum: new Date().toISOString().slice(0,10),
+      ingediend_door: gebruiker.naam,
+      opmerkingen: `Reactie van backoffice op jouw melding: "${tekst}"`,
+    });
+    showToast("✓ Reactie verstuurd");
+    return true;
+  }
+
+  async function markeerGelezen(id) {
+    await supabase.from("auto_meldingen").update({ reactie_gelezen: true }).eq("id", id);
+  }
+
   async function addAuto(auto) {
     const { error } = await supabase.from("autos").insert([auto]);
     if (error) { showToast("Fout bij toevoegen","err"); return false; }
@@ -173,7 +199,7 @@ export function AutoModule({ gebruiker, showToast }) {
 
       {subTab==="overzicht" && <AutoOverzicht autos={autos} gebruiker={gebruiker} />}
       {subTab==="melding"   && <AutoMeldingForm autos={autos} gebruiker={gebruiker} onSubmit={addAutoMelding} showToast={showToast} />}
-      {subTab==="log"       && <AutoLog meldingen={autoMeldingen} autos={autos} onUpdate={updateAutoMelding} gebruiker={gebruiker} isBackoffice={isBackoffice} />}
+      {subTab==="log"       && <AutoLog meldingen={autoMeldingen} autos={autos} onUpdate={updateAutoMelding} gebruiker={gebruiker} isBackoffice={isBackoffice} onReactie={stuurReactie} onMarkeerGelezen={markeerGelezen} />}
       {subTab==="beheer" && isBackoffice && <AutoBeheer autos={autos} onAdd={addAuto} onUpdate={updateAuto} onDelete={deleteAuto} showToast={showToast} />}
     </div>
   );
@@ -465,9 +491,16 @@ function AutoMeldingForm({ autos, gebruiker, onSubmit, showToast }) {
 }
 
 // ─── AUTO LOG ─────────────────────────────────────────────────────────────────
-function AutoLog({ meldingen, autos, onUpdate, gebruiker, isBackoffice }) {
+function AutoLog({ meldingen, autos, onUpdate, gebruiker, isBackoffice, onReactie, onMarkeerGelezen }) {
   const [filter, setFilter] = useState("alle");
   const [notitieMap, setNotitieMap] = useState({});
+  const [reactieMap, setReactieMap] = useState({});
+  const [toonReactieMap, setToonReactieMap] = useState({});
+  const [savingReactie, setSavingReactie] = useState({});
+
+  const isCollega = gebruiker?.rol === "collega";
+  // Aantal ongelezen reacties voor collega
+  const ongelezen = meldingen.filter(m => m.backoffice_reactie && !m.reactie_gelezen && m.ingediend_door === gebruiker?.naam).length;
 
   const gefilterd = meldingen.filter(m =>
     filter === "alle" ? true :
@@ -554,17 +587,65 @@ function AutoLog({ meldingen, autos, onUpdate, gebruiker, isBackoffice }) {
                 )}
                 {m.opmerkingen && <div style={{fontSize:13,color:C.muted,fontStyle:"italic"}}>"{m.opmerkingen}"</div>}
                 {m.afgehandeld_door && <div style={{fontSize:12,color:C.groen,marginTop:4}}>✓ Afgehandeld door {m.afgehandeld_door}</div>}
+                {/* Reactie van backoffice tonen aan collega */}
+                {m.backoffice_reactie && (
+                  <div style={{marginTop:8,background:m.reactie_gelezen?"#f0fdf4":"#eff6ff",border:`1px solid ${m.reactie_gelezen?"#bbf7d0":"#bfdbfe"}`,borderRadius:8,padding:"10px 12px"}}
+                    onClick={()=>{ if(!m.reactie_gelezen && isCollega) onMarkeerGelezen(m.id); }}>
+                    <div style={{fontSize:11,fontWeight:700,color:m.reactie_gelezen?C.groen:C.blauw,marginBottom:4}}>
+                      {m.reactie_gelezen?"✓":"🔔"} Reactie van backoffice — {m.reactie_door}
+                    </div>
+                    <div style={{fontSize:13,color:C.text}}>"{m.backoffice_reactie}"</div>
+                    {!m.reactie_gelezen && isCollega && <div style={{fontSize:11,color:C.blauw,marginTop:4,fontStyle:"italic"}}>Klik om als gelezen te markeren</div>}
+                  </div>
+                )}
               </div>
             </div>
-            {isBackoffice && m.status === "open" && (
-              <div style={{marginTop:12,display:"flex",gap:10}}>
-                <input value={notitieMap[m.id]||""} onChange={e=>setNotitieMap(p=>({...p,[m.id]:e.target.value}))}
-                  placeholder="Notitie (optioneel)..."
-                  style={{flex:1,background:C.bg,border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"8px 12px",fontSize:13,outline:"none",fontFamily:"inherit"}}/>
-                <button onClick={()=>onUpdate(m.id,{status:"verwerkt",notitie:notitieMap[m.id]||null})}
-                  style={{background:C.groen,color:"white",border:"none",borderRadius:8,padding:"8px 16px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                  ✓ Verwerkt
-                </button>
+            {/* Backoffice: verwerken + reactie sturen */}
+            {isBackoffice && (
+              <div style={{marginTop:12}}>
+                {m.status === "open" && (
+                  <div style={{display:"flex",gap:10,marginBottom:8}}>
+                    <input value={notitieMap[m.id]||""} onChange={e=>setNotitieMap(p=>({...p,[m.id]:e.target.value}))}
+                      placeholder="Notitie (optioneel)..."
+                      style={{flex:1,background:C.bg,border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"8px 12px",fontSize:13,outline:"none",fontFamily:"inherit"}}/>
+                    <button onClick={()=>onUpdate(m.id,{status:"verwerkt",notitie:notitieMap[m.id]||null})}
+                      style={{background:C.groen,color:"white",border:"none",borderRadius:8,padding:"8px 16px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                      ✓ Verwerkt
+                    </button>
+                  </div>
+                )}
+                {/* Reactie sturen naar collega */}
+                {toonReactieMap[m.id] ? (
+                  <div style={{background:"#eff6ff",border:"1px solid #bfdbfe",borderRadius:8,padding:12}}>
+                    <div style={{fontSize:12,fontWeight:700,color:C.blauw,marginBottom:8}}>💬 Reactie sturen naar {m.ingediend_door}</div>
+                    <textarea value={reactieMap[m.id]||""} onChange={e=>setReactieMap(p=>({...p,[m.id]:e.target.value}))}
+                      placeholder={`bijv. "Borg kunnen we helaas niet meer inhouden omdat..."`}
+                      rows={3}
+                      style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"8px 12px",fontSize:13,outline:"none",fontFamily:"inherit",resize:"vertical",boxSizing:"border-box",marginBottom:8}}/>
+                    <div style={{display:"flex",gap:8}}>
+                      <button onClick={async()=>{
+                        if(!reactieMap[m.id]?.trim()){return;}
+                        setSavingReactie(p=>({...p,[m.id]:true}));
+                        await onReactie(m, reactieMap[m.id].trim());
+                        setSavingReactie(p=>({...p,[m.id]:false}));
+                        setReactieMap(p=>({...p,[m.id]:""}));
+                        setToonReactieMap(p=>({...p,[m.id]:false}));
+                      }} disabled={savingReactie[m.id]}
+                        style={{background:C.blauw,color:"white",border:"none",borderRadius:8,padding:"8px 18px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                        {savingReactie[m.id]?"⏳":"📨 Verstuur"}
+                      </button>
+                      <button onClick={()=>setToonReactieMap(p=>({...p,[m.id]:false}))}
+                        style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"8px 12px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
+                        Annuleren
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button onClick={()=>setToonReactieMap(p=>({...p,[m.id]:true}))}
+                    style={{background:"white",border:`1.5px solid ${C.blauw}`,color:C.blauw,borderRadius:8,padding:"7px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                    💬 Reactie sturen naar {m.ingediend_door}
+                  </button>
+                )}
               </div>
             )}
           </div>
