@@ -282,6 +282,32 @@ export default function App() {
       await loadMeldingen();
       const statusTekst = newStatus==="afgehandeld"?"✅ Afgehandeld":newStatus==="verwerkt"?"📋 Verwerkt":newStatus==="in_behandeling"?"🔄 In behandeling":"📝 Status gewijzigd";
       logActiviteit("melding_status", `${statusTekst}: ${m?.medewerker||"?"} — ${m?.type||""} — ${huis?.adres||"?"} K${m?.kamer||"?"}${notitie?` (${notitie})`:""}`, {melding_id:id, status:newStatus});
+
+      // Als er een notitie is → stuur bericht naar collega die de melding heeft ingediend
+      if (notitie && notitie.trim() && m?.ingediend_door && m.ingediend_door !== gebruiker.naam) {
+        const typeLabel = m.type==="aankomst"?"Aankomst":m.type==="vertrek"?"Vertrek":m.type==="reservering"?"Reservering":"Melding";
+        await supabase.from("berichten").insert([{
+          tekst: notitie.trim(),
+          van: gebruiker.naam,
+          aan: m.ingediend_door,
+          onderwerp: `${statusTekst} — ${typeLabel} ${m.medewerker}`,
+          koppeling_type: "melding",
+          koppeling_id: id,
+          koppeling_label: `${typeLabel} — ${m.medewerker} — ${huis?.adres||""}${m.kamer?` K${m.kamer}`:""}`,
+          gelezen_door: [gebruiker.naam],
+        }]);
+        stuurMail({
+          type: `💬 Reactie op ${typeLabel.toLowerCase()}melding`,
+          type_icon: "💬",
+          medewerker: m.ingediend_door,
+          woning: huis ? `${huis.adres}, ${huis.stad}` : "—",
+          kamer: m.kamer ? `Kamer ${m.kamer}` : "—",
+          datum: new Date().toISOString().slice(0,10),
+          ingediend_door: gebruiker.naam,
+          opmerkingen: notitie.trim(),
+        });
+      }
+
       // Als vertrek verwerkt wordt: zet kamerstatus terug naar Beschikbaar
       if ((newStatus==="verwerkt"||newStatus==="afgehandeld") && m?.type==="vertrek" && huis) {
         const kamer = huis.kamers.find(k=>k.k===m.kamer);
