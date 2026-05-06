@@ -443,9 +443,9 @@ export default function App() {
   }
 
   const openMeldingen = meldingen.filter(m=>m.status==="open");
-  const openTaken = taken.filter(t=>t.status==="open");
-  const mijnMeldingen = meldingen.filter(m=>m.ingediend_door===gebruiker?.naam);
   const rol = gebruiker?.rol;
+  const openTaken = taken.filter(t=>t.status==="open" && (t.voor_rol==="iedereen" || t.voor_rol===rol || !t.voor_rol));
+  const mijnMeldingen = meldingen.filter(m=>m.ingediend_door===gebruiker?.naam);
   const naam = gebruiker?.naam;
   const isLiset = naam==="Liset" || naam==="Warscha";
 
@@ -888,7 +888,7 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
 function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
   const [toonNieuwe, setToonNieuwe] = useState(false);
   const [filter, setFilter] = useState("open");
-  const [nieuw, setNieuw] = useState({titel:"",omschrijving:"",woning_id:"",kamer:"",prioriteit:"middel"});
+  const [nieuw, setNieuw] = useState({titel:"",omschrijving:"",woning_id:"",kamer:"",prioriteit:"middel",voor_rol:"iedereen"});
   const [saving, setSaving] = useState(false);
   const [notitieMap, setNotitieMap] = useState({});
   const [bevestigMap, setBevestigMap] = useState({});
@@ -898,16 +898,28 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
   const [toonOpmerkingMap, setToonOpmerkingMap] = useState({});
 
   const isHuismeester = gebruiker?.rol === "huismeester";
+  const isCollega = gebruiker?.rol === "collega";
+  const rolNaam = gebruiker?.rol;
 
-  const gefilterd = taken.filter(t=> filter==="open"?t.status==="open": filter==="gedaan"?t.status==="gedaan": true);
+  // Filter taken op basis van rol
+  const gefilterd = taken
+    .filter(t => {
+      // Rol-filter: toon alleen taken die voor jou bestemd zijn
+      if (t.voor_rol === "huismeester" && rolNaam !== "huismeester" && rolNaam !== "backoffice") return false;
+      if (t.voor_rol === "backoffice" && rolNaam !== "backoffice") return false;
+      // Status filter
+      if (filter === "open") return t.status === "open";
+      if (filter === "gedaan") return t.status === "gedaan";
+      return true;
+    });
   const selectedHouse = houses.find(h=>h.id===Number(nieuw.woning_id));
 
   async function voegToe() {
     if (!nieuw.titel.trim()) { showToast("Vul een titel in","err"); return; }
     setSaving(true);
-    await onAdd({titel:nieuw.titel.trim(),omschrijving:nieuw.omschrijving||null,woning_id:nieuw.woning_id?Number(nieuw.woning_id):null,kamer:nieuw.kamer||null,prioriteit:nieuw.prioriteit});
+    await onAdd({titel:nieuw.titel.trim(),omschrijving:nieuw.omschrijving||null,woning_id:nieuw.woning_id?Number(nieuw.woning_id):null,kamer:nieuw.kamer||null,prioriteit:nieuw.prioriteit,voor_rol:nieuw.voor_rol||"iedereen"});
     setSaving(false);
-    setNieuw({titel:"",omschrijving:"",woning_id:"",kamer:"",prioriteit:"middel"});
+    setNieuw({titel:"",omschrijving:"",woning_id:"",kamer:"",prioriteit:"middel",voor_rol:"iedereen"});
     setToonNieuwe(false);
   }
 
@@ -950,6 +962,17 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
               </select>
             </div>
             <div>
+              <label className="fl">Voor wie?</label>
+              <div style={{display:"flex",gap:8}}>
+                {[["iedereen","👥 Iedereen"],["huismeester","🏠 Huismeester"],["backoffice","📊 Backoffice"]].map(([v,l])=>(
+                  <div key={v} onClick={()=>setNieuw(p=>({...p,voor_rol:v}))}
+                    style={{flex:1,border:`2px solid ${nieuw.voor_rol===v?C.blauw:C.border}`,borderRadius:8,padding:"8px",textAlign:"center",cursor:"pointer",background:nieuw.voor_rol===v?C.blauw+"10":"white",fontSize:12,fontWeight:600,color:nieuw.voor_rol===v?C.blauw:C.muted}}>
+                    {l}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div>
               <label className="fl">Extra toelichting</label>
               <input className="fi" value={nieuw.omschrijving} onChange={e=>setNieuw(p=>({...p,omschrijving:e.target.value}))} placeholder="Optioneel..." />
             </div>
@@ -987,6 +1010,8 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                   <span style={{fontWeight:700,fontSize:15,color:gedaan?C.muted:C.text,textDecoration:gedaan?"line-through":"none"}}>{t.titel}</span>
                   <span className="badge" style={{background:prioKleur[t.prioriteit]+"18",color:prioKleur[t.prioriteit]}}>{t.prioriteit?.toUpperCase()}</span>
                   {gedaan&&<span className="badge" style={{background:"#f0fdf4",color:C.groen}}>GEDAAN</span>}
+                  {t.voor_rol==="huismeester"&&<span className="badge" style={{background:"#f0fdf4",color:C.groen}}>🏠 Huismeester</span>}
+                  {t.voor_rol==="backoffice"&&<span className="badge" style={{background:C.blauw+"15",color:C.blauw}}>📊 Backoffice</span>}
                 </div>
                 <div style={{fontSize:12,color:C.muted}}>
                   {huis?`📍 ${huis.adres}, ${huis.stad}`:"📋 Algemeen"}{t.kamer?` · Kamer ${t.kamer}`:""}
