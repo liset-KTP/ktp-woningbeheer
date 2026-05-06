@@ -489,6 +489,7 @@ function LoginScreen({ gebruikers, onLogin }) {
   const rollen = [
     { id:"collega",      icon:"👤", label:"Collega",      kleur:C.muted },
     { id:"huismeester",  icon:"🏠", label:"Huismeester",  kleur:C.groen },
+    { id:"financieel",   icon:"💶", label:"Financieel",   kleur:"#f59e0b" },
     { id:"backoffice",   icon:"📊", label:"Backoffice",   kleur:C.blauw },
   ];
 
@@ -531,7 +532,7 @@ function LoginScreen({ gebruikers, onLogin }) {
                   <div>
                     <div style={{fontWeight:700,fontSize:16}}>{r.label}</div>
                     <div style={{fontSize:12,color:C.muted,marginTop:2}}>
-                      {r.id==="collega"?"Melding doorgeven & woningen bekijken":r.id==="huismeester"?"Taken & checklists afhandelen":"Planning, inbox & beheer"}
+                      {r.id==="collega"?"Melding doorgeven & woningen bekijken":r.id==="huismeester"?"Taken & checklists afhandelen":r.id==="financieel"?"Huurbetalingen & financieel overzicht":"Planning, inbox & beheer"}
                     </div>
                   </div>
                   <div style={{marginLeft:"auto",color:C.border,fontSize:20}}>›</div>
