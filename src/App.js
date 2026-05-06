@@ -5,6 +5,7 @@ import { FietsModule } from "./FietsModule";
 import { HuurbetalingenModule } from "./HuurbetalingenModule";
 import { BijlageUploader, BijlageWeergave, uploadBijlages } from "./BijlageUploader";
 import { BerichtenModule } from "./BerichtenModule";
+import { BorgModule } from "./BorgModule";
 
 // ─── EMAILJS ──────────────────────────────────────────────────────────────────
 const EMAILJS_SERVICE  = "service_1af258e";
@@ -283,6 +284,61 @@ export default function App() {
       const statusTekst = newStatus==="afgehandeld"?"✅ Afgehandeld":newStatus==="verwerkt"?"📋 Verwerkt":newStatus==="in_behandeling"?"🔄 In behandeling":"📝 Status gewijzigd";
       logActiviteit("melding_status", `${statusTekst}: ${m?.medewerker||"?"} — ${m?.type||""} — ${huis?.adres||"?"} K${m?.kamer||"?"}${notitie?` (${notitie})`:""}`, {melding_id:id, status:newStatus});
 
+      // Als aankomst verwerkt wordt → automatisch borgplan aanmaken
+      if ((newStatus==="verwerkt"||newStatus==="afgehandeld") && m?.type==="aankomst") {
+        const sleutels = m.sleutel_aantal || 1;
+        // Check of er al een borgplan bestaat voor deze persoon + kamer
+        const { data: bestaand } = await supabase.from("borg_plannen")
+          .select("id").eq("naam_medewerker", m.medewerker).eq("status","actief").limit(1);
+        if (!bestaand || bestaand.length === 0) {
+          // Check of persoon een fiets heeft
+          const { data: fietsen } = await supabase.from("fietsen")
+            .select("id").eq("naam_medewerker", m.medewerker).eq("status","In gebruik").limit(1);
+          const heeftFiets = fietsen && fietsen.length > 0;
+          // Bereken termijnen
+          const nu2 = new Date();
+          const startWeek = (() => { const d=new Date(); const j=new Date(Date.UTC(d.getFullYear(),0,1)); return Math.ceil((((d-j)/86400000)+j.getDay()+1)/7)+1; })();
+          const startJaar = nu2.getFullYear();
+          const termijnData = [];
+          if (sleutels === 1) {
+            termijnData.push({omschrijving:"Borg sleutel (week 1/2)",bedrag:50});
+            termijnData.push({omschrijving:"Borg sleutel (week 2/2)",bedrag:50});
+          } else if (sleutels >= 2) {
+            termijnData.push({omschrijving:"Borg sleutels (week 1/4)",bedrag:50});
+            termijnData.push({omschrijving:"Borg sleutels (week 2/4)",bedrag:50});
+            termijnData.push({omschrijving:"Borg sleutels (week 3/4)",bedrag:50});
+            termijnData.push({omschrijving:"Borg sleutels (week 4/4)",bedrag:30});
+          }
+          if (heeftFiets) {
+            termijnData.push({omschrijving:"Borg fiets (week 1/2)",bedrag:50});
+            termijnData.push({omschrijving:"Borg fiets (week 2/2)",bedrag:50});
+          }
+          const totaalBorg = termijnData.reduce((s,t)=>s+t.bedrag,0);
+          if (totaalBorg > 0) {
+            const { data: plan2 } = await supabase.from("borg_plannen").insert([{
+              naam_medewerker: m.medewerker,
+              woning_id: m.woning_id || null,
+              kamer: m.kamer || null,
+              aankomst_datum: m.datum || null,
+              sleutels: sleutels,
+              heeft_fiets: heeftFiets,
+              totaal_borg: totaalBorg,
+              ingehouden: 0,
+              status: "actief",
+              aangemaakt_door: gebruiker.naam,
+            }]).select().single();
+            if (plan2?.data) {
+              const rows = termijnData.map((t,i) => {
+                let week = startWeek + i; let jaar = startJaar;
+                if (week > 52) { week -= 52; jaar++; }
+                return { plan_id: plan2.data.id, naam_medewerker: m.medewerker, week_nummer: week, jaar, bedrag: t.bedrag, type: "inhouden", omschrijving: t.omschrijving, status: "open" };
+              });
+              await supabase.from("borg_termijnen").insert(rows);
+            }
+          }
+        }
+      }
+
       // Als er een notitie is → stuur bericht naar collega die de melding heeft ingediend
       if (notitie && notitie.trim() && m?.ingediend_door && m.ingediend_door !== gebruiker.naam) {
         const typeLabel = m.type==="aankomst"?"Aankomst":m.type==="vertrek"?"Vertrek":m.type==="reservering"?"Reservering":"Melding";
@@ -510,6 +566,7 @@ export default function App() {
               <button className={`tp ${tab==="inbox"?"act":""}`} onClick={()=>setTab("inbox")}>📨 Inbox {openMeldingen.length>0&&<Notif n={openMeldingen.length}/>}</button>
               <button className={`tp ${tab==="checklist"?"act":""}`} onClick={()=>setTab("checklist")}>✅ Checklists</button>
               <button className={`tp ${tab==="huurbetalingen"?"act":""}`} onClick={()=>setTab("huurbetalingen")}>💶 Huurbetalingen</button>
+              <button className={`tp ${tab==="borg"?"act":""}`} onClick={()=>setTab("borg")}>🔐 Borg</button>
               <button className={`tp ${tab==="log"?"act":""}`} onClick={()=>setTab("log")}>📝 Log</button>
               <button className={`tp ${tab==="berichten"?"act":""}`} onClick={()=>setTab("berichten")}>💬 Berichten {ongelzenBerichten>0&&<Notif n={ongelzenBerichten}/>}</button>
               {isLiset&&<button className={`tp ${tab==="beheer"?"act":""}`} onClick={()=>setTab("beheer")}>⚙️ Beheer</button>}
@@ -533,6 +590,7 @@ export default function App() {
         {rol==="backoffice"&&tab==="log"&&<LogView meldingen={meldingen} houses={houses} activiteiten={activiteiten}/>}
         {tab==="huurbetalingen"&&<HuurbetalingenModule gebruiker={gebruiker} showToast={showToast} readonly={rol!=="backoffice"&&rol!=="financieel"}/>}
         {tab==="berichten"&&<BerichtenModule gebruiker={gebruiker} houses={houses} taken={taken} meldingen={meldingen} autos={[]}/>}
+        {tab==="borg"&&<BorgModule gebruiker={gebruiker} houses={houses} showToast={showToast}/>}
         {tab==="huismeesterplanning"&&<HuismeesterPlanningView dagplanningDB={dagplanningDB} houses={houses} taken={taken} meldingen={meldingen}/>}
         {rol==="backoffice"&&isLiset&&tab==="beheer"&&<BeheerView houses={houses} onAdd={addWoning} onUpdate={updateWoning} onDelete={deleteWoning} showToast={showToast} gebruikers={gebruikers} onAddGebruiker={voegGebruikerToe} onUpdateGebruiker={updateGebruiker} onDeleteGebruiker={verwijderGebruiker} checklistItems={checklistItems} dagplanningDB={dagplanningDB}/>}
       </div>
@@ -1377,6 +1435,7 @@ function MeldingForm({ houses, onSubmit, showToast }) {
       opmerkingen: type==="verhuizing"
         ? `Verhuizing van ${vanHuis?.adres} K${vanKamer} naar ${naarHuis?.adres} K${naarKamer}${opmerkingen?". "+opmerkingen:""}`
         : opmerkingen,
+      sleutel_aantal: sleutelAantal || 1,
       bijlages,
     };
     await onSubmit(meldingData);
