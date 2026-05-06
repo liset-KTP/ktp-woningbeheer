@@ -614,7 +614,7 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
   const dag = dagVanDeWeek();
   // Gebruik database planning als beschikbaar, anders fallback naar hardcoded
   const planningMap = dagplanningDB.length > 0
-    ? Object.fromEntries(dagplanningDB.map(d => [d.dag, { label: d.label, kleur: d.kleur, icon: d.icon, focus: d.focus, taken: d.taken }]))
+    ? Object.fromEntries(dagplanningDB.map(d => [d.dag, { label: d.label, kleur: d.kleur, icon: d.icon, focus: d.focus, taken: d.taken, woning_ids: d.woning_ids||[] }]))
     : DAGPLANNING;
   const vandaag = planningMap[dag];
   const dagNamen = dagplanningDB.length > 0 ? dagplanningDB.map(d => d.dag) : ["ma","di","wo","do","vr"];
@@ -656,14 +656,34 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
               {(getoondeDag.woning_ids||[]).map(id=>{
                 const h = houses.find(h=>h.id===id);
                 if (!h) return null;
-                const hMeldingen = openMeldingen.filter(m=>m.woning_id===h.id);
+                const hMeldingen = openMeldingen.filter(m=>m.woning_id===h.id && m.type!=="aankomst" && m.type!=="vertrek");
                 const hTaken = openTaken.filter(t=>t.woning_id===h.id);
                 return (
                   <div key={id} style={{background:C.bg,borderRadius:10,padding:"10px 14px",marginBottom:8,border:`1px solid ${C.border}`}}>
-                    <div style={{fontWeight:700,fontSize:13,color:C.text,marginBottom:4}}>📍 {h.adres}, {h.stad}</div>
-                    {hMeldingen.length > 0 && <div style={{fontSize:12,color:"#f59e0b",fontWeight:600}}>⚠️ {hMeldingen.length} open melding{hMeldingen.length>1?"en":""}</div>}
-                    {hTaken.length > 0 && <div style={{fontSize:12,color:C.blauw,fontWeight:600}}>📌 {hTaken.length} open taak{hTaken.length>1?"en":""}</div>}
-                    {hMeldingen.length===0 && hTaken.length===0 && <div style={{fontSize:12,color:C.groen}}>✓ Geen openstaande items</div>}
+                    <div style={{fontWeight:700,fontSize:13,color:getoondeDag.kleur,marginBottom:hTaken.length+hMeldingen.length>0?8:4}}>
+                      📍 {h.adres}, {h.stad}
+                    </div>
+                    {hTaken.map(t=>(
+                      <div key={t.id} style={{display:"flex",gap:8,padding:"5px 0",borderTop:`1px solid ${C.border}`,fontSize:12,alignItems:"flex-start"}}>
+                        <span style={{color:"#f59e0b",fontWeight:700,flexShrink:0}}>🔧</span>
+                        <div>
+                          <div style={{fontWeight:600,color:C.text}}>{t.titel}</div>
+                          {t.omschrijving&&<div style={{color:C.muted,fontSize:11,marginTop:1}}>{t.omschrijving.slice(0,80)}{t.omschrijving.length>80?"...":""}</div>}
+                        </div>
+                      </div>
+                    ))}
+                    {hMeldingen.map(m=>(
+                      <div key={m.id} style={{display:"flex",gap:8,padding:"5px 0",borderTop:`1px solid ${C.border}`,fontSize:12,alignItems:"flex-start"}}>
+                        <span style={{color:"#ef4444",fontWeight:700,flexShrink:0}}>⚠️</span>
+                        <div>
+                          <div style={{fontWeight:600,color:C.text}}>{m.type} — {m.medewerker}</div>
+                          {m.opmerkingen&&<div style={{color:C.muted,fontSize:11,marginTop:1}}>{m.opmerkingen.slice(0,80)}{m.opmerkingen.length>80?"...":""}</div>}
+                        </div>
+                      </div>
+                    ))}
+                    {hTaken.length===0 && hMeldingen.length===0 && (
+                      <div style={{fontSize:11,color:C.groen}}>✓ Geen openstaande items</div>
+                    )}
                   </div>
                 );
               })}
@@ -1491,6 +1511,7 @@ function BackofficeInbox({meldingen,houses,onUpdate,naam,showToast}) {
                 </div>
                 <div style={{fontSize:12,color:C.muted,marginTop:4}}>📍 {huis?.adres}, {huis?.stad} · K{m.kamer} · {m.datum} · Door: {m.ingediend_door}</div>
                 {m.wie_regelt&&<div style={{fontSize:12,color:C.muted,marginTop:2}}>👤 Wie regelt: {m.wie_regelt}</div>}
+                {m.opmerkingen&&<div style={{fontSize:13,color:C.text,marginTop:6,fontStyle:"italic",background:"#fffbeb",border:"1px solid #fcd34d",borderRadius:8,padding:"8px 12px"}}>💬 "{m.opmerkingen}"</div>}
               </div>
             </div>
             <div style={{background:C.bg,borderRadius:8,padding:12,marginBottom:10,border:`1px solid ${C.border}`}}>
