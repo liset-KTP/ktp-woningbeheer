@@ -37,13 +37,42 @@ function Input(props) {
   return <input style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"10px 14px",fontSize:14,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}} {...props}/>;
 }
 
-// Bereken openstaand bedrag: €20 per dag vanaf startdatum, minus betalingen
-function berekenTotaalVerschuldigd(schuld) {
+// Bereken welke maandagen er zijn vanaf startdatum t/m vandaag (of einddatum)
+// Elke maandag = 1 week vooraf verschuldigd
+function berekenVerschuldigdeWeken(schuld) {
   if (!schuld.startdatum) return 0;
+  const weekbedrag = schuld.tarief_bedrag ? Number(schuld.tarief_bedrag) : 140;
+  
+  // Vind de eerste maandag op of na de startdatum
   const start = new Date(schuld.startdatum);
-  const eind  = schuld.einddatum ? new Date(schuld.einddatum) : new Date();
-  const dagen = Math.max(0, Math.floor((eind - start) / 86400000));
-  return (dagen * 20) + Number(schuld.beginsaldo || 0) + (schuld.betalingen || []).filter(b => b.bedrag < 0).reduce((s,b) => s + Math.abs(Number(b.bedrag)), 0);
+  start.setHours(0,0,0,0);
+  const dag = start.getDay(); // 0=zo, 1=ma, ..., 6=za
+  const dagenNaarMaandag = dag === 1 ? 0 : dag === 0 ? 1 : 8 - dag;
+  const eersteMaandag = new Date(start);
+  eersteMaandag.setDate(start.getDate() + dagenNaarMaandag);
+
+  // Tel maandagen t/m vandaag (of einddatum)
+  const grens = new Date();
+  grens.setHours(23,59,59,999);
+  if (schuld.einddatum) {
+    const eind = new Date(schuld.einddatum);
+    eind.setHours(23,59,59,999);
+    if (eind < grens) grens.setTime(eind.getTime());
+  }
+
+  let weken = 0;
+  const d = new Date(eersteMaandag);
+  while (d <= grens) {
+    weken++;
+    d.setDate(d.getDate() + 7);
+  }
+  return { weken, weekbedrag, eersteMaandag };
+}
+
+function berekenTotaalVerschuldigd(schuld) {
+  const { weken, weekbedrag } = berekenVerschuldigdeWeken(schuld);
+  const extraBedragen = (schuld.betalingen || []).filter(b => Number(b.bedrag) < 0).reduce((s,b) => s + Math.abs(Number(b.bedrag)), 0);
+  return (weken * weekbedrag) + Number(schuld.beginsaldo || 0) + extraBedragen;
 }
 
 function berekenTotaalBetaald(schuld) {
@@ -52,6 +81,17 @@ function berekenTotaalBetaald(schuld) {
 
 function berekenOpenstaand(schuld) {
   return Math.max(0, berekenTotaalVerschuldigd(schuld) - berekenTotaalBetaald(schuld));
+}
+
+function volgendeBetalingsDatum(schuld) {
+  const { eersteMaandag } = berekenVerschuldigdeWeken(schuld);
+  if (!eersteMaandag) return null;
+  // Vind de eerstvolgende maandag na vandaag
+  const nu = new Date();
+  nu.setHours(0,0,0,0);
+  const d = new Date(eersteMaandag);
+  while (d <= nu) d.setDate(d.getDate() + 7);
+  return d;
 }
 
 export function HuurbetalingenModule({ gebruiker, showToast, readonly = false }) {
@@ -90,6 +130,8 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
       aangemaakt_door: gebruiker.naam,
       actief: true,
       beginsaldo: data.beginsaldo || 0,
+      tarief_bedrag: data.tarief_bedrag || null,
+      tarief_dagen: data.tarief_dagen || null,
     }]);
     if (error) { showToast("Fout bij opslaan","err"); return false; }
     showToast("✓ Huurschuld aangemaakt"); return true;
@@ -148,7 +190,7 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
       {totaalOpen > 0 && (
         <div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:12,padding:"12px 18px",marginBottom:20}}>
           <div style={{fontWeight:700,color:"#b91c1c"}}>⚠️ Totaal openstaand: €{totaalOpen.toFixed(2)}</div>
-          <div style={{fontSize:13,color:"#b91c1c",marginTop:4}}>Verdeeld over {actief.length} medewerker{actief.length !== 1 ? "s" : ""}. Teller loopt automatisch €20 per dag.</div>
+          <div style={{fontSize:13,color:"#b91c1c",marginTop:4}}>Verdeeld over {actief.length} medewerker{actief.length !== 1 ? "s" : ""}. Elke maandag wordt automatisch het weekbedrag bijgeteld.</div>
         </div>
       )}
 
@@ -211,9 +253,8 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerkin
   const openstaand    = berekenOpenstaand(schuld);
   const totaalBetaald = berekenTotaalBetaald(schuld);
   const totaalVerschuldigd = berekenTotaalVerschuldigd(schuld);
-  const start = new Date(schuld.startdatum);
-  const eind  = schuld.einddatum ? new Date(schuld.einddatum) : new Date();
-  const dagen = Math.max(0, Math.floor((eind - start) / 86400000));
+  const { weken, weekbedrag } = berekenVerschuldigdeWeken(schuld);
+  const volgendeDatum = volgendeBetalingsDatum(schuld);
   const pct   = totaalVerschuldigd > 0 ? Math.min(100, (totaalBetaald / totaalVerschuldigd) * 100) : 0;
 
   async function handleBetaling() {
@@ -243,8 +284,14 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerkin
           <div style={{fontSize:12,color:C.muted}}>
             Vanaf {fmtDate(schuld.startdatum)}
             {schuld.einddatum ? ` t/m ${fmtDate(schuld.einddatum)}` : " (lopend)"}
-            {" · "}{dagen} dag{dagen !== 1 ? "en" : ""}
+            {" · "}{weken} week{weken !== 1 ? "en" : ""}
+            {" · €"}{weekbedrag}/week
           </div>
+          {volgendeDatum && !schuld.einddatum && (
+            <div style={{fontSize:12,color:"#f59e0b",fontWeight:600,marginTop:3}}>
+              📅 Volgende betaling verwacht: {fmtDate(volgendeDatum)} (€{weekbedrag})
+            </div>
+          )}
         </div>
         <div style={{textAlign:"right"}}>
           <div style={{fontSize:24,fontWeight:800,color:kleur}}>€{openstaand.toFixed(2)}</div>
@@ -448,6 +495,9 @@ function NieuweSchuld({ onSubmit, showToast }) {
   const [einddatum, setEind]      = useState("");
   const [opmerkingen, setOpm]     = useState("");
   const [beginsaldo, setBeginsaldo] = useState("");
+  const [tariefType, setTariefType] = useState("standaard");
+  const [tariefBedrag, setTariefBedrag] = useState("");
+  const [tariefDagen, setTariefDagen] = useState("7");
   const [saving, setSaving]       = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -455,7 +505,7 @@ function NieuweSchuld({ onSubmit, showToast }) {
     if (!naam.trim())      { showToast("Vul naam medewerker in","err"); return; }
     if (!startdatum)       { showToast("Vul een startdatum in","err"); return; }
     setSaving(true);
-    const ok = await onSubmit({ naam_medewerker: naam.trim(), startdatum, einddatum, opmerkingen, beginsaldo: beginsaldo ? Number(beginsaldo) : 0 });
+    const ok = await onSubmit({ naam_medewerker: naam.trim(), startdatum, einddatum, opmerkingen, beginsaldo: beginsaldo ? Number(beginsaldo) : 0, tarief_bedrag: tariefType==="handmatig" && tariefBedrag ? Number(tariefBedrag) : null });
     setSaving(false);
     if (ok) { setNaam(""); setStart(todayISO()); setEind(""); setOpm(""); setSubmitted(true); setTimeout(()=>setSubmitted(false),2000); }
   }
@@ -471,7 +521,7 @@ function NieuweSchuld({ onSubmit, showToast }) {
     <div style={{maxWidth:600}}>
       <h3 style={{fontSize:16,fontWeight:800,color:C.blauw,marginBottom:20}}>Nieuwe huurschuld aanmaken</h3>
       <div style={{background:"#fef3c7",border:"1px solid #fcd34d",borderRadius:10,padding:"12px 16px",marginBottom:20,fontSize:13,color:"#b45309"}}>
-        ℹ️ De teller loopt automatisch €20 per dag vanaf de startdatum. Voeg betalingen toe zodra de medewerker betaalt.
+        ℹ️ Elke maandag op of na de startdatum wordt automatisch het weekbedrag bijgeteld. Standaard €140 per week, vooraf te betalen.
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
         <div style={{gridColumn:"1/-1"}}>
@@ -486,6 +536,25 @@ function NieuweSchuld({ onSubmit, showToast }) {
           <Label>Einddatum (indien bekend)</Label>
           <Input type="date" value={einddatum} onChange={e=>setEind(e.target.value)}/>
           <div style={{fontSize:11,color:C.muted,marginTop:4}}>Leeg = teller loopt nog</div>
+        </div>
+        <div style={{gridColumn:"1/-1"}}>
+          <Label>Weekbedrag</Label>
+          <div style={{display:"flex",gap:10,marginBottom:12}}>
+            {[["standaard","€140 per week (standaard)"],["handmatig","Afwijkend weekbedrag"]].map(([v,l])=>(
+              <div key={v} onClick={()=>setTariefType(v)}
+                style={{flex:1,border:`2px solid ${tariefType===v?C.blauw:C.border}`,borderRadius:10,padding:"14px 16px",cursor:"pointer",background:tariefType===v?C.blauw+"10":"white",textAlign:"center"}}>
+                <div style={{fontWeight:700,fontSize:13,color:tariefType===v?C.blauw:C.muted}}>{l}</div>
+                {v==="standaard" && <div style={{fontSize:11,color:C.muted,marginTop:4}}>Elke maandag €140</div>}
+              </div>
+            ))}
+          </div>
+          {tariefType==="handmatig" && (
+            <div style={{background:"#fffbeb",border:"1px solid #fcd34d",borderRadius:10,padding:14}}>
+              <Label>Weekbedrag (€)</Label>
+              <Input type="number" step="0.01" min="1" value={tariefBedrag} onChange={e=>setTariefBedrag(e.target.value)} placeholder="bijv. 70"/>
+              <div style={{fontSize:11,color:C.muted,marginTop:6}}>Dit bedrag wordt elke maandag bijgeteld</div>
+            </div>
+          )}
         </div>
         <div>
           <Label>Beginsaldo (€) — bestaande achterstand</Label>
