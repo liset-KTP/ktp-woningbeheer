@@ -433,6 +433,7 @@ export default function App() {
               <button className={`tp ${tab==="autos"?"act":""}`} onClick={()=>setTab("autos")}>🚗 Auto's</button>
               <button className={`tp ${tab==="fietsen"?"act":""}`} onClick={()=>setTab("fietsen")}>🚲 Fietsen</button>
               <button className={`tp ${tab==="huurbetalingen"?"act":""}`} onClick={()=>setTab("huurbetalingen")}>💶 Huur</button>
+              <button className={`tp ${tab==="huismeesterplanning"?"act":""}`} onClick={()=>setTab("huismeesterplanning")}>📅 Planning Cristian</button>
             </>)}
             {rol==="huismeester" && (<>
               <button className={`tp ${tab==="dagplanning"?"act":""}`} onClick={()=>setTab("dagplanning")}>📅 Mijn dag {totalNotifs>0&&<Notif n={totalNotifs}/>}</button>
@@ -479,6 +480,7 @@ export default function App() {
         {rol==="backoffice"&&tab==="inbox"&&<BackofficeInbox meldingen={meldingen} houses={houses} onUpdate={updateMeldingStatus} naam={naam} showToast={showToast}/>}
         {rol==="backoffice"&&tab==="log"&&<LogView meldingen={meldingen} houses={houses} activiteiten={activiteiten}/>}
         {tab==="huurbetalingen"&&<HuurbetalingenModule gebruiker={gebruiker} showToast={showToast} readonly={rol!=="backoffice"&&rol!=="financieel"}/>}
+        {tab==="huismeesterplanning"&&<HuismeesterPlanningView dagplanningDB={dagplanningDB} houses={houses}/>}
         {rol==="backoffice"&&isLiset&&tab==="beheer"&&<BeheerView houses={houses} onAdd={addWoning} onUpdate={updateWoning} onDelete={deleteWoning} showToast={showToast} gebruikers={gebruikers} onAddGebruiker={voegGebruikerToe} onUpdateGebruiker={updateGebruiker} onDeleteGebruiker={verwijderGebruiker} checklistItems={checklistItems} dagplanningDB={dagplanningDB}/>}
       </div>
     </div>
@@ -643,10 +645,32 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
       </div>
 
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20}}>
-        {/* Dagtaken */}
+        {/* Dagtaken + woningen */}
         <div className="card" style={{borderTop:`4px solid ${getoondeDag.kleur}`}}>
           <div style={{fontWeight:800,fontSize:15,color:getoondeDag.kleur,marginBottom:4}}>{getoondeDag.icon} {getoondeDag.label}</div>
-          <div style={{fontSize:13,color:C.muted,marginBottom:16}}>{getoondeDag.focus}</div>
+          <div style={{fontSize:13,color:C.muted,marginBottom:12}}>{getoondeDag.focus}</div>
+          {/* Woningen vandaag */}
+          {(getoondeDag.woning_ids||[]).length > 0 && (
+            <div style={{marginBottom:16}}>
+              <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".6px",textTransform:"uppercase",marginBottom:8}}>Woningen vandaag</div>
+              {(getoondeDag.woning_ids||[]).map(id=>{
+                const h = houses.find(h=>h.id===id);
+                if (!h) return null;
+                const hMeldingen = openMeldingen.filter(m=>m.woning_id===h.id);
+                const hTaken = openTaken.filter(t=>t.woning_id===h.id);
+                return (
+                  <div key={id} style={{background:C.bg,borderRadius:10,padding:"10px 14px",marginBottom:8,border:`1px solid ${C.border}`}}>
+                    <div style={{fontWeight:700,fontSize:13,color:C.text,marginBottom:4}}>📍 {h.adres}, {h.stad}</div>
+                    {hMeldingen.length > 0 && <div style={{fontSize:12,color:"#f59e0b",fontWeight:600}}>⚠️ {hMeldingen.length} open melding{hMeldingen.length>1?"en":""}</div>}
+                    {hTaken.length > 0 && <div style={{fontSize:12,color:C.blauw,fontWeight:600}}>📌 {hTaken.length} open taak{hTaken.length>1?"en":""}</div>}
+                    {hMeldingen.length===0 && hTaken.length===0 && <div style={{fontSize:12,color:C.groen}}>✓ Geen openstaande items</div>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {/* Vaste taken */}
+          <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".6px",textTransform:"uppercase",marginBottom:8}}>Vaste taken</div>
           {getoondeDag.taken.map((t,i)=>(
             <div key={i} style={{display:"flex",gap:10,padding:"8px 0",borderBottom:i<getoondeDag.taken.length-1?`1px solid ${C.border}`:"none",alignItems:"flex-start"}}>
               <div style={{width:22,height:22,borderRadius:6,background:getoondeDag.kleur+"18",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:getoondeDag.kleur,flexShrink:0,marginTop:1}}>{i+1}</div>
@@ -1037,6 +1061,50 @@ function ChecklistView({ houses, checklists, checklistItems, onSave, gebruiker }
 }
 
 // ─── MELDING FORM ─────────────────────────────────────────────────────────────
+// ─── WEEKPLANNING CRISTIAN (voor collega's) ───────────────────────────────────
+function HuismeesterPlanningView({ dagplanningDB, houses }) {
+  const dag = dagVanDeWeek();
+  const dagNamen = ["ma","di","wo","do","vr"];
+  const dagLabels = { ma:"Maandag", di:"Dinsdag", wo:"Woensdag", do:"Donderdag", vr:"Vrijdag" };
+
+  return (
+    <div>
+      <SH titel="📅 Planning Cristian" sub="Overzicht van welke woningen Cristian welke dag bezoekt" />
+      <div style={{display:"grid",gap:12}}>
+        {dagplanningDB.map(d => {
+          const isVandaag = d.dag === dag;
+          const woningen = (d.woning_ids||[]).map(id => houses.find(h=>h.id===id)).filter(Boolean);
+          return (
+            <div key={d.id} style={{background:"white",border:`1px solid ${C.border}`,borderLeft:`4px solid ${d.kleur}`,borderRadius:12,padding:"16px 20px",boxShadow:isVandaag?"0 0 0 2px "+d.kleur:"none"}}>
+              <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:woningen.length>0?12:0}}>
+                <span style={{fontSize:22}}>{d.icon}</span>
+                <div>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <span style={{fontWeight:800,fontSize:15,color:d.kleur}}>{d.label}</span>
+                    {isVandaag && <span style={{background:d.kleur,color:"white",fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:10}}>VANDAAG</span>}
+                  </div>
+                  <div style={{fontSize:12,color:C.muted,marginTop:2}}>{d.focus}</div>
+                </div>
+              </div>
+              {woningen.length > 0 ? (
+                <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+                  {woningen.map(h => (
+                    <div key={h.id} style={{padding:"6px 14px",borderRadius:20,fontSize:12,fontWeight:600,background:d.kleur+"15",color:d.kleur,border:`1px solid ${d.kleur}30`}}>
+                      📍 {h.adres}, {h.stad}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{fontSize:12,color:C.muted,fontStyle:"italic"}}>Nog geen woningen ingepland</div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function MeldingForm({ houses, onSubmit, showToast }) {
   const [type,setType]=useState("aankomst");
   const [medewerker,setMedewerker]=useState("");
@@ -1605,13 +1673,13 @@ function BeheerView({houses,onAdd,onUpdate,onDelete,showToast,gebruikers,onAddGe
       {subTab==="woningen"&&<WoningBeheer houses={houses} onAdd={onAdd} onUpdate={onUpdate} onDelete={onDelete} showToast={showToast}/>}
       {subTab==="gebruikers"&&<GebruikersBeheer gebruikers={gebruikers} onAdd={onAddGebruiker} onUpdate={onUpdateGebruiker} onDelete={onDeleteGebruiker} showToast={showToast}/>}
       {subTab==="checklists"&&<ChecklistItemsBeheer checklistItems={checklistItems} showToast={showToast}/>}
-      {subTab==="dagplanning"&&<DagplanningBeheer dagplanningDB={dagplanningDB} showToast={showToast}/>}
+      {subTab==="dagplanning"&&<DagplanningBeheer dagplanningDB={dagplanningDB} showToast={showToast} houses={houses}/>}
     </div>
   );
 }
 
 // ─── DAGPLANNING BEHEER ───────────────────────────────────────────────────────
-function DagplanningBeheer({ dagplanningDB, showToast }) {
+function DagplanningBeheer({ dagplanningDB, showToast, houses=[] }) {
   const [bewerkId, setBewerkId] = useState(null);
   const [saving, setSaving] = useState(false);
 
@@ -1620,6 +1688,7 @@ function DagplanningBeheer({ dagplanningDB, showToast }) {
     const { error } = await supabase.from("dagplanning").update({
       focus: dag.focus,
       taken: dag.taken,
+      woning_ids: dag.woning_ids || [],
       updated_at: new Date().toISOString(),
     }).eq("id", dag.id);
     setSaving(false);
@@ -1640,22 +1709,25 @@ function DagplanningBeheer({ dagplanningDB, showToast }) {
             onBewerken={()=>setBewerkId(dag.id)}
             onAnnuleren={()=>setBewerkId(null)}
             onOpslaan={slaOp}
-            saving={saving}/>
+            saving={saving}
+            houses={houses}/>
         ))}
       </div>
     </div>
   );
 }
 
-function DagKaart({ dag, isBewerken, onBewerken, onAnnuleren, onOpslaan, saving }) {
+function DagKaart({ dag, isBewerken, onBewerken, onAnnuleren, onOpslaan, saving, houses=[] }) {
   const [focus, setFocus] = useState(dag.focus);
   const [taken, setTaken] = useState([...dag.taken]);
+  const [woningIds, setWoningIds] = useState(dag.woning_ids||[]);
 
-  useEffect(() => { setFocus(dag.focus); setTaken([...dag.taken]); }, [dag]);
+  useEffect(() => { setFocus(dag.focus); setTaken([...dag.taken]); setWoningIds(dag.woning_ids||[]); }, [dag]);
 
   function updateTaak(i, val) { setTaken(prev => prev.map((t,j) => j===i ? val : t)); }
   function verwijderTaak(i) { setTaken(prev => prev.filter((_,j) => j!==i)); }
   function voegToe() { setTaken(prev => [...prev, ""]); }
+  function toggleWoning(id) { setWoningIds(prev => prev.includes(id) ? prev.filter(w=>w!==id) : [...prev, id]); }
 
   return (
     <div style={{background:"white",border:`1px solid ${C.border}`,borderLeft:`4px solid ${dag.kleur}`,borderRadius:12,padding:20}}>
@@ -1677,6 +1749,18 @@ function DagKaart({ dag, isBewerken, onBewerken, onAnnuleren, onOpslaan, saving 
 
       {!isBewerken && (
         <div style={{marginTop:12}}>
+          {(dag.woning_ids||[]).length > 0 && (
+            <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:12}}>
+              {(dag.woning_ids||[]).map(id=>{
+                const h = houses.find(h=>h.id===id);
+                return h ? (
+                  <span key={id} style={{padding:"3px 10px",borderRadius:20,fontSize:11,fontWeight:600,background:dag.kleur+"18",color:dag.kleur}}>
+                    📍 {h.adres}, {h.stad}
+                  </span>
+                ) : null;
+              })}
+            </div>
+          )}
           {dag.taken.map((t,i) => (
             <div key={i} style={{display:"flex",gap:10,padding:"6px 0",borderBottom:i<dag.taken.length-1?`1px solid ${C.border}`:"none",fontSize:13,color:C.text}}>
               <span style={{color:dag.kleur,fontWeight:700}}>{i+1}.</span> {t}
@@ -1708,8 +1792,22 @@ function DagKaart({ dag, isBewerken, onBewerken, onAnnuleren, onOpslaan, saving 
               + Taak toevoegen
             </button>
           </div>
+          <div style={{marginBottom:14}}>
+            <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:8,display:"block"}}>Woningen op deze dag</label>
+            <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+              {houses.map(h=>{
+                const geselecteerd = woningIds.includes(h.id);
+                return (
+                  <div key={h.id} onClick={()=>toggleWoning(h.id)}
+                    style={{padding:"6px 12px",borderRadius:20,fontSize:12,fontWeight:600,cursor:"pointer",border:`1.5px solid ${geselecteerd?dag.kleur:C.border}`,background:geselecteerd?dag.kleur+"18":"white",color:geselecteerd?dag.kleur:C.muted}}>
+                    {geselecteerd?"✓ ":""}{h.adres}, {h.stad}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
           <div style={{display:"flex",gap:8}}>
-            <button onClick={()=>onOpslaan({...dag, focus, taken})} disabled={saving}
+            <button onClick={()=>onOpslaan({...dag, focus, taken, woning_ids: woningIds})} disabled={saving}
               style={{background:C.blauw,color:"white",border:"none",borderRadius:8,padding:"10px 24px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
               {saving?"⏳ Opslaan...":"✓ Opslaan"}
             </button>
