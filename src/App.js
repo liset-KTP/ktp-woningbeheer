@@ -4,6 +4,7 @@ import { AutoModule } from "./AutoModule";
 import { FietsModule } from "./FietsModule";
 import { HuurbetalingenModule } from "./HuurbetalingenModule";
 import { BijlageUploader, BijlageWeergave, uploadBijlages } from "./BijlageUploader";
+import { BerichtenModule } from "./BerichtenModule";
 
 // ─── EMAILJS ──────────────────────────────────────────────────────────────────
 const EMAILJS_SERVICE  = "service_1af258e";
@@ -86,6 +87,7 @@ export default function App() {
   const [activiteiten, setActiviteiten] = useState([]);
   const [dagplanningDB, setDagplanningDB] = useState([]);
   const [ongelzenAutoReacties, setOngelzenAutoReacties] = useState(0);
+  const [ongelzenBerichten, setOngelzenBerichten] = useState(0);
   const [loading, setLoading] = useState(true);
   const [tab, setTabState] = useState("melding");
   function setTab(t) {
@@ -112,6 +114,14 @@ export default function App() {
     const { data, error } = await supabase.from("activiteiten").select("*").order("created_at", { ascending: false }).limit(200);
     if (error) { console.error("activiteiten:", error); return; }
     setActiviteiten(data || []);
+  }, []);
+
+  const loadOngelzenBerichten = useCallback(async (naam) => {
+    if (!naam) return;
+    const { data } = await supabase.from("berichten").select("id, gelezen_door, aan, van")
+      .or(`aan.is.null,aan.eq.${naam},van.eq.${naam}`);
+    const ongelezen = (data || []).filter(b => !(b.gelezen_door || []).includes(naam)).length;
+    setOngelzenBerichten(ongelezen);
   }, []);
 
   const loadOngelzenAutoReacties = useCallback(async (naam) => {
@@ -185,6 +195,7 @@ export default function App() {
     setGebruiker(g);
     setTab(g.rol==="collega"?"melding":g.rol==="huismeester"?"dagplanning":g.rol==="financieel"?"huurbetalingen":"woningen");
     loadOngelzenAutoReacties(g.naam);
+    loadOngelzenBerichten(g.naam);
   }
   function logout() {
     try { localStorage.removeItem("ktp_sessie"); localStorage.removeItem("ktp_tab"); } catch {}
@@ -443,6 +454,7 @@ export default function App() {
               <button className={`tp ${tab==="fietsen"?"act":""}`} onClick={()=>setTab("fietsen")}>🚲 Fietsen</button>
               <button className={`tp ${tab==="huurbetalingen"?"act":""}`} onClick={()=>setTab("huurbetalingen")}>💶 Huur</button>
               <button className={`tp ${tab==="huismeesterplanning"?"act":""}`} onClick={()=>setTab("huismeesterplanning")}>📅 Planning Cristian</button>
+              <button className={`tp ${tab==="berichten"?"act":""}`} onClick={()=>setTab("berichten")}>💬 Berichten {ongelzenBerichten>0&&<Notif n={ongelzenBerichten}/>}</button>
             </>)}
             {rol==="huismeester" && (<>
               <button className={`tp ${tab==="dagplanning"?"act":""}`} onClick={()=>setTab("dagplanning")}>📅 Mijn dag {totalNotifs>0&&<Notif n={totalNotifs}/>}</button>
@@ -453,6 +465,7 @@ export default function App() {
               <button className={`tp ${tab==="autos"?"act":""}`} onClick={()=>setTab("autos")}>🚗 Auto's {ongelzenAutoReacties>0&&<Notif n={ongelzenAutoReacties}/>}</button>
               <button className={`tp ${tab==="fietsen"?"act":""}`} onClick={()=>setTab("fietsen")}>🚲 Fietsen</button>
               <button className={`tp ${tab==="huurbetalingen"?"act":""}`} onClick={()=>setTab("huurbetalingen")}>💶 Huur</button>
+              <button className={`tp ${tab==="berichten"?"act":""}`} onClick={()=>setTab("berichten")}>💬 Berichten {ongelzenBerichten>0&&<Notif n={ongelzenBerichten}/>}</button>
             </>)}
             {rol==="financieel" && (<>
               <button className={`tp ${tab==="huurbetalingen"?"act":""}`} onClick={()=>setTab("huurbetalingen")}>💶 Huurbetalingen</button>
@@ -461,6 +474,7 @@ export default function App() {
               <button className={`tp ${tab==="autos"?"act":""}`} onClick={()=>setTab("autos")}>🚗 Auto's</button>
               <button className={`tp ${tab==="fietsen"?"act":""}`} onClick={()=>setTab("fietsen")}>🚲 Fietsen</button>
               <button className={`tp ${tab==="huismeesterplanning"?"act":""}`} onClick={()=>setTab("huismeesterplanning")}>📅 Planning Cristian</button>
+              <button className={`tp ${tab==="berichten"?"act":""}`} onClick={()=>setTab("berichten")}>💬 Berichten {ongelzenBerichten>0&&<Notif n={ongelzenBerichten}/>}</button>
             </>)}
             {rol==="backoffice" && (<>
               <button className={`tp ${tab==="woningen"?"act":""}`} onClick={()=>setTab("woningen")}>🏠 Woningen</button>
@@ -471,6 +485,7 @@ export default function App() {
               <button className={`tp ${tab==="checklist"?"act":""}`} onClick={()=>setTab("checklist")}>✅ Checklists</button>
               <button className={`tp ${tab==="huurbetalingen"?"act":""}`} onClick={()=>setTab("huurbetalingen")}>💶 Huurbetalingen</button>
               <button className={`tp ${tab==="log"?"act":""}`} onClick={()=>setTab("log")}>📝 Log</button>
+              <button className={`tp ${tab==="berichten"?"act":""}`} onClick={()=>setTab("berichten")}>💬 Berichten {ongelzenBerichten>0&&<Notif n={ongelzenBerichten}/>}</button>
               {isLiset&&<button className={`tp ${tab==="beheer"?"act":""}`} onClick={()=>setTab("beheer")}>⚙️ Beheer</button>}
             </>)}
           </div>
@@ -491,6 +506,7 @@ export default function App() {
         {rol==="backoffice"&&tab==="inbox"&&<BackofficeInbox meldingen={meldingen} houses={houses} onUpdate={updateMeldingStatus} naam={naam} showToast={showToast}/>}
         {rol==="backoffice"&&tab==="log"&&<LogView meldingen={meldingen} houses={houses} activiteiten={activiteiten}/>}
         {tab==="huurbetalingen"&&<HuurbetalingenModule gebruiker={gebruiker} showToast={showToast} readonly={rol!=="backoffice"&&rol!=="financieel"}/>}
+        {tab==="berichten"&&<BerichtenModule gebruiker={gebruiker} houses={houses} taken={taken} meldingen={meldingen} autos={[]}/>}
         {tab==="huismeesterplanning"&&<HuismeesterPlanningView dagplanningDB={dagplanningDB} houses={houses} taken={taken} meldingen={meldingen}/>}
         {rol==="backoffice"&&isLiset&&tab==="beheer"&&<BeheerView houses={houses} onAdd={addWoning} onUpdate={updateWoning} onDelete={deleteWoning} showToast={showToast} gebruikers={gebruikers} onAddGebruiker={voegGebruikerToe} onUpdateGebruiker={updateGebruiker} onDeleteGebruiker={verwijderGebruiker} checklistItems={checklistItems} dagplanningDB={dagplanningDB}/>}
       </div>
