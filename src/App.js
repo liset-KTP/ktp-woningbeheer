@@ -450,6 +450,8 @@ export default function App() {
               <button className={`tp ${tab==="woningen"?"act":""}`} onClick={()=>setTab("woningen")}>🏠 Woningen</button>
               <button className={`tp ${tab==="autos"?"act":""}`} onClick={()=>setTab("autos")}>🚗 Auto's</button>
               <button className={`tp ${tab==="fietsen"?"act":""}`} onClick={()=>setTab("fietsen")}>🚲 Fietsen</button>
+              <button className={`tp ${tab==="huismeesterplanning"?"act":""}`} onClick={()=>setTab("huismeesterplanning")}>📅 Planning Cristian</button>
+              <button className={`tp ${tab==="huismeesterplanning"?"act":""}`} onClick={()=>setTab("huismeesterplanning")}>📅 Planning Cristian</button>
             </>)}
             {rol==="backoffice" && (<>
               <button className={`tp ${tab==="woningen"?"act":""}`} onClick={()=>setTab("woningen")}>🏠 Woningen</button>
@@ -689,6 +691,35 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
               })}
             </div>
           )}
+          {/* Ingeplande taken voor gekozen dag */}
+          {(() => {
+            const dagISO = (() => {
+              const nu = new Date();
+              const dagIdx = ["zo","ma","di","wo","do","vr","za"].indexOf(gekozenDag);
+              const vandaagIdx = nu.getDay();
+              const diff = dagIdx - vandaagIdx;
+              const d = new Date(nu);
+              d.setDate(nu.getDate() + diff);
+              return d.toISOString().slice(0,10);
+            })();
+            const ingeplandVandaag = openTaken.filter(t => t.ingepland_op === dagISO);
+            if (ingeplandVandaag.length === 0) return null;
+            return (
+              <div style={{marginBottom:16}}>
+                <div style={{fontSize:11,fontWeight:700,color:"#7c3aed",letterSpacing:".6px",textTransform:"uppercase",marginBottom:8}}>📅 Ingepland voor deze dag</div>
+                {ingeplandVandaag.map(t => {
+                  const h = houses.find(h=>h.id===t.woning_id);
+                  return (
+                    <div key={t.id} style={{background:"#f5f3ff",borderRadius:10,padding:"10px 14px",marginBottom:8,border:"1px solid #ddd6fe"}}>
+                      <div style={{fontWeight:700,fontSize:13,color:"#7c3aed"}}>{t.titel}</div>
+                      {h && <div style={{fontSize:12,color:C.muted,marginTop:2}}>📍 {h.adres}, {h.stad}{t.kamer?` · K${t.kamer}`:""}</div>}
+                      {t.huismeester_opmerking && <div style={{fontSize:12,color:C.muted,fontStyle:"italic",marginTop:4}}>"{t.huismeester_opmerking}"</div>}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
           {/* Vaste taken */}
           <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".6px",textTransform:"uppercase",marginBottom:8}}>Vaste taken</div>
           {getoondeDag.taken.map((t,i)=>(
@@ -753,6 +784,11 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
   const [notitieMap, setNotitieMap] = useState({});
   const [bevestigMap, setBevestigMap] = useState({});
   const [fotoMap, setFotoMap] = useState({});
+  const [opmerkingMap, setOpmerkingMap] = useState({});
+  const [planningMap2, setPlanningMap2] = useState({});
+  const [toonOpmerkingMap, setToonOpmerkingMap] = useState({});
+
+  const isHuismeester = gebruiker?.rol === "huismeester";
 
   const gefilterd = taken.filter(t=> filter==="open"?t.status==="open": filter==="gedaan"?t.status==="gedaan": true);
   const selectedHouse = houses.find(h=>h.id===Number(nieuw.woning_id));
@@ -848,6 +884,8 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                   {" · "}Toegevoegd door {t.aangemaakt_door}{t.created_at?` · ${fmtFull(t.created_at)}`:""}
                 </div>
                 {t.omschrijving&&<div style={{fontSize:13,color:C.muted,marginTop:4,fontStyle:"italic"}}>"{t.omschrijving}"</div>}
+                {t.ingepland_op&&<div style={{fontSize:12,color:"#7c3aed",fontWeight:600,marginTop:4}}>📅 Ingepland op {fmtDate(t.ingepland_op)}</div>}
+                {t.huismeester_opmerking&&<div style={{fontSize:13,color:C.blauw,marginTop:4,background:C.blauw+"08",border:`1px solid ${C.blauw}20`,borderRadius:8,padding:"6px 10px"}}>💬 {t.huismeester_opmerking}</div>}
                 {gedaan&&t.afgehandeld_door&&(
                   <div style={{marginTop:6}}>
                     <div style={{fontSize:12,color:C.groen}}>✓ Afgehandeld door {t.afgehandeld_door}{t.afgehandeld_op?` · ${fmtFull(t.afgehandeld_op)}`:""}</div>
@@ -881,8 +919,56 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                     <button className="btn-out" style={{padding:"9px 14px"}} onClick={()=>setBevestigMap(p=>({...p,[t.id]:false}))}>Annuleren</button>
                   </div>
                 </div>
+              ) : toonOpmerkingMap[t.id] ? (
+                <div style={{marginTop:12,padding:"12px",background:C.blauw+"08",border:`1px solid ${C.blauw}20`,borderRadius:10}}>
+                  <div style={{fontWeight:700,fontSize:13,color:C.blauw,marginBottom:10}}>📝 Opmerking & planning</div>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+                    <div>
+                      <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>OPMERKING</label>
+                      <input className="fi" value={opmerkingMap[t.id]||""} onChange={e=>setOpmerkingMap(p=>({...p,[t.id]:e.target.value}))}
+                        placeholder="bijv. onderdelen besteld, duurt 3 dagen..." autoFocus/>
+                    </div>
+                    <div>
+                      <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>INPLANNEN OP</label>
+                      <input type="date" className="fi" value={planningMap2[t.id]||""} onChange={e=>setPlanningMap2(p=>({...p,[t.id]:e.target.value}))}/>
+                    </div>
+                  </div>
+                  <div style={{display:"flex",gap:8}}>
+                    <button className="btn-b" style={{flex:1,padding:"9px"}}
+                      onClick={async()=>{
+                        const updates = {};
+                        if(opmerkingMap[t.id]) updates.huismeester_opmerking = opmerkingMap[t.id];
+                        if(planningMap2[t.id]) updates.ingepland_op = planningMap2[t.id];
+                        if(Object.keys(updates).length > 0) {
+                          await onUpdate(t.id, updates);
+                          stuurMail({
+                            type: "💬 Opmerking op taak",
+                            type_icon: "💬",
+                            medewerker: gebruiker.naam,
+                            woning: houses.find(h=>h.id===t.woning_id)?.adres || "Algemeen",
+                            kamer: t.kamer ? `Kamer ${t.kamer}` : "—",
+                            datum: new Date().toISOString().slice(0,10),
+                            ingediend_door: gebruiker.naam,
+                            opmerkingen: `Taak: ${t.titel}${opmerkingMap[t.id]?`. Opmerking: ${opmerkingMap[t.id]}`:""}${planningMap2[t.id]?`. Ingepland op: ${planningMap2[t.id]}`:""}`,
+                          });
+                          setToonOpmerkingMap(p=>({...p,[t.id]:false}));
+                          setOpmerkingMap(p=>({...p,[t.id]:""}));
+                          setPlanningMap2(p=>({...p,[t.id]:""}));
+                        }
+                      }}>
+                      ✓ Opslaan
+                    </button>
+                    <button className="btn-out" style={{padding:"9px 14px"}} onClick={()=>setToonOpmerkingMap(p=>({...p,[t.id]:false}))}>Annuleren</button>
+                  </div>
+                </div>
               ) : (
-                <div style={{marginTop:8,display:"flex",justifyContent:"flex-end"}}>
+                <div style={{marginTop:8,display:"flex",justifyContent:"flex-end",gap:8}}>
+                  {isHuismeester && (
+                    <button style={{background:"white",border:`1.5px solid ${C.blauw}`,color:C.blauw,borderRadius:8,padding:"8px 14px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}
+                      onClick={()=>setToonOpmerkingMap(p=>({...p,[t.id]:true}))}>
+                      📝 Opmerking / inplannen
+                    </button>
+                  )}
                   <button className="btn-g" style={{padding:"8px 16px",fontSize:13}}
                     onClick={()=>setBevestigMap(p=>({...p,[t.id]:true}))}>
                     ✓ Gedaan
@@ -1095,13 +1181,27 @@ function HuismeesterPlanningView({ dagplanningDB, houses, taken=[], meldingen=[]
           const isVandaag = d.dag === dag;
           const woningen = (d.woning_ids||[]).map(id => houses.find(h=>h.id===id)).filter(Boolean);
 
+          // Bereken de datum voor deze dag
+          const dagDatum = (() => {
+            const nu = new Date();
+            const dagIdx = ["zo","ma","di","wo","do","vr","za"].indexOf(d.dag);
+            const vandaagIdx = nu.getDay();
+            const diff = dagIdx - vandaagIdx;
+            const dt = new Date(nu);
+            dt.setDate(nu.getDate() + diff);
+            return dt.toISOString().slice(0,10);
+          })();
           // Verzamel taken + meldingen per woning voor deze dag
           const dagItems = woningen.map(h => {
             const wTaken = openTaken.filter(t => t.woning_id === h.id);
             const wMeldingen = openMeldingen.filter(m => m.woning_id === h.id && m.type !== "aankomst" && m.type !== "vertrek");
             return { huis: h, taken: wTaken, meldingen: wMeldingen };
           });
-          const totaalKlusjes = dagItems.reduce((s,w) => s + w.taken.length + w.meldingen.length, 0);
+          // Extra ingeplande taken voor deze dag (niet gekoppeld aan een woning in de planning)
+          const extraIngepland = openTaken.filter(t =>
+            t.ingepland_op === dagDatum && !(d.woning_ids||[]).includes(t.woning_id)
+          );
+          const totaalKlusjes = dagItems.reduce((s,w) => s + w.taken.length + w.meldingen.length, 0) + extraIngepland.length;
 
           return (
             <div key={d.id} style={{background:"white",border:`1px solid ${C.border}`,borderLeft:`4px solid ${d.kleur}`,borderRadius:12,padding:"16px 20px",boxShadow:isVandaag?"0 0 0 2px "+d.kleur:"none"}}>
@@ -1159,6 +1259,22 @@ function HuismeesterPlanningView({ dagplanningDB, houses, taken=[], meldingen=[]
                 </div>
               ) : (
                 <div style={{fontSize:12,color:C.muted,fontStyle:"italic"}}>Nog geen woningen ingepland</div>
+              )}
+              {/* Extra ingeplande taken voor deze dag */}
+              {extraIngepland.length > 0 && (
+                <div style={{marginTop:12}}>
+                  <div style={{fontSize:11,fontWeight:700,color:"#7c3aed",letterSpacing:".6px",textTransform:"uppercase",marginBottom:8}}>📅 Extra ingepland</div>
+                  {extraIngepland.map(t => {
+                    const h = houses.find(h=>h.id===t.woning_id);
+                    return (
+                      <div key={t.id} style={{background:"#f5f3ff",borderRadius:10,padding:"10px 14px",marginBottom:8,border:"1px solid #ddd6fe"}}>
+                        <div style={{fontWeight:700,fontSize:13,color:"#7c3aed"}}>{t.titel}</div>
+                        {h && <div style={{fontSize:12,color:C.muted,marginTop:2}}>📍 {h.adres}, {h.stad}{t.kamer?` · K${t.kamer}`:""}</div>}
+                        {t.huismeester_opmerking && <div style={{fontSize:12,color:C.muted,fontStyle:"italic",marginTop:4}}>"{t.huismeester_opmerking}"</div>}
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </div>
           );
