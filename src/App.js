@@ -1147,6 +1147,8 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
   const [toonInplannen, setToonInplannen] = useState(false);
   const [inplandatum, setInplandatum] = useState("");
   const [inplanOpmerking, setInplanOpmerking] = useState("");
+  const [toonOpmerkingCollega, setToonOpmerkingCollega] = useState(false);
+  const [opmerkingCollega, setOpmerkingCollega] = useState("");
 
   const typeKleur = {aankomst:C.groen,vertrek:"#7c3aed",reservering:C.blauw,overig:C.oranje,verhuizing:"#0891b2"};
   const typeIcon = {aankomst:"🏠",vertrek:"📦",reservering:"📅",overig:"📝",verhuizing:"🔄"};
@@ -1239,11 +1241,43 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
           )}
         </div>
       )}
+      {/* Opmerking toevoegen — voor iedereen, ook na afhandeling */}
+      <div style={{marginTop:8}}>
+        {toonOpmerkingCollega ? (
+          <div style={{background:C.bg,border:`1px solid ${C.border}`,borderRadius:10,padding:12}}>
+            <input value={opmerkingCollega} onChange={e=>setOpmerkingCollega(e.target.value)}
+              placeholder="Voeg een opmerking of aanvulling toe..." autoFocus
+              style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"8px 12px",fontSize:13,outline:"none",fontFamily:"inherit",boxSizing:"border-box",marginBottom:8}}/>
+            <div style={{display:"flex",gap:8}}>
+              <button onClick={async()=>{
+                if(!opmerkingCollega.trim()) return;
+                const datum = new Date().toLocaleDateString("nl-NL");
+                const oud = m.opmerkingen || "";
+                const nieuw2 = oud ? oud + `\n[${datum} - ${gebruiker.naam}] ${opmerkingCollega.trim()}` : `[${datum} - ${gebruiker.naam}] ${opmerkingCollega.trim()}`;
+                await supabase.from("meldingen").update({opmerkingen: nieuw2}).eq("id", m.id);
+                showToast("✓ Opmerking toegevoegd");
+                setOpmerkingCollega("");
+                setToonOpmerkingCollega(false);
+              }} style={{background:C.blauw,color:"white",border:"none",borderRadius:8,padding:"7px 16px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                ✓ Opslaan
+              </button>
+              <button onClick={()=>setToonOpmerkingCollega(false)}
+                style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"7px 12px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
+                Annuleren
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button onClick={()=>setToonOpmerkingCollega(true)}
+            style={{background:"none",border:"none",color:C.muted,fontSize:12,cursor:"pointer",fontFamily:"inherit",padding:"4px 0",textDecoration:"underline"}}>
+            💬 Opmerking toevoegen
+          </button>
+        )}
+      </div>
     </div>
   );
 }
 
-// ─── NIEUWE TAAK FORM (inline) ────────────────────────────────────────────────
 function NieuwesTaakForm({ houses, gebruiker, onAdd, showToast }) {
   const [nieuw, setNieuw] = useState({titel:"",omschrijving:"",woning_id:"",kamer:"",prioriteit:"middel",voor_rol:"huismeester"});
   const [saving, setSaving] = useState(false);
@@ -1328,6 +1362,8 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
   const rolNaam = gebruiker?.rol;
   const [accepteerMap, setAccepteerMap] = useState({});
   const [toonAccepteerMap, setToonAccepteerMap] = useState({});
+  const [toonNaOpmerkingMap, setToonNaOpmerkingMap] = useState({});
+  const [naOpmerkingMap, setNaOpmerkingMap] = useState({});
 
   // Filter taken op basis van rol
   const gefilterd = taken
@@ -1496,6 +1532,45 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                     <div style={{fontSize:12,color:C.groen}}>✓ Afgehandeld door {t.afgehandeld_door}{t.afgehandeld_op?` · ${fmtFull(t.afgehandeld_op)}`:""}</div>
                     {t.notitie&&<div style={{fontSize:13,color:C.muted,marginTop:3,fontStyle:"italic"}}>💬 "{t.notitie}"</div>}
                     {t.bijlages&&<BijlageWeergave bijlages={JSON.parse(t.bijlages||"[]")}/>}
+                  </div>
+                )}
+                {gedaan&&(
+                  <div style={{display:"flex",gap:8,marginTop:10,flexWrap:"wrap"}}>
+                    {isHuismeester&&(
+                      <button onClick={()=>onUpdate(t.id,{status:"open",afgehandeld_door:null,afgehandeld_op:null})}
+                        style={{background:"white",border:`1.5px solid ${C.oranje}`,color:C.oranje,borderRadius:8,padding:"6px 12px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                        ↩ Terugzetten naar open
+                      </button>
+                    )}
+                    {toonNaOpmerkingMap[t.id] ? (
+                      <div style={{width:"100%",background:C.bg,border:`1px solid ${C.border}`,borderRadius:10,padding:12,marginTop:4}}>
+                        <input value={naOpmerkingMap[t.id]||""} onChange={e=>setNaOpmerkingMap(p=>({...p,[t.id]:e.target.value}))}
+                          placeholder="Voeg een opmerking toe..." autoFocus
+                          style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"8px 12px",fontSize:13,outline:"none",fontFamily:"inherit",boxSizing:"border-box",marginBottom:8}}/>
+                        <div style={{display:"flex",gap:8}}>
+                          <button onClick={()=>{
+                            if(naOpmerkingMap[t.id]?.trim()) {
+                              const bestaand = t.notitie || "";
+                              const nieuw = bestaand ? bestaand + " | " + naOpmerkingMap[t.id].trim() : naOpmerkingMap[t.id].trim();
+                              onUpdate(t.id,{notitie: nieuw});
+                              setNaOpmerkingMap(p=>({...p,[t.id]:""}));
+                              setToonNaOpmerkingMap(p=>({...p,[t.id]:false}));
+                            }
+                          }} style={{background:C.blauw,color:"white",border:"none",borderRadius:8,padding:"7px 16px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                            ✓ Opslaan
+                          </button>
+                          <button onClick={()=>setToonNaOpmerkingMap(p=>({...p,[t.id]:false}))}
+                            style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"7px 12px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
+                            Annuleren
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button onClick={()=>setToonNaOpmerkingMap(p=>({...p,[t.id]:true}))}
+                        style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"6px 12px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                        💬 Opmerking toevoegen
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
