@@ -674,12 +674,11 @@ function AutoLog({ meldingen, autos, onUpdate, gebruiker, isBackoffice, onReacti
                     </div>
                   </div>
                 ) : (
-                  <>
+                  <div style={{display:"flex",flexDirection:"column",gap:8}}>
                   <button onClick={()=>setToonReactieMap(p=>({...p,[m.id]:true}))}
                     style={{background:"white",border:`1.5px solid ${C.blauw}`,color:C.blauw,borderRadius:8,padding:"7px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
                     💬 Reactie sturen naar {m.ingediend_door}
                   </button>
-                  {/* Document achteraf toevoegen */}
                   {toonDocumentMap[m.id] ? (
                     <div style={{width:"100%",marginTop:8,background:"#f8fafc",border:`1px solid ${C.border}`,borderRadius:10,padding:14}}>
                       <div style={{fontWeight:700,fontSize:13,color:C.text,marginBottom:10}}>📄 Document toevoegen</div>
@@ -714,7 +713,7 @@ function AutoLog({ meldingen, autos, onUpdate, gebruiker, isBackoffice, onReacti
                       📄 Document toevoegen
                     </button>
                   )}
-                  </>
+                  </div>
                 )}
               </div>
             )}
