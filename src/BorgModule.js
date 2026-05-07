@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "./supabaseClient";
+import { BijlageUploader, BijlageWeergave, uploadBijlages } from "./BijlageUploader";
 
 const C = {
   blauw:"#1B3A6B", blauwLight:"#2a52a0",
@@ -301,6 +302,7 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
               status: "actief",
               aangemaakt_door: gebruiker.naam,
               opmerkingen: d.omschrijving,
+              bijlage_urls: d.bijlages && d.bijlages.length > 0 ? JSON.stringify(d.bijlages) : null,
             }]).select().single();
             if (plan) {
               await supabase.from("borg_termijnen").insert([{
@@ -720,6 +722,7 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
           💬 {plan.opmerkingen}
         </div>
       )}
+      {plan.bijlage_urls && <BijlageWeergave bijlages={JSON.parse(plan.bijlage_urls||"[]")}/> }
 
       {/* Opmerking toevoegen — voor iedereen */}
       {toonOpmerkingForm ? (
@@ -908,6 +911,7 @@ function LosseInhoudingForm({ onSubmit, onAnnuleer }) {
   const [naam, setNaam] = useState("");
   const [bedrag, setBedrag] = useState("");
   const [omschrijving, setOmschrijving] = useState("");
+  const [bijlages, setBijlages] = useState([]);
   const [week, setWeek] = useState(() => {
     const nu = new Date();
     const j = new Date(Date.UTC(nu.getFullYear(),0,1));
@@ -924,7 +928,11 @@ function LosseInhoudingForm({ onSubmit, onAnnuleer }) {
     if (!bedrag || Number(bedrag) <= 0) { alert("Vul een geldig bedrag in"); return; }
     if (!omschrijving.trim()) { alert("Vul een omschrijving in"); return; }
     setSaving(true);
-    await onSubmit({ naam_medewerker: naam.trim(), bedrag, omschrijving: omschrijving.trim(), week });
+    let bijlageUrls = [];
+    if (bijlages.length > 0) {
+      bijlageUrls = await uploadBijlages(bijlages, "inhoudingen");
+    }
+    await onSubmit({ naam_medewerker: naam.trim(), bedrag, omschrijving: omschrijving.trim(), week, bijlages: bijlageUrls });
     setSaving(false);
   }
 
@@ -964,9 +972,18 @@ function LosseInhoudingForm({ onSubmit, onAnnuleer }) {
         </div>
       </div>
 
+      <div style={{marginBottom:14}}>
+        <BijlageUploader
+          bestanden={bijlages}
+          setBestanden={setBijlages}
+          label="📎 Bijlage toevoegen (factuur, bon, foto)"
+        />
+      </div>
+
       {naam && bedrag && omschrijving && (
         <div style={{background:"#fffbeb",border:"1px solid #fcd34d",borderRadius:10,padding:"12px 16px",marginBottom:14,fontSize:13,color:"#b45309"}}>
           💸 <strong>{naam}</strong> — €{bedrag} inhouden in week {week} voor: {omschrijving}
+          {bijlages.length > 0 && <span style={{marginLeft:8}}>· 📎 {bijlages.length} bijlage{bijlages.length>1?"s":""}</span>}
         </div>
       )}
 
