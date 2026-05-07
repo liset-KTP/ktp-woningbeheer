@@ -167,7 +167,7 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
     await loadAll();
   }
 
-  async function voegExtraToe(planId, omschrijving, bedrag, type) {
+  async function voegExtraToe(planId, omschrijving, bedrag, type, bijlageUrl = null) {
     const plan = plannen.find(p => p.id === planId);
     const isAlIngehouden = type === "al_ingehouden";
     await supabase.from("borg_extra").insert([{
@@ -176,6 +176,7 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
       omschrijving,
       bedrag: Number(bedrag),
       type,
+      bijlage_url: bijlageUrl || null,
       status: isAlIngehouden ? "verwerkt" : "open",
       verwerkt_door: isAlIngehouden ? gebruiker.naam : null,
       verwerkt_op: isAlIngehouden ? new Date().toISOString() : null,
@@ -239,7 +240,7 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
       {/* Header */}
       <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:24}}>
         <div>
-          <h2 style={{fontSize:20,fontWeight:800,color:C.blauw,marginBottom:3}}>🔐 Borgbeheer</h2>
+          <h2 style={{fontSize:20,fontWeight:800,color:C.blauw,marginBottom:3}}>🛡️ Borgbeheer & inhoudingen</h2>
           <p style={{fontSize:13,color:C.muted}}>
             {plannen.filter(p=>p.status==="actief").length} actieve plannen ·
             {" "}€{plannen.filter(p=>p.status==="actief").reduce((s,p)=>s+Number(p.totaal_borg)-Number(p.ingehouden),0).toFixed(2)} nog in te houden ·
@@ -560,6 +561,8 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
   const [extraOmschr, setExtraOmschr] = useState("");
   const [extraBedrag, setExtraBedrag] = useState("");
   const [extraType, setExtraType] = useState("inhouden");
+  const [extraBijlage, setExtraBijlage] = useState(null);
+  const [uploadingBijlage, setUploadingBijlage] = useState(false);
   const huis = houses.find(h=>h.id===plan.woning_id);
 
   const openTermijnen = termijnen.filter(t=>t.status==="open");
@@ -638,10 +641,20 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
                   <div>
                     <span style={{color:e.status==="verwerkt"?C.groen:C.muted,marginRight:8}}>{e.status==="verwerkt"?"✓":"○"}</span>
                     <span style={{color:C.text}}>{e.omschrijving}</span>
-                    <span style={{fontSize:11,marginLeft:8,color:e.type==="terugbetalen"?C.groen:e.type==="al_ingehouden"?C.groen:"#ef4444"}}>{e.type==="terugbetalen"?"↩ terug":e.type==="al_ingehouden"?"✓ al ingehouden":"↪ inhouden"}</span>
+                    <span style={{fontSize:11,marginLeft:8,color:e.type==="terugbetalen"?C.groen:e.type==="al_ingehouden"?C.groen:e.type==="boete"?"#dc2626":e.type==="tankbon"?"#7c3aed":"#ef4444"}}>
+                      {e.type==="terugbetalen"?"↩ terug":e.type==="al_ingehouden"?"✓ al ingehouden":e.type==="boete"?"🚨 boete":e.type==="tankbon"?"⛽ tankbon":"↪ inhouden"}
+                    </span>
                   </div>
                   <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                    <span style={{fontWeight:700,color:e.type==="terugbetalen"?C.groen:e.type==="al_ingehouden"?C.groen:C.rood}}>€{Number(e.bedrag).toFixed(2)}</span>
+                    <div style={{textAlign:"right"}}>
+                      <span style={{fontWeight:700,color:e.type==="terugbetalen"?C.groen:e.type==="al_ingehouden"?C.groen:C.rood}}>€{Number(e.bedrag).toFixed(2)}</span>
+                      {e.bijlage_url && (
+                        <div>
+                          <a href={e.bijlage_url} target="_blank" rel="noopener noreferrer"
+                            style={{fontSize:11,color:C.blauw,textDecoration:"none"}}>📎 bijlage</a>
+                        </div>
+                      )}
+                    </div>
                     {e.status==="open" && isBackoffice && (
                       <button onClick={()=>onVerwerkExtra(e.id)}
                         style={{background:C.groen,color:"white",border:"none",borderRadius:6,padding:"4px 10px",fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>✓</button>
@@ -707,12 +720,39 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
                   <option value="inhouden">↪ Inhouden</option>
                   <option value="terugbetalen">↩ Terugbetalen</option>
                   <option value="al_ingehouden">✓ Al ingehouden</option>
+                  <option value="boete">🚨 Boete</option>
+                  <option value="tankbon">⛽ Tankbon</option>
                 </select>
               </div>
+              {/* Bijlage upload */}
+              <div style={{marginBottom:10}}>
+                <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>BIJLAGE (optioneel)</label>
+                <label style={{display:"inline-flex",alignItems:"center",gap:8,cursor:"pointer",background:C.bg,border:`1.5px dashed ${C.border}`,borderRadius:8,padding:"7px 14px",fontSize:12,color:C.muted}}>
+                  📎 {extraBijlage ? extraBijlage.name : "Foto of PDF toevoegen"}
+                  <input type="file" accept="image/*,.pdf" onChange={e=>setExtraBijlage(e.target.files[0]||null)} style={{display:"none"}}/>
+                </label>
+                {extraBijlage && <button onClick={()=>setExtraBijlage(null)} style={{marginLeft:8,background:"none",border:"none",color:"#ef4444",cursor:"pointer",fontSize:12}}>× verwijderen</button>}
+              </div>
               <div style={{display:"flex",gap:8}}>
-                <button onClick={()=>{ if(extraOmschr && extraBedrag){ onVoegExtraToe(plan.id,extraOmschr,extraBedrag,extraType); setExtraOmschr(""); setExtraBedrag(""); setToonExtra(false); }}}
+                <button onClick={async()=>{
+                  if(!extraOmschr || !extraBedrag) return;
+                  setUploadingBijlage(true);
+                  let bijlageUrl = null;
+                  if (extraBijlage) {
+                    const ext = extraBijlage.name.split(".").pop();
+                    const pad = `borg/${Date.now()}.${ext}`;
+                    const { error: upErr } = await supabase.storage.from("bijlages").upload(pad, extraBijlage);
+                    if (!upErr) {
+                      const { data: urlData } = supabase.storage.from("bijlages").getPublicUrl(pad);
+                      bijlageUrl = urlData.publicUrl;
+                    }
+                  }
+                  onVoegExtraToe(plan.id, extraOmschr, extraBedrag, extraType, bijlageUrl);
+                  setExtraOmschr(""); setExtraBedrag(""); setExtraBijlage(null); setToonExtra(false);
+                  setUploadingBijlage(false);
+                }} disabled={uploadingBijlage}
                   style={{background:C.blauw,color:"white",border:"none",borderRadius:8,padding:"8px 18px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                  ✓ Toevoegen
+                  {uploadingBijlage ? "⏳ Uploaden..." : "✓ Toevoegen"}
                 </button>
                 <button onClick={()=>setToonExtra(false)}
                   style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"8px 12px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
