@@ -903,18 +903,55 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
   const isHuismeester = gebruiker?.rol === "huismeester";
   const isCollega = gebruiker?.rol === "collega";
   const rolNaam = gebruiker?.rol;
+  const [accepteerMap, setAccepteerMap] = useState({});
+  const [toonAccepteerMap, setToonAccepteerMap] = useState({});
 
   // Filter taken op basis van rol
   const gefilterd = taken
     .filter(t => {
-      // Rol-filter: toon alleen taken die voor jou bestemd zijn
       if (t.voor_rol === "huismeester" && rolNaam !== "huismeester" && rolNaam !== "backoffice") return false;
       if (t.voor_rol === "backoffice" && rolNaam !== "backoffice") return false;
-      // Status filter
-      if (filter === "open") return t.status === "open";
+      if (filter === "open") return t.status === "open" || t.status === "geaccepteerd";
+      if (filter === "geaccepteerd") return t.status === "geaccepteerd";
       if (filter === "gedaan") return t.status === "gedaan";
       return true;
     });
+
+  async function accepteerTaak(taak, datum, opmerking) {
+    await onUpdate(taak.id, {
+      status: "geaccepteerd",
+      geaccepteerd_op: datum,
+      geaccepteerd_door: gebruiker.naam,
+      geaccepteerd_opmerking: opmerking || null,
+    });
+    // Bericht naar aanmaker
+    if (taak.aangemaakt_door && taak.aangemaakt_door !== gebruiker.naam) {
+      const huis = houses.find(h=>h.id===taak.woning_id);
+      await supabase.from("berichten").insert([{
+        tekst: `Ik heb jouw taak opgepakt en ingepland op ${datum ? new Date(datum).toLocaleDateString("nl-NL") : "een nader te bepalen datum"}.${opmerking ? " " + opmerking : ""}`,
+        van: gebruiker.naam,
+        aan: taak.aangemaakt_door,
+        onderwerp: `✅ Taak ingepland: ${taak.titel}`,
+        koppeling_type: "taak",
+        koppeling_id: taak.id,
+        koppeling_label: taak.titel,
+        gelezen_door: [gebruiker.naam],
+      }]);
+      stuurMail({
+        type: "📅 Taak ingepland door huismeester",
+        type_icon: "📅",
+        medewerker: taak.aangemaakt_door,
+        woning: huis ? `${huis.adres}, ${huis.stad}` : "—",
+        kamer: taak.kamer ? `Kamer ${taak.kamer}` : "—",
+        datum: datum || new Date().toISOString().slice(0,10),
+        ingediend_door: gebruiker.naam,
+        opmerkingen: `Taak "${taak.titel}" is ingepland op ${datum ? new Date(datum).toLocaleDateString("nl-NL") : "nader te bepalen"}.${opmerking ? " Opmerking: " + opmerking : ""}`,
+      });
+    }
+    showToast("✓ Taak geaccepteerd & collega geïnformeerd");
+    setToonAccepteerMap(p=>({...p,[taak.id]:false}));
+    setAccepteerMap(p=>({...p,[taak.id]:{datum:"",opmerking:""}}));
+  }
   const selectedHouse = houses.find(h=>h.id===Number(nieuw.woning_id));
 
   async function voegToe() {
@@ -988,7 +1025,7 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
       )}
 
       <div style={{display:"flex",gap:6,marginBottom:20}}>
-        {[["open","Open"],["gedaan","Gedaan"],["alle","Alle"]].map(([v,l])=>(
+        {[["open","Open & Ingepland"],["geaccepteerd","📅 Ingepland"],["gedaan","Gedaan"],["alle","Alle"]].map(([v,l])=>(
           <button key={v} onClick={()=>setFilter(v)}
             style={{background:filter===v?C.blauw:"white",color:filter===v?"white":C.muted,border:`1.5px solid ${filter===v?C.blauw:C.border}`,borderRadius:20,padding:"6px 16px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
             {l} {v==="open"&&<span style={{background:"#ef444430",color:"#ef4444",borderRadius:10,padding:"1px 6px",fontSize:11,marginLeft:4}}>{taken.filter(t=>t.status==="open").length}</span>}
@@ -1013,6 +1050,7 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                   <span style={{fontWeight:700,fontSize:15,color:gedaan?C.muted:C.text,textDecoration:gedaan?"line-through":"none"}}>{t.titel}</span>
                   <span className="badge" style={{background:prioKleur[t.prioriteit]+"18",color:prioKleur[t.prioriteit]}}>{t.prioriteit?.toUpperCase()}</span>
                   {gedaan&&<span className="badge" style={{background:"#f0fdf4",color:C.groen}}>GEDAAN</span>}
+                  {t.status==="geaccepteerd"&&<span className="badge" style={{background:"#f0fdf4",color:C.groen}}>📅 INGEPLAND</span>}
                   {t.voor_rol==="huismeester"&&<span className="badge" style={{background:"#f0fdf4",color:C.groen}}>🏠 Huismeester</span>}
                   {t.voor_rol==="backoffice"&&<span className="badge" style={{background:C.blauw+"15",color:C.blauw}}>📊 Backoffice</span>}
                 </div>
@@ -1021,6 +1059,13 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                   {" · "}Toegevoegd door {t.aangemaakt_door}{t.created_at?` · ${fmtFull(t.created_at)}`:""}
                 </div>
                 {t.omschrijving&&<div style={{fontSize:13,color:C.muted,marginTop:4,fontStyle:"italic"}}>"{t.omschrijving}"</div>}
+                {t.status==="geaccepteerd" && (
+                  <div style={{marginTop:6,background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:8,padding:"8px 12px"}}>
+                    <div style={{fontSize:12,fontWeight:700,color:C.groen}}>📅 Opgepakt door {t.geaccepteerd_door}</div>
+                    {t.geaccepteerd_op && <div style={{fontSize:12,color:C.groen,marginTop:2}}>Ingepland op {fmtDate(t.geaccepteerd_op)}</div>}
+                    {t.geaccepteerd_opmerking && <div style={{fontSize:12,color:C.muted,fontStyle:"italic",marginTop:2}}>"{t.geaccepteerd_opmerking}"</div>}
+                  </div>
+                )}
                 {t.ingepland_op&&<div style={{fontSize:12,color:"#7c3aed",fontWeight:600,marginTop:4}}>📅 Ingepland op {fmtDate(t.ingepland_op)}</div>}
                 {t.huismeester_opmerking&&<div style={{fontSize:13,color:C.blauw,marginTop:4,background:C.blauw+"08",border:`1px solid ${C.blauw}20`,borderRadius:8,padding:"6px 10px"}}>💬 {t.huismeester_opmerking}</div>}
                 {gedaan&&t.afgehandeld_door&&(
@@ -1054,6 +1099,36 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                       ✓ Bevestig als gedaan
                     </button>
                     <button className="btn-out" style={{padding:"9px 14px"}} onClick={()=>setBevestigMap(p=>({...p,[t.id]:false}))}>Annuleren</button>
+                  </div>
+                </div>
+              ) : toonAccepteerMap[t.id] ? (
+                <div style={{marginTop:12,padding:"14px",background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:10}}>
+                  <div style={{fontWeight:700,fontSize:13,color:C.groen,marginBottom:12}}>📅 Taak accepteren & inplannen</div>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+                    <div>
+                      <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>INPLANNEN OP DATUM</label>
+                      <input type="date" className="fi"
+                        value={accepteerMap[t.id]?.datum||""}
+                        onChange={e=>setAccepteerMap(p=>({...p,[t.id]:{...p[t.id],datum:e.target.value}}))}
+                        autoFocus/>
+                    </div>
+                    <div>
+                      <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>OPMERKING NAAR COLLEGA</label>
+                      <input className="fi"
+                        value={accepteerMap[t.id]?.opmerking||""}
+                        onChange={e=>setAccepteerMap(p=>({...p,[t.id]:{...p[t.id],opmerking:e.target.value}}))}
+                        placeholder="bijv. pak dit dinsdag op na woning Almelo"/>
+                    </div>
+                  </div>
+                  <div style={{display:"flex",gap:8}}>
+                    <button className="btn-g" style={{flex:1,padding:"9px"}}
+                      onClick={()=>accepteerTaak(t, accepteerMap[t.id]?.datum||null, accepteerMap[t.id]?.opmerking||"")}>
+                      ✓ Accepteren & inplannen
+                    </button>
+                    <button className="btn-out" style={{padding:"9px 14px"}}
+                      onClick={()=>setToonAccepteerMap(p=>({...p,[t.id]:false}))}>
+                      Annuleren
+                    </button>
                   </div>
                 </div>
               ) : toonOpmerkingMap[t.id] ? (
@@ -1099,11 +1174,17 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                   </div>
                 </div>
               ) : (
-                <div style={{marginTop:8,display:"flex",justifyContent:"flex-end",gap:8}}>
+                <div style={{marginTop:8,display:"flex",justifyContent:"flex-end",gap:8,flexWrap:"wrap"}}>
+                  {isHuismeester && t.status !== "geaccepteerd" && (
+                    <button style={{background:"#f0fdf4",border:`1.5px solid ${C.groen}`,color:C.groen,borderRadius:8,padding:"8px 14px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}
+                      onClick={()=>setToonAccepteerMap(p=>({...p,[t.id]:true}))}>
+                      📅 Accepteren & inplannen
+                    </button>
+                  )}
                   {isHuismeester && (
                     <button style={{background:"white",border:`1.5px solid ${C.blauw}`,color:C.blauw,borderRadius:8,padding:"8px 14px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}
                       onClick={()=>setToonOpmerkingMap(p=>({...p,[t.id]:true}))}>
-                      📝 Opmerking / inplannen
+                      💬 Opmerking
                     </button>
                   )}
                   <button className="btn-g" style={{padding:"8px 16px",fontSize:13}}
