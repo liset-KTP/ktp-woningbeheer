@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "./supabaseClient";
+import { BijlageUploader, BijlageWeergave, uploadBijlages } from "./BijlageUploader";
 
 // ─── EMAILJS ─────────────────────────────────────────────────────────────────
 const EMAILJS_SERVICE  = "service_1af258e";
@@ -348,6 +349,7 @@ function AutoMeldingForm({ autos, gebruiker, onSubmit, showToast }) {
   const [kilometerstand, setKilometerstand] = useState("");
   const [locatie, setLocatie] = useState("");
   const [opmerkingen, setOpmerkingen] = useState("");
+  const [documenten, setDocumenten] = useState([]);
   const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -366,17 +368,22 @@ function AutoMeldingForm({ autos, gebruiker, onSubmit, showToast }) {
       if (schoon===null) { showToast("Geef aan of auto schoon is","err"); return; }
     }
     setSaving(true);
+    let docUrls = [];
+    if (documenten.length > 0) {
+      docUrls = await uploadBijlages(documenten, "auto-documenten");
+    }
     const ok = await onSubmit({
       actie, kenteken, naam_medewerker: naamMedewerker.trim(),
       datum_tijd: datumTijd, tank_vol: tankVol, schoon,
       formulier_getekend: formulier, rijbewijs_gecontroleerd: rijbewijs,
       kilometerstand: kilometerstand || null, locatie: locatie || null,
       opmerkingen: opmerkingen || null,
+      document_urls: docUrls.length > 0 ? JSON.stringify(docUrls) : null,
     });
     setSaving(false);
     if (ok) {
       setKenteken(""); setNaamMedewerker(""); setTankVol(null); setSchoon(null);
-      setFormulier(null); setRijbewijs(null); setKilometerstand(""); setLocatie(""); setOpmerkingen("");
+      setFormulier(null); setRijbewijs(null); setKilometerstand(""); setLocatie(""); setOpmerkingen(""); setDocumenten([]);
       setSubmitted(true); setTimeout(()=>setSubmitted(false), 2500);
     }
   }
@@ -496,6 +503,14 @@ function AutoMeldingForm({ autos, gebruiker, onSubmit, showToast }) {
           value={opmerkingen} onChange={e=>setOpmerkingen(e.target.value)} placeholder="Eventuele bijzonderheden..." rows={3}/>
       </div>
 
+      <div style={{marginBottom:16}}>
+        <BijlageUploader
+          bestanden={documenten}
+          setBestanden={setDocumenten}
+          label="📄 Document toevoegen (autoformulier, schadeformulier, foto)"
+        />
+      </div>
+
       <button onClick={handleSubmit} disabled={saving}
         style={{width:"100%",background:saving?C.border:C.blauw,color:"white",border:"none",borderRadius:8,padding:14,fontSize:15,fontWeight:700,cursor:saving?"not-allowed":"pointer",fontFamily:"inherit",transition:"background .2s"}}>
         {saving?"⏳ Opslaan...":`✓ ${actie.charAt(0).toUpperCase()+actie.slice(1)} doorgeven`}
@@ -511,6 +526,8 @@ function AutoLog({ meldingen, autos, onUpdate, gebruiker, isBackoffice, onReacti
   const [reactieMap, setReactieMap] = useState({});
   const [toonReactieMap, setToonReactieMap] = useState({});
   const [savingReactie, setSavingReactie] = useState({});
+  const [toonDocumentMap, setToonDocumentMap] = useState({});
+  const [documentMap, setDocumentMap] = useState({});
 
   const isCollega = gebruiker?.rol === "collega";
   // Aantal ongelezen reacties voor collega
@@ -601,6 +618,8 @@ function AutoLog({ meldingen, autos, onUpdate, gebruiker, isBackoffice, onReacti
                 )}
                 {m.opmerkingen && <div style={{fontSize:13,color:C.muted,fontStyle:"italic"}}>"{m.opmerkingen}"</div>}
                 {m.afgehandeld_door && <div style={{fontSize:12,color:C.groen,marginTop:4}}>✓ Afgehandeld door {m.afgehandeld_door}</div>}
+                {/* Documenten */}
+                {m.document_urls && <BijlageWeergave bijlages={JSON.parse(m.document_urls||"[]")}/>}
                 {/* Reactie van backoffice tonen aan collega */}
                 {m.backoffice_reactie && (
                   <div style={{marginTop:8,background:m.reactie_gelezen?"#f0fdf4":"#eff6ff",border:`1px solid ${m.reactie_gelezen?"#bbf7d0":"#bfdbfe"}`,borderRadius:8,padding:"10px 12px"}}
@@ -659,6 +678,41 @@ function AutoLog({ meldingen, autos, onUpdate, gebruiker, isBackoffice, onReacti
                     style={{background:"white",border:`1.5px solid ${C.blauw}`,color:C.blauw,borderRadius:8,padding:"7px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
                     💬 Reactie sturen naar {m.ingediend_door}
                   </button>
+                  {/* Document achteraf toevoegen */}
+                  {toonDocumentMap[m.id] ? (
+                    <div style={{width:"100%",marginTop:8,background:"#f8fafc",border:`1px solid ${C.border}`,borderRadius:10,padding:14}}>
+                      <div style={{fontWeight:700,fontSize:13,color:C.text,marginBottom:10}}>📄 Document toevoegen</div>
+                      <BijlageUploader
+                        bestanden={documentMap[m.id]||[]}
+                        setBestanden={v=>setDocumentMap(p=>({...p,[m.id]:typeof v==="function"?v(p[m.id]||[]):v}))}
+                        label="Autoformulier, schadeformulier, foto..."
+                      />
+                      <div style={{display:"flex",gap:8,marginTop:10}}>
+                        <button onClick={async()=>{
+                          const docs = documentMap[m.id]||[];
+                          if(docs.length===0){return;}
+                          const urls = await uploadBijlages(docs,"auto-documenten");
+                          const bestaand = m.document_urls ? JSON.parse(m.document_urls) : [];
+                          const nieuw = JSON.stringify([...bestaand,...urls]);
+                          await supabase.from("auto_meldingen").update({document_urls:nieuw}).eq("id",m.id);
+                          showToast("✓ Document toegevoegd");
+                          setToonDocumentMap(p=>({...p,[m.id]:false}));
+                          setDocumentMap(p=>({...p,[m.id]:[]}));
+                        }} style={{background:C.blauw,color:"white",border:"none",borderRadius:8,padding:"8px 18px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                          ✓ Uploaden
+                        </button>
+                        <button onClick={()=>setToonDocumentMap(p=>({...p,[m.id]:false}))}
+                          style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"8px 12px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
+                          Annuleren
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button onClick={()=>setToonDocumentMap(p=>({...p,[m.id]:true}))}
+                      style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"7px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                      📄 Document toevoegen
+                    </button>
+                  )}
                 )}
               </div>
             )}
