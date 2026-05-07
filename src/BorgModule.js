@@ -75,6 +75,7 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
   const [loading, setLoading] = useState(true);
   const [subTab, setSubTab] = useState("week");
   const [toonNieuw, setToonNieuw] = useState(false);
+  const [toonLosseInhouding, setToonLosseInhouding] = useState(false);
 
   const isBackoffice = gebruiker?.rol === "backoffice" && !readonly;
 
@@ -248,10 +249,16 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
           </p>
         </div>
         {isBackoffice && (
-          <button onClick={()=>setToonNieuw(true)}
-            style={{background:C.blauw,color:"white",border:"none",borderRadius:8,padding:"10px 20px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
-            + Nieuw borgplan
-          </button>
+          <div style={{display:"flex",gap:10}}>
+            <button onClick={()=>{setToonLosseInhouding(true);setToonNieuw(false);}}
+              style={{background:"#f59e0b",color:"white",border:"none",borderRadius:8,padding:"10px 20px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+              💸 Losse inhouding
+            </button>
+            <button onClick={()=>{setToonNieuw(true);setToonLosseInhouding(false);}}
+              style={{background:C.blauw,color:"white",border:"none",borderRadius:8,padding:"10px 20px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+              + Nieuw borgplan
+            </button>
+          </div>
         )}
       </div>
 
@@ -267,12 +274,90 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
         </div>
       )}
 
+      {/* Losse inhouding form */}
+      {toonLosseInhouding && isBackoffice && (
+        <LosseInhoudingForm
+          gebruiker={gebruiker}
+          showToast={showToast}
+          onSubmit={async(data) => {
+            // Maak een mini borgplan aan zonder termijnen
+            const { data: plan, error } = await supabase.from("borg_plannen").insert([{
+              naam_medewerker: data.naam,
+              sleutels: 0,
+              heeft_fiets: false,
+              totaal_borg: Number(data.bedrag),
+              ingehouden: 0,
+              status: "actief",
+              aangemaakt_door: gebruiker.naam,
+              opmerkingen: data.omschrijving,
+            }]).select().single();
+            if (error) { showToast("Fout bij opslaan","err"); return; }
+            // Voeg direct als termijn toe voor volgende week
+            const nu = new Date();
+            const startWeek = (() => { const d=new Date(); const j=new Date(Date.UTC(d.getFullYear(),0,1)); return Math.ceil((((d-j)/86400000)+j.getDay()+1)/7)+1; })();
+            await supabase.from("borg_termijnen").insert([{
+              plan_id: plan.id,
+              naam_medewerker: data.naam,
+              week_nummer: startWeek,
+              jaar: nu.getFullYear(),
+              bedrag: Number(data.bedrag),
+              type: "inhouden",
+              omschrijving: data.omschrijving,
+              status: "open",
+            }]);
+            showToast(`✓ Inhouding van €${data.bedrag} aangemaakt voor week ${startWeek}`);
+            await loadAll();
+            setToonLosseInhouding(false);
+          }}
+          onAnnuleer={() => setToonLosseInhouding(false)}
+        />
+      )}
+
       {/* Nieuw borgplan form */}
       {toonNieuw && isBackoffice && (
         <NieuwBorgPlan
           houses={houses}
           onSubmit={async(d)=>{ const ok=await maakPlanAan(d); if(ok) setToonNieuw(false); }}
           onAnnuleer={()=>setToonNieuw(false)}
+        />
+      )}
+
+      {/* Losse inhouding form */}
+      {toonLosseInhouding && isBackoffice && (
+        <LosseInhoudingForm
+          onSubmit={async(d) => {
+            // Maak een éénmalig plan aan zonder borgberekening
+            const nu = new Date();
+            const jaar = nu.getFullYear();
+            let week = d.week || (getWeekNr(nu) + 1);
+            const { data: plan } = await supabase.from("borg_plannen").insert([{
+              naam_medewerker: d.naam_medewerker,
+              woning_id: null,
+              sleutels: 0,
+              heeft_fiets: false,
+              totaal_borg: Number(d.bedrag),
+              ingehouden: 0,
+              status: "actief",
+              aangemaakt_door: gebruiker.naam,
+              opmerkingen: d.omschrijving,
+            }]).select().single();
+            if (plan) {
+              await supabase.from("borg_termijnen").insert([{
+                plan_id: plan.id,
+                naam_medewerker: d.naam_medewerker,
+                week_nummer: Number(week),
+                jaar: jaar,
+                bedrag: Number(d.bedrag),
+                type: "inhouden",
+                omschrijving: d.omschrijving,
+                status: "open",
+              }]);
+              showToast(`✓ Inhouding van €${d.bedrag} ingepland voor week ${week}`);
+              await loadAll();
+              setToonLosseInhouding(false);
+            }
+          }}
+          onAnnuleer={() => setToonLosseInhouding(false)}
         />
       )}
 
@@ -328,6 +413,92 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
       {subTab==="archief" && (
         <Archief plannen={plannen.filter(p=>p.status!=="actief")} termijnen={termijnen} extras={extras} houses={houses}/>
       )}
+    </div>
+  );
+}
+
+// ─── LOSSE INHOUDING FORM ────────────────────────────────────────────────────
+function LosseInhoudingForm({ gebruiker, showToast, onSubmit, onAnnuleer }) {
+  const [naam, setNaam] = useState("");
+  const [bedrag, setBedrag] = useState("");
+  const [omschrijving, setOmschrijving] = useState("");
+  const [type, setType] = useState("inhouding");
+  const [saving, setSaving] = useState(false);
+
+  const typeOpties = [
+    { id:"inhouding", icon:"💰", label:"Inhouding", sub:"bijv. schade, tankbon" },
+    { id:"boete",     icon:"🚨", label:"Boete",     sub:"bijv. verkeersboete" },
+    { id:"overig",    icon:"📝", label:"Overig",    sub:"vrij in te vullen" },
+  ];
+
+  async function handleSubmit() {
+    if (!naam.trim()) { showToast("Vul naam medewerker in","err"); return; }
+    if (!bedrag || isNaN(Number(bedrag)) || Number(bedrag) <= 0) { showToast("Vul een geldig bedrag in","err"); return; }
+    if (!omschrijving.trim()) { showToast("Vul een omschrijving in","err"); return; }
+    setSaving(true);
+    await onSubmit({ naam: naam.trim(), bedrag, omschrijving: `[${typeOpties.find(t=>t.id===type)?.label}] ${omschrijving.trim()}`, type });
+    setSaving(false);
+  }
+
+  // Volgende week nummer
+  const nu = new Date();
+  const j = new Date(Date.UTC(nu.getFullYear(),0,1));
+  const volgendeWeek = Math.ceil((((nu-j)/86400000)+j.getDay()+1)/7)+1;
+
+  return (
+    <div style={{background:"white",border:"2px solid #f59e0b",borderRadius:12,padding:20,marginBottom:20}}>
+      <div style={{fontWeight:800,fontSize:15,color:"#b45309",marginBottom:4}}>⚡ Losse inhouding</div>
+      <div style={{fontSize:13,color:"#b45309",marginBottom:16}}>
+        Wordt ingehouden in week {volgendeWeek} — geen borgplan nodig
+      </div>
+
+      {/* Type */}
+      <div style={{display:"flex",gap:8,marginBottom:16}}>
+        {typeOpties.map(t=>(
+          <div key={t.id} onClick={()=>setType(t.id)}
+            style={{flex:1,border:`2px solid ${type===t.id?"#f59e0b":C.border}`,borderRadius:10,padding:"10px 12px",textAlign:"center",cursor:"pointer",background:type===t.id?"#fffbeb":"white"}}>
+            <div style={{fontSize:20,marginBottom:4}}>{t.icon}</div>
+            <div style={{fontWeight:700,fontSize:12,color:type===t.id?"#b45309":C.muted}}>{t.label}</div>
+            <div style={{fontSize:10,color:C.muted,marginTop:2}}>{t.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
+        <div>
+          <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Naam medewerker *</label>
+          <input value={naam} onChange={e=>setNaam(e.target.value)} placeholder="Voor- en achternaam" autoFocus
+            style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"10px 14px",fontSize:14,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
+        </div>
+        <div>
+          <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Bedrag (€) *</label>
+          <input type="number" step="0.01" min="0.01" value={bedrag} onChange={e=>setBedrag(e.target.value)} placeholder="bijv. 45.00"
+            style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"10px 14px",fontSize:14,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
+        </div>
+        <div style={{gridColumn:"1/-1"}}>
+          <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Omschrijving *</label>
+          <input value={omschrijving} onChange={e=>setOmschrijving(e.target.value)} placeholder="bijv. tankbon 14-05-2026, schade badkamerdeur, verkeersboete..."
+            style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"10px 14px",fontSize:14,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
+        </div>
+      </div>
+
+      {/* Preview */}
+      {naam && bedrag && omschrijving && (
+        <div style={{background:"#fffbeb",border:"1px solid #fcd34d",borderRadius:10,padding:"12px 16px",marginBottom:14,fontSize:13}}>
+          <strong style={{color:"#b45309"}}>Week {volgendeWeek}</strong> — {naam} — €{Number(bedrag).toFixed(2)} inhouden — {omschrijving}
+        </div>
+      )}
+
+      <div style={{display:"flex",gap:10}}>
+        <button onClick={handleSubmit} disabled={saving}
+          style={{background:saving?"#d1d5db":"#f59e0b",color:"white",border:"none",borderRadius:8,padding:"11px 24px",fontSize:14,fontWeight:700,cursor:saving?"not-allowed":"pointer",fontFamily:"inherit"}}>
+          {saving?"⏳ Opslaan...":"⚡ Inhouding aanmaken"}
+        </button>
+        <button onClick={onAnnuleer}
+          style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"11px 18px",fontSize:14,cursor:"pointer",fontFamily:"inherit"}}>
+          Annuleren
+        </button>
+      </div>
     </div>
   );
 }
@@ -852,6 +1023,87 @@ function Archief({ plannen, termijnen, extras, houses }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// ─── LOSSE INHOUDING FORMULIER ───────────────────────────────────────────────
+function LosseInhoudingForm({ onSubmit, onAnnuleer }) {
+  const [naam, setNaam] = useState("");
+  const [bedrag, setBedrag] = useState("");
+  const [omschrijving, setOmschrijving] = useState("");
+  const [week, setWeek] = useState(() => {
+    const nu = new Date();
+    const j = new Date(Date.UTC(nu.getFullYear(),0,1));
+    return Math.ceil((((nu-j)/86400000)+j.getDay()+1)/7) + 1;
+  });
+  const [jaar] = useState(new Date().getFullYear());
+  const [saving, setSaving] = useState(false);
+
+  const maandag = getMaandagVanWeek(week, jaar);
+  const donderdag = new Date(maandag); donderdag.setDate(maandag.getDate() + 3);
+
+  async function handleSubmit() {
+    if (!naam.trim()) { alert("Vul naam in"); return; }
+    if (!bedrag || Number(bedrag) <= 0) { alert("Vul een geldig bedrag in"); return; }
+    if (!omschrijving.trim()) { alert("Vul een omschrijving in"); return; }
+    setSaving(true);
+    await onSubmit({ naam_medewerker: naam.trim(), bedrag, omschrijving: omschrijving.trim(), week });
+    setSaving(false);
+  }
+
+  return (
+    <div style={{background:"white",border:"2px solid #f59e0b",borderRadius:12,padding:20,marginBottom:20}}>
+      <div style={{fontWeight:800,fontSize:15,color:"#b45309",marginBottom:4}}>💸 Losse inhouding toevoegen</div>
+      <div style={{fontSize:13,color:"#b45309",marginBottom:16}}>Voor eenmalige inhoudingen zonder borgplan — bijv. boete, schade, terugvordering.</div>
+
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
+        <div>
+          <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Naam medewerker *</label>
+          <input value={naam} onChange={e=>setNaam(e.target.value)} placeholder="Voor- en achternaam" autoFocus
+            style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"10px 14px",fontSize:14,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
+        </div>
+        <div>
+          <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Bedrag (€) *</label>
+          <input type="number" step="0.01" min="0.01" value={bedrag} onChange={e=>setBedrag(e.target.value)} placeholder="bijv. 75.00"
+            style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"10px 14px",fontSize:14,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
+        </div>
+        <div style={{gridColumn:"1/-1"}}>
+          <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Omschrijving / reden *</label>
+          <input value={omschrijving} onChange={e=>setOmschrijving(e.target.value)} placeholder="bijv. Boete te laat, schade kamer, terugvordering..."
+            style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"10px 14px",fontSize:14,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
+        </div>
+        <div style={{gridColumn:"1/-1"}}>
+          <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Inhouden in week</label>
+          <div style={{display:"flex",alignItems:"center",gap:12}}>
+            <button onClick={()=>setWeek(w=>Math.max(1,w-1))}
+              style={{background:C.bg,border:`1.5px solid ${C.border}`,borderRadius:8,padding:"8px 14px",fontSize:16,cursor:"pointer",fontFamily:"inherit"}}>‹</button>
+            <div style={{textAlign:"center",flex:1}}>
+              <div style={{fontWeight:800,fontSize:18,color:"#b45309"}}>Week {week}</div>
+              <div style={{fontSize:12,color:C.muted}}>Ma {fmtDate(maandag)} · Do {fmtDate(donderdag)}</div>
+            </div>
+            <button onClick={()=>setWeek(w=>Math.min(52,w+1))}
+              style={{background:C.bg,border:`1.5px solid ${C.border}`,borderRadius:8,padding:"8px 14px",fontSize:16,cursor:"pointer",fontFamily:"inherit"}}>›</button>
+          </div>
+        </div>
+      </div>
+
+      {naam && bedrag && omschrijving && (
+        <div style={{background:"#fffbeb",border:"1px solid #fcd34d",borderRadius:10,padding:"12px 16px",marginBottom:14,fontSize:13,color:"#b45309"}}>
+          💸 <strong>{naam}</strong> — €{bedrag} inhouden in week {week} voor: {omschrijving}
+        </div>
+      )}
+
+      <div style={{display:"flex",gap:10}}>
+        <button onClick={handleSubmit} disabled={saving||!naam.trim()||!bedrag||!omschrijving.trim()}
+          style={{background:saving||!naam.trim()||!bedrag||!omschrijving.trim()?"#d1d5db":"#f59e0b",color:"white",border:"none",borderRadius:8,padding:"11px 24px",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+          {saving?"⏳ Opslaan...":"💸 Inhouding inplannen"}
+        </button>
+        <button onClick={onAnnuleer}
+          style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"11px 18px",fontSize:14,cursor:"pointer",fontFamily:"inherit"}}>
+          Annuleren
+        </button>
+      </div>
     </div>
   );
 }
