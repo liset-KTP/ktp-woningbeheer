@@ -194,7 +194,7 @@ export default function App() {
   function login(g) {
     try { localStorage.setItem("ktp_sessie", JSON.stringify(g)); } catch {}
     setGebruiker(g);
-    setTab(g.rol==="collega"?"melding":g.rol==="huismeester"?"dagplanning":g.rol==="financieel"?"huurbetalingen":"woningen");
+    setTab(g.rol==="collega"?"taken":g.rol==="huismeester"?"dagplanning":g.rol==="financieel"?"huurbetalingen":"woningen");
     loadOngelzenAutoReacties(g.naam);
     loadOngelzenBerichten(g.naam);
   }
@@ -226,6 +226,7 @@ export default function App() {
       kamer:m.kamer, wie_regelt:m.wieRegelt||null, sleutel_terug:m.sleutelTerug||null,
       kamer_schoon:m.kamerSchoon||null, sleutel_aantal:m.sleutelAantal||null,
       opmerkingen:m.opmerkingen||null, ingediend_door:gebruiker.naam, status:"open",
+      voor_rol:m.voor_rol||"backoffice",
     }]);
     if (error) { showToast("Fout bij opslaan","err"); return; }
 
@@ -528,9 +529,7 @@ export default function App() {
           {/* Tab navigatie — horizontaal scrollbaar op mobiel */}
           <div style={{display:"flex",gap:2,overflowX:"auto",paddingBottom:6,scrollbarWidth:"none",msOverflowStyle:"none"}}>
             {rol==="collega" && (<>
-              <button className={`tp ${tab==="melding"?"act":""}`} onClick={()=>setTab("melding")}>👤 Melding</button>
-              <button className={`tp ${tab==="mijn"?"act":""}`} onClick={()=>setTab("mijn")}>📋 Mijn {mijnMeldingen.length>0&&<Notif n={mijnMeldingen.length}/>}</button>
-              <button className={`tp ${tab==="taken"?"act":""}`} onClick={()=>setTab("taken")}>📌 To-do {openTaken.length>0&&<Notif n={openTaken.length}/>}</button>
+              <button className={`tp ${tab==="taken"?"act":""}`} onClick={()=>setTab("taken")}>📋 Taken & Meldingen {(openTaken.length+mijnMeldingen.length)>0&&<Notif n={openTaken.length+mijnMeldingen.length}/>}</button>
               <button className={`tp ${tab==="woningen"?"act":""}`} onClick={()=>setTab("woningen")}>🏠 Woningen</button>
               <button className={`tp ${tab==="autos"?"act":""}`} onClick={()=>setTab("autos")}>🚗 Auto's {ongelzenAutoReacties>0&&<Notif n={ongelzenAutoReacties}/>}</button>
               <button className={`tp ${tab==="fietsen"?"act":""}`} onClick={()=>setTab("fietsen")}>🚲 Fietsen</button>
@@ -541,8 +540,7 @@ export default function App() {
             </>)}
             {rol==="huismeester" && (<>
               <button className={`tp ${tab==="dagplanning"?"act":""}`} onClick={()=>setTab("dagplanning")}>📅 Mijn dag {totalNotifs>0&&<Notif n={totalNotifs}/>}</button>
-              <button className={`tp ${tab==="meldingen"?"act":""}`} onClick={()=>setTab("meldingen")}>🔔 Meldingen {openMeldingen.length>0&&<Notif n={openMeldingen.length}/>}</button>
-              <button className={`tp ${tab==="taken"?"act":""}`} onClick={()=>setTab("taken")}>📌 To-do {openTaken.length>0&&<Notif n={openTaken.length}/>}</button>
+              <button className={`tp ${tab==="taken"?"act":""}`} onClick={()=>setTab("taken")}>📋 Taken & Meldingen {(openTaken.length+openMeldingen.filter(m=>m.voor_rol==="huismeester"||!m.voor_rol).length)>0&&<Notif n={openTaken.length+openMeldingen.filter(m=>m.voor_rol==="huismeester"||!m.voor_rol).length}/>}</button>
               <button className={`tp ${tab==="checklist"?"act":""}`} onClick={()=>setTab("checklist")}>✅ Checklists</button>
               <button className={`tp ${tab==="woningen"?"act":""}`} onClick={()=>setTab("woningen")}>🏠 Woningen</button>
               <button className={`tp ${tab==="autos"?"act":""}`} onClick={()=>setTab("autos")}>🚗 Auto's {ongelzenAutoReacties>0&&<Notif n={ongelzenAutoReacties}/>}</button>
@@ -563,10 +561,9 @@ export default function App() {
             </>)}
             {rol==="backoffice" && (<>
               <button className={`tp ${tab==="woningen"?"act":""}`} onClick={()=>setTab("woningen")}>🏠 Woningen</button>
-              <button className={`tp ${tab==="taken"?"act":""}`} onClick={()=>setTab("taken")}>📌 To-do {openTaken.length>0&&<Notif n={openTaken.length}/>}</button>
+              <button className={`tp ${tab==="taken"?"act":""}`} onClick={()=>setTab("taken")}>📋 Taken & Meldingen {(openTaken.length+openMeldingen.length)>0&&<Notif n={openTaken.length+openMeldingen.length}/>}</button>
               <button className={`tp ${tab==="autos"?"act":""}`} onClick={()=>setTab("autos")}>🚗 Auto's</button>
               <button className={`tp ${tab==="fietsen"?"act":""}`} onClick={()=>setTab("fietsen")}>🚲 Fietsen</button>
-              <button className={`tp ${tab==="inbox"?"act":""}`} onClick={()=>setTab("inbox")}>📨 Inbox {openMeldingen.length>0&&<Notif n={openMeldingen.length}/>}</button>
               <button className={`tp ${tab==="checklist"?"act":""}`} onClick={()=>setTab("checklist")}>✅ Checklists</button>
               <button className={`tp ${tab==="huurbetalingen"?"act":""}`} onClick={()=>setTab("huurbetalingen")}>💶 Huurbetalingen</button>
               <button className={`tp ${tab==="borg"?"act":""}`} onClick={()=>setTab("borg")}>🛡️ Inhoudingen</button>
@@ -580,16 +577,12 @@ export default function App() {
 
       {/* CONTENT */}
       <div style={{maxWidth:1400,margin:"0 auto",padding:"20px 12px"}}>
-        {rol==="collega"&&tab==="melding"&&<MeldingForm houses={houses} onSubmit={addMelding} showToast={showToast}/>}
-        {rol==="collega"&&tab==="mijn"&&<MijnMeldingen meldingen={mijnMeldingen} houses={houses}/>}
-        {tab==="taken"&&<TakenView taken={taken} houses={houses} gebruiker={gebruiker} onAdd={addTaak} onUpdate={updateTaak} showToast={showToast}/>}
+        {tab==="taken"&&<TakenMeldingenView taken={taken} meldingen={meldingen} houses={houses} gebruiker={gebruiker} onAddTaak={addTaak} onUpdateTaak={updateTaak} onAddMelding={addMelding} onUpdateMelding={updateMeldingStatus} showToast={showToast}/>}
         {tab==="woningen"&&<WoningenDetail houses={houses} onUpdateWoning={rol==="backoffice"||rol==="huismeester"?updateWoning:null}/>}
         {tab==="autos"&&<AutoModule gebruiker={gebruiker} showToast={showToast}/>}
         {tab==="fietsen"&&<FietsModule gebruiker={gebruiker} showToast={showToast}/>}
         {rol==="huismeester"&&tab==="dagplanning"&&<DagplanningView meldingen={meldingen} taken={taken} houses={houses} onUpdate={updateMeldingStatus} onUpdateTaak={updateTaak} naam={naam} dagplanningDB={dagplanningDB}/>}
-        {rol==="huismeester"&&tab==="meldingen"&&<HuismeesterTaken meldingen={meldingen} houses={houses} onUpdate={updateMeldingStatus} naam={naam}/>}
         {tab==="checklist"&&<ChecklistView houses={houses} checklists={checklists} checklistItems={checklistItems} onSave={slaChecklistOp} gebruiker={gebruiker}/>}
-        {rol==="backoffice"&&tab==="inbox"&&<BackofficeInbox meldingen={meldingen} houses={houses} onUpdate={updateMeldingStatus} naam={naam} showToast={showToast}/>}
         {rol==="backoffice"&&tab==="log"&&<LogView meldingen={meldingen} houses={houses} activiteiten={activiteiten}/>}
         {tab==="huurbetalingen"&&<HuurbetalingenModule gebruiker={gebruiker} showToast={showToast} readonly={rol!=="backoffice"&&rol!=="financieel"}/>}
         {tab==="berichten"&&<BerichtenModule gebruiker={gebruiker} houses={houses} taken={taken} meldingen={meldingen} autos={[]}/>}
@@ -883,6 +876,286 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── GECOMBINEERDE TAKEN & MELDINGEN VIEW ────────────────────────────────────
+function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, onUpdateTaak, onAddMelding, onUpdateMelding, showToast }) {
+  const rol = gebruiker?.rol;
+  const isBackoffice = rol === "backoffice";
+  const isHuismeester = rol === "huismeester";
+  const isCollega = rol === "collega";
+
+  const [subTab, setSubTab] = useState("overzicht");
+  const [filter, setFilter] = useState("open");
+
+  // Rol-gebaseerde filtering
+  const mijnMeldingen = meldingen.filter(m => m.ingediend_door === gebruiker?.naam);
+
+  const relevanteMeldingen = meldingen.filter(m => {
+    if (isBackoffice) return true; // backoffice ziet alles
+    if (isHuismeester) return m.voor_rol === "huismeester" || !m.voor_rol || m.voor_rol === "iedereen";
+    if (isCollega) return m.ingediend_door === gebruiker?.naam; // collega ziet eigen meldingen
+    return false;
+  }).filter(m => filter === "open" ? m.status === "open" : filter === "gedaan" ? m.status !== "open" : true);
+
+  const relevanteTaken = taken.filter(t => {
+    if (isBackoffice) return t.voor_rol !== "huismeester";
+    if (isHuismeester) return t.voor_rol === "huismeester" || t.voor_rol === "iedereen" || !t.voor_rol;
+    if (isCollega) return t.voor_rol === "iedereen" || !t.voor_rol;
+    return false;
+  }).filter(t => filter === "open" ? (t.status === "open" || t.status === "geaccepteerd") : filter === "gedaan" ? t.status === "gedaan" : true);
+
+  const openCount = relevanteMeldingen.filter(m=>m.status==="open").length + relevanteTaken.filter(t=>t.status==="open"||t.status==="geaccepteerd").length;
+
+  const subTabs = [
+    { id:"overzicht", label:`📋 Overzicht (${openCount})` },
+    ...(isCollega ? [{ id:"nieuw", label:"+ Nieuwe melding/taak" }] : []),
+    ...(isBackoffice || isHuismeester ? [{ id:"nieuw_taak", label:"+ Taak toevoegen" }] : []),
+  ];
+
+  return (
+    <div>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+        <div>
+          <h2 style={{fontSize:20,fontWeight:800,color:C.blauw,marginBottom:3}}>📋 Taken & Meldingen</h2>
+          <p style={{fontSize:13,color:C.muted}}>{openCount} openstaand</p>
+        </div>
+      </div>
+
+      {/* Sub tabs */}
+      <div style={{display:"flex",gap:6,marginBottom:20,borderBottom:`2px solid ${C.border}`}}>
+        {subTabs.map(t=>(
+          <button key={t.id} onClick={()=>setSubTab(t.id)}
+            style={{background:"none",border:"none",padding:"10px 18px",fontSize:13,fontWeight:700,color:subTab===t.id?C.blauw:C.muted,borderBottom:subTab===t.id?`3px solid ${C.blauw}`:"3px solid transparent",marginBottom:-2,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Filters */}
+      {subTab === "overzicht" && (
+        <div style={{display:"flex",gap:6,marginBottom:16}}>
+          {[["open","Open"],["gedaan","Afgehandeld"],["alle","Alle"]].map(([v,l])=>(
+            <button key={v} onClick={()=>setFilter(v)}
+              style={{background:filter===v?C.blauw:"white",color:filter===v?"white":C.muted,border:`1.5px solid ${filter===v?C.blauw:C.border}`,borderRadius:20,padding:"6px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+              {l}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Overzicht */}
+      {subTab === "overzicht" && (
+        <div>
+          {/* Meldingen sectie */}
+          {relevanteMeldingen.length > 0 && (
+            <div style={{marginBottom:24}}>
+              <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:10}}>
+                📬 Meldingen ({relevanteMeldingen.length})
+              </div>
+              {relevanteMeldingen.map(m => (
+                <MeldingKaartCombined key={m.id} melding={m} houses={houses} gebruiker={gebruiker}
+                  isBackoffice={isBackoffice} isHuismeester={isHuismeester}
+                  onUpdate={onUpdateMelding} showToast={showToast}/>
+              ))}
+            </div>
+          )}
+
+          {/* Taken sectie */}
+          {relevanteTaken.length > 0 && (
+            <div>
+              <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:10}}>
+                🔧 Taken ({relevanteTaken.length})
+              </div>
+              <TakenView taken={relevanteTaken} houses={houses} gebruiker={gebruiker} onAdd={onAddTaak} onUpdate={onUpdateTaak} showToast={showToast} inlineMode/>
+            </div>
+          )}
+
+          {relevanteMeldingen.length === 0 && relevanteTaken.length === 0 && (
+            <div style={{textAlign:"center",padding:"60px",color:C.muted}}>
+              <div style={{fontSize:40,marginBottom:10}}>🎉</div>
+              <div>Alles afgehandeld!</div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Nieuwe melding (collega) */}
+      {subTab === "nieuw" && isCollega && (
+        <MeldingForm houses={houses} onSubmit={async(d)=>{ await onAddMelding(d); setSubTab("overzicht"); }} showToast={showToast}/>
+      )}
+
+      {/* Nieuwe taak (backoffice/huismeester) */}
+      {subTab === "nieuw_taak" && (isBackoffice || isHuismeester) && (
+        <NieuwesTaakForm houses={houses} gebruiker={gebruiker} onAdd={async(d)=>{ await onAddTaak(d); setSubTab("overzicht"); showToast("✓ Taak toegevoegd"); }} showToast={showToast}/>
+      )}
+    </div>
+  );
+}
+
+// ─── MELDING KAART COMBINED ───────────────────────────────────────────────────
+function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isHuismeester, onUpdate, showToast }) {
+  const huis = houses.find(h=>h.id===m.woning_id);
+  const [toonNotitie, setToonNotitie] = useState(false);
+  const [notitie, setNotitie] = useState("");
+  const [toonInplannen, setToonInplannen] = useState(false);
+  const [inplandatum, setInplandatum] = useState("");
+  const [inplanOpmerking, setInplanOpmerking] = useState("");
+
+  const typeKleur = {aankomst:C.groen,vertrek:"#7c3aed",reservering:C.blauw,overig:C.oranje,verhuizing:"#0891b2"};
+  const typeIcon = {aankomst:"🏠",vertrek:"📦",reservering:"📅",overig:"📝",verhuizing:"🔄"};
+  const kleur = typeKleur[m.type] || C.muted;
+  const isOpen = m.status === "open";
+  const isIngepland = m.status === "geaccepteerd" || m.ingepland_op;
+
+  return (
+    <div style={{background:"white",border:`1px solid ${C.border}`,borderLeft:`4px solid ${isOpen?kleur:C.muted}`,borderRadius:10,padding:"14px 18px",marginBottom:10,opacity:isOpen?1:.8}}>
+      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",flexWrap:"wrap",gap:8,marginBottom:8}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+          <span style={{fontSize:18}}>{typeIcon[m.type]||"📝"}</span>
+          <div>
+            <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+              <span style={{fontWeight:700,fontSize:14,color:C.text}}>{m.medewerker}</span>
+              <span style={{padding:"2px 8px",borderRadius:10,background:kleur+"18",color:kleur,fontSize:11,fontWeight:700}}>{m.type?.toUpperCase()}</span>
+              {m.voor_rol==="huismeester"&&<span style={{padding:"2px 8px",borderRadius:10,background:"#f0fdf4",color:C.groen,fontSize:11,fontWeight:700}}>🏠 Huismeester</span>}
+              {m.voor_rol==="backoffice"&&<span style={{padding:"2px 8px",borderRadius:10,background:C.blauw+"15",color:C.blauw,fontSize:11,fontWeight:700}}>📊 Backoffice</span>}
+              {!isOpen&&<span style={{padding:"2px 8px",borderRadius:10,background:"#f0fdf4",color:C.groen,fontSize:11,fontWeight:700}}>✓ AFGEHANDELD</span>}
+            </div>
+            <div style={{fontSize:12,color:C.muted,marginTop:2}}>
+              {huis?`📍 ${huis.adres}, ${huis.stad}`:""}{m.kamer?` · K${m.kamer}`:""} · {m.datum} · Door: {m.ingediend_door}
+            </div>
+          </div>
+        </div>
+      </div>
+      {m.opmerkingen&&<div style={{fontSize:13,color:C.muted,fontStyle:"italic",marginBottom:8}}>"{m.opmerkingen}"</div>}
+      {m.ingepland_op&&<div style={{fontSize:12,color:C.groen,fontWeight:600,marginBottom:6}}>📅 Ingepland op {fmtDate(m.ingepland_op)} door {m.geaccepteerd_door}</div>}
+      {m.notitie&&<div style={{fontSize:13,color:C.blauw,background:C.blauw+"08",border:`1px solid ${C.blauw}20`,borderRadius:8,padding:"6px 10px",marginBottom:8}}>💬 {m.notitie}</div>}
+
+      {isOpen && (isBackoffice || isHuismeester) && (
+        <div style={{marginTop:8,display:"flex",gap:8,flexWrap:"wrap"}}>
+          {/* Huismeester kan inplannen */}
+          {isHuismeester && !toonNotitie && (
+            toonInplannen ? (
+              <div style={{width:"100%",background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:10,padding:14}}>
+                <div style={{fontWeight:700,color:C.groen,fontSize:13,marginBottom:10}}>📅 Melding inplannen</div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+                  <div>
+                    <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>DATUM</label>
+                    <input type="date" value={inplandatum} onChange={e=>setInplandatum(e.target.value)} autoFocus
+                      style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"8px 12px",fontSize:13,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
+                  </div>
+                  <div>
+                    <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>OPMERKING</label>
+                    <input value={inplanOpmerking} onChange={e=>setInplanOpmerking(e.target.value)} placeholder="bijv. pak dit dinsdag op"
+                      style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"8px 12px",fontSize:13,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
+                  </div>
+                </div>
+                <div style={{display:"flex",gap:8}}>
+                  <button onClick={async()=>{
+                    await onUpdate(m.id,"geaccepteerd",inplanOpmerking);
+                    if(inplandatum) await supabase.from("meldingen").update({ingepland_op:inplandatum,geaccepteerd_door:gebruiker.naam}).eq("id",m.id);
+                    setToonInplannen(false);
+                  }} style={{background:C.groen,color:"white",border:"none",borderRadius:8,padding:"8px 18px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                    ✓ Inplannen
+                  </button>
+                  <button onClick={()=>setToonInplannen(false)} style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"8px 12px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>Annuleren</button>
+                </div>
+              </div>
+            ) : (
+              <button onClick={()=>setToonInplannen(true)} style={{background:"#f0fdf4",border:`1.5px solid ${C.groen}`,color:C.groen,borderRadius:8,padding:"7px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                📅 Inplannen
+              </button>
+            )
+          )}
+          {/* Backoffice kan verwerken + notitie */}
+          {isBackoffice && !toonInplannen && (
+            toonNotitie ? (
+              <div style={{width:"100%",background:C.bg,border:`1px solid ${C.border}`,borderRadius:10,padding:14}}>
+                <input value={notitie} onChange={e=>setNotitie(e.target.value)} placeholder="Notitie bij verwerking..." autoFocus
+                  style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"9px 12px",fontSize:13,outline:"none",fontFamily:"inherit",boxSizing:"border-box",marginBottom:10}}/>
+                <div style={{display:"flex",gap:8}}>
+                  <button onClick={()=>{ onUpdate(m.id,"verwerkt",notitie); setToonNotitie(false); }}
+                    style={{background:C.groen,color:"white",border:"none",borderRadius:8,padding:"8px 18px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>✓ Verwerkt</button>
+                  <button onClick={()=>setToonNotitie(false)} style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"8px 12px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>Annuleren</button>
+                </div>
+              </div>
+            ) : (
+              <button onClick={()=>setToonNotitie(true)} style={{background:C.blauw,color:"white",border:"none",borderRadius:8,padding:"7px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                ✓ Verwerkt in administratie
+              </button>
+            )
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── NIEUWE TAAK FORM (inline) ────────────────────────────────────────────────
+function NieuwesTaakForm({ houses, gebruiker, onAdd, showToast }) {
+  const [nieuw, setNieuw] = useState({titel:"",omschrijving:"",woning_id:"",kamer:"",prioriteit:"middel",voor_rol:"huismeester"});
+  const [saving, setSaving] = useState(false);
+  const selectedHouse = houses.find(h=>h.id===Number(nieuw.woning_id));
+
+  async function submit() {
+    if (!nieuw.titel.trim()) { showToast("Vul een titel in","err"); return; }
+    setSaving(true);
+    await onAdd({titel:nieuw.titel.trim(),omschrijving:nieuw.omschrijving||null,woning_id:nieuw.woning_id?Number(nieuw.woning_id):null,kamer:nieuw.kamer||null,prioriteit:nieuw.prioriteit,voor_rol:nieuw.voor_rol||"huismeester"});
+    setSaving(false);
+    setNieuw({titel:"",omschrijving:"",woning_id:"",kamer:"",prioriteit:"middel",voor_rol:"huismeester"});
+  }
+
+  return (
+    <div className="card" style={{maxWidth:700,borderTop:`3px solid ${C.blauw}`}}>
+      <h3 style={{fontSize:15,fontWeight:800,color:C.blauw,marginBottom:16}}>+ Nieuwe taak toevoegen</h3>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
+        <div style={{gridColumn:"1/-1"}}>
+          <label className="fl">Titel *</label>
+          <input className="fi" value={nieuw.titel} onChange={e=>setNieuw(p=>({...p,titel:e.target.value}))} placeholder="bijv. Wasmachine repareren" autoFocus/>
+        </div>
+        <div>
+          <label className="fl">Woning</label>
+          <select className="fs" value={nieuw.woning_id} onChange={e=>setNieuw(p=>({...p,woning_id:e.target.value,kamer:""}))}>
+            <option value="">Geen woning</option>
+            {houses.map(h=><option key={h.id} value={h.id}>{h.adres}, {h.stad}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="fl">Kamer</label>
+          <select className="fs" value={nieuw.kamer} onChange={e=>setNieuw(p=>({...p,kamer:e.target.value}))} disabled={!nieuw.woning_id}>
+            <option value="">Selecteer kamer</option>
+            {(selectedHouse?.kamers||[]).map(k=><option key={k.k} value={k.k}>Kamer {k.k}{k.naam?` — ${k.naam}`:""}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="fl">Prioriteit</label>
+          <select className="fs" value={nieuw.prioriteit} onChange={e=>setNieuw(p=>({...p,prioriteit:e.target.value}))}>
+            <option value="hoog">🔴 Hoog</option>
+            <option value="middel">🟡 Middel</option>
+            <option value="laag">🟢 Laag</option>
+          </select>
+        </div>
+        <div>
+          <label className="fl">Voor wie?</label>
+          <div style={{display:"flex",gap:8}}>
+            {[["huismeester","🏠 Huismeester"],["backoffice","📊 Backoffice"],["iedereen","👥 Iedereen"]].map(([v,l])=>(
+              <div key={v} onClick={()=>setNieuw(p=>({...p,voor_rol:v}))}
+                style={{flex:1,border:`2px solid ${nieuw.voor_rol===v?C.blauw:C.border}`,borderRadius:8,padding:"8px 4px",textAlign:"center",cursor:"pointer",background:nieuw.voor_rol===v?C.blauw+"10":"white",fontSize:11,fontWeight:600,color:nieuw.voor_rol===v?C.blauw:C.muted}}>
+                {l}
+              </div>
+            ))}
+          </div>
+        </div>
+        <div style={{gridColumn:"1/-1"}}>
+          <label className="fl">Toelichting</label>
+          <input className="fi" value={nieuw.omschrijving} onChange={e=>setNieuw(p=>({...p,omschrijving:e.target.value}))} placeholder="Optioneel..."/>
+        </div>
+      </div>
+      <button className="btn-g" style={{padding:"10px 24px"}} onClick={submit} disabled={saving}>
+        {saving?"⏳ Opslaan...":"✓ Taak toevoegen"}
+      </button>
     </div>
   );
 }
@@ -1509,6 +1782,7 @@ function MeldingForm({ houses, onSubmit, showToast }) {
   const [huisId,setHuisId]=useState(houses[0]?.id||1);
   const [kamer,setKamer]=useState("");
   const [wieRegelt,setWieRegelt]=useState("");
+  const [voorRol,setVoorRol]=useState("backoffice");
   const [sleutelTerug,setSleutelTerug]=useState(null);
   const [kamerSchoon,setKamerSchoon]=useState(null);
   const [sleutelAantal,setSleutelAantal]=useState(1);
@@ -1540,7 +1814,7 @@ function MeldingForm({ houses, onSubmit, showToast }) {
       type, medewerker:medewerker.trim(), datum,
       huisId: type==="verhuizing" ? Number(naarHuisId) : Number(huisId),
       kamer: type==="verhuizing" ? naarKamer : kamer,
-      wieRegelt, sleutelTerug, kamerSchoon, sleutelAantal,
+      wieRegelt, sleutelTerug, kamerSchoon, sleutelAantal, voor_rol: voorRol,
       opmerkingen: type==="verhuizing"
         ? `Verhuizing van ${vanHuis?.adres} K${vanKamer} naar ${naarHuis?.adres} K${naarKamer}${opmerkingen?". "+opmerkingen:""}`
         : opmerkingen,
@@ -1549,7 +1823,7 @@ function MeldingForm({ houses, onSubmit, showToast }) {
     };
     await onSubmit(meldingData);
     setSaving(false);
-    setMedewerker("");setOpmerkingen("");setKamer("");setSleutelTerug(null);setKamerSchoon(null);setWieRegelt("");
+    setMedewerker("");setOpmerkingen("");setKamer("");setSleutelTerug(null);setKamerSchoon(null);setWieRegelt("");setVoorRol("backoffice");
     setVanHuisId("");setVanKamer("");setNaarHuisId("");setNaarKamer("");setBijlages([]);
     setSubmitted(true);setTimeout(()=>setSubmitted(false),2500);
   }
@@ -1658,6 +1932,17 @@ function MeldingForm({ houses, onSubmit, showToast }) {
       {(type==="aankomst"||type==="reservering")&&(
         <div className="card" style={{marginBottom:16,display:"grid",gridTemplateColumns:"1fr 1fr",gap:18}}>
           <div><label className="fl">Wie regelt aankomst?</label><input className="fi" value={wieRegelt} onChange={e=>setWieRegelt(e.target.value)} placeholder="bijv. NW CB, Hans, zelf..."/></div>
+          <div>
+            <label className="fl">Voor wie is deze melding?</label>
+            <div style={{display:"flex",gap:8}}>
+              {[["backoffice","📊 Backoffice"],["huismeester","🏠 Huismeester"],["iedereen","👥 Iedereen"]].map(([v,l])=>(
+                <div key={v} onClick={()=>setVoorRol(v)}
+                  style={{flex:1,border:,borderRadius:8,padding:"8px 4px",textAlign:"center",cursor:"pointer",background:voorRol===v?C.blauw+"10":"white",fontSize:11,fontWeight:600,color:voorRol===v?C.blauw:C.muted}}>
+                  {l}
+                </div>
+              ))}
+            </div>
+          </div>
           {type==="aankomst"&&<div><label className="fl">Aantal sleutels ontvangen</label><select className="fs" value={sleutelAantal} onChange={e=>setSleutelAantal(Number(e.target.value))}>{[0,1,2,3].map(n=><option key={n} value={n}>{n}</option>)}</select></div>}
         </div>
       )}
