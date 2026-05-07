@@ -684,14 +684,15 @@ function AutoLog({ meldingen, autos, onUpdate, gebruiker, isBackoffice, onReacti
                       <div style={{fontWeight:700,fontSize:13,color:C.text,marginBottom:10}}>📄 Document toevoegen</div>
                       <BijlageUploader
                         bestanden={documentMap[m.id]||[]}
-                        setBestanden={v=>setDocumentMap(p=>({...p,[m.id]:typeof v==="function"?v(p[m.id]||[]):v}))}
+                        setBestanden={nieuweFiles => setDocumentMap(p=>({...p,[m.id]: typeof nieuweFiles==="function" ? nieuweFiles(p[m.id]||[]) : nieuweFiles}))}
                         label="Autoformulier, schadeformulier, foto..."
                       />
                       <div style={{display:"flex",gap:8,marginTop:10}}>
                         <button onClick={async()=>{
                           const docs = documentMap[m.id]||[];
-                          if(docs.length===0){return;}
+                          if(docs.length===0){ alert("Selecteer eerst een bestand"); return;}
                           const urls = await uploadBijlages(docs,"auto-documenten");
+                          if(urls.length===0){ alert("Upload mislukt — probeer opnieuw"); return;}
                           const bestaand = m.document_urls ? JSON.parse(m.document_urls) : [];
                           const nieuw = JSON.stringify([...bestaand,...urls]);
                           await supabase.from("auto_meldingen").update({document_urls:nieuw}).eq("id",m.id);
