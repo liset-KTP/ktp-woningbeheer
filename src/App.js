@@ -1937,7 +1937,7 @@ function MeldingForm({ houses, onSubmit, showToast }) {
             <div style={{display:"flex",gap:8}}>
               {[["backoffice","📊 Backoffice"],["huismeester","🏠 Huismeester"],["iedereen","👥 Iedereen"]].map(([v,l])=>(
                 <div key={v} onClick={()=>setVoorRol(v)}
-                  style={{flex:1,border:,borderRadius:8,padding:"8px 4px",textAlign:"center",cursor:"pointer",background:voorRol===v?C.blauw+"10":"white",fontSize:11,fontWeight:600,color:voorRol===v?C.blauw:C.muted}}>
+                  style={{flex:1,border:`2px solid ${voorRol===v?C.blauw:C.border}`,borderRadius:8,padding:"8px 4px",textAlign:"center",cursor:"pointer",background:voorRol===v?C.blauw+"10":"white",fontSize:11,fontWeight:600,color:voorRol===v?C.blauw:C.muted}}>
                   {l}
                 </div>
               ))}
