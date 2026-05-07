@@ -169,13 +169,16 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
 
   async function voegExtraToe(planId, omschrijving, bedrag, type) {
     const plan = plannen.find(p => p.id === planId);
+    const isAlIngehouden = type === "al_ingehouden";
     await supabase.from("borg_extra").insert([{
       plan_id: planId,
       naam_medewerker: plan?.naam_medewerker || "—",
       omschrijving,
       bedrag: Number(bedrag),
       type,
-      status: "open",
+      status: isAlIngehouden ? "verwerkt" : "open",
+      verwerkt_door: isAlIngehouden ? gebruiker.naam : null,
+      verwerkt_op: isAlIngehouden ? new Date().toISOString() : null,
     }]);
     showToast("✓ Extra post toegevoegd");
     await loadAll();
@@ -561,8 +564,9 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
 
   const openTermijnen = termijnen.filter(t=>t.status==="open");
   const verwerktTermijnen = termijnen.filter(t=>t.status==="verwerkt");
-  const totaalIngehouden = verwerktTermijnen.reduce((s,t)=>s+Number(t.bedrag),0);
-  const nogInTehouden = termijnen.reduce((s,t)=>s+Number(t.bedrag),0) - totaalIngehouden;
+  const totaalIngehouden = verwerktTermijnen.reduce((s,t)=>s+Number(t.bedrag),0)
+    + extras.filter(e=>e.type==="al_ingehouden").reduce((s,e)=>s+Number(e.bedrag),0);
+  const nogInTehouden = Math.max(0, termijnen.reduce((s,t)=>s+Number(t.bedrag),0) - totaalIngehouden);
   const pct = plan.totaal_borg > 0 ? Math.min(100, (totaalIngehouden/plan.totaal_borg)*100) : 0;
 
   return (
@@ -634,10 +638,10 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
                   <div>
                     <span style={{color:e.status==="verwerkt"?C.groen:C.muted,marginRight:8}}>{e.status==="verwerkt"?"✓":"○"}</span>
                     <span style={{color:C.text}}>{e.omschrijving}</span>
-                    <span style={{fontSize:11,marginLeft:8,color:e.type==="terugbetalen"?C.groen:C.rood}}>{e.type==="terugbetalen"?"↩ terug":"↪ inhouden"}</span>
+                    <span style={{fontSize:11,marginLeft:8,color:e.type==="terugbetalen"?C.groen:e.type==="al_ingehouden"?C.groen:"#ef4444"}}>{e.type==="terugbetalen"?"↩ terug":e.type==="al_ingehouden"?"✓ al ingehouden":"↪ inhouden"}</span>
                   </div>
                   <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                    <span style={{fontWeight:700,color:e.type==="terugbetalen"?C.groen:C.rood}}>€{Number(e.bedrag).toFixed(2)}</span>
+                    <span style={{fontWeight:700,color:e.type==="terugbetalen"?C.groen:e.type==="al_ingehouden"?C.groen:C.rood}}>€{Number(e.bedrag).toFixed(2)}</span>
                     {e.status==="open" && isBackoffice && (
                       <button onClick={()=>onVerwerkExtra(e.id)}
                         style={{background:C.groen,color:"white",border:"none",borderRadius:6,padding:"4px 10px",fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>✓</button>
@@ -700,8 +704,9 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
                   style={{background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"8px 12px",fontSize:13,outline:"none",fontFamily:"inherit"}}/>
                 <select value={extraType} onChange={e=>setExtraType(e.target.value)}
                   style={{background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"8px 12px",fontSize:13,outline:"none",appearance:"none",fontFamily:"inherit"}}>
-                  <option value="inhouden">Inhouden</option>
-                  <option value="terugbetalen">Terugbetalen</option>
+                  <option value="inhouden">↪ Inhouden</option>
+                  <option value="terugbetalen">↩ Terugbetalen</option>
+                  <option value="al_ingehouden">✓ Al ingehouden</option>
                 </select>
               </div>
               <div style={{display:"flex",gap:8}}>
