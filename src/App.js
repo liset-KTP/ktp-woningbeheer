@@ -1174,9 +1174,12 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
             </div>
             {m.datum && (
               <div style={{fontSize:13,fontWeight:700,color:kleur,marginTop:3}}>
-                📅 {m.type==="reservering"?"Aankomst":"Datum"}: {fmtDate(m.datum)}
+                📅 {m.type==="aankomst"?"Aankomst":m.type==="vertrek"?"Vertrek":m.type==="reservering"?"Aankomst (reservering)":"Datum"}: {fmtDate(m.datum)}
               </div>
             )}
+            <div style={{fontSize:11,color:C.muted,marginTop:1}}>
+              Ingediend: {m.created_at?fmtFull(m.created_at):"—"}
+            </div>
             <div style={{fontSize:11,color:C.muted,marginTop:2}}>Door: {m.ingediend_door}</div>
           </div>
         </div>
@@ -1517,6 +1520,11 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                   {huis?`📍 ${huis.adres}, ${huis.stad}`:"📋 Algemeen"}{t.kamer?` · Kamer ${t.kamer}`:""}
                   {" · "}Toegevoegd door {t.aangemaakt_door}{t.created_at?` · ${fmtFull(t.created_at)}`:""}
                 </div>
+                {t.ingepland_op && t.status!=="geaccepteerd" && (
+                  <div style={{fontSize:12,fontWeight:700,color:"#7c3aed",marginTop:3}}>
+                    📅 Gepland voor: {fmtDate(t.ingepland_op)}
+                  </div>
+                )}
                 {t.omschrijving&&<div style={{fontSize:13,color:C.muted,marginTop:4,fontStyle:"italic"}}>"{t.omschrijving}"</div>}
                 {t.status==="geaccepteerd" && (
                   <div style={{marginTop:6,background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:8,padding:"8px 12px"}}>
