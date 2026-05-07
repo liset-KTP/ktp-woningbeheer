@@ -181,7 +181,49 @@ export function FietsModule({ gebruiker, showToast }) {
       ingediend_door: gebruiker.naam,
       opmerkingen: "Fiets uitgegeven" + (data.opmerkingen ? ". " + data.opmerkingen : "") + ". Let op: borg inhouden!",
     });
-    showToast("✓ Uitgifte geregistreerd — taak & borgmelding aangemaakt");
+    // Automatisch borgplan aanmaken als er nog geen actief plan is voor deze medewerker
+    const { data: bestaandPlan } = await supabase.from("borg_plannen")
+      .select("id").eq("naam_medewerker", data.naam_medewerker).eq("status", "actief").limit(1);
+
+    if (!bestaandPlan || bestaandPlan.length === 0) {
+      // Nieuw borgplan met alleen fiets
+      const nu = new Date();
+      const jaar = nu.getFullYear();
+      const startWeek = (() => { const d=new Date(); const j=new Date(Date.UTC(d.getFullYear(),0,1)); return Math.ceil((((d-j)/86400000)+j.getDay()+1)/7)+1; })();
+      const { data: plan } = await supabase.from("borg_plannen").insert([{
+        naam_medewerker: data.naam_medewerker,
+        sleutels: 0,
+        heeft_fiets: true,
+        totaal_borg: 100,
+        ingehouden: 0,
+        status: "actief",
+        aangemaakt_door: gebruiker.naam,
+        aankomst_datum: data.datum,
+      }]).select().single();
+
+      if (plan) {
+        const termijnen = [
+          { plan_id: plan.id, naam_medewerker: data.naam_medewerker, week_nummer: startWeek, jaar, bedrag: 50, type: "inhouden", omschrijving: "Borg fiets (week 1/2)", status: "open" },
+          { plan_id: plan.id, naam_medewerker: data.naam_medewerker, week_nummer: startWeek+1>52?startWeek-51:startWeek+1, jaar: startWeek+1>52?jaar+1:jaar, bedrag: 50, type: "inhouden", omschrijving: "Borg fiets (week 2/2)", status: "open" },
+        ];
+        await supabase.from("borg_termijnen").insert(termijnen);
+      }
+    } else {
+      // Er is al een plan — voeg fiets toe als extra post
+      const planId = bestaandPlan[0].id;
+      const { data: al } = await supabase.from("borg_plannen").select("heeft_fiets").eq("id", planId).single();
+      if (al && !al.heeft_fiets) {
+        await supabase.from("borg_plannen").update({ heeft_fiets: true, totaal_borg: supabase.rpc ? undefined : undefined }).eq("id", planId);
+        const nu = new Date();
+        const startWeek = (() => { const d=new Date(); const j=new Date(Date.UTC(d.getFullYear(),0,1)); return Math.ceil((((d-j)/86400000)+j.getDay()+1)/7)+1; })();
+        await supabase.from("borg_termijnen").insert([
+          { plan_id: planId, naam_medewerker: data.naam_medewerker, week_nummer: startWeek, jaar: nu.getFullYear(), bedrag: 50, type: "inhouden", omschrijving: "Borg fiets (week 1/2)", status: "open" },
+          { plan_id: planId, naam_medewerker: data.naam_medewerker, week_nummer: startWeek+1>52?startWeek-51:startWeek+1, jaar: startWeek+1>52?nu.getFullYear()+1:nu.getFullYear(), bedrag: 50, type: "inhouden", omschrijving: "Borg fiets (week 2/2)", status: "open" },
+        ]);
+      }
+    }
+
+    showToast("✓ Uitgifte geregistreerd — taak, borgmelding & borgplan aangemaakt");
     return true;
   }
 
