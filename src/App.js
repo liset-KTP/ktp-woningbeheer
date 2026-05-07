@@ -730,10 +730,113 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
   const openMeldingen = meldingen.filter(m=>m.status==="open");
   const openTaken = taken.filter(t=>t.status==="open");
   const [notitieMap, setNotitieMap] = useState({});
+  const [toonNieuwKlusje, setToonNieuwKlusje] = useState(false);
+  const [nieuwKlusje, setNieuwKlusje] = useState({titel:"",omschrijving:"",woning_id:"",kamer:"",prioriteit:"middel",ingepland_op:""});
+  const [savingKlusje, setSavingKlusje] = useState(false);
+
+  // Zet standaard datum op de gekozen dag
+  const dagDatumVoorKlusje = (() => {
+    const nu = new Date();
+    const dagIdx = ["zo","ma","di","wo","do","vr","za"].indexOf(gekozenDag);
+    const vandaagIdx = nu.getDay();
+    const diff = dagIdx - vandaagIdx;
+    const d = new Date(nu);
+    d.setDate(nu.getDate() + diff);
+    return d.toISOString().slice(0,10);
+  })();
+
+  async function voegKlusjeIn() {
+    if (!nieuwKlusje.titel.trim()) { return; }
+    setSavingKlusje(true);
+    await supabase.from("taken").insert([{
+      titel: nieuwKlusje.titel.trim(),
+      omschrijving: nieuwKlusje.omschrijving || null,
+      woning_id: nieuwKlusje.woning_id ? Number(nieuwKlusje.woning_id) : null,
+      kamer: nieuwKlusje.kamer || null,
+      prioriteit: nieuwKlusje.prioriteit,
+      voor_rol: "huismeester",
+      status: "open",
+      ingepland_op: nieuwKlusje.ingepland_op || dagDatumVoorKlusje,
+      aangemaakt_door: naam,
+    }]);
+    setSavingKlusje(false);
+    setToonNieuwKlusje(false);
+    setNieuwKlusje({titel:"",omschrijving:"",woning_id:"",kamer:"",prioriteit:"middel",ingepland_op:""});
+  }
+
+  const geselecteerdeHuisKlusje = houses.find(h=>h.id===Number(nieuwKlusje.woning_id));
 
   return (
     <div>
-      <SH titel="📅 Mijn werkdag" sub={`Vandaag is het ${vandaag ? vandaag.label : "weekend"} — ${vandaag ? vandaag.focus : "Geniet van je vrije dag!"}`} />
+      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:4}}>
+        <div>
+          <h2 style={{fontSize:20,fontWeight:800,color:C.blauw,marginBottom:3}}>📅 Mijn werkdag</h2>
+          <p style={{fontSize:13,color:C.muted}}>{vandaag ? vandaag.focus : "Geniet van je vrije dag!"}</p>
+        </div>
+        <button onClick={()=>setToonNieuwKlusje(!toonNieuwKlusje)}
+          style={{background:C.groen,color:"white",border:"none",borderRadius:8,padding:"9px 16px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit",flexShrink:0}}>
+          + Klusje inplannen
+        </button>
+      </div>
+
+      {/* Nieuw klusje form */}
+      {toonNieuwKlusje && (
+        <div className="card" style={{marginBottom:20,borderTop:`3px solid ${C.groen}`}}>
+          <div style={{fontWeight:700,fontSize:13,color:C.groen,marginBottom:14}}>🔧 Klusje inplannen</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
+            <div style={{gridColumn:"1/-1"}}>
+              <label className="fl">Omschrijving *</label>
+              <input className="fi" value={nieuwKlusje.titel} onChange={e=>setNieuwKlusje(p=>({...p,titel:e.target.value}))}
+                placeholder="bijv. Lamp vervangen badkamer" autoFocus/>
+            </div>
+            <div>
+              <label className="fl">Woning</label>
+              <select className="fs" value={nieuwKlusje.woning_id} onChange={e=>setNieuwKlusje(p=>({...p,woning_id:e.target.value,kamer:""}))}>
+                <option value="">Geen specifieke woning</option>
+                {houses.map(h=><option key={h.id} value={h.id}>{h.adres}, {h.stad}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="fl">Kamer</label>
+              <select className="fs" value={nieuwKlusje.kamer} onChange={e=>setNieuwKlusje(p=>({...p,kamer:e.target.value}))} disabled={!nieuwKlusje.woning_id}>
+                <option value="">Selecteer kamer</option>
+                {(geselecteerdeHuisKlusje?.kamers||[]).map(k=><option key={k.k} value={k.k}>Kamer {k.k}{k.naam?` — ${k.naam}`:""}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="fl">Inplannen op dag</label>
+              <select className="fs" value={nieuwKlusje.ingepland_op || dagDatumVoorKlusje} onChange={e=>setNieuwKlusje(p=>({...p,ingepland_op:e.target.value}))}>
+                {dagNamen.map(d=>{
+                  const nu2 = new Date();
+                  const idx = ["zo","ma","di","wo","do","vr","za"].indexOf(d);
+                  const diff2 = idx - nu2.getDay();
+                  const dt = new Date(nu2); dt.setDate(nu2.getDate()+diff2);
+                  const iso = dt.toISOString().slice(0,10);
+                  return <option key={d} value={iso}>{planningMap[d]?.label || d} ({iso.slice(5).replace("-","/")})</option>;
+                })}
+              </select>
+            </div>
+            <div>
+              <label className="fl">Prioriteit</label>
+              <select className="fs" value={nieuwKlusje.prioriteit} onChange={e=>setNieuwKlusje(p=>({...p,prioriteit:e.target.value}))}>
+                <option value="hoog">🔴 Hoog</option>
+                <option value="middel">🟡 Middel</option>
+                <option value="laag">🟢 Laag</option>
+              </select>
+            </div>
+            <div>
+              <label className="fl">Toelichting</label>
+              <input className="fi" value={nieuwKlusje.omschrijving} onChange={e=>setNieuwKlusje(p=>({...p,omschrijving:e.target.value}))} placeholder="Optioneel..."/>
+            </div>
+          </div>
+          <div style={{display:"flex",gap:10}}>
+            <button className="btn-g" style={{padding:"9px 20px"}} onClick={voegKlusjeIn} disabled={savingKlusje||!nieuwKlusje.titel.trim()}>
+              {savingKlusje?"⏳ Opslaan...":"✓ Inplannen"}
+            </button>
+            <button className="btn-out" onClick={()=>setToonNieuwKlusje(false)}>Annuleren</button>
+          </div>
+        </div>
+      )}
 
       {/* Dagknoppen */}
       <div style={{display:"flex",gap:8,marginBottom:24,flexWrap:"wrap"}}>
