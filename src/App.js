@@ -266,6 +266,24 @@ export default function App() {
       opmerkingen:  opmerkingenTxt,
     });
 
+    // Bij verhuizing: automatisch controletaak aanmaken voor oude kamer
+    if (m.type === "verhuizing") {
+      const vanHuis = houses.find(h => h.id === m.vanHuisId);
+      const naarHuisVerh = houses.find(h => h.id === m.huisId);
+      const sleutelAantal = m.sleutelAantal || 1;
+      await supabase.from("taken").insert([{
+        titel: `Kamer controleren na verhuizing — ${m.medewerker}`,
+        omschrijving: `Medewerker verhuisd van K${m.vanKamer} naar ${naarHuisVerh?.adres||""} K${m.kamer}. Controleer: kamer schoon + ${sleutelAantal} sleutel${sleutelAantal>1?"s":""} ingeleverd.`,
+        woning_id: m.vanHuisId || null,
+        kamer: m.vanKamer || null,
+        prioriteit: "hoog",
+        voor_rol: "huismeester",
+        status: "open",
+        aangemaakt_door: gebruiker.naam,
+        huismeester_opmerking: `Verwacht: ${sleutelAantal} sleutel${sleutelAantal>1?"s":""}. Kamer schoon afvinken voor afronding.`,
+      }]);
+    }
+
     showToast("✓ Melding verzonden");
   }
 
@@ -1533,6 +1551,31 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                     {t.geaccepteerd_opmerking && <div style={{fontSize:12,color:C.muted,fontStyle:"italic",marginTop:2}}>"{t.geaccepteerd_opmerking}"</div>}
                   </div>
                 )}
+                {/* Controle checkboxes voor verhuizing taken */}
+                {t.titel?.includes("Kamer controleren") && isHuismeester && !gedaan && (
+                  <div style={{marginTop:10,background:"#fffbeb",border:"1px solid #fcd34d",borderRadius:10,padding:"12px 14px"}}>
+                    <div style={{fontSize:12,fontWeight:700,color:"#b45309",marginBottom:10}}>✅ Controlepunten afvinken</div>
+                    {[
+                      {key:"schoon", label:"🧹 Kamer schoon"},
+                      {key:"sleutel1", label:"🔑 Sleutel 1 ingeleverd"},
+                      {key:"sleutel2", label:"🔑 Sleutel 2 ingeleverd (indien van toepassing)"},
+                    ].map(({key, label}) => {
+                      const checked = (t.notitie||"").includes(`[✓ ${key}]`);
+                      return (
+                        <div key={key} onClick={async()=>{
+                          if(checked) return;
+                          const oud = t.notitie||"";
+                          await onUpdate(t.id, {notitie: oud ? oud+" [✓ "+key+"]" : "[✓ "+key+"]"});
+                        }} style={{display:"flex",alignItems:"center",gap:10,padding:"6px 0",borderBottom:"1px solid #fcd34d",cursor:checked?"default":"pointer"}}>
+                          <div style={{width:20,height:20,borderRadius:4,border:`2px solid ${checked?"#4A9B3C":"#f59e0b"}`,background:checked?"#4A9B3C":"white",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                            {checked && <span style={{color:"white",fontSize:12,fontWeight:700}}>✓</span>}
+                          </div>
+                          <span style={{fontSize:13,color:checked?C.groen:C.text,fontWeight:checked?600:400,textDecoration:checked?"line-through":"none"}}>{label}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
                 {t.ingepland_op&&<div style={{fontSize:12,color:"#7c3aed",fontWeight:600,marginTop:4}}>📅 Ingepland op {fmtDate(t.ingepland_op)}</div>}
                 {t.huismeester_opmerking&&<div style={{fontSize:13,color:C.blauw,marginTop:4,background:C.blauw+"08",border:`1px solid ${C.blauw}20`,borderRadius:8,padding:"6px 10px"}}>💬 {t.huismeester_opmerking}</div>}
                 {gedaan&&t.afgehandeld_door&&(
@@ -2071,6 +2114,8 @@ function MeldingForm({ houses, onSubmit, showToast }) {
       type, medewerker:medewerker.trim(), datum,
       huisId: type==="verhuizing" ? Number(naarHuisId) : Number(huisId),
       kamer: type==="verhuizing" ? naarKamer : kamer,
+      vanHuisId: type==="verhuizing" ? Number(vanHuisId) : null,
+      vanKamer: type==="verhuizing" ? vanKamer : null,
       wieRegelt, sleutelTerug, kamerSchoon, sleutelAantal, voor_rol: voorRol,
       opmerkingen: type==="verhuizing"
         ? `Verhuizing van ${vanHuis?.adres} K${vanKamer} naar ${naarHuis?.adres} K${naarKamer}${opmerkingen?". "+opmerkingen:""}`
