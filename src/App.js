@@ -1045,6 +1045,8 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
 function WoningKaartDag({ huis, kleur, hTaken, hMeldingen, checklistItems, checklists, naam, onUpdateTaak, gekozenDag }) {
   const [open, setOpen] = useState(false);
   const [savingChecklist, setSavingChecklist] = useState(false);
+  const [toonOpmerkingItem, setToonOpmerkingItem] = useState({});
+  const [opmerkingItem, setOpmerkingItem] = useState({});
 
   // Huidige week/jaar
   const nu = new Date();
@@ -1065,6 +1067,8 @@ function WoningKaartDag({ huis, kleur, hTaken, hMeldingen, checklistItems, check
   const weekItems = checklistItems.filter(i => i.type === "wekelijks" && i.actief);
   const aantalAfgevinkt = weekItems.filter(i => afgevinkt.includes(i.id)).length;
 
+  const itemOpmerkingen = bestaandeChecklist?.items_opmerkingen || {};
+
   async function toggleItem(itemId) {
     setSavingChecklist(true);
     const nieuweAfgevinkt = afgevinkt.includes(itemId)
@@ -1084,11 +1088,38 @@ function WoningKaartDag({ huis, kleur, hTaken, hMeldingen, checklistItems, check
         week_jaar: weekJaar,
         woning_id: huis.id,
         items: nieuweAfgevinkt,
+        items_opmerkingen: {},
         aangemaakt_door: naam,
         bijgewerkt_door: naam,
       }]);
     }
     setSavingChecklist(false);
+  }
+
+  async function slaOpmerkingOp(itemId, tekst) {
+    setSavingChecklist(true);
+    const nieuweOpmerkingen = { ...itemOpmerkingen, [itemId]: tekst };
+    if (bestaandeChecklist) {
+      await supabase.from("checklists").update({
+        items_opmerkingen: nieuweOpmerkingen,
+        bijgewerkt_door: naam,
+        updated_at: new Date().toISOString(),
+      }).eq("id", bestaandeChecklist.id);
+    } else {
+      // Maak checklist aan met opmerking maar nog niet afgevinkt
+      await supabase.from("checklists").insert([{
+        sleutel: `${huis.id}-wekelijks-${weekJaar}`,
+        type: "wekelijks",
+        week_jaar: weekJaar,
+        woning_id: huis.id,
+        items: [],
+        items_opmerkingen: nieuweOpmerkingen,
+        aangemaakt_door: naam,
+        bijgewerkt_door: naam,
+      }]);
+    }
+    setSavingChecklist(false);
+    setToonOpmerkingItem(p => ({...p, [itemId]: false}));
   }
 
   const allesKlaar = hTaken.length === 0 && hMeldingen.length === 0 && aantalAfgevinkt === weekItems.length;
@@ -1165,13 +1196,58 @@ function WoningKaartDag({ huis, kleur, hTaken, hMeldingen, checklistItems, check
             </div>
             {weekItems.map(item=>{
               const gedaan = afgevinkt.includes(item.id);
+              const opmerking = itemOpmerkingen[item.id] || "";
+              const toonOpm = toonOpmerkingItem[item.id];
               return (
-                <div key={item.id} onClick={()=>toggleItem(item.id)}
-                  style={{display:"flex",gap:10,padding:"8px 0",borderBottom:`1px solid ${C.border}`,cursor:"pointer",alignItems:"flex-start"}}>
-                  <div style={{width:20,height:20,borderRadius:4,border:`2px solid ${gedaan?C.groen:C.border}`,background:gedaan?C.groen:"white",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:1}}>
-                    {gedaan&&<span style={{color:"white",fontSize:11,fontWeight:700}}>✓</span>}
+                <div key={item.id} style={{borderBottom:`1px solid ${C.border}`}}>
+                  <div style={{display:"flex",gap:10,padding:"8px 0",alignItems:"flex-start"}}>
+                    {/* Checkbox */}
+                    <div onClick={()=>toggleItem(item.id)}
+                      style={{width:20,height:20,borderRadius:4,border:`2px solid ${gedaan?C.groen:C.border}`,background:gedaan?C.groen:"white",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:1,cursor:"pointer"}}>
+                      {gedaan&&<span style={{color:"white",fontSize:11,fontWeight:700}}>✓</span>}
+                    </div>
+                    {/* Tekst */}
+                    <div style={{flex:1}}>
+                      <span onClick={()=>toggleItem(item.id)}
+                        style={{fontSize:13,color:gedaan?C.groen:C.text,textDecoration:gedaan?"line-through":"none",lineHeight:1.4,cursor:"pointer"}}>
+                        {item.tekst}
+                      </span>
+                      {opmerking && !toonOpm && (
+                        <div style={{fontSize:11,color:C.blauw,marginTop:3,fontStyle:"italic"}}>💬 {opmerking}</div>
+                      )}
+                    </div>
+                    {/* Opmerking knop */}
+                    <button onClick={()=>{ setToonOpmerkingItem(p=>({...p,[item.id]:!p[item.id]})); setOpmerkingItem(p=>({...p,[item.id]:opmerking})); }}
+                      style={{background:"none",border:"none",color:opmerking?C.blauw:C.muted,fontSize:14,cursor:"pointer",padding:"2px 6px",flexShrink:0}}
+                      title="Opmerking toevoegen">
+                      💬
+                    </button>
                   </div>
-                  <span style={{fontSize:13,color:gedaan?C.groen:C.text,textDecoration:gedaan?"line-through":"none",lineHeight:1.4}}>{item.tekst}</span>
+                  {/* Opmerkingveld uitklappen */}
+                  {toonOpm && (
+                    <div style={{paddingBottom:8,paddingLeft:30}}>
+                      <input value={opmerkingItem[item.id]||""} onChange={e=>setOpmerkingItem(p=>({...p,[item.id]:e.target.value}))}
+                        placeholder={`Opmerking bij "${item.tekst.slice(0,30)}..."`}
+                        autoFocus
+                        style={{width:"100%",background:"white",border:`1.5px solid ${C.blauw}`,borderRadius:8,color:C.text,padding:"6px 10px",fontSize:12,outline:"none",fontFamily:"inherit",boxSizing:"border-box",marginBottom:6}}/>
+                      <div style={{display:"flex",gap:6}}>
+                        <button onClick={()=>slaOpmerkingOp(item.id, opmerkingItem[item.id]||"")}
+                          style={{background:C.blauw,color:"white",border:"none",borderRadius:6,padding:"5px 12px",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                          ✓ Opslaan
+                        </button>
+                        {opmerking && (
+                          <button onClick={()=>slaOpmerkingOp(item.id, "")}
+                            style={{background:"white",border:"1px solid #fecaca",color:"#ef4444",borderRadius:6,padding:"5px 10px",fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>
+                            🗑 Verwijder
+                          </button>
+                        )}
+                        <button onClick={()=>setToonOpmerkingItem(p=>({...p,[item.id]:false}))}
+                          style={{background:"white",border:`1px solid ${C.border}`,color:C.muted,borderRadius:6,padding:"5px 10px",fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>
+                          Annuleren
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
