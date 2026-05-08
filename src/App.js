@@ -266,22 +266,38 @@ export default function App() {
       opmerkingen:  opmerkingenTxt,
     });
 
-    // Bij verhuizing: automatisch controletaak aanmaken voor oude kamer
+    // Bij verhuizing: automatisch TWee taken aanmaken — één voor huismeester, één voor backoffice
     if (m.type === "verhuizing") {
       const vanHuis = houses.find(h => h.id === m.vanHuisId);
       const naarHuisVerh = houses.find(h => h.id === m.huisId);
       const sleutelAantal = m.sleutelAantal || 1;
-      await supabase.from("taken").insert([{
-        titel: `Kamer controleren na verhuizing — ${m.medewerker}`,
-        omschrijving: `Medewerker verhuisd van K${m.vanKamer} naar ${naarHuisVerh?.adres||""} K${m.kamer}. Controleer: kamer schoon + ${sleutelAantal} sleutel${sleutelAantal>1?"s":""} ingeleverd.`,
-        woning_id: m.vanHuisId || null,
-        kamer: m.vanKamer || null,
-        prioriteit: "hoog",
-        voor_rol: "huismeester",
-        status: "open",
-        aangemaakt_door: gebruiker.naam,
-        huismeester_opmerking: `Verwacht: ${sleutelAantal} sleutel${sleutelAantal>1?"s":""}. Kamer schoon afvinken voor afronding.`,
-      }]);
+      const context = `${m.medewerker} | Van: ${vanHuis?.adres||"?"} K${m.vanKamer} → Naar: ${naarHuisVerh?.adres||"?"} K${m.kamer}`;
+
+      await supabase.from("taken").insert([
+        // Taak 1: Huismeester — fysieke controle kamer + sleutels
+        {
+          titel: `Kamer controleren na verhuizing — ${m.medewerker}`,
+          omschrijving: `${context}. Controleer: kamer schoon + ${sleutelAantal} sleutel${sleutelAantal>1?"s":""} ingeleverd.`,
+          woning_id: m.vanHuisId || null,
+          kamer: m.vanKamer || null,
+          prioriteit: "hoog",
+          voor_rol: "huismeester",
+          status: "open",
+          aangemaakt_door: gebruiker.naam,
+          huismeester_opmerking: `Verwacht: ${sleutelAantal} sleutel${sleutelAantal>1?"s":""}. Kamer schoon afvinken voor afronding.`,
+        },
+        // Taak 2: Backoffice — administratieve verwerking
+        {
+          titel: `Verhuizing verwerken in administratie — ${m.medewerker}`,
+          omschrijving: `${context}. Verwerk: huurcontract, borgplan, kamerstatus bijwerken in systemen.`,
+          woning_id: m.huisId || null,
+          kamer: m.kamer || null,
+          prioriteit: "hoog",
+          voor_rol: "backoffice",
+          status: "open",
+          aangemaakt_door: gebruiker.naam,
+        },
+      ]);
     }
 
     showToast("✓ Melding verzonden");
