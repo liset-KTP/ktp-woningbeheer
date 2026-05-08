@@ -1267,6 +1267,8 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
 
   const [subTab, setSubTab] = useState("overzicht");
   const [filter, setFilter] = useState("open");
+  const [zoek, setZoek] = useState("");
+  const [sorteer, setSorteer] = useState("datum_nieuw"); // datum_nieuw | datum_oud | prioriteit | naam
 
   // Rol-gebaseerde filtering
   const mijnMeldingen = meldingen.filter(m => m.ingediend_door === gebruiker?.naam);
@@ -1296,6 +1298,40 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
 
   const openCount = meldingen.filter(m => { if(isBackoffice) return m.status==="open"; if(isHuismeester) return m.status==="open"||m.status==="geaccepteerd"; if(isCollega) return m.ingediend_door===gebruiker?.naam&&m.status==="open"; return false; }).length + taken.filter(t => { if(isBackoffice) return t.voor_rol!=="huismeester"&&(t.status==="open"||t.status==="geaccepteerd"); if(isHuismeester) return (t.voor_rol==="huismeester"||t.voor_rol==="iedereen"||!t.voor_rol)&&(t.status==="open"||t.status==="geaccepteerd"); if(isCollega) return (t.voor_rol==="iedereen"||!t.voor_rol)&&t.status==="open"; return false; }).length;
 
+  // Zoek filter
+  function zoekFilter(item, isMelding) {
+    if (!zoek.trim()) return true;
+    const q = zoek.toLowerCase();
+    if (isMelding) {
+      return (item.medewerker||"").toLowerCase().includes(q) ||
+             (item.type||"").toLowerCase().includes(q) ||
+             (item.opmerkingen||"").toLowerCase().includes(q) ||
+             (houses.find(h=>h.id===item.woning_id)?.adres||"").toLowerCase().includes(q);
+    } else {
+      return (item.titel||"").toLowerCase().includes(q) ||
+             (item.omschrijving||"").toLowerCase().includes(q) ||
+             (item.aangemaakt_door||"").toLowerCase().includes(q) ||
+             (houses.find(h=>h.id===item.woning_id)?.adres||"").toLowerCase().includes(q);
+    }
+  }
+
+  // Sorteer functie
+  function sorteerItems(items, isMelding) {
+    return [...items].sort((a, b) => {
+      if (sorteer === "datum_nieuw") return new Date(b.created_at||0) - new Date(a.created_at||0);
+      if (sorteer === "datum_oud")  return new Date(a.created_at||0) - new Date(b.created_at||0);
+      if (sorteer === "naam") return (isMelding ? a.medewerker : a.titel||"").localeCompare(isMelding ? b.medewerker : b.titel||"");
+      if (sorteer === "prioriteit" && !isMelding) {
+        const p = {hoog:0,middel:1,laag:2};
+        return (p[a.prioriteit]??1) - (p[b.prioriteit]??1);
+      }
+      return 0;
+    });
+  }
+
+  const gefilterdeMeldingen = sorteerItems(relevanteMeldingen.filter(m => zoekFilter(m, true)), true);
+  const gefilterdetaken = sorteerItems(relevanteTaken.filter(t => zoekFilter(t, false)), false);
+
   const subTabs = [
     { id:"overzicht", label:`📋 Overzicht (${openCount})` },
     ...(isCollega ? [{ id:"nieuw", label:"+ Nieuwe melding/taak" }] : []),
@@ -1321,15 +1357,29 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
         ))}
       </div>
 
-      {/* Filters */}
+      {/* Filters + zoek + sorteer */}
       {subTab === "overzicht" && (
-        <div style={{display:"flex",gap:6,marginBottom:16}}>
-          {[["open","Open"],["gedaan","Afgehandeld"],["alle","Alle"]].map(([v,l])=>(
-            <button key={v} onClick={()=>setFilter(v)}
-              style={{background:filter===v?C.blauw:"white",color:filter===v?"white":C.muted,border:`1.5px solid ${filter===v?C.blauw:C.border}`,borderRadius:20,padding:"6px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-              {l}
-            </button>
-          ))}
+        <div style={{marginBottom:16}}>
+          <div style={{display:"flex",gap:6,marginBottom:10,flexWrap:"wrap",alignItems:"center"}}>
+            {[["open","Open"],["gedaan","Afgehandeld"],["alle","Alle"]].map(([v,l])=>(
+              <button key={v} onClick={()=>setFilter(v)}
+                style={{background:filter===v?C.blauw:"white",color:filter===v?"white":C.muted,border:`1.5px solid ${filter===v?C.blauw:C.border}`,borderRadius:20,padding:"6px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                {l}
+              </button>
+            ))}
+          </div>
+          <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+            <input value={zoek} onChange={e=>setZoek(e.target.value)}
+              placeholder="🔍 Zoek op naam, woning, omschrijving..."
+              style={{flex:1,minWidth:200,background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"8px 14px",fontSize:13,outline:"none",fontFamily:"inherit"}}/>
+            <select value={sorteer} onChange={e=>setSorteer(e.target.value)}
+              style={{background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"8px 14px",fontSize:13,outline:"none",fontFamily:"inherit",cursor:"pointer"}}>
+              <option value="datum_nieuw">📅 Nieuwste eerst</option>
+              <option value="datum_oud">📅 Oudste eerst</option>
+              <option value="naam">🔤 Op naam</option>
+              <option value="prioriteit">🔴 Op prioriteit</option>
+            </select>
+          </div>
         </div>
       )}
 
@@ -1340,9 +1390,9 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
           {relevanteMeldingen.length > 0 && (
             <div style={{marginBottom:24}}>
               <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:10}}>
-                📬 Meldingen ({relevanteMeldingen.length})
+                📬 Meldingen ({gefilterdeMeldingen.length}){zoek&&relevanteMeldingen.length!==gefilterdeMeldingen.length&&<span style={{color:C.muted,fontWeight:400}}> — {relevanteMeldingen.length} totaal</span>}
               </div>
-              {relevanteMeldingen.map(m => (
+              {gefilterdeMeldingen.map(m => (
                 <MeldingKaartCombined key={m.id} melding={m} houses={houses} gebruiker={gebruiker}
                   isBackoffice={isBackoffice} isHuismeester={isHuismeester}
                   onUpdate={onUpdateMelding} showToast={showToast}/>
@@ -1354,13 +1404,13 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
           {relevanteTaken.length > 0 && (
             <div>
               <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:10}}>
-                🔧 Taken ({relevanteTaken.length})
+                🔧 Taken ({gefilterdetaken.length}){zoek&&relevanteTaken.length!==gefilterdetaken.length&&<span style={{color:C.muted,fontWeight:400}}> — {relevanteTaken.length} totaal</span>}
               </div>
-              <TakenView taken={relevanteTaken} houses={houses} gebruiker={gebruiker} onAdd={onAddTaak} onUpdate={onUpdateTaak} showToast={showToast} inlineMode/>
+              <TakenView taken={gefilterdetaken} houses={houses} gebruiker={gebruiker} onAdd={onAddTaak} onUpdate={onUpdateTaak} showToast={showToast} inlineMode/>
             </div>
           )}
 
-          {relevanteMeldingen.length === 0 && relevanteTaken.length === 0 && (
+          {gefilterdeMeldingen.length === 0 && gefilterdetaken.length === 0 && (
             <div style={{textAlign:"center",padding:"60px",color:C.muted}}>
               <div style={{fontSize:40,marginBottom:10}}>🎉</div>
               <div>Alles afgehandeld!</div>
