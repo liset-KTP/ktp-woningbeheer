@@ -647,10 +647,20 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
 
   const openTermijnen = termijnen.filter(t=>t.status==="open");
   const verwerktTermijnen = termijnen.filter(t=>t.status==="verwerkt");
+
+  // Alles wat al ingehouden is (verwerkte termijnen + al_ingehouden extra posten + verwerkte inhoud extra)
   const totaalIngehouden = verwerktTermijnen.reduce((s,t)=>s+Number(t.bedrag),0)
-    + extras.filter(e=>e.type==="al_ingehouden").reduce((s,e)=>s+Number(e.bedrag),0);
-  const nogInTehouden = Math.max(0, termijnen.reduce((s,t)=>s+Number(t.bedrag),0) - totaalIngehouden);
-  const pct = plan.totaal_borg > 0 ? Math.min(100, (totaalIngehouden/plan.totaal_borg)*100) : 0;
+    + extras.filter(e=>e.type==="al_ingehouden").reduce((s,e)=>s+Number(e.bedrag),0)
+    + extras.filter(e=>e.type==="inhouden"&&e.status==="verwerkt").reduce((s,e)=>s+Number(e.bedrag),0);
+
+  // Alles wat nog open staat (open termijnen + open inhoud extra posten)
+  const totaalNogOpen = openTermijnen.reduce((s,t)=>s+Number(t.bedrag),0)
+    + extras.filter(e=>e.type==="inhouden"&&e.status==="open").reduce((s,e)=>s+Number(e.bedrag),0);
+
+  // Totale schuld = ingehouden + nog open
+  const totaalSchuld = totaalIngehouden + totaalNogOpen;
+  const nogInTehouden = totaalNogOpen;
+  const pct = totaalSchuld > 0 ? Math.min(100, (totaalIngehouden/totaalSchuld)*100) : 0;
 
   return (
     <div style={{background:"white",border:`1px solid ${C.border}`,borderLeft:`4px solid ${C.blauw}`,borderRadius:12,padding:20}}>
@@ -669,8 +679,8 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
           </div>
         </div>
         <div style={{textAlign:"right"}}>
-          <div style={{fontSize:22,fontWeight:800,color:C.blauw}}>€{Number(plan.totaal_borg).toFixed(2)}</div>
-          <div style={{fontSize:11,color:C.muted}}>totale borg</div>
+          <div style={{fontSize:22,fontWeight:800,color:C.blauw}}>€{totaalSchuld.toFixed(2)}</div>
+          <div style={{fontSize:11,color:C.muted}}>totale schuld</div>
           <div style={{fontSize:13,color:C.groen,fontWeight:600,marginTop:2}}>€{totaalIngehouden.toFixed(2)} ingehouden</div>
         </div>
       </div>
