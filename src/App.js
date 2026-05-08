@@ -1518,13 +1518,15 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
   const [toonAccepteerMap, setToonAccepteerMap] = useState({});
   const [toonNaOpmerkingMap, setToonNaOpmerkingMap] = useState({});
   const [naOpmerkingMap, setNaOpmerkingMap] = useState({});
+  const [toonBlokkadeMap, setToonBlokkadeMap] = useState({});
+  const [blokkadeMap, setBlokkadeMap] = useState({});
 
   // Filter taken op basis van rol
   const gefilterd = taken
     .filter(t => {
       if (t.voor_rol === "huismeester" && rolNaam !== "huismeester" && rolNaam !== "backoffice") return false;
       if (t.voor_rol === "backoffice" && rolNaam !== "backoffice") return false;
-      if (filter === "open") return t.status === "open" || t.status === "geaccepteerd";
+      if (filter === "open") return t.status === "open" || t.status === "geaccepteerd" || t.status === "bezig";
       if (filter === "geaccepteerd") return t.status === "geaccepteerd";
       if (filter === "gedaan") return t.status === "gedaan";
       return true;
@@ -1664,6 +1666,8 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                   <span className="badge" style={{background:prioKleur[t.prioriteit]+"18",color:prioKleur[t.prioriteit]}}>{t.prioriteit?.toUpperCase()}</span>
                   {gedaan&&<span className="badge" style={{background:"#f0fdf4",color:C.groen}}>GEDAAN</span>}
                   {t.status==="geaccepteerd"&&<span className="badge" style={{background:"#f0fdf4",color:C.groen}}>📅 INGEPLAND</span>}
+                  {t.status==="bezig"&&<span className="badge" style={{background:"#fffbeb",color:"#b45309"}}>🔄 BEZIG</span>}
+                  {t.geblokkeerd&&<span className="badge" style={{background:"#fef2f2",color:"#ef4444"}}>🚫 GEBLOKKEERD</span>}
                   {t.voor_rol==="huismeester"&&<span className="badge" style={{background:"#f0fdf4",color:C.groen}}>🏠 Huismeester</span>}
                   {t.voor_rol==="backoffice"&&<span className="badge" style={{background:C.blauw+"15",color:C.blauw}}>📊 Backoffice</span>}
                 </div>
@@ -1674,6 +1678,11 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                 {t.ingepland_op && t.status!=="geaccepteerd" && (
                   <div style={{fontSize:12,fontWeight:700,color:"#7c3aed",marginTop:3}}>
                     📅 Gepland voor: {fmtDate(t.ingepland_op)}
+                  </div>
+                )}
+                {t.geblokkeerd && t.blokkade_reden && (
+                  <div style={{fontSize:12,color:"#ef4444",marginTop:4,background:"#fef2f2",border:"1px solid #fecaca",borderRadius:8,padding:"6px 10px"}}>
+                    🚫 {t.blokkade_reden}
                   </div>
                 )}
                 {t.omschrijving&&<div style={{fontSize:13,color:C.muted,marginTop:4,fontStyle:"italic"}}>"{t.omschrijving}"</div>}
@@ -1909,12 +1918,63 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                     <button className="btn-out" style={{padding:"9px 14px"}} onClick={()=>setToonOpmerkingMap(p=>({...p,[t.id]:false}))}>Annuleren</button>
                   </div>
                 </div>
+              ) : toonBlokkadeMap[t.id] ? (
+                <div style={{marginTop:12,padding:"12px 14px",background:"#fef2f2",border:"1px solid #fecaca",borderRadius:10}}>
+                  <div style={{fontWeight:700,fontSize:13,color:"#ef4444",marginBottom:10}}>🚫 Waarom lukt het niet?</div>
+                  <input value={blokkadeMap[t.id]||""} onChange={e=>setBlokkadeMap(p=>({...p,[t.id]:e.target.value}))}
+                    placeholder="bijv. onderdeel niet beschikbaar, toegang geweigerd..." autoFocus
+                    style={{width:"100%",background:"white",border:"1.5px solid #fecaca",borderRadius:8,color:C.text,padding:"8px 12px",fontSize:13,outline:"none",fontFamily:"inherit",boxSizing:"border-box",marginBottom:10}}/>
+                  <div style={{display:"flex",gap:8}}>
+                    <button onClick={async()=>{
+                      if(!blokkadeMap[t.id]?.trim()) return;
+                      await onUpdate(t.id,{
+                        status:"open",
+                        geblokkeerd:true,
+                        blokkade_reden:blokkadeMap[t.id].trim(),
+                        huismeester_opmerking: blokkadeMap[t.id].trim(),
+                      });
+                      stuurMail({
+                        type:"🚫 Taak geblokkeerd",type_icon:"🚫",
+                        medewerker:gebruiker?.naam,
+                        woning:huis?`${huis.adres}, ${huis.stad}`:"—",
+                        kamer:t.kamer?`Kamer ${t.kamer}`:"—",
+                        datum:new Date().toISOString().slice(0,10),
+                        ingediend_door:gebruiker?.naam,
+                        opmerkingen:`Taak "${t.titel}" is geblokkeerd: ${blokkadeMap[t.id].trim()}`,
+                      });
+                      setToonBlokkadeMap(p=>({...p,[t.id]:false}));
+                      setBlokkadeMap(p=>({...p,[t.id]:""}));
+                    }} style={{background:"#ef4444",color:"white",border:"none",borderRadius:8,padding:"8px 18px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                      🚫 Opslaan & backoffice informeren
+                    </button>
+                    <button onClick={()=>setToonBlokkadeMap(p=>({...p,[t.id]:false}))}
+                      style={{background:"white",border:"1.5px solid #fecaca",color:"#ef4444",borderRadius:8,padding:"8px 12px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
+                      Annuleren
+                    </button>
+                  </div>
+                </div>
               ) : (
                 <div style={{marginTop:8,display:"flex",justifyContent:"flex-end",gap:8,flexWrap:"wrap"}}>
+                  {/* Bezig status */}
+                  {t.status !== "bezig" ? (
+                    <button onClick={()=>onUpdate(t.id,{status:"bezig"})}
+                      style={{background:"#fffbeb",border:"1.5px solid #f59e0b",color:"#b45309",borderRadius:8,padding:"8px 14px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                      🔄 Mee bezig
+                    </button>
+                  ) : (
+                    <span style={{background:"#fffbeb",border:"1.5px solid #f59e0b",color:"#b45309",borderRadius:8,padding:"8px 14px",fontSize:13,fontWeight:600}}>
+                      🔄 Mee bezig
+                    </span>
+                  )}
+                  {/* Kan niet */}
+                  <button onClick={()=>setToonBlokkadeMap(p=>({...p,[t.id]:true}))}
+                    style={{background:"#fef2f2",border:"1.5px solid #fecaca",color:"#ef4444",borderRadius:8,padding:"8px 14px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                    🚫 Kan niet
+                  </button>
                   {isHuismeester && t.status !== "geaccepteerd" && (
                     <button style={{background:"#f0fdf4",border:`1.5px solid ${C.groen}`,color:C.groen,borderRadius:8,padding:"8px 14px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}
                       onClick={()=>setToonAccepteerMap(p=>({...p,[t.id]:true}))}>
-                      📅 Accepteren & inplannen
+                      📅 Inplannen
                     </button>
                   )}
                   {isHuismeester && (
