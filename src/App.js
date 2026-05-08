@@ -1387,7 +1387,7 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
       {subTab === "overzicht" && (
         <div>
           {/* Meldingen sectie */}
-          {relevanteMeldingen.length > 0 && (
+          {gefilterdeMeldingen.length > 0 && (
             <div style={{marginBottom:24}}>
               <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:10}}>
                 📬 Meldingen ({gefilterdeMeldingen.length}){zoek&&relevanteMeldingen.length!==gefilterdeMeldingen.length&&<span style={{color:C.muted,fontWeight:400}}> — {relevanteMeldingen.length} totaal</span>}
@@ -1401,7 +1401,7 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
           )}
 
           {/* Taken sectie */}
-          {relevanteTaken.length > 0 && (
+          {gefilterdetaken.length > 0 && (
             <div>
               <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:10}}>
                 🔧 Taken ({gefilterdetaken.length}){zoek&&relevanteTaken.length!==gefilterdetaken.length&&<span style={{color:C.muted,fontWeight:400}}> — {relevanteTaken.length} totaal</span>}
@@ -1654,6 +1654,7 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
   const [toonOpmerkingMap, setToonOpmerkingMap] = useState({});
 
   const isHuismeester = gebruiker?.rol === "huismeester";
+  const isBackoffice = gebruiker?.rol === "backoffice";
   const isCollega = gebruiker?.rol === "collega";
   const rolNaam = gebruiker?.rol;
   const [accepteerMap, setAccepteerMap] = useState({});
@@ -1823,10 +1824,10 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                       <option value="iedereen">👥 Iedereen</option>
                     </select>
                   ) : (
-                    <>
+                    <span>
                       {t.voor_rol==="huismeester"&&<span className="badge" style={{background:"#f0fdf4",color:C.groen}}>🏠 Huismeester</span>}
                       {t.voor_rol==="backoffice"&&<span className="badge" style={{background:C.blauw+"15",color:C.blauw}}>📊 Backoffice</span>}
-                    </>
+                    </span>
                   )}
                 </div>
                 <div style={{fontSize:12,color:C.muted}}>
