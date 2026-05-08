@@ -80,6 +80,7 @@ export default function App() {
   const [gebruiker, setGebruiker] = useState(() => {
     try { const g = localStorage.getItem("ktp_sessie"); return g ? JSON.parse(g) : null; } catch { return null; }
   });
+  const [taal, setTaal] = useState(() => { try { return localStorage.getItem("ktp_taal")||"nl"; } catch { return "nl"; } });
   const [gebruikers, setGebruikers] = useState([]);
   const [houses, setHouses] = useState([]);
   const [meldingen, setMeldingen] = useState([]);
