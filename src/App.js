@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "./supabaseClient";
+import { t, TALEN } from "./translations";
 import { AutoModule } from "./AutoModule";
 import { FietsModule } from "./FietsModule";
 import { HuurbetalingenModule } from "./HuurbetalingenModule";
@@ -197,6 +198,11 @@ export default function App() {
     setTab(g.rol==="collega"?"taken":g.rol==="huismeester"?"dagplanning":g.rol==="financieel"?"huurbetalingen":"woningen");
     loadOngelzenAutoReacties(g.naam);
     loadOngelzenBerichten(g.naam);
+  }
+
+  function wisselTaal(nieuweTaal) {
+    setTaal(nieuweTaal);
+    try { localStorage.setItem("ktp_taal", nieuweTaal); } catch {}
   }
   function logout() {
     try { localStorage.removeItem("ktp_sessie"); localStorage.removeItem("ktp_tab"); } catch {}
@@ -485,7 +491,7 @@ export default function App() {
   const isLiset = naam==="Liset" || naam==="Warscha";
 
   if (loading) return <LoadingScreen />;
-  if (!gebruiker) return <LoginScreen gebruikers={gebruikers} onLogin={login} />;
+  if (!gebruiker) return <LoginScreen gebruikers={gebruikers} onLogin={login} taal={taal} onTaalWissel={wisselTaal}/>;
 
   const rolIcon = rol==="backoffice"?"📊":rol==="huismeester"?"🏠":rol==="financieel"?"💶":"👤";
   const totalNotifs = openMeldingen.length + openTaken.length;
@@ -553,6 +559,15 @@ export default function App() {
               <span style={{fontWeight:900,fontSize:13,color:C.groen,marginLeft:3}}>INTERFLEX</span>
             </div>
             <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
+              {/* Taalschakelaar */}
+              <div style={{display:"flex",gap:2}}>
+                {Object.entries(TALEN).map(([code, info])=>(
+                  <button key={code} onClick={()=>wisselTaal(code)}
+                    style={{background:taal===code?"rgba(255,255,255,.35)":"rgba(255,255,255,.1)",border:"none",borderRadius:6,padding:"4px 7px",fontSize:11,fontWeight:700,color:"white",cursor:"pointer",fontFamily:"inherit",opacity:taal===code?1:.7}}>
+                    {info.label}
+                  </button>
+                ))}
+              </div>
               <div style={{background:"rgba(255,255,255,.15)",borderRadius:16,padding:"4px 10px",display:"flex",alignItems:"center",gap:5}}>
                 <span style={{fontSize:12}}>{rolIcon}</span>
                 <span style={{fontSize:12,color:"white",fontWeight:600}}>{naam}</span>
@@ -611,7 +626,7 @@ export default function App() {
 
       {/* CONTENT */}
       <div style={{maxWidth:1400,margin:"0 auto",padding:"20px 12px"}}>
-        {tab==="taken"&&<TakenMeldingenView taken={taken} meldingen={meldingen} houses={houses} gebruiker={gebruiker} onAddTaak={addTaak} onUpdateTaak={updateTaak} onAddMelding={addMelding} onUpdateMelding={updateMeldingStatus} showToast={showToast}/>}
+        {tab==="taken"&&<TakenMeldingenView taken={taken} meldingen={meldingen} houses={houses} gebruiker={gebruiker} onAddTaak={addTaak} onUpdateTaak={updateTaak} onAddMelding={addMelding} onUpdateMelding={updateMeldingStatus} showToast={showToast} taal={taal}/>}
         {tab==="woningen"&&<WoningenDetail houses={houses} onUpdateWoning={rol==="backoffice"||rol==="huismeester"?updateWoning:null}/>}
         {tab==="autos"&&<AutoModule gebruiker={gebruiker} showToast={showToast}/>}
         {tab==="fietsen"&&<FietsModule gebruiker={gebruiker} showToast={showToast}/>}
@@ -631,7 +646,7 @@ export default function App() {
 function Notif({n}) { return <span style={{background:"#ef4444",color:"white",borderRadius:10,padding:"1px 6px",fontSize:11,marginLeft:4}}>{n}</span>; }
 
 // ─── LOGIN ────────────────────────────────────────────────────────────────────
-function LoginScreen({ gebruikers, onLogin }) {
+function LoginScreen({ gebruikers, onLogin, taal="nl", onTaalWissel }) {
   const [rolFilter, setRolFilter] = useState(null);
   const [geselecteerd, setGeselecteerd] = useState(null);
   const [pin, setPin] = useState("");
@@ -650,7 +665,7 @@ function LoginScreen({ gebruikers, onLogin }) {
   function probeerLogin() {
     if (!geselecteerd) return;
     if (pin===geselecteerd.pin) { onLogin(geselecteerd); }
-    else { setFout("Verkeerde pincode, probeer opnieuw"); setPin(""); }
+    else { setFout(t("fout_pin",taal)+", probeer opnieuw"); setPin(""); }
   }
 
   return (
@@ -1259,7 +1274,7 @@ function WoningKaartDag({ huis, kleur, hTaken, hMeldingen, checklistItems, check
 }
 
 // ─── GECOMBINEERDE TAKEN & MELDINGEN VIEW ────────────────────────────────────
-function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, onUpdateTaak, onAddMelding, onUpdateMelding, showToast }) {
+function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, onUpdateTaak, onAddMelding, onUpdateMelding, showToast, taal="nl" }) {
   const rol = gebruiker?.rol;
   const isBackoffice = rol === "backoffice";
   const isHuismeester = rol === "huismeester";
@@ -1361,7 +1376,7 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
       {subTab === "overzicht" && (
         <div style={{marginBottom:16}}>
           <div style={{display:"flex",gap:6,marginBottom:10,flexWrap:"wrap",alignItems:"center"}}>
-            {[["open","Open"],["gedaan","Afgehandeld"],["alle","Alle"]].map(([v,l])=>(
+            {[["open",t("open",taal)],["gedaan",t("afgehandeld",taal)],["alle",t("alle",taal)]].map(([v,l])=>(
               <button key={v} onClick={()=>setFilter(v)}
                 style={{background:filter===v?C.blauw:"white",color:filter===v?"white":C.muted,border:`1.5px solid ${filter===v?C.blauw:C.border}`,borderRadius:20,padding:"6px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
                 {l}
@@ -1370,14 +1385,14 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
           </div>
           <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
             <input value={zoek} onChange={e=>setZoek(e.target.value)}
-              placeholder="🔍 Zoek op naam, woning, omschrijving..."
+              placeholder={`🔍 ${t("zoek_placeholder",taal)}`}
               style={{flex:1,minWidth:200,background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"8px 14px",fontSize:13,outline:"none",fontFamily:"inherit"}}/>
             <select value={sorteer} onChange={e=>setSorteer(e.target.value)}
               style={{background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"8px 14px",fontSize:13,outline:"none",fontFamily:"inherit",cursor:"pointer"}}>
-              <option value="datum_nieuw">📅 Nieuwste eerst</option>
-              <option value="datum_oud">📅 Oudste eerst</option>
-              <option value="naam">🔤 Op naam</option>
-              <option value="prioriteit">🔴 Op prioriteit</option>
+              <option value="datum_nieuw">📅 {t("nieuwste_eerst",taal)}</option>
+              <option value="datum_oud">📅 {t("oudste_eerst",taal)}</option>
+              <option value="naam">🔤 {t("op_naam",taal)}</option>
+              <option value="prioriteit">🔴 {t("op_prioriteit",taal)}</option>
             </select>
           </div>
         </div>
@@ -1421,7 +1436,7 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
 
       {/* Nieuwe melding (collega) */}
       {subTab === "nieuw" && isCollega && (
-        <MeldingForm houses={houses} onSubmit={async(d)=>{ await onAddMelding(d); setSubTab("overzicht"); }} showToast={showToast}/>
+        <MeldingForm houses={houses} onSubmit={async(d)=>{ await onAddMelding(d); setSubTab("overzicht"); }} showToast={showToast} taal={taal}/>
       )}
 
       {/* Nieuwe taak (backoffice/huismeester) */}
@@ -1467,7 +1482,7 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
             </div>
             {m.datum && (
               <div style={{fontSize:13,fontWeight:700,color:kleur,marginTop:3}}>
-                📅 {m.type==="aankomst"?"Aankomst":m.type==="vertrek"?"Vertrek":m.type==="reservering"?"Aankomst (reservering)":"Datum"}: {fmtDate(m.datum)}
+                📅 {m.type==="aankomst"?"Aankomst":m.type==="vertrek"?"Vertrek":m.type==="reservering"?"Aankomst (reservering)":t("datum",taal)}: {fmtDate(m.datum)}
               </div>
             )}
             <div style={{fontSize:11,color:C.muted,marginTop:1}}>
@@ -2483,7 +2498,7 @@ function HuismeesterPlanningView({ dagplanningDB, houses, taken=[], meldingen=[]
   );
 }
 
-function MeldingForm({ houses, onSubmit, showToast }) {
+function MeldingForm({ houses, onSubmit, showToast, taal="nl" }) {
   const [type,setType]=useState("aankomst");
   const [medewerker,setMedewerker]=useState("");
   const [datum,setDatum]=useState(todayISO());
