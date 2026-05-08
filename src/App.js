@@ -1760,8 +1760,24 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                   {t.status==="geaccepteerd"&&<span className="badge" style={{background:"#f0fdf4",color:C.groen}}>📅 INGEPLAND</span>}
                   {t.status==="bezig"&&<span className="badge" style={{background:"#fffbeb",color:"#b45309"}}>🔄 BEZIG</span>}
                   {t.geblokkeerd&&<span className="badge" style={{background:"#fef2f2",color:"#ef4444"}}>🚫 GEBLOKKEERD</span>}
-                  {t.voor_rol==="huismeester"&&<span className="badge" style={{background:"#f0fdf4",color:C.groen}}>🏠 Huismeester</span>}
-                  {t.voor_rol==="backoffice"&&<span className="badge" style={{background:C.blauw+"15",color:C.blauw}}>📊 Backoffice</span>}
+                  {/* Voor_rol badge — klikbaar voor backoffice om te wijzigen */}
+                  {isBackoffice ? (
+                    <select value={t.voor_rol||"iedereen"}
+                      onChange={e=>onUpdate(t.id,{voor_rol:e.target.value})}
+                      onClick={e=>e.stopPropagation()}
+                      style={{fontSize:11,fontWeight:700,borderRadius:10,padding:"2px 8px",border:"none",cursor:"pointer",fontFamily:"inherit",
+                        background:t.voor_rol==="huismeester"?"#f0fdf4":t.voor_rol==="backoffice"?C.blauw+"15":"#f0f4f8",
+                        color:t.voor_rol==="huismeester"?C.groen:t.voor_rol==="backoffice"?C.blauw:C.muted}}>
+                      <option value="huismeester">🏠 Huismeester</option>
+                      <option value="backoffice">📊 Backoffice</option>
+                      <option value="iedereen">👥 Iedereen</option>
+                    </select>
+                  ) : (
+                    <>
+                      {t.voor_rol==="huismeester"&&<span className="badge" style={{background:"#f0fdf4",color:C.groen}}>🏠 Huismeester</span>}
+                      {t.voor_rol==="backoffice"&&<span className="badge" style={{background:C.blauw+"15",color:C.blauw}}>📊 Backoffice</span>}
+                    </>
+                  )}
                 </div>
                 <div style={{fontSize:12,color:C.muted}}>
                   {huis?`📍 ${huis.adres}, ${huis.stad}`:"📋 Algemeen"}{t.kamer?` · Kamer ${t.kamer}`:""}
