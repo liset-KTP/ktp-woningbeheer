@@ -1052,11 +1052,11 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
     if (isCollega) return m.ingediend_door === gebruiker?.naam;
     return false;
   }).filter(m => {
-    if (filter === "open") return m.status === "open";
-    if (filter === "gedaan") return m.status !== "open";
+    // Huismeester: "open" toont alleen open/ingepland, "afgehandeld" toont verwerkte
+    if (filter === "open") return m.status === "open" || m.status === "geaccepteerd";
+    if (filter === "gedaan") return m.status !== "open" && m.status !== "geaccepteerd";
     return true;
   }).sort((a,b) => {
-    // Sorteer op datum (aankomstdatum eerst)
     const da = a.datum || a.created_at || "";
     const db = b.datum || b.created_at || "";
     return da.localeCompare(db);
@@ -1069,7 +1069,7 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
     return false;
   }).filter(t => filter === "open" ? (t.status === "open" || t.status === "geaccepteerd") : filter === "gedaan" ? t.status === "gedaan" : true);
 
-  const openCount = relevanteMeldingen.filter(m=>m.status==="open").length + relevanteTaken.filter(t=>t.status==="open"||t.status==="geaccepteerd").length;
+  const openCount = meldingen.filter(m => { if(isBackoffice) return m.status==="open"; if(isHuismeester) return m.status==="open"||m.status==="geaccepteerd"; if(isCollega) return m.ingediend_door===gebruiker?.naam&&m.status==="open"; return false; }).length + taken.filter(t => { if(isBackoffice) return t.voor_rol!=="huismeester"&&(t.status==="open"||t.status==="geaccepteerd"); if(isHuismeester) return (t.voor_rol==="huismeester"||t.voor_rol==="iedereen"||!t.voor_rol)&&(t.status==="open"||t.status==="geaccepteerd"); if(isCollega) return (t.voor_rol==="iedereen"||!t.voor_rol)&&t.status==="open"; return false; }).length;
 
   const subTabs = [
     { id:"overzicht", label:`📋 Overzicht (${openCount})` },
