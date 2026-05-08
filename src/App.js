@@ -196,7 +196,7 @@ export default function App() {
   function login(g) {
     try { localStorage.setItem("ktp_sessie", JSON.stringify(g)); } catch {}
     setGebruiker(g);
-    setTab(g.rol==="collega"?"taken":g.rol==="huismeester"?"dagplanning":g.rol==="financieel"?"huurbetalingen":"woningen");
+    setTab(g.rol==="collega"||g.rol==="financieel"?"taken":g.rol==="huismeester"?"dagplanning":"woningen");
     loadOngelzenAutoReacties(g.naam);
     loadOngelzenBerichten(g.naam);
   }
@@ -600,8 +600,8 @@ export default function App() {
               <button className={`tp ${tab==="berichten"?"act":""}`} onClick={()=>setTab("berichten")}>💬 Berichten {ongelzenBerichten>0&&<Notif n={ongelzenBerichten}/>}</button>
             </>)}
             {rol==="financieel" && (<>
+              <button className={`tp ${tab==="taken"?"act":""}`} onClick={()=>setTab("taken")}>📋 Taken & Meldingen {(openTaken.length+mijnMeldingen.length)>0&&<Notif n={openTaken.length+mijnMeldingen.length}/>}</button>
               <button className={`tp ${tab==="huurbetalingen"?"act":""}`} onClick={()=>setTab("huurbetalingen")}>💶 Huurbetalingen</button>
-              <button className={`tp ${tab==="taken"?"act":""}`} onClick={()=>setTab("taken")}>📌 To-do {openTaken.length>0&&<Notif n={openTaken.length}/>}</button>
               <button className={`tp ${tab==="woningen"?"act":""}`} onClick={()=>setTab("woningen")}>🏠 Woningen</button>
               <button className={`tp ${tab==="autos"?"act":""}`} onClick={()=>setTab("autos")}>🚗 Auto's</button>
               <button className={`tp ${tab==="fietsen"?"act":""}`} onClick={()=>setTab("fietsen")}>🚲 Fietsen</button>
@@ -1279,7 +1279,7 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
   const rol = gebruiker?.rol;
   const isBackoffice = rol === "backoffice";
   const isHuismeester = rol === "huismeester";
-  const isCollega = rol === "collega";
+  const isCollega = rol === "collega" || rol === "financieel";
 
   const [subTab, setSubTab] = useState("overzicht");
   const [filter, setFilter] = useState("open");
@@ -1686,7 +1686,7 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
 
   const isHuismeester = gebruiker?.rol === "huismeester";
   const isBackoffice = gebruiker?.rol === "backoffice";
-  const isCollega = gebruiker?.rol === "collega";
+  const isCollega = gebruiker?.rol === "collega" || gebruiker?.rol === "financieel";
   const rolNaam = gebruiker?.rol;
   const [accepteerMap, setAccepteerMap] = useState({});
   const [toonAccepteerMap, setToonAccepteerMap] = useState({});
