@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "./supabaseClient";
-import { t, TALEN } from "./translations";
+import { t as vertaal, TALEN } from "./translations";
 import { AutoModule } from "./AutoModule";
 import { FietsModule } from "./FietsModule";
 import { HuurbetalingenModule } from "./HuurbetalingenModule";
@@ -665,7 +665,7 @@ function LoginScreen({ gebruikers, onLogin, taal="nl", onTaalWissel }) {
   function probeerLogin() {
     if (!geselecteerd) return;
     if (pin===geselecteerd.pin) { onLogin(geselecteerd); }
-    else { setFout(t("fout_pin",taal)+", probeer opnieuw"); setPin(""); }
+    else { setFout(vertaal("fout_pin",taal)+", probeer opnieuw"); setPin(""); }
   }
 
   return (
@@ -1376,7 +1376,7 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
       {subTab === "overzicht" && (
         <div style={{marginBottom:16}}>
           <div style={{display:"flex",gap:6,marginBottom:10,flexWrap:"wrap",alignItems:"center"}}>
-            {[["open",t("open",taal)],["gedaan",t("afgehandeld",taal)],["alle",t("alle",taal)]].map(([v,l])=>(
+            {[["open",vertaal("open",taal)],["gedaan",vertaal("afgehandeld",taal)],["alle",vertaal("alle",taal)]].map(([v,l])=>(
               <button key={v} onClick={()=>setFilter(v)}
                 style={{background:filter===v?C.blauw:"white",color:filter===v?"white":C.muted,border:`1.5px solid ${filter===v?C.blauw:C.border}`,borderRadius:20,padding:"6px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
                 {l}
@@ -1385,14 +1385,14 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
           </div>
           <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
             <input value={zoek} onChange={e=>setZoek(e.target.value)}
-              placeholder={`🔍 ${t("zoek_placeholder",taal)}`}
+              placeholder={`🔍 ${vertaal("zoek_placeholder",taal)}`}
               style={{flex:1,minWidth:200,background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"8px 14px",fontSize:13,outline:"none",fontFamily:"inherit"}}/>
             <select value={sorteer} onChange={e=>setSorteer(e.target.value)}
               style={{background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"8px 14px",fontSize:13,outline:"none",fontFamily:"inherit",cursor:"pointer"}}>
-              <option value="datum_nieuw">{`📅 ${t("nieuwste_eerst",taal)}`}</option>
-              <option value="datum_oud">{`📅 ${t("oudste_eerst",taal)}`}</option>
-              <option value="naam">{`🔤 ${t("op_naam",taal)}`}</option>
-              <option value="prioriteit">{`🔴 ${t("op_prioriteit",taal)}`}</option>
+              <option value="datum_nieuw">{`📅 ${vertaal("nieuwste_eerst",taal)}`}</option>
+              <option value="datum_oud">{`📅 ${vertaal("oudste_eerst",taal)}`}</option>
+              <option value="naam">{`🔤 ${vertaal("op_naam",taal)}`}</option>
+              <option value="prioriteit">{`🔴 ${vertaal("op_prioriteit",taal)}`}</option>
             </select>
           </div>
         </div>
@@ -1482,7 +1482,7 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
             </div>
             {m.datum && (
               <div style={{fontSize:13,fontWeight:700,color:kleur,marginTop:3}}>
-                📅 {m.type==="aankomst"?"Aankomst":m.type==="vertrek"?"Vertrek":m.type==="reservering"?"Aankomst (reservering)":t("datum",taal)}: {fmtDate(m.datum)}
+                📅 {m.type==="aankomst"?"Aankomst":m.type==="vertrek"?"Vertrek":m.type==="reservering"?"Aankomst (reservering)":vertaal("datum",taal)}: {fmtDate(m.datum)}
               </div>
             )}
             <div style={{fontSize:11,color:C.muted,marginTop:1}}>
