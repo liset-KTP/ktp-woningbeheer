@@ -1306,7 +1306,7 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
   });
 
   const relevanteTaken = taken.filter(t => {
-    if (isBackoffice) return t.voor_rol !== "huismeester";
+    if (isBackoffice) return true; // backoffice ziet alles zodat ze kunnen herindelen
     if (isHuismeester) return t.voor_rol === "huismeester" || t.voor_rol === "iedereen" || !t.voor_rol;
     if (isCollega) return t.voor_rol === "iedereen" || !t.voor_rol;
     return false;
@@ -1474,8 +1474,23 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
             <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
               <span style={{fontWeight:700,fontSize:14,color:C.text}}>{m.medewerker}</span>
               <span style={{padding:"2px 8px",borderRadius:10,background:kleur+"18",color:kleur,fontSize:11,fontWeight:700}}>{m.type?.toUpperCase()}</span>
-              {m.voor_rol==="huismeester"&&<span style={{padding:"2px 8px",borderRadius:10,background:"#f0fdf4",color:C.groen,fontSize:11,fontWeight:700}}>🏠 Huismeester</span>}
-              {m.voor_rol==="backoffice"&&<span style={{padding:"2px 8px",borderRadius:10,background:C.blauw+"15",color:C.blauw,fontSize:11,fontWeight:700}}>📊 Backoffice</span>}
+              {isBackoffice ? (
+                <select value={m.voor_rol||"backoffice"}
+                  onChange={async e => { await supabase.from("meldingen").update({voor_rol:e.target.value}).eq("id",m.id); }}
+                  onClick={e=>e.stopPropagation()}
+                  style={{fontSize:11,fontWeight:700,borderRadius:10,padding:"2px 8px",border:"none",cursor:"pointer",fontFamily:"inherit",
+                    background:m.voor_rol==="huismeester"?"#f0fdf4":C.blauw+"15",
+                    color:m.voor_rol==="huismeester"?C.groen:C.blauw}}>
+                  <option value="huismeester">🏠 Huismeester</option>
+                  <option value="backoffice">📊 Backoffice</option>
+                  <option value="iedereen">👥 Iedereen</option>
+                </select>
+              ) : (
+                <>
+                  {m.voor_rol==="huismeester"&&<span style={{padding:"2px 8px",borderRadius:10,background:"#f0fdf4",color:C.groen,fontSize:11,fontWeight:700}}>🏠 Huismeester</span>}
+                  {m.voor_rol==="backoffice"&&<span style={{padding:"2px 8px",borderRadius:10,background:C.blauw+"15",color:C.blauw,fontSize:11,fontWeight:700}}>📊 Backoffice</span>}
+                </>
+              )}
               {!isOpen&&<span style={{padding:"2px 8px",borderRadius:10,background:"#f0fdf4",color:C.groen,fontSize:11,fontWeight:700}}>✓ AFGEHANDELD</span>}
             </div>
             <div style={{fontSize:12,color:C.muted,marginTop:2}}>
