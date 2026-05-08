@@ -3718,3 +3718,4 @@ function LogView({meldingen,houses,activiteiten}) {
       )}
     </div>
   );
+}
