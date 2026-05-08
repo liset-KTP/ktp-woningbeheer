@@ -599,7 +599,7 @@ export default function App() {
         {tab==="woningen"&&<WoningenDetail houses={houses} onUpdateWoning={rol==="backoffice"||rol==="huismeester"?updateWoning:null}/>}
         {tab==="autos"&&<AutoModule gebruiker={gebruiker} showToast={showToast}/>}
         {tab==="fietsen"&&<FietsModule gebruiker={gebruiker} showToast={showToast}/>}
-        {rol==="huismeester"&&tab==="dagplanning"&&<DagplanningView meldingen={meldingen} taken={taken} houses={houses} onUpdate={updateMeldingStatus} onUpdateTaak={updateTaak} naam={naam} dagplanningDB={dagplanningDB}/>}
+        {rol==="huismeester"&&tab==="dagplanning"&&<DagplanningView meldingen={meldingen} taken={taken} houses={houses} onUpdate={updateMeldingStatus} onUpdateTaak={updateTaak} naam={naam} dagplanningDB={dagplanningDB} checklistItems={checklistItems} checklists={checklists}/>}
         {tab==="checklist"&&<ChecklistView houses={houses} checklists={checklists} checklistItems={checklistItems} onSave={slaChecklistOp} gebruiker={gebruiker}/>}
         {rol==="backoffice"&&tab==="log"&&<LogView meldingen={meldingen} houses={houses} activiteiten={activiteiten}/>}
         {tab==="huurbetalingen"&&<HuurbetalingenModule gebruiker={gebruiker} showToast={showToast} readonly={rol!=="backoffice"&&rol!=="financieel"}/>}
@@ -735,7 +735,7 @@ function SK({label,val,color}) {
 }
 
 // ─── DAGPLANNING HUISMEESTER ──────────────────────────────────────────────────
-function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naam, dagplanningDB = [] }) {
+function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naam, dagplanningDB = [], checklistItems = [], checklists = [] }) {
   const dag = dagVanDeWeek();
   // Gebruik database planning als beschikbaar, anders fallback naar hardcoded
   const planningMap = dagplanningDB.length > 0
@@ -877,7 +877,7 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
         <div className="card" style={{borderTop:`4px solid ${getoondeDag.kleur}`}}>
           <div style={{fontWeight:800,fontSize:15,color:getoondeDag.kleur,marginBottom:4}}>{getoondeDag.icon} {getoondeDag.label}</div>
           <div style={{fontSize:13,color:C.muted,marginBottom:12}}>{getoondeDag.focus}</div>
-          {/* Woningen vandaag */}
+          {/* Woningen vandaag — klikbaar met inline checklist */}
           {(getoondeDag.woning_ids||[]).length > 0 && (
             <div style={{marginBottom:16}}>
               <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".6px",textTransform:"uppercase",marginBottom:8}}>Woningen vandaag</div>
@@ -887,32 +887,18 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
                 const hMeldingen = openMeldingen.filter(m=>m.woning_id===h.id && m.type!=="aankomst" && m.type!=="vertrek");
                 const hTaken = openTaken.filter(t=>t.woning_id===h.id);
                 return (
-                  <div key={id} style={{background:C.bg,borderRadius:10,padding:"10px 14px",marginBottom:8,border:`1px solid ${C.border}`}}>
-                    <div style={{fontWeight:700,fontSize:13,color:getoondeDag.kleur,marginBottom:hTaken.length+hMeldingen.length>0?8:4}}>
-                      📍 {h.adres}, {h.stad}
-                    </div>
-                    {hTaken.map(t=>(
-                      <div key={t.id} style={{display:"flex",gap:8,padding:"5px 0",borderTop:`1px solid ${C.border}`,fontSize:12,alignItems:"flex-start"}}>
-                        <span style={{color:"#f59e0b",fontWeight:700,flexShrink:0}}>🔧</span>
-                        <div>
-                          <div style={{fontWeight:600,color:C.text}}>{t.titel}</div>
-                          {t.omschrijving&&<div style={{color:C.muted,fontSize:11,marginTop:1}}>{t.omschrijving.slice(0,80)}{t.omschrijving.length>80?"...":""}</div>}
-                        </div>
-                      </div>
-                    ))}
-                    {hMeldingen.map(m=>(
-                      <div key={m.id} style={{display:"flex",gap:8,padding:"5px 0",borderTop:`1px solid ${C.border}`,fontSize:12,alignItems:"flex-start"}}>
-                        <span style={{color:"#ef4444",fontWeight:700,flexShrink:0}}>⚠️</span>
-                        <div>
-                          <div style={{fontWeight:600,color:C.text}}>{m.type} — {m.medewerker}</div>
-                          {m.opmerkingen&&<div style={{color:C.muted,fontSize:11,marginTop:1}}>{m.opmerkingen.slice(0,80)}{m.opmerkingen.length>80?"...":""}</div>}
-                        </div>
-                      </div>
-                    ))}
-                    {hTaken.length===0 && hMeldingen.length===0 && (
-                      <div style={{fontSize:11,color:C.groen}}>✓ Geen openstaande items</div>
-                    )}
-                  </div>
+                  <WoningKaartDag
+                    key={id}
+                    huis={h}
+                    kleur={getoondeDag.kleur}
+                    hTaken={hTaken}
+                    hMeldingen={hMeldingen}
+                    checklistItems={checklistItems}
+                    checklists={checklists}
+                    naam={naam}
+                    onUpdateTaak={onUpdateTaak}
+                    gekozenDag={gekozenDag}
+                  />
                 );
               })}
             </div>
@@ -1035,6 +1021,147 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── WONING KAART DAG (uitklapbaar met inline checklist) ─────────────────────
+function WoningKaartDag({ huis, kleur, hTaken, hMeldingen, checklistItems, checklists, naam, onUpdateTaak, gekozenDag }) {
+  const [open, setOpen] = useState(false);
+  const [savingChecklist, setSavingChecklist] = useState(false);
+
+  // Huidige week/jaar
+  const nu = new Date();
+  const weekJaar = (() => {
+    const d = new Date(nu);
+    d.setHours(0,0,0,0);
+    d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
+    const week1 = new Date(d.getFullYear(), 0, 4);
+    const weekNr = 1 + Math.round(((d - week1) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+    return `${weekNr}-${d.getFullYear()}`;
+  })();
+
+  // Bestaande checklist voor deze woning deze week
+  const bestaandeChecklist = checklists.find(c =>
+    c.woning_id === huis.id && c.week_jaar === weekJaar && c.type === "wekelijks"
+  );
+  const afgevinkt = bestaandeChecklist?.items || [];
+  const weekItems = checklistItems.filter(i => i.type === "wekelijks" && i.actief);
+  const aantalAfgevinkt = weekItems.filter(i => afgevinkt.includes(i.id)).length;
+
+  async function toggleItem(itemId) {
+    setSavingChecklist(true);
+    const nieuweAfgevinkt = afgevinkt.includes(itemId)
+      ? afgevinkt.filter(i => i !== itemId)
+      : [...afgevinkt, itemId];
+
+    if (bestaandeChecklist) {
+      await supabase.from("checklists").update({
+        items: nieuweAfgevinkt,
+        bijgewerkt_door: naam,
+        updated_at: new Date().toISOString(),
+      }).eq("id", bestaandeChecklist.id);
+    } else {
+      await supabase.from("checklists").insert([{
+        sleutel: `${huis.id}-wekelijks-${weekJaar}`,
+        type: "wekelijks",
+        week_jaar: weekJaar,
+        woning_id: huis.id,
+        items: nieuweAfgevinkt,
+        aangemaakt_door: naam,
+        bijgewerkt_door: naam,
+      }]);
+    }
+    setSavingChecklist(false);
+  }
+
+  const allesKlaar = hTaken.length === 0 && hMeldingen.length === 0 && aantalAfgevinkt === weekItems.length;
+
+  return (
+    <div style={{
+      background: allesKlaar ? "#f0fdf4" : "white",
+      borderRadius:10,
+      marginBottom:8,
+      border:`1px solid ${allesKlaar ? "#bbf7d0" : C.border}`,
+      borderLeft:`4px solid ${allesKlaar ? C.groen : kleur}`,
+      overflow:"hidden",
+    }}>
+      {/* Header — klikbaar */}
+      <div onClick={()=>setOpen(!open)}
+        style={{padding:"12px 14px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <div style={{flex:1}}>
+          <div style={{fontWeight:700,fontSize:13,color:allesKlaar?C.groen:kleur}}>
+            📍 {huis.adres}, {huis.stad}
+          </div>
+          <div style={{fontSize:11,color:C.muted,marginTop:3,display:"flex",gap:10}}>
+            {hTaken.length > 0 && <span style={{color:"#f59e0b"}}>🔧 {hTaken.length} taak{hTaken.length>1?"en":""}</span>}
+            {hMeldingen.length > 0 && <span style={{color:"#ef4444"}}>⚠️ {hMeldingen.length} melding{hMeldingen.length>1?"en":""}</span>}
+            <span style={{color:aantalAfgevinkt===weekItems.length?C.groen:C.muted}}>
+              ✓ {aantalAfgevinkt}/{weekItems.length} checklist
+            </span>
+          </div>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          {allesKlaar && <span style={{fontSize:11,fontWeight:700,color:C.groen}}>✅ Klaar</span>}
+          <span style={{color:C.muted,fontSize:14}}>{open?"▲":"▼"}</span>
+        </div>
+      </div>
+
+      {/* Uitklapbaar */}
+      {open && (
+        <div style={{borderTop:`1px solid ${C.border}`,padding:"12px 14px"}}>
+          {/* Open taken */}
+          {hTaken.length > 0 && (
+            <div style={{marginBottom:12}}>
+              <div style={{fontSize:11,fontWeight:700,color:"#f59e0b",letterSpacing:".6px",textTransform:"uppercase",marginBottom:8}}>🔧 Open taken</div>
+              {hTaken.map(t=>(
+                <div key={t.id} style={{display:"flex",gap:10,padding:"7px 0",borderBottom:`1px solid ${C.border}`,alignItems:"center"}}>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:13,fontWeight:600,color:C.text}}>{t.titel}</div>
+                    {t.omschrijving&&<div style={{fontSize:11,color:C.muted,marginTop:1}}>{t.omschrijving}</div>}
+                  </div>
+                  <button onClick={()=>onUpdateTaak(t.id,{status:"gedaan",afgehandeld_door:naam,afgehandeld_op:new Date().toISOString()})}
+                    style={{background:C.groen,color:"white",border:"none",borderRadius:6,padding:"5px 12px",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit",flexShrink:0}}>
+                    ✓ Gedaan
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Open meldingen */}
+          {hMeldingen.length > 0 && (
+            <div style={{marginBottom:12}}>
+              <div style={{fontSize:11,fontWeight:700,color:"#ef4444",letterSpacing:".6px",textTransform:"uppercase",marginBottom:8}}>⚠️ Meldingen</div>
+              {hMeldingen.map(m=>(
+                <div key={m.id} style={{padding:"7px 0",borderBottom:`1px solid ${C.border}`,fontSize:12}}>
+                  <div style={{fontWeight:600,color:C.text}}>{m.medewerker} — {m.type}</div>
+                  {m.opmerkingen&&<div style={{color:C.muted,marginTop:1}}>{m.opmerkingen}</div>}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Wekelijkse checklist */}
+          <div>
+            <div style={{fontSize:11,fontWeight:700,color:C.blauw,letterSpacing:".6px",textTransform:"uppercase",marginBottom:8}}>
+              ✅ Wekelijkse checklist {savingChecklist&&"⏳"}
+            </div>
+            {weekItems.map(item=>{
+              const gedaan = afgevinkt.includes(item.id);
+              return (
+                <div key={item.id} onClick={()=>toggleItem(item.id)}
+                  style={{display:"flex",gap:10,padding:"8px 0",borderBottom:`1px solid ${C.border}`,cursor:"pointer",alignItems:"flex-start"}}>
+                  <div style={{width:20,height:20,borderRadius:4,border:`2px solid ${gedaan?C.groen:C.border}`,background:gedaan?C.groen:"white",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:1}}>
+                    {gedaan&&<span style={{color:"white",fontSize:11,fontWeight:700}}>✓</span>}
+                  </div>
+                  <span style={{fontSize:13,color:gedaan?C.groen:C.text,textDecoration:gedaan?"line-through":"none",lineHeight:1.4}}>{item.tekst}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
