@@ -396,11 +396,11 @@ export default function App() {
               aangemaakt_door: gebruiker.naam,
               opmerkingen: `Aankomst ingediend door: ${m.ingediend_door || gebruiker.naam}`,
             }]).select().single();
-            if (plan2?.data) {
-              const rows = termijnData.map((t,i) => {
+            if (plan2) {
+              const rows = termijnData.map((termijn,i) => {
                 let week = startWeek + i; let jaar = startJaar;
                 if (week > 52) { week -= 52; jaar++; }
-                return { plan_id: plan2.data.id, naam_medewerker: m.medewerker, week_nummer: week, jaar, bedrag: t.bedrag, type: "inhouden", omschrijving: t.omschrijving, status: "open" };
+                return { plan_id: plan2.id, naam_medewerker: m.medewerker, week_nummer: week, jaar, bedrag: termijn.bedrag, type: "inhouden", omschrijving: termijn.omschrijving, status: "open" };
               });
               await supabase.from("borg_termijnen").insert(rows);
 
