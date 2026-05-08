@@ -237,6 +237,19 @@ export default function App() {
     }]);
     if (error) { showToast("Fout bij opslaan","err"); return; }
 
+    // Bij aankomst: automatisch openstaande reservering voor zelfde persoon/kamer verwerken
+    if (m.type === "aankomst" && m.huisId && m.kamer) {
+      await supabase.from("meldingen").update({
+        status: "verwerkt",
+        afgehandeld_door: gebruiker.naam,
+        afgehandeld_op: new Date().toISOString(),
+        notitie: "Automatisch verwerkt bij aankomst",
+      }).eq("type", "reservering")
+        .eq("woning_id", m.huisId)
+        .eq("kamer", m.kamer)
+        .eq("status", "open");
+    }
+
     // Kamerstatus bijwerken
     const huis = houses.find(h=>h.id===m.huisId);
     if (huis) {
@@ -325,6 +338,19 @@ export default function App() {
       await loadMeldingen();
       const statusTekst = newStatus==="afgehandeld"?"✅ Afgehandeld":newStatus==="verwerkt"?"📋 Verwerkt":newStatus==="in_behandeling"?"🔄 In behandeling":"📝 Status gewijzigd";
       logActiviteit("melding_status", `${statusTekst}: ${m?.medewerker||"?"} — ${m?.type||""} — ${huis?.adres||"?"} K${m?.kamer||"?"}${notitie?` (${notitie})`:""}`, {melding_id:id, status:newStatus});
+
+      // Als aankomst verwerkt wordt → ook openstaande reservering sluiten
+      if ((newStatus==="verwerkt"||newStatus==="afgehandeld") && m?.type==="aankomst" && m?.woning_id && m?.kamer) {
+        await supabase.from("meldingen").update({
+          status: "verwerkt",
+          afgehandeld_door: gebruiker.naam,
+          afgehandeld_op: new Date().toISOString(),
+          notitie: "Automatisch verwerkt bij aankomst",
+        }).eq("type", "reservering")
+          .eq("woning_id", m.woning_id)
+          .eq("kamer", m.kamer)
+          .eq("status", "open");
+      }
 
       // Als aankomst verwerkt wordt → automatisch borgplan aanmaken
       if ((newStatus==="verwerkt"||newStatus==="afgehandeld") && m?.type==="aankomst") {
