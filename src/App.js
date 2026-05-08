@@ -995,12 +995,16 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
             {openMeldingen.length===0 ? <div style={{fontSize:13,color:C.muted,fontStyle:"italic"}}>Geen openstaande meldingen 🎉</div>
             : openMeldingen.slice(0,5).map(m=>{
               const huis=houses.find(h=>h.id===m.woning_id);
+              const typeLabel = m.type==="aankomst"?"Aankomst":m.type==="vertrek"?"Vertrek":m.type==="reservering"?"Reservering":m.type==="verhuizing"?"Verhuizing":"Melding";
+              const typeKleur = m.type==="aankomst"?C.groen:m.type==="vertrek"?"#7c3aed":m.type==="reservering"?C.blauw:"#f59e0b";
               return (
                 <div key={m.id} style={{padding:"10px 0",borderBottom:`1px solid ${C.border}`,display:"flex",gap:10,alignItems:"flex-start"}}>
                   <span style={{fontSize:18}}>{m.type==="aankomst"?"🚗":m.type==="vertrek"?"🧳":"📅"}</span>
                   <div style={{flex:1}}>
-                    <div style={{fontWeight:600,fontSize:13,color:C.text}}>{m.medewerker} — {m.type}</div>
-                    <div style={{fontSize:12,color:C.muted}}>{huis?.adres} · K{m.kamer}</div>
+                    <div style={{fontWeight:600,fontSize:13,color:C.text}}>{m.medewerker}</div>
+                    <div style={{fontSize:11,color:"white",background:typeKleur,borderRadius:6,padding:"1px 7px",display:"inline-block",marginTop:2,marginBottom:3}}>{typeLabel}</div>
+                    <div style={{fontSize:12,color:C.muted}}>{huis?.adres||""}{m.kamer?` · K${m.kamer}`:""}</div>
+                    {m.datum && <div style={{fontSize:12,fontWeight:700,color:typeKleur,marginTop:2}}>📅 {typeLabel}: {fmtDate(m.datum)}</div>}
                   </div>
                   <button className="btn-g" style={{padding:"5px 12px",fontSize:11}} onClick={()=>onUpdate(m.id,"afgehandeld","")}>✓</button>
                 </div>
@@ -1020,6 +1024,8 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
                   <div style={{flex:1}}>
                     <div style={{fontWeight:600,fontSize:13,color:C.text}}>{t.titel}</div>
                     <div style={{fontSize:12,color:C.muted}}>{huis?.adres||"Algemeen"}{t.kamer?` · K${t.kamer}`:""}</div>
+                    {t.ingepland_op && <div style={{fontSize:12,fontWeight:700,color:"#7c3aed",marginTop:2}}>📅 Gepland: {fmtDate(t.ingepland_op)}</div>}
+                    {!t.ingepland_op && t.created_at && <div style={{fontSize:11,color:C.muted,marginTop:2}}>Aangemaakt: {fmtDate(t.created_at)}</div>}
                   </div>
                   <button className="btn-b" style={{padding:"5px 12px",fontSize:11}} onClick={()=>onUpdateTaak(t.id,{status:"gedaan",afgehandeld_door:naam,afgehandeld_op:new Date().toISOString(),notitie:null})}>✓</button>
                 </div>
