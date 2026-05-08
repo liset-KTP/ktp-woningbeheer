@@ -1389,10 +1389,10 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
               style={{flex:1,minWidth:200,background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"8px 14px",fontSize:13,outline:"none",fontFamily:"inherit"}}/>
             <select value={sorteer} onChange={e=>setSorteer(e.target.value)}
               style={{background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"8px 14px",fontSize:13,outline:"none",fontFamily:"inherit",cursor:"pointer"}}>
-              <option value="datum_nieuw">📅 {t("nieuwste_eerst",taal)}</option>
-              <option value="datum_oud">📅 {t("oudste_eerst",taal)}</option>
-              <option value="naam">🔤 {t("op_naam",taal)}</option>
-              <option value="prioriteit">🔴 {t("op_prioriteit",taal)}</option>
+              <option value="datum_nieuw">{`📅 ${t("nieuwste_eerst",taal)}`}</option>
+              <option value="datum_oud">{`📅 ${t("oudste_eerst",taal)}`}</option>
+              <option value="naam">{`🔤 ${t("op_naam",taal)}`}</option>
+              <option value="prioriteit">{`🔴 ${t("op_prioriteit",taal)}`}</option>
             </select>
           </div>
         </div>
