@@ -197,6 +197,31 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
     await loadAll();
   }
 
+  async function schuifWeekOp(planId) {
+    // Verschuif alle open termijnen 1 week later
+    const planTermijnen = termijnen.filter(t => t.plan_id === planId && t.status === "open");
+    for (const term of planTermijnen) {
+      let nieuwWeek = term.week_nummer + 1;
+      let nieuwJaar = term.jaar;
+      if (nieuwWeek > 52) { nieuwWeek = 1; nieuwJaar++; }
+      await supabase.from("borg_termijnen").update({
+        week_nummer: nieuwWeek,
+        jaar: nieuwJaar,
+      }).eq("id", term.id);
+    }
+    showToast("✓ Alle termijnen 1 week opgeschoven");
+    await loadAll();
+  }
+
+  async function archiveerPlan(planId, reden) {
+    await supabase.from("borg_plannen").update({
+      status: "afgesloten",
+      opmerkingen: `[Gearchiveerd door ${gebruiker.naam} op ${new Date().toLocaleDateString("nl-NL")}] ${reden}`,
+    }).eq("id", planId);
+    showToast("✓ Borgplan gearchiveerd");
+    await loadAll();
+  }
+
   async function sluitPlanAf(planId, terugbetalen) {
     await supabase.from("borg_plannen").update({
       status: terugbetalen ? "terugbetaald" : "afgesloten",
@@ -361,6 +386,8 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
           onVerwerkExtra={verwerkExtra}
           onVerwerk={verwerkTermijn}
           onOpmerking={voegOpmerkingToe}
+          onSchuifWeekOp={schuifWeekOp}
+          onArchiveer={archiveerPlan}
           readonly={readonly}
           showToast={showToast}
         />
@@ -573,7 +600,7 @@ function WeekOverzicht({ dezeWeek, volgendeWeek, plannen, huidigeWeek, huidigJaa
 }
 
 // ─── PLANNEN OVERZICHT ────────────────────────────────────────────────────────
-function PlannenOverzicht({ plannen, termijnen, extras, houses, isBackoffice, onVoegExtraToe, onSluitAf, onVerwerkExtra, onVerwerk, onOpmerking, readonly, showToast }) {
+function PlannenOverzicht({ plannen, termijnen, extras, houses, isBackoffice, onVoegExtraToe, onSluitAf, onVerwerkExtra, onVerwerk, onOpmerking, onSchuifWeekOp, onArchiveer, readonly, showToast }) {
   return (
     <div style={{display:"grid",gap:16}}>
       {plannen.length === 0 && (
@@ -595,6 +622,8 @@ function PlannenOverzicht({ plannen, termijnen, extras, houses, isBackoffice, on
           onVerwerkExtra={onVerwerkExtra}
           onVerwerk={onVerwerk}
           onOpmerking={onOpmerking}
+          onSchuifWeekOp={onSchuifWeekOp}
+          onArchiveer={onArchiveer}
           readonly={readonly}
         />
       ))}
@@ -602,7 +631,7 @@ function PlannenOverzicht({ plannen, termijnen, extras, houses, isBackoffice, on
   );
 }
 
-function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraToe, onSluitAf, onVerwerkExtra, onVerwerk, onOpmerking, readonly }) {
+function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraToe, onSluitAf, onVerwerkExtra, onVerwerk, onOpmerking, onSchuifWeekOp, onArchiveer, readonly }) {
   const [toonDetails, setToonDetails] = useState(false);
   const [toonExtra, setToonExtra] = useState(false);
   const [toonOpmerkingForm, setToonOpmerkingForm] = useState(false);
@@ -610,6 +639,8 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
   const [extraOmschr, setExtraOmschr] = useState("");
   const [extraBedrag, setExtraBedrag] = useState("");
   const [extraType, setExtraType] = useState("inhouden");
+  const [toonArchiveer, setToonArchiveer] = useState(false);
+  const [archiveerReden, setArchiveerReden] = useState("");
   const [extraBijlage, setExtraBijlage] = useState(null);
   const [uploadingBijlage, setUploadingBijlage] = useState(false);
   const huis = houses.find(h=>h.id===plan.woning_id);
@@ -811,15 +842,42 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
               </div>
             </div>
           )}
+          {/* Week opschuiven */}
+          <button onClick={()=>onSchuifWeekOp(plan.id)}
+            style={{background:"white",border:`1.5px solid #f59e0b`,color:"#b45309",borderRadius:8,padding:"8px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+            📅 Week opschuiven
+          </button>
+
+          {/* Archiveren met reden */}
+          {toonArchiveer ? (
+            <div style={{width:"100%",background:"#fef2f2",border:"1px solid #fecaca",borderRadius:10,padding:14,marginTop:4}}>
+              <div style={{fontWeight:700,fontSize:13,color:C.rood,marginBottom:8}}>🗑 Borgplan archiveren</div>
+              <input value={archiveerReden} onChange={e=>setArchiveerReden(e.target.value)}
+                placeholder="Reden (bijv. test, fout ingevoerd...)" autoFocus
+                style={{width:"100%",background:"white",border:"1.5px solid #fecaca",borderRadius:8,color:C.text,padding:"8px 12px",fontSize:13,outline:"none",fontFamily:"inherit",boxSizing:"border-box",marginBottom:8}}/>
+              <div style={{display:"flex",gap:8}}>
+                <button onClick={()=>{ if(archiveerReden.trim()){ onArchiveer(plan.id, archiveerReden.trim()); setToonArchiveer(false); setArchiveerReden(""); }}}
+                  style={{background:C.rood,color:"white",border:"none",borderRadius:8,padding:"8px 16px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                  ✓ Archiveren
+                </button>
+                <button onClick={()=>setToonArchiveer(false)}
+                  style={{background:"white",border:"1px solid #fecaca",color:C.rood,borderRadius:8,padding:"8px 12px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>
+                  Annuleren
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button onClick={()=>setToonArchiveer(true)}
+              style={{background:"white",border:`1.5px solid ${C.rood}`,color:C.rood,borderRadius:8,padding:"8px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+              🗑 Archiveren
+            </button>
+          )}
+
           {pct >= 100 && (
             <>
               <button onClick={()=>{ if(window.confirm(`Borg terugbetalen aan ${plan.naam_medewerker}?`)) onSluitAf(plan.id, true); }}
                 style={{background:C.groen,color:"white",border:"none",borderRadius:8,padding:"8px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
                 💶 Borg terugbetalen
-              </button>
-              <button onClick={()=>{ if(window.confirm(`Plan afsluiten zonder terugbetaling?`)) onSluitAf(plan.id, false); }}
-                style={{background:"white",border:`1.5px solid ${C.rood}`,color:C.rood,borderRadius:8,padding:"8px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                Afsluiten
               </button>
             </>
           )}
