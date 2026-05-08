@@ -1571,26 +1571,53 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                           const alleKeys = ["schoon","sleutel1"];
                           const alleAfgevinkt = alleKeys.every(k => nieuwNotitie.includes("[✓ "+k+"]"));
                           if (alleAfgevinkt) {
-                            // Stuur bericht naar backoffice
+                            const medewerkerNaam = t.titel?.replace("Kamer controleren na verhuizing — ","") || "";
+
+                            // 1. Bericht naar backoffice
                             await supabase.from("berichten").insert([{
-                              tekst: `Kamer ${t.kamer||""} is gecontroleerd en klaar: kamer schoon ✓, sleutel(s) ingeleverd ✓`,
+                              tekst: `Kamer ${t.kamer||""} is gecontroleerd en klaar: kamer schoon ✓, sleutel(s) ingeleverd ✓. Borg kan worden terugbetaald.`,
                               van: gebruiker?.naam||"Huismeester",
                               aan: null,
-                              onderwerp: `✅ Kamer klaar na verhuizing — ${t.titel?.replace("Kamer controleren na verhuizing — ","")||""}`,
+                              onderwerp: `✅ Kamer klaar + borg terugbetalen — ${medewerkerNaam}`,
                               koppeling_type: "taak",
                               koppeling_id: t.id,
                               koppeling_label: t.titel,
                               gelezen_door: [gebruiker?.naam||"Huismeester"],
                             }]);
+
+                            // 2. Borgplan zoeken voor deze medewerker en extra "terugbetalen" post toevoegen
+                            if (medewerkerNaam) {
+                              const { data: borgPlan } = await supabase.from("borg_plannen")
+                                .select("id, naam_medewerker, totaal_borg, ingehouden")
+                                .eq("naam_medewerker", medewerkerNaam)
+                                .eq("status", "actief")
+                                .limit(1);
+                              if (borgPlan && borgPlan.length > 0) {
+                                const plan = borgPlan[0];
+                                const terug = Number(plan.ingehouden);
+                                if (terug > 0) {
+                                  await supabase.from("borg_extra").insert([{
+                                    plan_id: plan.id,
+                                    naam_medewerker: medewerkerNaam,
+                                    omschrijving: `Borg terugbetalen — kamer schoon + sleutels ingeleverd (K${t.kamer||""})`,
+                                    bedrag: terug,
+                                    type: "terugbetalen",
+                                    status: "open",
+                                  }]);
+                                }
+                              }
+                            }
+
+                            // 3. Mail sturen
                             stuurMail({
-                              type: "✅ Kamer klaar na controle",
+                              type: "✅ Kamer klaar + borg terugbetalen",
                               type_icon: "✅",
-                              medewerker: t.titel?.replace("Kamer controleren na verhuizing — ","") || "—",
+                              medewerker: medewerkerNaam || "—",
                               woning: huis ? `${huis.adres}, ${huis.stad}` : "—",
                               kamer: `Kamer ${t.kamer||""}`,
                               datum: new Date().toISOString().slice(0,10),
                               ingediend_door: gebruiker?.naam||"Huismeester",
-                              opmerkingen: "Kamer schoon ✓ · Sleutel(s) ingeleverd ✓ · Klaar voor nieuwe bewoner",
+                              opmerkingen: "Kamer schoon ✓ · Sleutel(s) ingeleverd ✓ · Borg terugbetalen aan medewerker",
                             });
                           }
                         }} style={{display:"flex",alignItems:"center",gap:10,padding:"6px 0",borderBottom:"1px solid #fcd34d",cursor:checked?"default":"pointer"}}>
