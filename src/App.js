@@ -394,6 +394,7 @@ export default function App() {
               ingehouden: 0,
               status: "actief",
               aangemaakt_door: gebruiker.naam,
+              opmerkingen: `Aankomst ingediend door: ${m.ingediend_door || gebruiker.naam}`,
             }]).select().single();
             if (plan2?.data) {
               const rows = termijnData.map((t,i) => {
@@ -402,6 +403,18 @@ export default function App() {
                 return { plan_id: plan2.data.id, naam_medewerker: m.medewerker, week_nummer: week, jaar, bedrag: t.bedrag, type: "inhouden", omschrijving: t.omschrijving, status: "open" };
               });
               await supabase.from("borg_termijnen").insert(rows);
+
+              // Stuur bericht naar backoffice dat borgplan aangemaakt is
+              await supabase.from("berichten").insert([{
+                tekst: `Borgplan aangemaakt voor ${m.medewerker}: €${totaalBorg} in ${termijnData.length} termijnen. Aankomst ingediend door: ${m.ingediend_door || gebruiker.naam}.`,
+                van: "Systeem",
+                aan: null,
+                onderwerp: `🔐 Borgplan aangemaakt — ${m.medewerker}`,
+                koppeling_type: "melding",
+                koppeling_id: id,
+                koppeling_label: `Aankomst ${m.medewerker} — ${huis?.adres||""}${m.kamer?` K${m.kamer}`:""}`,
+                gelezen_door: [],
+              }]);
             }
           }
         }
@@ -2198,8 +2211,8 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                       💬 Opmerking
                     </button>
                   )}
-                  {/* Alleen de juiste rol mag afvinken */}
-                  {(t.voor_rol === "huismeester" ? isHuismeester : t.voor_rol === "backoffice" ? isBackoffice : true) && (
+                  {/* Backoffice mag altijd afvinken, anderen alleen hun eigen rol */}
+                  {(isBackoffice || (t.voor_rol === "huismeester" ? isHuismeester : t.voor_rol === "backoffice" ? isBackoffice : true)) && (
                     <button className="btn-g" style={{padding:"8px 16px",fontSize:13}}
                       onClick={()=>setBevestigMap(p=>({...p,[t.id]:true}))}>
                       ✓ Gedaan
