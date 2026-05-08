@@ -1955,8 +1955,8 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                 </div>
               ) : (
                 <div style={{marginTop:8,display:"flex",justifyContent:"flex-end",gap:8,flexWrap:"wrap"}}>
-                  {/* Bezig status */}
-                  {t.status !== "bezig" ? (
+                  {/* Bezig/kan niet alleen voor eigen rol */}
+                  {(t.voor_rol==="huismeester" ? isHuismeester : t.voor_rol==="backoffice" ? isBackoffice : true) && t.status !== "bezig" ? (
                     <button onClick={()=>onUpdate(t.id,{status:"bezig"})}
                       style={{background:"#fffbeb",border:"1.5px solid #f59e0b",color:"#b45309",borderRadius:8,padding:"8px 14px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
                       🔄 Mee bezig
@@ -1966,11 +1966,10 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                       🔄 Mee bezig
                     </span>
                   )}
-                  {/* Kan niet */}
-                  <button onClick={()=>setToonBlokkadeMap(p=>({...p,[t.id]:true}))}
+                  {(t.voor_rol==="huismeester" ? isHuismeester : t.voor_rol==="backoffice" ? isBackoffice : true) && <button onClick={()=>setToonBlokkadeMap(p=>({...p,[t.id]:true}))}
                     style={{background:"#fef2f2",border:"1.5px solid #fecaca",color:"#ef4444",borderRadius:8,padding:"8px 14px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
                     🚫 Kan niet
-                  </button>
+                  </button>}
                   {isHuismeester && t.status !== "geaccepteerd" && (
                     <button style={{background:"#f0fdf4",border:`1.5px solid ${C.groen}`,color:C.groen,borderRadius:8,padding:"8px 14px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}
                       onClick={()=>setToonAccepteerMap(p=>({...p,[t.id]:true}))}>
@@ -1983,10 +1982,13 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                       💬 Opmerking
                     </button>
                   )}
-                  <button className="btn-g" style={{padding:"8px 16px",fontSize:13}}
-                    onClick={()=>setBevestigMap(p=>({...p,[t.id]:true}))}>
-                    ✓ Gedaan
-                  </button>
+                  {/* Alleen de juiste rol mag afvinken */}
+                  {(t.voor_rol === "huismeester" ? isHuismeester : t.voor_rol === "backoffice" ? isBackoffice : true) && (
+                    <button className="btn-g" style={{padding:"8px 16px",fontSize:13}}
+                      onClick={()=>setBevestigMap(p=>({...p,[t.id]:true}))}>
+                      ✓ Gedaan
+                    </button>
+                  )}
                 </div>
               )
             )}
