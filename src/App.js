@@ -1565,7 +1565,34 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                         <div key={key} onClick={async()=>{
                           if(checked) return;
                           const oud = t.notitie||"";
-                          await onUpdate(t.id, {notitie: oud ? oud+" [✓ "+key+"]" : "[✓ "+key+"]"});
+                          const nieuwNotitie = oud ? oud+" [✓ "+key+"]" : "[✓ "+key+"]";
+                          await onUpdate(t.id, {notitie: nieuwNotitie});
+                          // Check of nu alles afgevinkt is
+                          const alleKeys = ["schoon","sleutel1"];
+                          const alleAfgevinkt = alleKeys.every(k => nieuwNotitie.includes("[✓ "+k+"]"));
+                          if (alleAfgevinkt) {
+                            // Stuur bericht naar backoffice
+                            await supabase.from("berichten").insert([{
+                              tekst: `Kamer ${t.kamer||""} is gecontroleerd en klaar: kamer schoon ✓, sleutel(s) ingeleverd ✓`,
+                              van: gebruiker?.naam||"Huismeester",
+                              aan: null,
+                              onderwerp: `✅ Kamer klaar na verhuizing — ${t.titel?.replace("Kamer controleren na verhuizing — ","")||""}`,
+                              koppeling_type: "taak",
+                              koppeling_id: t.id,
+                              koppeling_label: t.titel,
+                              gelezen_door: [gebruiker?.naam||"Huismeester"],
+                            }]);
+                            stuurMail({
+                              type: "✅ Kamer klaar na controle",
+                              type_icon: "✅",
+                              medewerker: t.titel?.replace("Kamer controleren na verhuizing — ","") || "—",
+                              woning: huis ? `${huis.adres}, ${huis.stad}` : "—",
+                              kamer: `Kamer ${t.kamer||""}`,
+                              datum: new Date().toISOString().slice(0,10),
+                              ingediend_door: gebruiker?.naam||"Huismeester",
+                              opmerkingen: "Kamer schoon ✓ · Sleutel(s) ingeleverd ✓ · Klaar voor nieuwe bewoner",
+                            });
+                          }
                         }} style={{display:"flex",alignItems:"center",gap:10,padding:"6px 0",borderBottom:"1px solid #fcd34d",cursor:checked?"default":"pointer"}}>
                           <div style={{width:20,height:20,borderRadius:4,border:`2px solid ${checked?"#4A9B3C":"#f59e0b"}`,background:checked?"#4A9B3C":"white",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
                             {checked && <span style={{color:"white",fontSize:12,fontWeight:700}}>✓</span>}
