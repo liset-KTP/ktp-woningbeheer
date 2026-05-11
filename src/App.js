@@ -394,7 +394,7 @@ export default function App() {
     const huis = houses.find(h=>h.id===m?.woning_id);
     const { error } = await supabase.from("meldingen").update({status:newStatus,afgehandeld_door:gebruiker.naam,afgehandeld_op:new Date().toISOString(),notitie:notitie||null}).eq("id",id);
     if (error) showToast("Fout bij updaten","err");
-    else {
+    else { try {
       showToast("✓ Status bijgewerkt");
       await loadMeldingen();
       const statusTekst = newStatus==="afgehandeld"?"✅ Afgehandeld":newStatus==="verwerkt"?"📋 Verwerkt":newStatus==="in_behandeling"?"🔄 In behandeling":"📝 Status gewijzigd";
@@ -558,6 +558,7 @@ export default function App() {
           await loadHouses();
         }
       }
+    } catch(err) { console.error("updateMelding error:", err); showToast("Fout: "+err.message,"err"); }
     }
   }
 
