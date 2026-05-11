@@ -211,11 +211,14 @@ export function FietsModule({ gebruiker, showToast }) {
     } else {
       // Er is al een plan — voeg fiets toe als extra post
       const planId = bestaandPlan[0].id;
-      const { data: al } = await supabase.from("borg_plannen").select("heeft_fiets").eq("id", planId).single();
+      const { data: al } = await supabase.from("borg_plannen").select("heeft_fiets,totaal_borg").eq("id", planId).single();
       if (al && !al.heeft_fiets) {
-        await supabase.from("borg_plannen").update({ heeft_fiets: true, totaal_borg: supabase.rpc ? undefined : undefined }).eq("id", planId);
         const nu = new Date();
         const startWeek = (() => { const d=new Date(); const j=new Date(Date.UTC(d.getFullYear(),0,1)); return Math.ceil((((d-j)/86400000)+j.getDay()+1)/7)+1; })();
+        await supabase.from("borg_plannen").update({
+          heeft_fiets: true,
+          totaal_borg: Number(al.totaal_borg) + 100,
+        }).eq("id", planId);
         await supabase.from("borg_termijnen").insert([
           { plan_id: planId, naam_medewerker: data.naam_medewerker, week_nummer: startWeek, jaar: nu.getFullYear(), bedrag: 50, type: "inhouden", omschrijving: "Borg fiets (week 1/2)", status: "open" },
           { plan_id: planId, naam_medewerker: data.naam_medewerker, week_nummer: startWeek+1>52?startWeek-51:startWeek+1, jaar: startWeek+1>52?nu.getFullYear()+1:nu.getFullYear(), bedrag: 50, type: "inhouden", omschrijving: "Borg fiets (week 2/2)", status: "open" },
