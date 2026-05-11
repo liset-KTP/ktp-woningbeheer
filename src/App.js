@@ -1628,10 +1628,10 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
                   <option value="iedereen">👥 Iedereen</option>
                 </select>
               ) : (
-                <>
+                <span>
                   {m.voor_rol==="huismeester"&&<span style={{padding:"2px 8px",borderRadius:10,background:"#f0fdf4",color:C.groen,fontSize:11,fontWeight:700}}>🏠 Huismeester</span>}
                   {m.voor_rol==="backoffice"&&<span style={{padding:"2px 8px",borderRadius:10,background:C.blauw+"15",color:C.blauw,fontSize:11,fontWeight:700}}>📊 Backoffice</span>}
-                </>
+                </span>
               )}
               {!isOpen&&<span style={{padding:"2px 8px",borderRadius:10,background:"#f0fdf4",color:C.groen,fontSize:11,fontWeight:700}}>✓ AFGEHANDELD</span>}
             </div>
