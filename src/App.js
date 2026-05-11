@@ -414,7 +414,7 @@ export default function App() {
       }
 
       // Als aankomst verwerkt wordt → automatisch borgplan aanmaken
-      if ((newStatus==="verwerkt"||newStatus==="afgehandeld") && m?.type==="aankomst") {
+      if ((newStatus==="verwerkt"||newStatus==="afgehandeld") && m?.type==="aankomst") { try {
         const sleutels = m.sleutel_aantal || 1;
         // Check of er al een borgplan bestaat voor deze persoon + kamer
         const { data: bestaand } = await supabase.from("borg_plannen")
@@ -521,6 +521,7 @@ export default function App() {
             }
           }
         } // end if bestaand else
+      } catch(borgErr) { console.error("Borgplan error:", borgErr); }
       }
 
       // Als er een notitie is → stuur bericht naar collega die de melding heeft ingediend
