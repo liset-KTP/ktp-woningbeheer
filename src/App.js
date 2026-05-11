@@ -436,8 +436,17 @@ export default function App() {
             const nu3 = new Date();
             const sw = (() => { const d=new Date(); const j=new Date(Date.UTC(d.getFullYear(),0,1)); return Math.ceil((((d-j)/86400000)+j.getDay()+1)/7)+1; })();
             const extraTotaal = sleutelTermijnen.reduce((s,t)=>s+t.bedrag,0);
+            // Zoek laatste week van bestaande termijnen zodat we daarna plannen
+            const { data: bestaandeTermijnen } = await supabase.from("borg_termijnen")
+              .select("week_nummer,jaar").eq("plan_id",bestaandPlanId).order("jaar").order("week_nummer");
+            let startWeekSleutel = sw;
+            if (bestaandeTermijnen && bestaandeTermijnen.length > 0) {
+              const laatste = bestaandeTermijnen[bestaandeTermijnen.length-1];
+              startWeekSleutel = laatste.week_nummer + 1;
+              if (startWeekSleutel > 52) startWeekSleutel = 1;
+            }
             const rows = sleutelTermijnen.map((t,i) => {
-              let week = sw+i; let jaar = nu3.getFullYear();
+              let week = startWeekSleutel+i; let jaar = nu3.getFullYear();
               if (week > 52) { week -= 52; jaar++; }
               return { plan_id: bestaandPlanId, naam_medewerker: m.medewerker, week_nummer: week, jaar, bedrag: t.bedrag, type: "inhouden", omschrijving: t.omschrijving, status: "open" };
             });
