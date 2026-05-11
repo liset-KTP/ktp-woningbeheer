@@ -520,7 +520,7 @@ export default function App() {
               }]);
             }
           }
-        }
+        } // end if bestaand else
       }
 
       // Als er een notitie is → stuur bericht naar collega die de melding heeft ingediend
