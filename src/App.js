@@ -250,6 +250,67 @@ export default function App() {
         .eq("status", "open");
     }
 
+    // Bij aankomst: direct borgplan aanmaken
+    if (m.type === "aankomst" && m.medewerker) {
+      const { data: bestaand } = await supabase.from("borg_plannen")
+        .select("id").eq("naam_medewerker", m.medewerker).eq("status","actief").limit(1);
+      if (!bestaand || bestaand.length === 0) {
+        const sleutels = m.sleutelAantal || 1;
+        const { data: fietsen } = await supabase.from("fietsen")
+          .select("id").eq("naam_medewerker", m.medewerker).eq("status","In gebruik").limit(1);
+        const heeftFiets = fietsen && fietsen.length > 0;
+        const nu2 = new Date();
+        const startWeek = (() => { const d=new Date(); const j=new Date(Date.UTC(d.getFullYear(),0,1)); return Math.ceil((((d-j)/86400000)+j.getDay()+1)/7)+1; })();
+        const startJaar = nu2.getFullYear();
+        const termijnData = [];
+        if (sleutels === 1) {
+          termijnData.push({omschrijving:"Borg sleutel (week 1/2)",bedrag:50});
+          termijnData.push({omschrijving:"Borg sleutel (week 2/2)",bedrag:50});
+        } else if (sleutels >= 2) {
+          termijnData.push({omschrijving:"Borg sleutels (week 1/4)",bedrag:50});
+          termijnData.push({omschrijving:"Borg sleutels (week 2/4)",bedrag:50});
+          termijnData.push({omschrijving:"Borg sleutels (week 3/4)",bedrag:50});
+          termijnData.push({omschrijving:"Borg sleutels (week 4/4)",bedrag:30});
+        }
+        if (heeftFiets) {
+          termijnData.push({omschrijving:"Borg fiets (week 1/2)",bedrag:50});
+          termijnData.push({omschrijving:"Borg fiets (week 2/2)",bedrag:50});
+        }
+        const totaalBorg = termijnData.reduce((s,t)=>s+t.bedrag,0);
+        if (totaalBorg > 0) {
+          const { data: plan2 } = await supabase.from("borg_plannen").insert([{
+            naam_medewerker: m.medewerker,
+            woning_id: m.huisId || null,
+            kamer: m.kamer || null,
+            aankomst_datum: m.datum || null,
+            sleutels: sleutels,
+            heeft_fiets: heeftFiets,
+            totaal_borg: totaalBorg,
+            ingehouden: 0,
+            status: "actief",
+            aangemaakt_door: gebruiker.naam,
+            opmerkingen: `Aankomst ingediend door: ${gebruiker.naam}`,
+          }]).select().single();
+          if (plan2) {
+            const rows = termijnData.map((termijn,i) => {
+              let week = startWeek + i; let jaar = startJaar;
+              if (week > 52) { week -= 52; jaar++; }
+              return { plan_id: plan2.id, naam_medewerker: m.medewerker, week_nummer: week, jaar, bedrag: termijn.bedrag, type: "inhouden", omschrijving: termijn.omschrijving, status: "open" };
+            });
+            await supabase.from("borg_termijnen").insert(rows);
+            await supabase.from("berichten").insert([{
+              tekst: `Borgplan aangemaakt voor ${m.medewerker}: €${totaalBorg} in ${termijnData.length} termijnen. Ingediend door: ${gebruiker.naam}.`,
+              van: "Systeem", aan: null,
+              onderwerp: `🔐 Borgplan aangemaakt — ${m.medewerker}`,
+              koppeling_type: "melding",
+              koppeling_label: `Aankomst ${m.medewerker}`,
+              gelezen_door: [],
+            }]);
+          }
+        }
+      }
+    }
+
     // Kamerstatus bijwerken
     const huis = houses.find(h=>h.id===m.huisId);
     if (huis) {
@@ -358,7 +419,40 @@ export default function App() {
         // Check of er al een borgplan bestaat voor deze persoon + kamer
         const { data: bestaand } = await supabase.from("borg_plannen")
           .select("id").eq("naam_medewerker", m.medewerker).eq("status","actief").limit(1);
-        if (!bestaand || bestaand.length === 0) {
+        if (bestaand && bestaand.length > 0) {
+          // Al een borgplan (bijv. van fiets) — voeg sleutels toe als termijnen
+          const bestaandPlanId = bestaand[0].id;
+          const sleutelTermijnen = [];
+          if (sleutels === 1) {
+            sleutelTermijnen.push({omschrijving:"Borg sleutel (week 1/2)",bedrag:50});
+            sleutelTermijnen.push({omschrijving:"Borg sleutel (week 2/2)",bedrag:50});
+          } else if (sleutels >= 2) {
+            sleutelTermijnen.push({omschrijving:"Borg sleutels (week 1/4)",bedrag:50});
+            sleutelTermijnen.push({omschrijving:"Borg sleutels (week 2/4)",bedrag:50});
+            sleutelTermijnen.push({omschrijving:"Borg sleutels (week 3/4)",bedrag:50});
+            sleutelTermijnen.push({omschrijving:"Borg sleutels (week 4/4)",bedrag:30});
+          }
+          if (sleutelTermijnen.length > 0) {
+            const nu3 = new Date();
+            const sw = (() => { const d=new Date(); const j=new Date(Date.UTC(d.getFullYear(),0,1)); return Math.ceil((((d-j)/86400000)+j.getDay()+1)/7)+1; })();
+            const extraTotaal = sleutelTermijnen.reduce((s,t)=>s+t.bedrag,0);
+            const rows = sleutelTermijnen.map((t,i) => {
+              let week = sw+i; let jaar = nu3.getFullYear();
+              if (week > 52) { week -= 52; jaar++; }
+              return { plan_id: bestaandPlanId, naam_medewerker: m.medewerker, week_nummer: week, jaar, bedrag: t.bedrag, type: "inhouden", omschrijving: t.omschrijving, status: "open" };
+            });
+            await supabase.from("borg_termijnen").insert(rows);
+            // Update totaal_borg en sleutels op bestaand plan
+            const { data: huidigPlan } = await supabase.from("borg_plannen").select("totaal_borg,sleutels").eq("id",bestaandPlanId).single();
+            if (huidigPlan) {
+              await supabase.from("borg_plannen").update({
+                totaal_borg: Number(huidigPlan.totaal_borg) + extraTotaal,
+                sleutels: sleutels,
+              }).eq("id", bestaandPlanId);
+            }
+          }
+        } else {
+          // Nog geen borgplan — maak nieuw aan
           // Check of persoon een fiets heeft
           const { data: fietsen } = await supabase.from("fietsen")
             .select("id").eq("naam_medewerker", m.medewerker).eq("status","In gebruik").limit(1);
