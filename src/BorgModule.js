@@ -77,6 +77,7 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
   const [subTab, setSubTab] = useState("week");
   const [toonNieuw, setToonNieuw] = useState(false);
   const [toonLosseInhouding, setToonLosseInhouding] = useState(false);
+  const [zoek, setZoek] = useState("");
 
   const isBackoffice = gebruiker?.rol === "backoffice" && !readonly;
 
@@ -379,7 +380,7 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
       )}
 
       {/* Tabs */}
-      <div style={{display:"flex",gap:6,marginBottom:24,borderBottom:`2px solid ${C.border}`}}>
+      <div style={{display:"flex",gap:6,marginBottom:16,borderBottom:`2px solid ${C.border}`,overflowX:"auto",scrollbarWidth:"none"}}>
         {tabs.map(t=>(
           <button key={t.id} onClick={()=>setSubTab(t.id)}
             style={{background:"none",border:"none",padding:"10px 18px",fontSize:13,fontWeight:700,color:subTab===t.id?C.blauw:C.muted,borderBottom:subTab===t.id?`3px solid ${C.blauw}`:"3px solid transparent",marginBottom:-2,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
@@ -388,13 +389,21 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
         ))}
       </div>
 
+      {/* Zoekbalk */}
+      <div style={{marginBottom:20}}>
+        <input value={zoek} onChange={e=>setZoek(e.target.value)}
+          placeholder="🔍 Zoek op naam medewerker..."
+          style={{width:"100%",background:"white",border:`1.5px solid ${zoek?C.blauw:C.border}`,borderRadius:8,color:C.text,padding:"9px 14px",fontSize:13,outline:"none",fontFamily:"inherit",boxSizing:"border-box",transition:"border .2s"}}/>
+        {zoek && <div style={{fontSize:12,color:C.muted,marginTop:5}}>Zoekresultaten voor "<strong>{zoek}</strong>"</div>}
+      </div>
+
       {subTab==="wekenoverzicht" && (
         <WekenOverzicht termijnen={termijnen} plannen={plannen} isBackoffice={isBackoffice} onVerwerk={verwerkTermijn} readonly={readonly}/>
       )}
       {subTab==="week" && (
         <WeekOverzicht
           onZetTerug={zetTermijnTerug}
-          dezeWeek={dezeWeek}
+          dezeWeek={dezeWeek.filter(t=>!zoek||t.naam_medewerker?.toLowerCase().includes(zoek.toLowerCase()))}
           volgendeWeek={volgendeWeek}
           plannen={plannen}
           huidigeWeek={huidigeWeek}
@@ -406,7 +415,7 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
       )}
       {subTab==="plannen" && (
         <PlannenOverzicht
-          plannen={plannen.filter(p=>p.status==="actief")}
+          plannen={plannen.filter(p=>p.status==="actief" && (!zoek || p.naam_medewerker?.toLowerCase().includes(zoek.toLowerCase())))}
           termijnen={termijnen}
           extras={extras}
           houses={houses}
@@ -426,14 +435,14 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
       )}
       {subTab==="terug" && (
         <TerugBetalen
-          extras={terug}
+          extras={terug.filter(e=>!zoek||e.naam_medewerker?.toLowerCase().includes(zoek.toLowerCase()))}
           plannen={plannen}
           isBackoffice={isBackoffice}
           onVerwerk={verwerkExtra}
         />
       )}
       {subTab==="archief" && (
-        <Archief plannen={plannen.filter(p=>p.status!=="actief")} termijnen={termijnen} extras={extras} houses={houses}/>
+        <Archief plannen={plannen.filter(p=>p.status!=="actief" && (!zoek||p.naam_medewerker?.toLowerCase().includes(zoek.toLowerCase())))} termijnen={termijnen} extras={extras} houses={houses}/>
       )}
     </div>
   );
