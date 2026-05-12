@@ -558,7 +558,7 @@ function WeekOverzicht({ dezeWeek, volgendeWeek, plannen, huidigeWeek, huidigJaa
             {t.status==="verwerkt" ? (
               <div style={{display:"flex",gap:6,alignItems:"center"}}>
                 <span style={{background:"#f0fdf4",color:C.groen,fontSize:11,fontWeight:700,padding:"4px 10px",borderRadius:20,border:"1px solid #bbf7d0"}}>✓ VERWERKT</span>
-                {isBackoffice && <button onClick={()=>onZetTerug(t.id)} title="Terugzetten" style={{background:"white",border:,color:C.oranje,borderRadius:6,padding:"4px 8px",fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>↩</button>}
+                {isBackoffice && <button onClick={()=>onZetTerug(t.id)} title="Terugzetten" style={{background:"white",border:`1px solid ${C.oranje}`,color:C.oranje,borderRadius:6,padding:"4px 8px",fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>↩</button>}
               </div>
             ) : isBackoffice && (
               <div>
