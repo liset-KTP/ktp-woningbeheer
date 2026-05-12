@@ -1618,6 +1618,39 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
   );
 }
 
+// ─── FOTO UPLOAD MELDING ─────────────────────────────────────────────────────
+function FotoUploadMelding({ melding: m, gebruiker }) {
+  const [bestanden, setBestanden] = useState([]);
+  const [uploading, setUploading] = useState(false);
+
+  async function upload() {
+    if (!bestanden.length) return;
+    setUploading(true);
+    const urls = await uploadBijlages(bestanden, `meldingen/${m.id}`);
+    const bestaand = m.bijlages || [];
+    await supabase.from("meldingen").update({ bijlages: [...bestaand, ...urls] }).eq("id", m.id);
+    setBestanden([]);
+    setUploading(false);
+  }
+
+  return (
+    <div style={{marginTop:6}}>
+      <BijlageUploader bestanden={bestanden} setBestanden={setBestanden} label="📷 Foto/document toevoegen"/>
+      {bestanden.length > 0 && (
+        <button onClick={upload} disabled={uploading}
+          style={{background:C.blauw,color:"white",border:"none",borderRadius:8,padding:"7px 16px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit",marginTop:8}}>
+          {uploading ? "⏳ Uploaden..." : `⬆ ${bestanden.length} bestand${bestanden.length>1?"en":""} uploaden`}
+        </button>
+      )}
+      {(m.bijlages||[]).length > 0 && (
+        <div style={{marginTop:6}}>
+          <BijlageWeergave bijlages={m.bijlages}/>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── MELDING KAART COMBINED ───────────────────────────────────────────────────
 function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isHuismeester, onUpdate, showToast, taal="nl" }) {
   const huis = houses.find(h=>h.id===m.woning_id);
@@ -1851,25 +1884,7 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
       </div>
 
       {/* Foto toevoegen */}
-      <div style={{marginTop:6}}>
-        <BijlageUploader
-          bucket="bijlages"
-          pad={`meldingen/${m.id}`}
-          label="📷 Foto/document toevoegen"
-          onUpload={async (urls) => {
-            const bestaand = m.bijlages || [];
-            await supabase.from("meldingen").update({
-              bijlages: [...bestaand, ...urls]
-            }).eq("id", m.id);
-          }}
-          compact={true}
-        />
-        {(m.bijlages||[]).length > 0 && (
-          <div style={{marginTop:6}}>
-            <BijlageWeergave bijlages={m.bijlages}/>
-          </div>
-        )}
-      </div>
+      <FotoUploadMelding melding={m} gebruiker={gebruiker}/>
 
       {/* Opmerking toevoegen — voor iedereen, ook na afhandeling */}
       <div style={{marginTop:8}}>
