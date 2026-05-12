@@ -317,7 +317,7 @@ export function FietsModule({ gebruiker, showToast }) {
     { id:"overzicht", label:"🚲 Overzicht" },
     { id:"uitgifte",  label:"📋 Uitgifte / Inname" },
     { id:"log",       label:"📝 Log" },
-    ...(isBackoffice ? [{ id:"borg", label:`💰 Borg${openBorg.length > 0 ? ` (${openBorg.length})` : ""}` }] : []),
+    // Borg tab verwijderd - staat bij Inhoudingen
     ...(magBeheren ? [{ id:"beheer", label:"⚙️ Beheer" }] : []),
   ];
 
@@ -340,21 +340,6 @@ export function FietsModule({ gebruiker, showToast }) {
       {subTab === "overzicht"  && <FietsOverzicht fietsen={fietsen} />}
       {subTab === "uitgifte"   && <FietsUitgifte fietsen={fietsen} gebruiker={gebruiker} onUitgifte={registreerUitgifte} onInname={registreerInname} showToast={showToast} />}
       {subTab === "log"        && <FietsLogView log={fietsLog} fietsen={fietsen} />}
-      {subTab === 'borg' && isBackoffice && <FietsBorg borgmeldingen={borgmeldingen} gebruiker={gebruiker} onVerwerk={async (id) => {
-          const bm = borgmeldingen.find(b => b.id === id);
-          await supabase.from('fiets_borgmeldingen').update({status:'verwerkt', afgehandeld_door: gebruiker.naam, afgehandeld_op: new Date().toISOString()}).eq('id', id);
-          stuurMail({
-            type: bm?.actie === 'borg_inhouden' ? '💰 Borg ingehouden' : '💶 Borg terugbetaald',
-            type_icon: bm?.actie === 'borg_inhouden' ? '💰' : '💶',
-            medewerker: bm?.naam_medewerker || '—',
-            woning: 'Fiets ' + (bm?.fietsnummer || '—'),
-            kamer: '—',
-            datum: new Date().toISOString().slice(0,10),
-            ingediend_door: gebruiker.naam,
-            opmerkingen: bm?.bericht || '—',
-          });
-          showToast('✓ Borgmelding verwerkt'); await loadBorgmeldingen();
-        }} />}
       {subTab === "beheer" && magBeheren && <FietsBeheer fietsen={fietsen} onAdd={addFiets} onUpdate={updateFiets} onDelete={deleteFiets} showToast={showToast} />}
     </div>
   );
