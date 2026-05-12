@@ -2526,7 +2526,7 @@ function ChecklistView({ houses, checklists, checklistItems, onSave, gebruiker }
   const isBackoffice = gebruiker?.rol==="backoffice";
   const isHuismeester = gebruiker?.rol==="huismeester";
 
-  const [actief, setActief] = useState(isBackoffice ? "rapportage" : "wekelijks");
+  const [actief, setActief] = useState("wekelijks");
   const [geselecteerdeWoning, setGeselecteerdeWoning] = useState(isHuismeester ? (houses[0]?.id?.toString()||"all") : "all");
   const [saving, setSaving] = useState(false);
   const [toonHistorie, setToonHistorie] = useState(false);
@@ -2580,109 +2580,12 @@ function ChecklistView({ houses, checklists, checklistItems, onSave, gebruiker }
 
   const geselecteerdeHuis = houses.find(h=>h.id===Number(geselecteerdeWoning));
 
-  const alleWeken = [...new Set(checklists.map(c=>c.week_jaar))].sort().reverse();
-  const [rapWeek, setRapWeek] = useState(alleWeken[0]||"");
-
-  function exportRapportageCSV() {
-    const weekCL = checklists.filter(c=>c.week_jaar===rapWeek&&c.type==="wekelijks");
-    const alleItems = checklistItems.filter(i=>i.type==="wekelijks"&&i.actief);
-    let csv = "Woning,Stad,Week,Item,Afgevinkt,Bijgewerkt door\n";
-    houses.forEach(h=>{
-      const cl = weekCL.find(c=>c.woning_id===h.id);
-      alleItems.forEach(item=>{
-        const af = cl?.items?.includes(item.id)||cl?.items?.includes(item.tekst) ? "Ja" : "Nee";
-        csv += `"${h.adres}","${h.stad}","${rapWeek}","${item.tekst}","${af}","${cl?.bijgewerkt_door||""}"\n`;
-      });
-    });
-    const blob = new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a"); a.href=url; a.download=`checklist_${rapWeek}.csv`; a.click(); URL.revokeObjectURL(url);
-  }
 
   return (
     <div>
       <SH titel="✅ Checklists" sub="SNF-gecertificeerde controles per woning" />
 
-      {actief==="rapportage" && (
-        <div>
-          <div style={{display:"flex",gap:12,alignItems:"flex-end",marginBottom:20,flexWrap:"wrap"}}>
-            <div>
-              <label style={{fontSize:12,fontWeight:700,color:C.muted,display:"block",marginBottom:4}}>Week selecteren</label>
-              <select value={rapWeek} onChange={e=>setRapWeek(e.target.value)}
-                style={{padding:"9px 14px",borderRadius:8,border:`1.5px solid ${C.border}`,fontSize:13,fontFamily:"inherit",background:"white",color:C.text,minWidth:180}}>
-                {alleWeken.map(w=><option key={w} value={w}>{w}</option>)}
-              </select>
-            </div>
-            <button onClick={exportRapportageCSV}
-              style={{background:C.groen,color:"white",border:"none",borderRadius:8,padding:"9px 18px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-              ⬇ Exporteer CSV
-            </button>
-          </div>
-          {(()=>{
-            const weekCL = checklists.filter(c=>c.week_jaar===rapWeek&&c.type==="wekelijks");
-            const alleItems = checklistItems.filter(i=>i.type==="wekelijks"&&i.actief);
-            const gecontroleerd = houses.filter(h=>weekCL.find(c=>c.woning_id===h.id&&c.items?.length>0)).length;
-            return (
-              <div>
-                <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:20}}>
-                  {[
-                    {label:"Woningen gecontroleerd",val:`${gecontroleerd}/${houses.length}`,kleur:C.groen},
-                    {label:"Niet gecontroleerd",val:houses.length-gecontroleerd,kleur:"#ef4444"},
-                    {label:"Gem. items afgevinkt",val:weekCL.length>0?`${Math.round(weekCL.reduce((s,c)=>s+(c.items?.length||0),0)/weekCL.length)}/${alleItems.length}`:"—",kleur:C.blauw},
-                  ].map((s,i)=>(
-                    <div key={i} style={{background:"white",border:`1px solid ${C.border}`,borderRadius:10,padding:"14px 18px",borderTop:`4px solid ${s.kleur}`}}>
-                      <div style={{fontSize:22,fontWeight:800,color:s.kleur}}>{s.val}</div>
-                      <div style={{fontSize:12,color:C.muted,marginTop:2}}>{s.label}</div>
-                    </div>
-                  ))}
-                </div>
-                <div style={{background:"white",border:`1px solid ${C.border}`,borderRadius:12,overflow:"hidden",marginBottom:20}}>
-                  <div style={{display:"grid",gridTemplateColumns:"1fr 120px 100px",padding:"10px 16px",fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".5px",textTransform:"uppercase",borderBottom:`1px solid ${C.border}`,background:C.bg}}>
-                    <span>Woning</span><span style={{textAlign:"center"}}>Afgevinkt</span><span style={{textAlign:"center"}}>Door</span>
-                  </div>
-                  {houses.map((h,i)=>{
-                    const cl = weekCL.find(c=>c.woning_id===h.id);
-                    const aantalAf = cl?.items?.length||0;
-                    const totaal = alleItems.length;
-                    const pct = totaal>0?Math.round(aantalAf/totaal*100):0;
-                    const kleur = pct===100?C.groen:pct>50?"#f59e0b":"#ef4444";
-                    const gemist = cl&&aantalAf<totaal ? alleItems.filter(item=>!cl?.items?.includes(item.id)&&!cl?.items?.includes(item.tekst)).map(i=>i.tekst) : [];
-                    return (
-                      <div key={h.id} style={{display:"grid",gridTemplateColumns:"1fr 120px 100px",padding:"12px 16px",borderBottom:i<houses.length-1?`1px solid ${C.border}`:"none",alignItems:"center",background:i%2===0?"white":C.bg+"40"}}>
-                        <div>
-                          <div style={{fontWeight:600,fontSize:13,color:C.text}}>{h.adres}, {h.stad}</div>
-                          {!cl&&<div style={{fontSize:11,color:"#ef4444",marginTop:2}}>⚠️ Niet gecontroleerd deze week</div>}
-                          {gemist.length>0&&<div style={{fontSize:11,color:"#ef4444",marginTop:2}}>Niet gedaan: {gemist.join(", ").slice(0,100)}{gemist.join(", ").length>100?"...":""}</div>}
-                        </div>
-                        <div style={{textAlign:"center"}}>
-                          <span style={{fontWeight:700,color:kleur,fontSize:13}}>{aantalAf}/{totaal}</span>
-                          <div style={{height:4,background:"#e5e7eb",borderRadius:2,marginTop:4,marginInline:"auto",maxWidth:80}}>
-                            <div style={{height:"100%",background:kleur,borderRadius:2,width:`${pct}%`}}/>
-                          </div>
-                        </div>
-                        <div style={{textAlign:"center",fontSize:12,color:C.muted}}>{cl?.bijgewerkt_door||"—"}</div>
-                      </div>
-                    );
-                  })}
-                </div>
-                {alleWeken.length>1&&(
-                  <div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:12,padding:16}}>
-                    <div style={{fontWeight:700,fontSize:14,color:"#ef4444",marginBottom:10}}>⚠️ Structureel niet gedaan (laatste {Math.min(alleWeken.length,4)} weken)</div>
-                    {alleItems.map(item=>{
-                      const gemist = alleWeken.slice(0,4).filter(w=>{
-                        const wCL = checklists.filter(c=>c.week_jaar===w&&c.type==="wekelijks");
-                        return wCL.some(c=>!c.items?.includes(item.id)&&!c.items?.includes(item.tekst));
-                      }).length;
-                      if(gemist<2) return null;
-                      return (<div key={item.id} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:"1px solid #fecaca",fontSize:13}}><span>{item.tekst}</span><span style={{fontWeight:700,color:"#ef4444"}}>{gemist}x gemist</span></div>);
-                    })}
-                  </div>
-                )}
-              </div>
-            );
-          })()}
-        </div>
-      )}
+      
 
       {/* Type selector */}
       <div style={{display:"flex",gap:10,marginBottom:20,flexWrap:"wrap"}}>
@@ -2707,23 +2610,22 @@ function ChecklistView({ houses, checklists, checklistItems, onSave, gebruiker }
       </div>
 
       {/* Checklist voor geselecteerde woning */}
-      {actief !== "rapportage" && (
-      <div className="card" style={{borderTop:`4px solid ${(typeInfo[actief]||{kleur:C.blauw}).kleur}`,marginBottom:16}}>
+      <div className="card" style={{borderTop:`4px solid ${typeInfo[actief]?.kleur||C.blauw}`,marginBottom:16}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
           <div>
-            <div style={{fontWeight:800,fontSize:16,color:(typeInfo[actief]||{kleur:C.blauw}).kleur}}>{(typeInfo[actief]||{icon:"📋"}).icon} {(typeInfo[actief]||{label:actief}).label} — {(typeInfo[actief]||{periode:""}).periode}</div>
+            <div style={{fontWeight:800,fontSize:16,color:typeInfo[actief]?.kleur||C.blauw}}>{typeInfo[actief]?.icon||"📋"} {typeInfo[actief]?.label||actief} — {typeInfo[actief]?.periode||""}</div>
             <div style={{fontSize:13,color:C.muted,marginTop:2}}>
               {geselecteerdeHuis ? `${geselecteerdeHuis.adres}, ${geselecteerdeHuis.stad}` : "Alle woningen"}
             </div>
           </div>
           <div style={{textAlign:"right"}}>
-            <div style={{fontSize:28,fontWeight:800,color:pct===100?C.groen:(typeInfo[actief]||{kleur:C.blauw}).kleur}}>{pct}%</div>
+            <div style={{fontSize:28,fontWeight:800,color:pct===100?C.groen:typeInfo[actief]?.kleur||C.blauw}}>{pct}%</div>
             <div style={{fontSize:11,color:C.muted}}>{afgevinkt.length}/{lijst.length} gedaan</div>
           </div>
         </div>
 
         <div style={{background:C.bg,borderRadius:99,height:8,marginBottom:20,overflow:"hidden"}}>
-          <div style={{height:"100%",background:pct===100?C.groen:(typeInfo[actief]||{kleur:C.blauw}).kleur,borderRadius:99,width:`${pct}%`,transition:"width .3s"}}/>
+          <div style={{height:"100%",background:pct===100?C.groen:typeInfo[actief]?.kleur||C.blauw,borderRadius:99,width:`${pct}%`,transition:"width .3s"}}/>
         </div>
 
         {lijst.length === 0 ? (
@@ -2796,7 +2698,6 @@ function ChecklistView({ houses, checklists, checklistItems, onSave, gebruiker }
             </div>
           )}
         </div>
-      )}
       )}
     </div>
   );
