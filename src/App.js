@@ -133,6 +133,19 @@ export default function App() {
     setOngelzenAutoReacties(data?.length || 0);
   }, []);
 
+  // Keep-alive: ping database elke 3 dagen zodat Supabase niet pauzeert
+  useEffect(() => {
+    const keepAlive = async () => {
+      try {
+        await supabase.from("gebruikers").select("id").limit(1);
+        console.log("✓ Supabase keep-alive ping");
+      } catch(e) { console.log("Keep-alive mislukt:", e); }
+    };
+    keepAlive(); // Direct bij opstarten
+    const interval = setInterval(keepAlive, 1000 * 60 * 60 * 24 * 3); // elke 3 dagen
+    return () => clearInterval(interval);
+  }, []);
+
   const loadDagplanning = useCallback(async () => {
     const { data, error } = await supabase.from("dagplanning").select("*").order("volgorde");
     if (error) { console.error("dagplanning:", error); return; }
@@ -394,7 +407,7 @@ export default function App() {
     const huis = houses.find(h=>h.id===m?.woning_id);
     const { error } = await supabase.from("meldingen").update({status:newStatus,afgehandeld_door:gebruiker.naam,afgehandeld_op:new Date().toISOString(),notitie:notitie||null}).eq("id",id);
     if (error) showToast("Fout bij updaten","err");
-    else { try {
+    else {
       showToast("✓ Status bijgewerkt");
       await loadMeldingen();
       const statusTekst = newStatus==="afgehandeld"?"✅ Afgehandeld":newStatus==="verwerkt"?"📋 Verwerkt":newStatus==="in_behandeling"?"🔄 In behandeling":"📝 Status gewijzigd";
@@ -414,7 +427,7 @@ export default function App() {
       }
 
       // Als aankomst verwerkt wordt → automatisch borgplan aanmaken
-      if ((newStatus==="verwerkt"||newStatus==="afgehandeld") && m?.type==="aankomst") { try {
+      if ((newStatus==="verwerkt"||newStatus==="afgehandeld") && m?.type==="aankomst") {
         const sleutels = m.sleutel_aantal || 1;
         // Check of er al een borgplan bestaat voor deze persoon + kamer
         const { data: bestaand } = await supabase.from("borg_plannen")
@@ -521,7 +534,6 @@ export default function App() {
             }
           }
         } // end if bestaand else
-      } catch(borgErr) { console.error("Borgplan error:", borgErr); }
       }
 
       // Als er een notitie is → stuur bericht naar collega die de melding heeft ingediend
@@ -558,7 +570,6 @@ export default function App() {
           await loadHouses();
         }
       }
-    } catch(err) { console.error("updateMelding error:", err); showToast("Fout: "+err.message,"err"); }
     }
   }
 
