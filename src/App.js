@@ -331,7 +331,7 @@ export default function App() {
         if (k.k!==m.kamer) return k;
         if (m.type==="aankomst")    return {...k,naam:m.medewerker,status:"Lopend"};
         if (m.type==="reservering") return {...k,naam:m.medewerker,status:"Gereserveerd"};
-        if (m.type==="vertrek") { const p=m.sleutelTerug==="nee"||m.kamerSchoon==="nee"; return {...k,naam:p?k.naam:"",status:p?"Controle":"Beschikbaar"}; }
+        if (m.type==="vertrek") { return {...k,status:"Controle"}; } // Altijd Controle tot huismeester heeft afgevinkt
         return k;
       });
       await supabase.from("woningen").update({kamers:nk}).eq("id",m.huisId);
@@ -392,6 +392,21 @@ export default function App() {
           aangemaakt_door: gebruiker.naam,
         },
       ]);
+    }
+
+    // Bij vertrek: automatisch controletaak voor huismeester
+    if (m.type === "vertrek") {
+      const sleutels = m.sleutelAantal || 1;
+      await supabase.from("taken").insert([{
+        titel: `Kamer controleren na vertrek — ${m.medewerker}`,
+        omschrijving: `${m.medewerker} is vertrokken uit K${m.kamer}. Controleer: kamer schoon + ${sleutels} sleutel${sleutels>1?"s":""} ingeleverd. Daarna kamer op Beschikbaar zetten.`,
+        woning_id: m.huisId || null,
+        kamer: m.kamer || null,
+        prioriteit: "hoog",
+        voor_rol: "huismeester",
+        status: "open",
+        aangemaakt_door: gebruiker.naam,
+      }]);
     }
 
     showToast("✓ Melding verzonden");
@@ -2058,7 +2073,17 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                           const alleKeys = ["schoon","sleutel1"];
                           const alleAfgevinkt = alleKeys.every(k => nieuwNotitie.includes("[✓ "+k+"]"));
                           if (alleAfgevinkt) {
-                            const medewerkerNaam = t.titel?.replace("Kamer controleren na verhuizing — ","") || "";
+                            const isVertrek = t.titel?.includes("na vertrek");
+                            const medewerkerNaam = t.titel?.replace("Kamer controleren na verhuizing — ","").replace("Kamer controleren na vertrek — ","") || "";
+                            
+                            // Bij vertrek: kamer op Beschikbaar zetten
+                            if (isVertrek && t.woning_id && t.kamer) {
+                              const woning = houses.find(h=>h.id===t.woning_id);
+                              if (woning) {
+                                const nk = woning.kamers.map(k=>k.k===t.kamer?{...k,status:"Beschikbaar",naam:""}:k);
+                                await supabase.from("woningen").update({kamers:nk}).eq("id",woning.id);
+                              }
+                            }
 
                             // 1. Bericht naar backoffice
                             await supabase.from("berichten").insert([{
