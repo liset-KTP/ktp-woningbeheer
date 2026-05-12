@@ -1566,7 +1566,7 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
               {gefilterdeMeldingen.map(m => (
                 <MeldingKaartCombined key={m.id} melding={m} houses={houses} gebruiker={gebruiker}
                   isBackoffice={isBackoffice} isHuismeester={isHuismeester}
-                  onUpdate={onUpdateMelding} showToast={showToast}/>
+                  onUpdate={onUpdateMelding} showToast={showToast} taal={taal}/>
               ))}
             </div>
           )}
@@ -1604,7 +1604,7 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
 }
 
 // ─── MELDING KAART COMBINED ───────────────────────────────────────────────────
-function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isHuismeester, onUpdate, showToast }) {
+function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isHuismeester, onUpdate, showToast, taal="nl" }) {
   const huis = houses.find(h=>h.id===m.woning_id);
   const [toonNotitie, setToonNotitie] = useState(false);
   const [notitie, setNotitie] = useState("");
@@ -1653,7 +1653,7 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
             </div>
             {m.datum && (
               <div style={{fontSize:13,fontWeight:700,color:kleur,marginTop:3}}>
-                📅 {m.type==="aankomst"?"Aankomst":m.type==="vertrek"?"Vertrek":m.type==="reservering"?"Aankomst (reservering)":vertaal("datum",taal)}: {fmtDate(m.datum)}
+                📅 {m.type==="aankomst"?"Aankomst":m.type==="vertrek"?"Vertrek":m.type==="reservering"?"Aankomst (reservering)":"Datum"}: {fmtDate(m.datum)}
               </div>
             )}
             <div style={{fontSize:11,color:C.muted,marginTop:1}}>
