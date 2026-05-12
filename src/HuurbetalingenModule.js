@@ -236,6 +236,8 @@ function SchuldenLijst({ schulden, gebruiker, isBackoffice, onBetaling, onAfslui
 
 // ─── SCHULD KAART ─────────────────────────────────────────────────────────────
 function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerking, showToast, readonly, gebruiker }) {
+  const [toonStopzetten, setToonStopzetten] = useState(false);
+  const [stopDatum, setStopDatum] = useState("");
   const [toonBetalingen, setToonBetalingen] = useState(false);
   const [toonBetalingForm, setToonBetalingForm] = useState(false);
   const [toonExtraForm, setToonExtraForm] = useState(false);
@@ -474,10 +476,34 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerkin
                 style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"9px 14px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
                 💬 Opmerking
               </button>
-              {openstaand === 0 && (
-                <button onClick={()=>{if(window.confirm("Schuld afsluiten?")) onAfsluiten(schuld.id);}}
-                  style={{background:"white",border:`1.5px solid ${C.groen}`,color:C.groen,borderRadius:8,padding:"9px 14px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                  ✓ Afsluiten
+              {toonStopzetten ? (
+                <div style={{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:10,padding:12,minWidth:280}}>
+                  <div style={{fontSize:12,fontWeight:700,color:C.groen,marginBottom:8}}>📅 Einddatum instellen</div>
+                  <div style={{fontSize:12,color:C.muted,marginBottom:8}}>De huur wordt berekend t/m deze datum. Daarna stopt de opbouw.</div>
+                  <input type="date" value={stopDatum} onChange={e=>setStopDatum(e.target.value)}
+                    style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1.5px solid ${C.border}`,fontSize:13,fontFamily:"inherit",background:"white",color:C.text,boxSizing:"border-box",marginBottom:8}}/>
+                  <div style={{display:"flex",gap:8}}>
+                    <button onClick={async()=>{
+                      if(!stopDatum){showToast("Vul een einddatum in","err");return;}
+                      await supabase.from("huurschulden").update({
+                        einddatum: stopDatum,
+                        actief: false,
+                      }).eq("id",schuld.id);
+                      showToast("✓ Einddatum ingesteld — huur stopt op "+fmtDate(new Date(stopDatum)));
+                      setToonStopzetten(false);
+                    }} style={{background:C.groen,color:"white",border:"none",borderRadius:8,padding:"7px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                      ✓ Opslaan
+                    </button>
+                    <button onClick={()=>setToonStopzetten(false)}
+                      style={{background:"white",border:`1px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"7px 12px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>
+                      Annuleren
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button onClick={()=>{setToonStopzetten(true);setStopDatum(new Date().toISOString().slice(0,10));}}
+                  style={{background:"white",border:`1.5px solid ${C.oranje}`,color:C.oranje,borderRadius:8,padding:"9px 14px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                  🛑 Stopzetten
                 </button>
               )}
             </div>
