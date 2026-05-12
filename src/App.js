@@ -2707,22 +2707,23 @@ function ChecklistView({ houses, checklists, checklistItems, onSave, gebruiker }
       </div>
 
       {/* Checklist voor geselecteerde woning */}
-      <div className="card" style={{borderTop:`4px solid ${typeInfo[actief].kleur}`,marginBottom:16}}>
+      {actief !== "rapportage" && (
+      <div className="card" style={{borderTop:`4px solid ${(typeInfo[actief]||{kleur:C.blauw}).kleur}`,marginBottom:16}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
           <div>
-            <div style={{fontWeight:800,fontSize:16,color:typeInfo[actief].kleur}}>{typeInfo[actief].icon} {typeInfo[actief].label} — {typeInfo[actief].periode}</div>
+            <div style={{fontWeight:800,fontSize:16,color:(typeInfo[actief]||{kleur:C.blauw}).kleur}}>{(typeInfo[actief]||{icon:"📋"}).icon} {(typeInfo[actief]||{label:actief}).label} — {(typeInfo[actief]||{periode:""}).periode}</div>
             <div style={{fontSize:13,color:C.muted,marginTop:2}}>
               {geselecteerdeHuis ? `${geselecteerdeHuis.adres}, ${geselecteerdeHuis.stad}` : "Alle woningen"}
             </div>
           </div>
           <div style={{textAlign:"right"}}>
-            <div style={{fontSize:28,fontWeight:800,color:pct===100?C.groen:typeInfo[actief].kleur}}>{pct}%</div>
+            <div style={{fontSize:28,fontWeight:800,color:pct===100?C.groen:(typeInfo[actief]||{kleur:C.blauw}).kleur}}>{pct}%</div>
             <div style={{fontSize:11,color:C.muted}}>{afgevinkt.length}/{lijst.length} gedaan</div>
           </div>
         </div>
 
         <div style={{background:C.bg,borderRadius:99,height:8,marginBottom:20,overflow:"hidden"}}>
-          <div style={{height:"100%",background:pct===100?C.groen:typeInfo[actief].kleur,borderRadius:99,width:`${pct}%`,transition:"width .3s"}}/>
+          <div style={{height:"100%",background:pct===100?C.groen:(typeInfo[actief]||{kleur:C.blauw}).kleur,borderRadius:99,width:`${pct}%`,transition:"width .3s"}}/>
         </div>
 
         {lijst.length === 0 ? (
@@ -2795,6 +2796,7 @@ function ChecklistView({ houses, checklists, checklistItems, onSave, gebruiker }
             </div>
           )}
         </div>
+      )}
       )}
     </div>
   );
