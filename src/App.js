@@ -1628,6 +1628,8 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
   const [inplanOpmerking, setInplanOpmerking] = useState("");
   const [toonOpmerkingCollega, setToonOpmerkingCollega] = useState(false);
   const [opmerkingCollega, setOpmerkingCollega] = useState("");
+  const [toonBewerk, setToonBewerk] = useState(false);
+  const [bewerkData, setBewerkData] = useState({});
 
   const typeKleur = {aankomst:C.groen,vertrek:"#7c3aed",reservering:C.blauw,overig:C.oranje,verhuizing:"#0891b2"};
   const typeIcon = {aankomst:"🏠",vertrek:"📦",reservering:"📅",overig:"📝",verhuizing:"🔄"};
@@ -1738,6 +1740,116 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
           )}
         </div>
       )}
+      {/* Bewerken knop */}
+      <div style={{marginTop:6}}>
+        {toonBewerk ? (
+          <div style={{background:C.bg,border:`1.5px solid ${C.blauw}`,borderRadius:12,padding:14,marginBottom:8}}>
+            <div style={{fontWeight:700,fontSize:13,color:C.blauw,marginBottom:12}}>✏️ Melding bewerken</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+              <div>
+                <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>Type</label>
+                <select value={bewerkData.type||m.type} onChange={e=>setBewerkData(p=>({...p,type:e.target.value}))}
+                  style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1.5px solid ${C.border}`,fontSize:13,fontFamily:"inherit",background:"white",color:C.text}}>
+                  {["aankomst","vertrek","reservering","verhuizing","overig"].map(t=><option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>Datum</label>
+                <input type="date" value={bewerkData.datum||m.datum||""} onChange={e=>setBewerkData(p=>({...p,datum:e.target.value}))}
+                  style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1.5px solid ${C.border}`,fontSize:13,fontFamily:"inherit",background:"white",color:C.text,boxSizing:"border-box"}}/>
+              </div>
+              <div>
+                <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>Naam medewerker</label>
+                <input value={bewerkData.medewerker??m.medewerker} onChange={e=>setBewerkData(p=>({...p,medewerker:e.target.value}))}
+                  style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1.5px solid ${C.border}`,fontSize:13,fontFamily:"inherit",background:"white",color:C.text,boxSizing:"border-box"}}/>
+              </div>
+              <div>
+                <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>Kamer</label>
+                <input value={bewerkData.kamer??m.kamer} onChange={e=>setBewerkData(p=>({...p,kamer:e.target.value}))}
+                  style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1.5px solid ${C.border}`,fontSize:13,fontFamily:"inherit",background:"white",color:C.text,boxSizing:"border-box"}}/>
+              </div>
+              <div>
+                <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>Woning</label>
+                <select value={bewerkData.woning_id||m.woning_id||""} onChange={e=>setBewerkData(p=>({...p,woning_id:Number(e.target.value)}))}
+                  style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1.5px solid ${C.border}`,fontSize:13,fontFamily:"inherit",background:"white",color:C.text}}>
+                  <option value="">— Geen woning —</option>
+                  {houses.map(h=><option key={h.id} value={h.id}>{h.adres}, {h.stad}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>Sleutels</label>
+                <select value={bewerkData.sleutel_aantal??m.sleutel_aantal??1} onChange={e=>setBewerkData(p=>({...p,sleutel_aantal:Number(e.target.value)}))}
+                  style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1.5px solid ${C.border}`,fontSize:13,fontFamily:"inherit",background:"white",color:C.text}}>
+                  <option value={0}>0</option><option value={1}>1</option><option value={2}>2</option>
+                </select>
+              </div>
+            </div>
+            <div style={{marginBottom:10}}>
+              <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>Opmerkingen</label>
+              <textarea value={bewerkData.opmerkingen??m.opmerkingen??""} onChange={e=>setBewerkData(p=>({...p,opmerkingen:e.target.value}))}
+                rows={2} style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1.5px solid ${C.border}`,fontSize:13,fontFamily:"inherit",background:"white",color:C.text,resize:"vertical",boxSizing:"border-box"}}/>
+            </div>
+            <div style={{marginBottom:10}}>
+              <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>Reden wijziging *</label>
+              <input value={bewerkData._reden||""} onChange={e=>setBewerkData(p=>({...p,_reden:e.target.value}))}
+                placeholder="bijv. verkeerde kamer ingevuld, datum gecorrigeerd..." autoFocus
+                style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1.5px solid ${C.border}`,fontSize:13,fontFamily:"inherit",background:"white",color:C.text,boxSizing:"border-box"}}/>
+            </div>
+            <div style={{display:"flex",gap:8}}>
+              <button onClick={async()=>{
+                if(!bewerkData._reden?.trim()){alert("Vul een reden in voor de wijziging");return;}
+                const nu = new Date();
+                const datum = nu.toLocaleDateString("nl-NL");
+                const tijd = nu.toLocaleTimeString("nl-NL",{hour:"2-digit",minute:"2-digit"});
+                // Bouw wijziging log
+                const oudeWijzigingen = m.wijzigingen || [];
+                const wijzigingEntry = {
+                  door: gebruiker.naam,
+                  op: `${datum} ${tijd}`,
+                  reden: bewerkData._reden.trim(),
+                  oud: {type:m.type,datum:m.datum,medewerker:m.medewerker,kamer:m.kamer,woning_id:m.woning_id,opmerkingen:m.opmerkingen,sleutel_aantal:m.sleutel_aantal},
+                };
+                const {_reden, ...updates} = bewerkData;
+                await supabase.from("meldingen").update({
+                  ...updates,
+                  wijzigingen: [...oudeWijzigingen, wijzigingEntry],
+                }).eq("id",m.id);
+                setToonBewerk(false);
+                setBewerkData({});
+              }}
+                style={{background:C.blauw,color:"white",border:"none",borderRadius:8,padding:"8px 18px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                ✓ Opslaan
+              </button>
+              <button onClick={()=>{setToonBewerk(false);setBewerkData({});}}
+                style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"8px 14px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
+                Annuleren
+              </button>
+            </div>
+            {/* Wijzigingshistorie */}
+            {(m.wijzigingen||[]).length > 0 && (
+              <div style={{marginTop:14,borderTop:`1px solid ${C.border}`,paddingTop:10}}>
+                <div style={{fontSize:11,fontWeight:700,color:C.muted,marginBottom:6}}>📋 WIJZIGINGSHISTORIE</div>
+                {[...(m.wijzigingen||[])].reverse().map((w,i)=>(
+                  <div key={i} style={{fontSize:11,color:C.muted,padding:"4px 0",borderBottom:`1px solid ${C.border}`}}>
+                    <span style={{fontWeight:600,color:C.text}}>{w.door}</span> · {w.op} · {w.reden}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div style={{display:"flex",gap:12,alignItems:"center"}}>
+            <button onClick={()=>{setToonBewerk(true);setBewerkData({});}}
+              style={{background:"none",border:"none",color:C.muted,fontSize:12,cursor:"pointer",fontFamily:"inherit",padding:"4px 0",textDecoration:"underline"}}>
+              ✏️ Bewerken
+            </button>
+            {(m.wijzigingen||[]).length > 0 && (
+              <span style={{fontSize:11,color:C.muted}}>({m.wijzigingen.length}x gewijzigd)</span>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Opmerking toevoegen — voor iedereen, ook na afhandeling */}
       <div style={{marginTop:8}}>
         {toonOpmerkingCollega ? (
