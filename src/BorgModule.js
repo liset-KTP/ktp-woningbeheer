@@ -389,8 +389,8 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
         />
       )}
 
-      {/* Tabs */}
-      <div style={{display:"flex",gap:6,marginBottom:16,borderBottom:`2px solid ${C.border}`,overflowX:"auto",scrollbarWidth:"none"}}>
+      {/* Tabs — sticky */}
+      <div style={{display:"flex",gap:6,marginBottom:16,borderBottom:`2px solid ${C.border}`,overflowX:"auto",scrollbarWidth:"none",position:"sticky",top:0,zIndex:50,background:"white",paddingTop:8}}>
         {tabs.map(t=>(
           <button key={t.id} onClick={()=>setSubTab(t.id)}
             style={{background:"none",border:"none",padding:"10px 18px",fontSize:13,fontWeight:700,color:subTab===t.id?C.blauw:C.muted,borderBottom:subTab===t.id?`3px solid ${C.blauw}`:"3px solid transparent",marginBottom:-2,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
