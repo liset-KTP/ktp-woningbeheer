@@ -198,6 +198,16 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
     await loadAll();
   }
 
+  async function zetExtraTerug(id) {
+    await supabase.from("borg_extra").update({
+      status: "open",
+      verwerkt_door: null,
+      verwerkt_op: null,
+    }).eq("id", id);
+    showToast("↩ Extra post teruggezet naar open");
+    await loadAll();
+  }
+
   async function zetTermijnTerug(id) {
     const termijn = termijnen.find(t => t.id === id);
     if (!termijn) return;
@@ -428,6 +438,7 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
           onSchuifWeekOp={schuifWeekOp}
           onArchiveer={archiveerPlan}
           onZetTerug={zetTermijnTerug}
+          onZetExtraTerug={zetExtraTerug}
           onWijzig={wijzigTermijn}
           readonly={readonly}
           showToast={showToast}
@@ -644,7 +655,7 @@ function WeekOverzicht({ dezeWeek, volgendeWeek, plannen, huidigeWeek, huidigJaa
 }
 
 // ─── PLANNEN OVERZICHT ────────────────────────────────────────────────────────
-function PlannenOverzicht({ plannen, termijnen, extras, houses, isBackoffice, onVoegExtraToe, onSluitAf, onVerwerkExtra, onVerwerk, onOpmerking, onSchuifWeekOp, onArchiveer, onZetTerug, onWijzig, readonly, showToast }) {
+function PlannenOverzicht({ plannen, termijnen, extras, houses, isBackoffice, onVoegExtraToe, onSluitAf, onVerwerkExtra, onVerwerk, onOpmerking, onSchuifWeekOp, onArchiveer, onZetTerug, onZetExtraTerug, onWijzig, readonly, showToast }) {
   return (
     <div style={{display:"grid",gap:16}}>
       {plannen.length === 0 && (
@@ -669,6 +680,7 @@ function PlannenOverzicht({ plannen, termijnen, extras, houses, isBackoffice, on
           onSchuifWeekOp={onSchuifWeekOp}
           onArchiveer={onArchiveer}
           onZetTerug={onZetTerug}
+          onZetExtraTerug={onZetExtraTerug}
           onWijzig={onWijzig}
           readonly={readonly}
         />
@@ -677,7 +689,7 @@ function PlannenOverzicht({ plannen, termijnen, extras, houses, isBackoffice, on
   );
 }
 
-function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraToe, onSluitAf, onVerwerkExtra, onVerwerk, onOpmerking, onSchuifWeekOp, onArchiveer, onZetTerug, onWijzig, readonly }) {
+function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraToe, onSluitAf, onVerwerkExtra, onVerwerk, onOpmerking, onSchuifWeekOp, onArchiveer, onZetTerug, onZetExtraTerug, onWijzig, readonly }) {
   const [toonDetails, setToonDetails] = useState(false);
   const [toonExtra, setToonExtra] = useState(false);
   const [toonOpmerkingForm, setToonOpmerkingForm] = useState(false);
@@ -802,6 +814,10 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
                     {e.status==="open" && isBackoffice && (
                       <button onClick={()=>onVerwerkExtra(e.id)}
                         style={{background:C.groen,color:"white",border:"none",borderRadius:6,padding:"4px 10px",fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>✓</button>
+                    )}
+                    {e.status==="verwerkt" && isBackoffice && (
+                      <button onClick={()=>onZetExtraTerug(e.id)} title="Terugzetten naar open"
+                        style={{background:"white",border:`1px solid ${C.oranje}`,color:C.oranje,borderRadius:6,padding:"4px 8px",fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>↩</button>
                     )}
                   </div>
                 </div>
