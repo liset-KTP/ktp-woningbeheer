@@ -71,7 +71,7 @@ function Input({ ...props }) {
 }
 
 // ─── HOOFD FIETS MODULE ───────────────────────────────────────────────────────
-export function FietsModule({ gebruiker, showToast }) {
+export function FietsModule({ gebruiker, showToast, houses = [], onMeldingIndienen }) {
   const [fietsen, setFietsen] = useState([]);
   const [fietsLog, setFietsLog] = useState([]);
   const [borgmeldingen, setBorgmeldingen] = useState([]);
@@ -80,6 +80,7 @@ export function FietsModule({ gebruiker, showToast }) {
 
   const isBackoffice = gebruiker?.rol === "backoffice";
   const isHuismeester = gebruiker?.rol === "huismeester";
+  const isCollega = !isBackoffice && !isHuismeester;
   const magBeheren = isBackoffice || isHuismeester;
 
   const loadFietsen = useCallback(async () => {
@@ -316,6 +317,7 @@ export function FietsModule({ gebruiker, showToast }) {
   const tabs = [
     { id:"overzicht", label:"🚲 Overzicht" },
     { id:"uitgifte",  label:"📋 Uitgifte / Inname" },
+    ...(isCollega ? [{ id:"reserveren", label:"📅 Reserveren" }] : []),
     { id:"log",       label:"📝 Log" },
     // Borg tab verwijderd - staat bij Inhoudingen
     ...(magBeheren ? [{ id:"beheer", label:"⚙️ Beheer" }] : []),
@@ -339,6 +341,7 @@ export function FietsModule({ gebruiker, showToast }) {
 
       {subTab === "overzicht"  && <FietsOverzicht fietsen={fietsen} />}
       {subTab === "uitgifte"   && <FietsUitgifte fietsen={fietsen} gebruiker={gebruiker} onUitgifte={registreerUitgifte} onInname={registreerInname} showToast={showToast} />}
+      {subTab === "reserveren" && <FietsReserveren fietsen={fietsen} gebruiker={gebruiker} showToast={showToast} onMeldingIndienen={onMeldingIndienen} />}
       {subTab === "log"        && <FietsLogView log={fietsLog} fietsen={fietsen} />}
       {subTab === "beheer" && magBeheren && <FietsBeheer fietsen={fietsen} onAdd={addFiets} onUpdate={updateFiets} onDelete={deleteFiets} showToast={showToast} />}
     </div>
@@ -831,6 +834,92 @@ function FietsBorg({ borgmeldingen, gebruiker, onVerwerk }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// ─── FIETS RESERVEREN (voor collega's) ────────────────────────────────────────
+function FietsReserveren({ fietsen, gebruiker, showToast, onMeldingIndienen }) {
+  const beschikbaar = fietsen.filter(f => f.status === "Beschikbaar");
+  const [geselecteerd, setGeselecteerd] = useState(null);
+  const [datum, setDatum] = useState("");
+  const [opmerking, setOpmerking] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [klaar, setKlaar] = useState(false);
+
+  async function reserveer() {
+    if (!geselecteerd) { showToast("Selecteer een fiets", "err"); return; }
+    if (!datum) { showToast("Vul een datum in", "err"); return; }
+    setSaving(true);
+    // Stuur als melding naar backoffice
+    if (onMeldingIndienen) {
+      await onMeldingIndienen({
+        type: "overig",
+        medewerker: gebruiker.naam,
+        datum,
+        opmerkingen: `Fietsreservering: fiets #${geselecteerd.fietsnummer}${geselecteerd.merk ? " ("+geselecteerd.merk+")" : ""}. ${opmerking}`.trim(),
+        voor_rol: "backoffice",
+        sleutelAantal: 0,
+      });
+    }
+    setSaving(false);
+    setKlaar(true);
+    setTimeout(() => { setKlaar(false); setGeselecteerd(null); setDatum(""); setOpmerking(""); }, 3000);
+  }
+
+  if (klaar) return (
+    <div style={{textAlign:"center",padding:"60px 20px"}}>
+      <div style={{fontSize:48,marginBottom:16}}>🚲✅</div>
+      <div style={{fontSize:18,fontWeight:700,color:C.groen,marginBottom:8}}>Reservering ingediend!</div>
+      <div style={{fontSize:14,color:C.muted}}>Backoffice verwerkt je aanvraag zo snel mogelijk.</div>
+    </div>
+  );
+
+  return (
+    <div style={{maxWidth:480}}>
+      <h3 style={{fontSize:16,fontWeight:700,color:C.blauw,marginBottom:4}}>🚲 Fiets reserveren</h3>
+      <p style={{fontSize:13,color:C.muted,marginBottom:20}}>Selecteer een beschikbare fiets en geef je gewenste datum op. Backoffice regelt de uitgifte.</p>
+
+      {beschikbaar.length === 0 ? (
+        <div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:10,padding:20,textAlign:"center",color:"#ef4444"}}>
+          😔 Er zijn momenteel geen beschikbare fietsen
+        </div>
+      ) : (
+        <>
+          <div style={{marginBottom:16}}>
+            <label style={{fontSize:12,fontWeight:700,color:C.muted,display:"block",marginBottom:8}}>Kies een fiets</label>
+            <div style={{display:"grid",gap:8}}>
+              {beschikbaar.map(f => (
+                <div key={f.id} onClick={() => setGeselecteerd(f)}
+                  style={{border:`2px solid ${geselecteerd?.id===f.id?C.blauw:C.border}`,borderRadius:10,padding:"12px 16px",cursor:"pointer",background:geselecteerd?.id===f.id?C.blauw+"10":"white",display:"flex",justifyContent:"space-between",alignItems:"center",transition:"all .15s"}}>
+                  <div>
+                    <span style={{fontWeight:700,color:C.text}}>Fiets #{f.fietsnummer}</span>
+                    {f.merk && <span style={{fontSize:12,color:C.muted,marginLeft:8}}>{f.merk}</span>}
+                  </div>
+                  <span style={{fontSize:11,fontWeight:700,color:C.groen,background:"#f0fdf4",padding:"2px 8px",borderRadius:8}}>Beschikbaar</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div style={{marginBottom:16}}>
+            <label style={{fontSize:12,fontWeight:700,color:C.muted,display:"block",marginBottom:6}}>Gewenste datum</label>
+            <input type="date" value={datum} onChange={e=>setDatum(e.target.value)} min={new Date().toISOString().slice(0,10)}
+              style={{width:"100%",padding:"10px 12px",borderRadius:8,border:`1.5px solid ${C.border}`,fontSize:13,fontFamily:"inherit",background:"white",color:C.text,boxSizing:"border-box"}}/>
+          </div>
+
+          <div style={{marginBottom:20}}>
+            <label style={{fontSize:12,fontWeight:700,color:C.muted,display:"block",marginBottom:6}}>Opmerking (optioneel)</label>
+            <textarea value={opmerking} onChange={e=>setOpmerking(e.target.value)} rows={2} placeholder="Bijv. voor hoe lang, bijzonderheden..."
+              style={{width:"100%",padding:"10px 12px",borderRadius:8,border:`1.5px solid ${C.border}`,fontSize:13,fontFamily:"inherit",background:"white",color:C.text,resize:"vertical",boxSizing:"border-box"}}/>
+          </div>
+
+          <button onClick={reserveer} disabled={saving || !geselecteerd || !datum}
+            style={{background:geselecteerd&&datum?C.blauw:"#ccc",color:"white",border:"none",borderRadius:10,padding:"12px 24px",fontSize:14,fontWeight:700,cursor:geselecteerd&&datum?"pointer":"not-allowed",fontFamily:"inherit",width:"100%"}}>
+            {saving ? "⏳ Bezig..." : "📅 Reservering indienen"}
+          </button>
+        </>
+      )}
     </div>
   );
 }
