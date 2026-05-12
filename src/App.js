@@ -800,7 +800,7 @@ export default function App() {
         {tab==="taken"&&<TakenMeldingenView taken={taken} meldingen={meldingen} houses={houses} gebruiker={gebruiker} onAddTaak={addTaak} onUpdateTaak={updateTaak} onAddMelding={addMelding} onUpdateMelding={updateMeldingStatus} showToast={showToast} taal={taal}/>}
         {tab==="woningen"&&<WoningenDetail houses={houses} onUpdateWoning={rol==="backoffice"||rol==="huismeester"?updateWoning:null}/>}
         {tab==="autos"&&<AutoModule gebruiker={gebruiker} showToast={showToast}/>}
-        {tab==="fietsen"&&<FietsModule gebruiker={gebruiker} showToast={showToast}/>}
+        {tab==="fietsen"&&<FietsModule gebruiker={gebruiker} showToast={showToast} houses={houses} onMeldingIndienen={addMelding}/>}
         {rol==="huismeester"&&tab==="dagplanning"&&<DagplanningView meldingen={meldingen} taken={taken} houses={houses} onUpdate={updateMeldingStatus} onUpdateTaak={updateTaak} naam={naam} dagplanningDB={dagplanningDB} checklistItems={checklistItems} checklists={checklists}/>}
         {tab==="checklist"&&<ChecklistView houses={houses} checklists={checklists} checklistItems={checklistItems} onSave={slaChecklistOp} gebruiker={gebruiker}/>}
         {rol==="backoffice"&&tab==="log"&&<LogView meldingen={meldingen} houses={houses} activiteiten={activiteiten}/>}
@@ -1846,6 +1846,27 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
             {(m.wijzigingen||[]).length > 0 && (
               <span style={{fontSize:11,color:C.muted}}>({m.wijzigingen.length}x gewijzigd)</span>
             )}
+          </div>
+        )}
+      </div>
+
+      {/* Foto toevoegen */}
+      <div style={{marginTop:6}}>
+        <BijlageUploader
+          bucket="bijlages"
+          pad={`meldingen/${m.id}`}
+          label="📷 Foto/document toevoegen"
+          onUpload={async (urls) => {
+            const bestaand = m.bijlages || [];
+            await supabase.from("meldingen").update({
+              bijlages: [...bestaand, ...urls]
+            }).eq("id", m.id);
+          }}
+          compact={true}
+        />
+        {(m.bijlages||[]).length > 0 && (
+          <div style={{marginTop:6}}>
+            <BijlageWeergave bijlages={m.bijlages}/>
           </div>
         )}
       </div>
