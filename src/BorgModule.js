@@ -197,6 +197,35 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
     await loadAll();
   }
 
+  async function zetTermijnTerug(id) {
+    const termijn = termijnen.find(t => t.id === id);
+    if (!termijn) return;
+    const plan = plannen.find(p => p.id === termijn.plan_id);
+    await supabase.from("borg_termijnen").update({
+      status: "open",
+      verwerkt_door: null,
+      verwerkt_op: null,
+      opmerking: null,
+    }).eq("id", id);
+    // Trek bedrag terug van ingehouden
+    if (plan) {
+      const nieuwIngehouden = Math.max(0, Number(plan.ingehouden) - Number(termijn.bedrag));
+      await supabase.from("borg_plannen").update({ ingehouden: nieuwIngehouden }).eq("id", plan.id);
+    }
+    showToast("↩ Termijn teruggezet naar open");
+    await loadAll();
+  }
+
+  async function wijzigTermijn(id, nieuwBedrag, nieuwWeek, nieuwJaar) {
+    await supabase.from("borg_termijnen").update({
+      bedrag: Number(nieuwBedrag),
+      week_nummer: Number(nieuwWeek),
+      jaar: Number(nieuwJaar),
+    }).eq("id", id);
+    showToast("✓ Termijn bijgewerkt");
+    await loadAll();
+  }
+
   async function schuifWeekOp(planId) {
     // Verschuif alle open termijnen 1 week later
     const planTermijnen = termijnen.filter(t => t.plan_id === planId && t.status === "open");
@@ -364,6 +393,7 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
       )}
       {subTab==="week" && (
         <WeekOverzicht
+          onZetTerug={zetTermijnTerug}
           dezeWeek={dezeWeek}
           volgendeWeek={volgendeWeek}
           plannen={plannen}
@@ -388,6 +418,8 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
           onOpmerking={voegOpmerkingToe}
           onSchuifWeekOp={schuifWeekOp}
           onArchiveer={archiveerPlan}
+          onZetTerug={zetTermijnTerug}
+          onWijzig={wijzigTermijn}
           readonly={readonly}
           showToast={showToast}
         />
@@ -501,7 +533,7 @@ function WekenOverzicht({ termijnen, plannen, isBackoffice, onVerwerk, readonly 
 }
 
 // ─── WEEK OVERZICHT ───────────────────────────────────────────────────────────
-function WeekOverzicht({ dezeWeek, volgendeWeek, plannen, huidigeWeek, huidigJaar, isBackoffice, onVerwerk }) {
+function WeekOverzicht({ dezeWeek, volgendeWeek, plannen, huidigeWeek, huidigJaar, isBackoffice, onVerwerk, onZetTerug }) {
   const [opmerkingMap, setOpmerkingMap] = useState({});
   const [toonOpmerking, setToonOpmerking] = useState({});
 
@@ -524,7 +556,10 @@ function WeekOverzicht({ dezeWeek, volgendeWeek, plannen, huidigeWeek, huidigJaa
               <div style={{fontSize:11,color:C.muted}}>inhouden</div>
             </div>
             {t.status==="verwerkt" ? (
-              <span style={{background:"#f0fdf4",color:C.groen,fontSize:11,fontWeight:700,padding:"4px 10px",borderRadius:20,border:"1px solid #bbf7d0"}}>✓ VERWERKT</span>
+              <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                <span style={{background:"#f0fdf4",color:C.groen,fontSize:11,fontWeight:700,padding:"4px 10px",borderRadius:20,border:"1px solid #bbf7d0"}}>✓ VERWERKT</span>
+                {isBackoffice && <button onClick={()=>onZetTerug(t.id)} title="Terugzetten" style={{background:"white",border:,color:C.oranje,borderRadius:6,padding:"4px 8px",fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>↩</button>}
+              </div>
             ) : isBackoffice && (
               <div>
                 {toonOpmerking[t.id] ? (
@@ -600,7 +635,7 @@ function WeekOverzicht({ dezeWeek, volgendeWeek, plannen, huidigeWeek, huidigJaa
 }
 
 // ─── PLANNEN OVERZICHT ────────────────────────────────────────────────────────
-function PlannenOverzicht({ plannen, termijnen, extras, houses, isBackoffice, onVoegExtraToe, onSluitAf, onVerwerkExtra, onVerwerk, onOpmerking, onSchuifWeekOp, onArchiveer, readonly, showToast }) {
+function PlannenOverzicht({ plannen, termijnen, extras, houses, isBackoffice, onVoegExtraToe, onSluitAf, onVerwerkExtra, onVerwerk, onOpmerking, onSchuifWeekOp, onArchiveer, onZetTerug, onWijzig, readonly, showToast }) {
   return (
     <div style={{display:"grid",gap:16}}>
       {plannen.length === 0 && (
@@ -624,6 +659,8 @@ function PlannenOverzicht({ plannen, termijnen, extras, houses, isBackoffice, on
           onOpmerking={onOpmerking}
           onSchuifWeekOp={onSchuifWeekOp}
           onArchiveer={onArchiveer}
+          onZetTerug={onZetTerug}
+          onWijzig={onWijzig}
           readonly={readonly}
         />
       ))}
@@ -631,7 +668,7 @@ function PlannenOverzicht({ plannen, termijnen, extras, houses, isBackoffice, on
   );
 }
 
-function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraToe, onSluitAf, onVerwerkExtra, onVerwerk, onOpmerking, onSchuifWeekOp, onArchiveer, readonly }) {
+function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraToe, onSluitAf, onVerwerkExtra, onVerwerk, onOpmerking, onSchuifWeekOp, onArchiveer, onZetTerug, onWijzig, readonly }) {
   const [toonDetails, setToonDetails] = useState(false);
   const [toonExtra, setToonExtra] = useState(false);
   const [toonOpmerkingForm, setToonOpmerkingForm] = useState(false);
@@ -714,9 +751,17 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
               </div>
               <div style={{display:"flex",gap:8,alignItems:"center"}}>
                 <span style={{fontWeight:700,color:t.status==="verwerkt"?C.groen:C.oranje}}>€{Number(t.bedrag).toFixed(2)}</span>
-                {t.status==="open" && isBackoffice && (
-                  <button onClick={()=>onVerwerk(t.id,"")}
-                    style={{background:C.groen,color:"white",border:"none",borderRadius:6,padding:"4px 10px",fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>✓</button>
+                {isBackoffice && (
+                  <div style={{display:"flex",gap:4}}>
+                    {t.status==="open" ? (
+                      <button onClick={()=>onVerwerk(t.id,"")}
+                        style={{background:C.groen,color:"white",border:"none",borderRadius:6,padding:"4px 10px",fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>✓</button>
+                    ) : (
+                      <button onClick={()=>onZetTerug(t.id)}
+                        title="Terugzetten naar open"
+                        style={{background:"white",border:`1px solid ${C.oranje}`,color:C.oranje,borderRadius:6,padding:"4px 8px",fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>↩</button>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
