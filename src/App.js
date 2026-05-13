@@ -332,6 +332,7 @@ export default function App() {
         if (m.type==="aankomst")    return {...k,naam:m.medewerker,status:"Lopend"};
         if (m.type==="reservering") return {...k,naam:m.medewerker,status:"Gereserveerd"};
         if (m.type==="vertrek") { return {...k,status:"Controle"}; } // Altijd Controle tot huismeester heeft afgevinkt
+        if (m.type==="vertrek_aankondiging") { return {...k,status:"Gereserveerd"}; } // Aankondiging = gereserveerd
         return k;
       });
       await supabase.from("woningen").update({kamers:nk}).eq("id",m.huisId);
@@ -394,7 +395,21 @@ export default function App() {
       ]);
     }
 
-    // Bij vertrek: automatisch controletaak voor huismeester
+    // Bij vertrek aankondiging: taak voor huismeester om in te plannen
+    if (m.type === "vertrek_aankondiging") {
+      await supabase.from("taken").insert([{
+        titel: `Vertrek inplannen — ${m.medewerker}`,
+        omschrijving: `${m.medewerker} gaat vertrekken op ${m.datum}. Plan de kamercontrole in en begeleid het vertrekproces.`,
+        woning_id: m.huisId || null,
+        kamer: m.kamer || null,
+        prioriteit: "middel",
+        voor_rol: "huismeester",
+        status: "open",
+        aangemaakt_door: gebruiker.naam,
+      }]);
+    }
+
+    // Bij daadwerkelijk vertrek: automatisch controletaak voor huismeester
     if (m.type === "vertrek") {
       const sleutels = m.sleutelAantal || 1;
       await supabase.from("taken").insert([{
@@ -1183,7 +1198,7 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
             {openMeldingen.length===0 ? <div style={{fontSize:13,color:C.muted,fontStyle:"italic"}}>Geen openstaande meldingen 🎉</div>
             : openMeldingen.slice(0,5).map(m=>{
               const huis=houses.find(h=>h.id===m.woning_id);
-              const typeLabel = m.type==="aankomst"?"Aankomst":m.type==="vertrek"?"Vertrek":m.type==="reservering"?"Reservering":m.type==="verhuizing"?"Verhuizing":"Melding";
+              const typeLabel = m.type==="aankomst"?"Aankomst":m.type==="vertrek"?"Vertrek":m.type==="vertrek_aankondiging"?"Vertrek aankondiging":m.type==="reservering"?"Reservering":m.type==="verhuizing"?"Verhuizing":"Melding";
               const typeKleur = m.type==="aankomst"?C.groen:m.type==="vertrek"?"#7c3aed":m.type==="reservering"?C.blauw:"#f59e0b";
               return (
                 <div key={m.id} style={{padding:"10px 0",borderBottom:`1px solid ${C.border}`,display:"flex",gap:10,alignItems:"flex-start"}}>
@@ -1664,8 +1679,8 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
   const [toonBewerk, setToonBewerk] = useState(false);
   const [bewerkData, setBewerkData] = useState({});
 
-  const typeKleur = {aankomst:C.groen,vertrek:"#7c3aed",reservering:C.blauw,overig:C.oranje,verhuizing:"#0891b2"};
-  const typeIcon = {aankomst:"🏠",vertrek:"📦",reservering:"📅",overig:"📝",verhuizing:"🔄"};
+  const typeKleur = {aankomst:C.groen,vertrek:"#ef4444",vertrek_aankondiging:"#f59e0b",reservering:C.blauw,overig:C.oranje,verhuizing:"#0891b2"};
+  const typeIcon = {aankomst:"🏠",vertrek:"🧳",vertrek_aankondiging:"📢",reservering:"📅",overig:"📝",verhuizing:"🔄"};
   const kleur = typeKleur[m.type] || C.muted;
   const isOpen = m.status === "open";
   const isIngepland = m.status === "geaccepteerd" || m.ingepland_op;
@@ -1783,7 +1798,7 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
                 <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>Type</label>
                 <select value={bewerkData.type||m.type} onChange={e=>setBewerkData(p=>({...p,type:e.target.value}))}
                   style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1.5px solid ${C.border}`,fontSize:13,fontFamily:"inherit",background:"white",color:C.text}}>
-                  {["aankomst","vertrek","reservering","verhuizing","overig"].map(t=><option key={t} value={t}>{t}</option>)}
+                  {["aankomst","vertrek_aankondiging","vertrek","reservering","verhuizing","overig"].map(t=><option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
               <div>
@@ -2878,6 +2893,7 @@ function MeldingForm({ houses, onSubmit, showToast, taal="nl" }) {
     } else {
       if(!kamer){showToast("Selecteer een kamer","err");return;}
       if(type==="vertrek"&&(sleutelTerug===null||kamerSchoon===null)){showToast("Vul sleutel & schoonmaak in","err");return;}
+    if(type==="vertrek_aankondiging") meldingData.voor_rol = "huismeester";
     }
     setSaving(true);
     const meldingData = {
@@ -2910,11 +2926,12 @@ function MeldingForm({ houses, onSubmit, showToast, taal="nl" }) {
   );
 
   const types=[
-    {id:"aankomst",    icon:"🚗", label:"AANKOMST",    color:C.groen},
-    {id:"vertrek",     icon:"🧳", label:"VERTREK",     color:"#ef4444"},
-    {id:"reservering", icon:"📅", label:"RESERVERING", color:C.blauw},
-    {id:"verhuizing",  icon:"📦", label:"VERHUIZING",  color:"#7c3aed"},
-    {id:"overig",      icon:"💬", label:"OVERIG",      color:C.muted},
+    {id:"aankomst",             icon:"🚗", label:"AANKOMST",              color:C.groen},
+    {id:"vertrek_aankondiging", icon:"📢", label:"VERTREK AANKONDIGING",  color:"#f59e0b"},
+    {id:"vertrek",              icon:"🧳", label:"DAADWERKELIJK VERTREK", color:"#ef4444"},
+    {id:"reservering",          icon:"📅", label:"RESERVERING",           color:C.blauw},
+    {id:"verhuizing",           icon:"📦", label:"VERHUIZING",            color:"#7c3aed"},
+    {id:"overig",               icon:"💬", label:"OVERIG",                color:C.muted},
   ];
 
   function handleBijlage(e) {
@@ -3018,7 +3035,7 @@ function MeldingForm({ houses, onSubmit, showToast, taal="nl" }) {
           {type==="aankomst"&&<div><label className="fl">Aantal sleutels ontvangen</label><select className="fs" value={sleutelAantal} onChange={e=>setSleutelAantal(Number(e.target.value))}>{[0,1,2,3].map(n=><option key={n} value={n}>{n}</option>)}</select></div>}
         </div>
       )}
-      {type==="vertrek"&&(
+      {(type==="vertrek")&&(
         <div className="card" style={{marginBottom:16}}>
           <label className="fl">Controlelijst bij vertrek</label>
           <div className="cr">
