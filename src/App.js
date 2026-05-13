@@ -3074,22 +3074,49 @@ function MeldingForm({ houses, onSubmit, showToast, taal="nl" }) {
               📦 {vanHuis?.adres} K{vanKamer} → {naarHuis?.adres} K{naarKamer}
             </div>
           )}
+          {/* Controlelijst verhuizing */}
+          <div style={{marginTop:14}}>
+            <label className="fl">Controlelijst oude kamer</label>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:6}}>
+              {[
+                {key:"sleutelTerug", label:"🔑 Sleutel(s) ingeleverd"},
+                {key:"kamerSchoon",  label:"🧹 Kamer schoon achtergelaten"},
+              ].map(({key,label})=>(
+                <div key={key} onClick={()=>{
+                  if(key==="sleutelTerug") setSleutelTerug(sleutelTerug==="ja"?null:"ja");
+                  if(key==="kamerSchoon") setKamerSchoon(kamerSchoon==="ja"?null:"ja");
+                }} style={{border:`2px solid ${(key==="sleutelTerug"?sleutelTerug:kamerSchoon)==="ja"?C.groen:C.border}`,borderRadius:8,padding:"10px 12px",cursor:"pointer",background:(key==="sleutelTerug"?sleutelTerug:kamerSchoon)==="ja"?"#f0fdf4":"white",display:"flex",alignItems:"center",gap:8}}>
+                  <div style={{width:18,height:18,borderRadius:4,border:`2px solid ${(key==="sleutelTerug"?sleutelTerug:kamerSchoon)==="ja"?C.groen:C.border}`,background:(key==="sleutelTerug"?sleutelTerug:kamerSchoon)==="ja"?C.groen:"white",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                    {(key==="sleutelTerug"?sleutelTerug:kamerSchoon)==="ja"&&<span style={{color:"white",fontSize:10,fontWeight:700}}>✓</span>}
+                  </div>
+                  <span style={{fontSize:13,fontWeight:500,color:(key==="sleutelTerug"?sleutelTerug:kamerSchoon)==="ja"?C.groen:C.text}}>{label}</span>
+                </div>
+              ))}
+            </div>
+            <label className="fl" style={{marginTop:12}}>Aantal sleutels nieuwe kamer</label>
+            <select className="fs" value={sleutelAantal} onChange={e=>setSleutelAantal(Number(e.target.value))}>
+              {[1,2].map(n=><option key={n} value={n}>{n} sleutel{n>1?"s":""}</option>)}
+            </select>
+          </div>
         </div>
       )}
       {(type==="aankomst"||type==="reservering")&&(
         <div className="card" style={{marginBottom:16,display:"grid",gridTemplateColumns:"1fr 1fr",gap:18}}>
           <div><label className="fl">Wie regelt aankomst?</label><input className="fi" value={wieRegelt} onChange={e=>setWieRegelt(e.target.value)} placeholder="bijv. NW CB, Hans, zelf..."/></div>
-          <div>
-            <label className="fl">Voor wie is deze melding?</label>
-            <div style={{display:"flex",gap:8}}>
-              {[["backoffice","📊 Backoffice"],["huismeester","🏠 Huismeester"],["iedereen","👥 Iedereen"]].map(([v,l])=>(
-                <div key={v} onClick={()=>setVoorRol(v)}
-                  style={{flex:1,border:`2px solid ${voorRol===v?C.blauw:C.border}`,borderRadius:8,padding:"8px 4px",textAlign:"center",cursor:"pointer",background:voorRol===v?C.blauw+"10":"white",fontSize:11,fontWeight:600,color:voorRol===v?C.blauw:C.muted}}>
-                  {l}
-                </div>
-              ))}
+          {/* Voor wie - alleen tonen bij overig/vertrek, niet bij reservering/aankomst (die zijn automatisch) */}
+          {type!=="reservering" && type!=="aankomst" && type!=="verhuizing" && type!=="vertrek" && type!=="vertrek_aankondiging" && (
+            <div>
+              <label className="fl">Voor wie is deze melding?</label>
+              <div style={{display:"flex",gap:8}}>
+                {[["backoffice","📊 Backoffice"],["huismeester","🏠 Huismeester"],["iedereen","👥 Iedereen"]].map(([v,l])=>(
+                  <div key={v} onClick={()=>setVoorRol(v)}
+                    style={{flex:1,border:`2px solid ${voorRol===v?C.blauw:C.border}`,borderRadius:8,padding:"8px 4px",textAlign:"center",cursor:"pointer",background:voorRol===v?C.blauw+"10":"white",fontSize:11,fontWeight:600,color:voorRol===v?C.blauw:C.muted}}>
+                    {l}
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
           {type==="aankomst"&&<div><label className="fl">Aantal sleutels ontvangen</label><select className="fs" value={sleutelAantal} onChange={e=>setSleutelAantal(Number(e.target.value))}>{[0,1,2,3].map(n=><option key={n} value={n}>{n}</option>)}</select></div>}
         </div>
       )}
