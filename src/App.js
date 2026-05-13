@@ -250,6 +250,33 @@ export default function App() {
     }]);
     if (error) { showToast("Fout bij opslaan","err"); return; }
 
+    // Bij aankomst: taak voor huismeester (sleutel uitreiken) en backoffice (verwerken)
+    if (m.type === "aankomst" && m.medewerker) {
+      const sleutels = m.sleutelAantal || 1;
+      await supabase.from("taken").insert([
+        {
+          titel: `Aankomst begeleiden — ${m.medewerker}`,
+          omschrijving: `${m.medewerker} komt aan op ${m.datum}. Reik ${sleutels} sleutel${sleutels>1?"s":""} uit en begeleid de aankomst.`,
+          woning_id: m.huisId || null,
+          kamer: m.kamer || null,
+          prioriteit: "hoog",
+          voor_rol: "huismeester",
+          status: "open",
+          aangemaakt_door: gebruiker.naam,
+        },
+        {
+          titel: `Aankomst verwerken in administratie — ${m.medewerker}`,
+          omschrijving: `${m.medewerker} komt aan op ${m.datum}. Verwerk in systemen: huurcontract, borgplan, kamerstatus.`,
+          woning_id: m.huisId || null,
+          kamer: m.kamer || null,
+          prioriteit: "hoog",
+          voor_rol: "backoffice",
+          status: "open",
+          aangemaakt_door: gebruiker.naam,
+        }
+      ]);
+    }
+
     // Bij aankomst: automatisch openstaande reservering voor zelfde persoon/kamer verwerken
     if (m.type === "aankomst" && m.huisId && m.kamer) {
       await supabase.from("meldingen").update({
@@ -384,13 +411,25 @@ export default function App() {
         // Taak 2: Backoffice — administratieve verwerking
         {
           titel: `Verhuizing verwerken in administratie — ${m.medewerker}`,
-          omschrijving: `${context}. Verwerk: huurcontract, borgplan, kamerstatus bijwerken in systemen.`,
+          omschrijving: `${context}. Verwerk: huurcontract, borgplan, kamerstatus bijwerken in systemen. Check of extra borg of km-vergoeding aanpassing nodig is.`,
           woning_id: m.huisId || null,
           kamer: m.kamer || null,
           prioriteit: "hoog",
           voor_rol: "backoffice",
           status: "open",
           aangemaakt_door: gebruiker.naam,
+        },
+        // Taak 3: Huismeester — sleutel uitreiken bij nieuwe kamer
+        {
+          titel: `Verhuizing voltooid — sleutel uitreiken ${m.medewerker}`,
+          omschrijving: `${m.medewerker} trekt in bij ${naarHuisVerh?.adres||""} K${m.kamer}. Reik sleutel(s) uit en controleer of alles klaar is.`,
+          woning_id: m.huisId || null,
+          kamer: m.kamer || null,
+          prioriteit: "hoog",
+          voor_rol: "huismeester",
+          status: "open",
+          aangemaakt_door: gebruiker.naam,
+          huismeester_opmerking: `Sleutels uitreiken bij nieuwe kamer. Noteer hoeveel sleutels (1 of 2).`,
         },
       ]);
     }
@@ -2217,14 +2256,18 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                   </div>
                 )}
                 {/* Controle checkboxes voor verhuizing taken */}
-                {t.titel?.includes("Kamer controleren") && isHuismeester && !gedaan && (
+                {(t.titel?.includes("Kamer controleren") || t.titel?.includes("Verhuizing voltooid")) && isHuismeester && !gedaan && (
                   <div style={{marginTop:10,background:"#fffbeb",border:"1px solid #fcd34d",borderRadius:10,padding:"12px 14px"}}>
                     <div style={{fontSize:12,fontWeight:700,color:"#b45309",marginBottom:10}}>✅ Controlepunten afvinken</div>
-                    {[
+                    {(t.titel?.includes("Verhuizing voltooid") ? [
+                      {key:"sleutel1", label:"🔑 Sleutel 1 uitgereikt"},
+                      {key:"sleutel2", label:"🔑 Sleutel 2 uitgereikt (indien 2 sleutels)"},
+                      {key:"kamer_klaar", label:"🏠 Kamer klaar voor bewoning"},
+                    ] : [
                       {key:"schoon", label:"🧹 Kamer schoon"},
                       {key:"sleutel1", label:"🔑 Sleutel 1 ingeleverd"},
                       {key:"sleutel2", label:"🔑 Sleutel 2 ingeleverd (indien van toepassing)"},
-                    ].map(({key, label}) => {
+                    ]).map(({key, label}) => {
                       const checked = (t.notitie||"").includes(`[✓ ${key}]`);
                       return (
                         <div key={key} onClick={async()=>{
@@ -2233,11 +2276,15 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                           const nieuwNotitie = oud ? oud+" [✓ "+key+"]" : "[✓ "+key+"]";
                           await onUpdate(t.id, {notitie: nieuwNotitie});
                           // Check of nu alles afgevinkt is
-                          const alleKeys = ["schoon","sleutel1"];
+                          const alleKeys = t.titel?.includes("Verhuizing voltooid") ? ["sleutel1","kamer_klaar"] : ["schoon","sleutel1"];
                           const alleAfgevinkt = alleKeys.every(k => nieuwNotitie.includes("[✓ "+k+"]"));
                           if (alleAfgevinkt) {
                             const isVertrek = t.titel?.includes("na vertrek");
-                            const medewerkerNaam = t.titel?.replace("Kamer controleren na verhuizing — ","").replace("Kamer controleren na vertrek — ","") || "";
+                            const isVerhuizingVoltooid = t.titel?.includes("Verhuizing voltooid");
+                            const medewerkerNaam = t.titel
+                              ?.replace("Kamer controleren na verhuizing — ","")
+                              .replace("Kamer controleren na vertrek — ","")
+                              .replace("Verhuizing voltooid — sleutel uitreiken ","") || "";
                             
                             // Bij vertrek: kamer op Beschikbaar zetten
                             if (isVertrek && t.woning_id && t.kamer) {
@@ -2249,8 +2296,11 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                             }
 
                             // 1. Bericht naar backoffice
+                            const berichtTekst = isVerhuizingVoltooid
+                              ? `Verhuizing voltooid voor ${medewerkerNaam}: sleutel(s) uitgereikt ✓, kamer klaar ✓. Check of extra borg of km-vergoeding aanpassing nodig is.`
+                              : `Kamer ${t.kamer||""} is gecontroleerd en klaar: kamer schoon ✓, sleutel(s) ingeleverd ✓. Borg kan worden terugbetaald.`;
                             await supabase.from("berichten").insert([{
-                              tekst: `Kamer ${t.kamer||""} is gecontroleerd en klaar: kamer schoon ✓, sleutel(s) ingeleverd ✓. Borg kan worden terugbetaald.`,
+                              tekst: berichtTekst,
                               van: gebruiker?.naam||"Huismeester",
                               aan: null,
                               onderwerp: `✅ Kamer klaar + borg terugbetalen — ${medewerkerNaam}`,
@@ -2893,16 +2943,24 @@ function MeldingForm({ houses, onSubmit, showToast, taal="nl" }) {
     } else {
       if(!kamer){showToast("Selecteer een kamer","err");return;}
       if(type==="vertrek"&&(sleutelTerug===null||kamerSchoon===null)){showToast("Vul sleutel & schoonmaak in","err");return;}
-    if(type==="vertrek_aankondiging") meldingData.voor_rol = "huismeester";
     }
     setSaving(true);
+    // Automatische voor_rol per type
+    const autoRol = {
+      reservering: "huismeester",
+      aankomst: "iedereen",      // Beide rollen zien het
+      verhuizing: "iedereen",
+      vertrek_aankondiging: "huismeester",
+      vertrek: "huismeester",
+      overig: voorRol,
+    };
     const meldingData = {
       type, medewerker:medewerker.trim(), datum,
       huisId: type==="verhuizing" ? Number(naarHuisId) : Number(huisId),
       kamer: type==="verhuizing" ? naarKamer : kamer,
       vanHuisId: type==="verhuizing" ? Number(vanHuisId) : null,
       vanKamer: type==="verhuizing" ? vanKamer : null,
-      wieRegelt, sleutelTerug, kamerSchoon, sleutelAantal, voor_rol: voorRol,
+      wieRegelt, sleutelTerug, kamerSchoon, sleutelAantal, voor_rol: autoRol[type]||voorRol,
       opmerkingen: type==="verhuizing"
         ? `Verhuizing van ${vanHuis?.adres} K${vanKamer} naar ${naarHuis?.adres} K${naarKamer}${opmerkingen?". "+opmerkingen:""}`
         : opmerkingen,
@@ -2926,11 +2984,11 @@ function MeldingForm({ houses, onSubmit, showToast, taal="nl" }) {
   );
 
   const types=[
+    {id:"reservering",          icon:"📅", label:"RESERVERING",           color:C.blauw},
     {id:"aankomst",             icon:"🚗", label:"AANKOMST",              color:C.groen},
+    {id:"verhuizing",           icon:"📦", label:"VERHUIZING",            color:"#7c3aed"},
     {id:"vertrek_aankondiging", icon:"📢", label:"VERTREK AANKONDIGING",  color:"#f59e0b"},
     {id:"vertrek",              icon:"🧳", label:"DAADWERKELIJK VERTREK", color:"#ef4444"},
-    {id:"reservering",          icon:"📅", label:"RESERVERING",           color:C.blauw},
-    {id:"verhuizing",           icon:"📦", label:"VERHUIZING",            color:"#7c3aed"},
     {id:"overig",               icon:"💬", label:"OVERIG",                color:C.muted},
   ];
 
