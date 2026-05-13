@@ -60,6 +60,12 @@ function berekenVerschuldigdeWeken(schuld) {
     eind.setHours(23,59,59,999);
     if (eind < grens) grens.setTime(eind.getTime());
   }
+  // Als niet actief en einddatum al gepasseerd: gebruik einddatum als grens
+  if (!schuld.actief && schuld.einddatum) {
+    const eind = new Date(schuld.einddatum);
+    eind.setHours(23,59,59,999);
+    grens.setTime(eind.getTime());
+  }
 
   let weken = 0;
   const d = new Date(eersteMaandag);
@@ -171,6 +177,8 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
 
   const actief   = schulden.filter(s => s.actief);
   const gesloten = schulden.filter(s => !s.actief);
+  const gestoptOpenstaand = actief.filter(s => s.einddatum && berekenOpenstaand(s) > 0);
+  const lopend = actief.filter(s => !s.einddatum);
   const totaalOpen = actief.reduce((s, d) => s + berekenOpenstaand(d), 0);
 
   const tabs = [
@@ -283,7 +291,14 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerkin
       {/* Header */}
       <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",flexWrap:"wrap",gap:12,marginBottom:16}}>
         <div>
-          <div style={{fontWeight:800,fontSize:17,color:C.text,marginBottom:4}}>{schuld.naam_medewerker}</div>
+          <div style={{fontWeight:800,fontSize:17,color:C.text,marginBottom:4}}>
+            {schuld.naam_medewerker}
+            {schuld.einddatum && schuld.actief && (
+              <span style={{marginLeft:8,fontSize:11,fontWeight:700,background:"#fef2f2",color:"#ef4444",padding:"2px 8px",borderRadius:8,border:"1px solid #fecaca"}}>
+                🛑 Gestopt — schuld loopt nog
+              </span>
+            )}
+          </div>
           <div style={{fontSize:12,color:C.muted}}>
             Vanaf {fmtDate(schuld.startdatum)}
             {schuld.einddatum ? ` t/m ${fmtDate(schuld.einddatum)}` : " (lopend)"}
@@ -488,9 +503,9 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerkin
                       if(!stopDatum){showToast("Vul een einddatum in","err");return;}
                       await supabase.from("huurschulden").update({
                         einddatum: stopDatum,
-                        actief: false,
+                        actief: true, // Blijft openstaand totdat alles betaald is
                       }).eq("id",schuld.id);
-                      showToast("✓ Einddatum ingesteld — huur stopt op "+fmtDate(new Date(stopDatum)));
+                      showToast("✓ Einddatum ingesteld — huur stopt op "+fmtDate(new Date(stopDatum))+", schuld blijft open tot volledig betaald");
                       setToonStopzetten(false);
                     }} style={{background:C.groen,color:"white",border:"none",borderRadius:8,padding:"7px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
                       ✓ Opslaan
