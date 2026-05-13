@@ -107,7 +107,7 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
   async function maakPlanAan(data) {
     const { termijnen: t, totaal } = berekenBorgPlan(data.sleutels, data.heeft_fiets);
     const nu = new Date();
-    const startWeek = getWeekNr(nu) + 1; // Volgende week
+    const startWeek = getWeekNr(nu); // Huidige week
     const startJaar = nu.getFullYear();
 
     // Plan aanmaken
