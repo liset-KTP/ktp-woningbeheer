@@ -148,6 +148,7 @@ export function FietsModule({ gebruiker, showToast, houses = [], onMeldingIndien
       aangemaakt_door: gebruiker.naam,
       status: "open",
       type: "fiets",
+      voor_rol: "huismeester",
     }]);
 
     // Taak: controleren bij inname
@@ -158,6 +159,7 @@ export function FietsModule({ gebruiker, showToast, houses = [], onMeldingIndien
       aangemaakt_door: gebruiker.naam,
       status: "open",
       type: "fiets",
+      voor_rol: "huismeester",
     }]);
 
     // 4. Borgmelding voor backoffice

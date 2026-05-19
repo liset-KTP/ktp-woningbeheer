@@ -711,7 +711,7 @@ export default function App() {
 
   const openMeldingen = meldingen.filter(m=>m.status==="open");
   const rol = gebruiker?.rol;
-  const openTaken = taken.filter(t=>t.status==="open" && (t.voor_rol==="iedereen" || t.voor_rol===rol || !t.voor_rol));
+  const openTaken = taken.filter(t=>t.status==="open" && (rol==="backoffice" ? t.voor_rol==="backoffice" : t.voor_rol==="iedereen" || t.voor_rol===rol || !t.voor_rol));
   const mijnMeldingen = meldingen.filter(m=>m.ingediend_door===gebruiker?.naam);
   const naam = gebruiker?.naam;
   const isLiset = naam==="Liset" || naam==="Warscha";
@@ -1536,13 +1536,13 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
   });
 
   const relevanteTaken = taken.filter(t => {
-    if (isBackoffice) return true; // backoffice ziet alles zodat ze kunnen herindelen
+    if (isBackoffice) return t.voor_rol === "backoffice";
     if (isHuismeester) return t.voor_rol === "huismeester" || t.voor_rol === "iedereen" || !t.voor_rol;
     if (isCollega) return t.voor_rol === "iedereen" || !t.voor_rol;
     return false;
   }).filter(t => filter === "open" ? (t.status === "open" || t.status === "geaccepteerd") : filter === "gedaan" ? t.status === "gedaan" : true);
 
-  const openCount = meldingen.filter(m => { if(isBackoffice) return m.status==="open"; if(isHuismeester) return m.status==="open"||m.status==="geaccepteerd"; if(isCollega) return m.ingediend_door===gebruiker?.naam&&m.status==="open"; return false; }).length + taken.filter(t => { if(isBackoffice) return t.voor_rol!=="huismeester"&&(t.status==="open"||t.status==="geaccepteerd"); if(isHuismeester) return (t.voor_rol==="huismeester"||t.voor_rol==="iedereen"||!t.voor_rol)&&(t.status==="open"||t.status==="geaccepteerd"); if(isCollega) return (t.voor_rol==="iedereen"||!t.voor_rol)&&t.status==="open"; return false; }).length;
+  const openCount = meldingen.filter(m => { if(isBackoffice) return m.status==="open"; if(isHuismeester) return m.status==="open"||m.status==="geaccepteerd"; if(isCollega) return m.ingediend_door===gebruiker?.naam&&m.status==="open"; return false; }).length + taken.filter(t => { if(isBackoffice) return t.voor_rol==="backoffice"&&(t.status==="open"||t.status==="geaccepteerd"); if(isHuismeester) return (t.voor_rol==="huismeester"||t.voor_rol==="iedereen"||!t.voor_rol)&&(t.status==="open"||t.status==="geaccepteerd"); if(isCollega) return (t.voor_rol==="iedereen"||!t.voor_rol)&&t.status==="open"; return false; }).length;
 
   // Zoek filter
   function zoekFilter(item, isMelding) {
