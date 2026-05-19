@@ -7,6 +7,7 @@ import { HuurbetalingenModule } from "./HuurbetalingenModule";
 import { BijlageUploader, BijlageWeergave, uploadBijlages } from "./BijlageUploader";
 import { BerichtenModule } from "./BerichtenModule";
 import { BorgModule } from "./BorgModule";
+import { HandleidingModule } from "./HandleidingModule";
 
 // ─── EMAILJS ──────────────────────────────────────────────────────────────────
 const EMAILJS_SERVICE  = "service_1af258e";
@@ -811,6 +812,7 @@ export default function App() {
               <button className={`tp ${tab==="huismeesterplanning"?"act":""}`} onClick={()=>setTab("huismeesterplanning")}>📅 Planning Cristian</button>
               <button className={`tp ${tab==="borg"?"act":""}`} onClick={()=>setTab("borg")}>🛡️ Inhoudingen</button>
               <button className={`tp ${tab==="berichten"?"act":""}`} onClick={()=>setTab("berichten")}>💬 Berichten {ongelzenBerichten>0&&<Notif n={ongelzenBerichten}/>}</button>
+              <button className={`tp ${tab==="handleiding"?"act":""}`} onClick={()=>setTab("handleiding")}>📖 Handleiding</button>
             </>)}
             {rol==="huismeester" && (<>
               <button className={`tp ${tab==="dagplanning"?"act":""}`} onClick={()=>setTab("dagplanning")}>📅 Mijn dag {totalNotifs>0&&<Notif n={totalNotifs}/>}</button>
@@ -822,6 +824,7 @@ export default function App() {
               <button className={`tp ${tab==="huurbetalingen"?"act":""}`} onClick={()=>setTab("huurbetalingen")}>💶 Huur</button>
               <button className={`tp ${tab==="borg"?"act":""}`} onClick={()=>setTab("borg")}>🛡️ Inhoudingen</button>
               <button className={`tp ${tab==="berichten"?"act":""}`} onClick={()=>setTab("berichten")}>💬 Berichten {ongelzenBerichten>0&&<Notif n={ongelzenBerichten}/>}</button>
+              <button className={`tp ${tab==="handleiding"?"act":""}`} onClick={()=>setTab("handleiding")}>📖 Handleiding</button>
             </>)}
             {rol==="financieel" && (<>
               <button className={`tp ${tab==="taken"?"act":""}`} onClick={()=>setTab("taken")}>📋 Taken & Meldingen {(openTaken.length+mijnMeldingen.length)>0&&<Notif n={openTaken.length+mijnMeldingen.length}/>}</button>
@@ -832,6 +835,7 @@ export default function App() {
               <button className={`tp ${tab==="huismeesterplanning"?"act":""}`} onClick={()=>setTab("huismeesterplanning")}>📅 Planning Cristian</button>
               <button className={`tp ${tab==="borg"?"act":""}`} onClick={()=>setTab("borg")}>🛡️ Inhoudingen</button>
               <button className={`tp ${tab==="berichten"?"act":""}`} onClick={()=>setTab("berichten")}>💬 Berichten {ongelzenBerichten>0&&<Notif n={ongelzenBerichten}/>}</button>
+              <button className={`tp ${tab==="handleiding"?"act":""}`} onClick={()=>setTab("handleiding")}>📖 Handleiding</button>
             </>)}
             {rol==="backoffice" && (<>
               <button className={`tp ${tab==="woningen"?"act":""}`} onClick={()=>setTab("woningen")}>🏠 Woningen</button>
@@ -843,6 +847,7 @@ export default function App() {
               <button className={`tp ${tab==="borg"?"act":""}`} onClick={()=>setTab("borg")}>🛡️ Inhoudingen</button>
               <button className={`tp ${tab==="log"?"act":""}`} onClick={()=>setTab("log")}>📝 Log</button>
               <button className={`tp ${tab==="berichten"?"act":""}`} onClick={()=>setTab("berichten")}>💬 Berichten {ongelzenBerichten>0&&<Notif n={ongelzenBerichten}/>}</button>
+              <button className={`tp ${tab==="handleiding"?"act":""}`} onClick={()=>setTab("handleiding")}>📖 Handleiding</button>
               {isLiset&&<button className={`tp ${tab==="beheer"?"act":""}`} onClick={()=>setTab("beheer")}>⚙️ Beheer</button>}
             </>)}
           </div>
@@ -861,6 +866,7 @@ export default function App() {
         {tab==="huurbetalingen"&&<HuurbetalingenModule gebruiker={gebruiker} showToast={showToast} readonly={rol!=="backoffice"&&rol!=="financieel"}/>}
         {tab==="berichten"&&<BerichtenModule gebruiker={gebruiker} houses={houses} taken={taken} meldingen={meldingen} autos={[]}/>}
         {tab==="borg"&&<BorgModule gebruiker={gebruiker} houses={houses} showToast={showToast} readonly={rol!=="backoffice"}/>}
+        {tab==="handleiding"&&<HandleidingModule gebruiker={gebruiker}/>}
         {tab==="huismeesterplanning"&&<HuismeesterPlanningView dagplanningDB={dagplanningDB} houses={houses} taken={taken} meldingen={meldingen}/>}
         {rol==="backoffice"&&isLiset&&tab==="beheer"&&<BeheerView houses={houses} onAdd={addWoning} onUpdate={updateWoning} onDelete={deleteWoning} showToast={showToast} gebruikers={gebruikers} onAddGebruiker={voegGebruikerToe} onUpdateGebruiker={updateGebruiker} onDeleteGebruiker={verwijderGebruiker} checklistItems={checklistItems} dagplanningDB={dagplanningDB}/>}
       </div>
