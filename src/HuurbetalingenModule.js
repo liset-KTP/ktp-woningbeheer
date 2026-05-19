@@ -144,11 +144,11 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
     showToast("✓ Huurschuld aangemaakt"); return true;
   }
 
-  async function addBetaling(schuldId, bedrag, opmerking) {
+  async function addBetaling(schuldId, bedrag, opmerking, datum) {
     const { error } = await supabase.from("huurbetalingen").insert([{
       schuld_id: schuldId,
       bedrag: Number(bedrag),
-      datum: todayISO(),
+      datum: datum || todayISO(),
       opmerking: opmerking || null,
       geregistreerd_door: gebruiker.naam,
     }]);
@@ -260,6 +260,7 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerkin
   const [collegaOpmerking, setCollegaOpmerking] = useState("");
   const [savingCollegaOpm, setSavingCollegaOpm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [betalingDatum, setBetalingDatum] = useState(todayISO());
 
   const openstaand    = berekenOpenstaand(schuld);
   const totaalBetaald = berekenTotaalBetaald(schuld);
@@ -271,9 +272,9 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerkin
   async function handleBetaling() {
     if (!bedrag || isNaN(Number(bedrag)) || Number(bedrag) <= 0) { showToast("Vul een geldig bedrag in","err"); return; }
     setSaving(true);
-    await onBetaling(schuld.id, bedrag, betalingOpmerking);
+    await onBetaling(schuld.id, bedrag, betalingOpmerking, betalingDatum);
     setSaving(false);
-    setBedrag(""); setBetalingOpmerking(""); setToonBetalingForm(false);
+    setBedrag(""); setBetalingOpmerking(""); setBetalingDatum(todayISO()); setToonBetalingForm(false);
   }
 
   async function handleOpmerking() {
@@ -442,7 +443,12 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerkin
           ) : toonBetalingForm ? (
             <div style={{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:10,padding:16,marginBottom:10}}>
               <div style={{fontWeight:700,fontSize:13,color:C.groen,marginBottom:12}}>💶 Betaling registreren</div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
+              <BetalingsKalender
+                betalingen={schuld.betalingen || []}
+                geselecteerdeDatum={betalingDatum}
+                onSelecteer={setBetalingDatum}
+              />
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12,marginTop:12}}>
                 <div>
                   <Label>Bedrag (€) *</Label>
                   <Input type="number" step="0.01" min="0.01" value={bedrag} onChange={e=>setBedrag(e.target.value)} placeholder="bijv. 130.00" autoFocus/>
@@ -452,7 +458,7 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerkin
                   <Input value={betalingOpmerking} onChange={e=>setBetalingOpmerking(e.target.value)} placeholder="bijv. betaalt rest volgende week"/>
                 </div>
               </div>
-              <div style={{display:"flex",gap:8}}>
+              <div style={{display:"flex",gap:8,alignItems:"center"}}>
                 <button onClick={handleBetaling} disabled={saving}
                   style={{background:C.groen,color:"white",border:"none",borderRadius:8,padding:"10px 20px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
                   {saving ? "⏳" : "✓ Betaling opslaan"}
@@ -461,6 +467,9 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerkin
                   style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"10px 14px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
                   Annuleren
                 </button>
+                <span style={{fontSize:12,color:C.muted,marginLeft:4}}>
+                  Datum: <strong style={{color:C.blauw}}>{betalingDatum}</strong>
+                </span>
               </div>
             </div>
           ) : toonOpmerkingForm ? (
@@ -526,6 +535,124 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerkin
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+
+// ─── BETALINGS KALENDER ───────────────────────────────────────────────────────
+function BetalingsKalender({ betalingen, geselecteerdeDatum, onSelecteer }) {
+  const nu = new Date();
+  const initDatum = geselecteerdeDatum ? new Date(geselecteerdeDatum) : nu;
+  const [huidigJaar, setHuidigJaar] = useState(initDatum.getFullYear());
+  const [huidigMaand, setHuidigMaand] = useState(initDatum.getMonth()); // 0-based
+  const [tooltip, setTooltip] = useState(null);
+
+  const maandNamen = ["Januari","Februari","Maart","April","Mei","Juni","Juli","Augustus","September","Oktober","November","December"];
+
+  // Maak een map: "YYYY-MM-DD" -> betalingen[]
+  const betalingMap = {};
+  (betalingen || []).filter(b => Number(b.bedrag) > 0).forEach(b => {
+    const key = b.datum ? b.datum.slice(0,10) : null;
+    if (!key) return;
+    if (!betalingMap[key]) betalingMap[key] = [];
+    betalingMap[key].push(b);
+  });
+
+  // Bereken dagen van de maand
+  const eersteDag = new Date(huidigJaar, huidigMaand, 1);
+  const aantalDagen = new Date(huidigJaar, huidigMaand + 1, 0).getDate();
+  // Maandag = 0, ..., Zondag = 6
+  let startDag = eersteDag.getDay() - 1;
+  if (startDag < 0) startDag = 6;
+
+  function dagISO(dag) {
+    const m = String(huidigMaand + 1).padStart(2,"0");
+    const d = String(dag).padStart(2,"0");
+    return `${huidigJaar}-${m}-${d}`;
+  }
+
+  function vorigeM() {
+    if (huidigMaand === 0) { setHuidigMaand(11); setHuidigJaar(y => y-1); }
+    else setHuidigMaand(m => m-1);
+  }
+  function volgendeM() {
+    if (huidigMaand === 11) { setHuidigMaand(0); setHuidigJaar(y => y+1); }
+    else setHuidigMaand(m => m+1);
+  }
+
+  const vandaag = new Date().toISOString().slice(0,10);
+  const cellen = [];
+  for (let i = 0; i < startDag; i++) cellen.push(null);
+  for (let d = 1; d <= aantalDagen; d++) cellen.push(d);
+
+  return (
+    <div style={{background:"white",border:`1px solid ${C.border}`,borderRadius:10,padding:14,marginBottom:4}}>
+      {/* Navigatie */}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+        <button onClick={vorigeM} style={{background:"none",border:"none",cursor:"pointer",fontSize:16,color:C.muted,padding:"2px 8px"}}>‹</button>
+        <span style={{fontWeight:700,fontSize:13,color:C.blauw}}>{maandNamen[huidigMaand]} {huidigJaar}</span>
+        <button onClick={volgendeM} style={{background:"none",border:"none",cursor:"pointer",fontSize:16,color:C.muted,padding:"2px 8px"}}>›</button>
+      </div>
+
+      {/* Dagnamen */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2,marginBottom:4}}>
+        {["Ma","Di","Wo","Do","Vr","Za","Zo"].map(d => (
+          <div key={d} style={{textAlign:"center",fontSize:10,fontWeight:700,color:C.muted,padding:"2px 0"}}>{d}</div>
+        ))}
+      </div>
+
+      {/* Dagen grid */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2}}>
+        {cellen.map((dag, i) => {
+          if (!dag) return <div key={"e"+i}/>;
+          const iso = dagISO(dag);
+          const heeftBetaling = !!betalingMap[iso];
+          const isGeselecteerd = iso === geselecteerdeDatum;
+          const isVandaag = iso === vandaag;
+          const bets = betalingMap[iso] || [];
+
+          return (
+            <div key={iso} style={{position:"relative"}}
+              onMouseEnter={() => heeftBetaling && setTooltip({iso, bets})}
+              onMouseLeave={() => setTooltip(null)}>
+              <div onClick={() => onSelecteer(iso)}
+                style={{
+                  textAlign:"center", borderRadius:7, padding:"5px 2px", fontSize:12, fontWeight:isGeselecteerd||isVandaag?700:400,
+                  cursor:"pointer", userSelect:"none", transition:"all .15s",
+                  background: heeftBetaling ? "#dcfce7" : isGeselecteerd ? C.blauw+"15" : "white",
+                  border: isGeselecteerd ? `2px solid ${C.blauw}` : heeftBetaling ? `1.5px solid ${C.groen}` : `1px solid ${C.border}`,
+                  color: heeftBetaling ? C.groenDark : isGeselecteerd ? C.blauw : C.text,
+                }}>
+                {dag}
+                {isVandaag && <div style={{width:4,height:4,borderRadius:"50%",background:C.blauw,margin:"1px auto 0"}}/>}
+                {heeftBetaling && <div style={{fontSize:8,color:C.groenDark,fontWeight:700}}>✓</div>}
+              </div>
+              {/* Tooltip */}
+              {tooltip?.iso === iso && (
+                <div style={{position:"absolute",bottom:"110%",left:"50%",transform:"translateX(-50%)",background:C.dark,color:"white",borderRadius:8,padding:"6px 10px",fontSize:11,whiteSpace:"nowrap",zIndex:99,boxShadow:"0 4px 12px rgba(0,0,0,.2)",pointerEvents:"none"}}>
+                  {bets.map((b,bi) => (
+                    <div key={bi}>💶 €{Number(b.bedrag).toFixed(2)} — {b.geregistreerd_door}</div>
+                  ))}
+                  <div style={{position:"absolute",bottom:-5,left:"50%",transform:"translateX(-50%)",width:10,height:10,background:C.dark,borderRadius:2,transform:"translateX(-50%) rotate(45deg)"}}/>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Legenda */}
+      <div style={{display:"flex",gap:14,marginTop:10,fontSize:11,color:C.muted}}>
+        <span style={{display:"flex",alignItems:"center",gap:4}}>
+          <span style={{width:12,height:12,borderRadius:3,background:"#dcfce7",border:`1px solid ${C.groen}`,display:"inline-block"}}/>
+          Al verwerkt
+        </span>
+        <span style={{display:"flex",alignItems:"center",gap:4}}>
+          <span style={{width:12,height:12,borderRadius:3,background:"white",border:`2px solid ${C.blauw}`,display:"inline-block"}}/>
+          Geselecteerd
+        </span>
+      </div>
     </div>
   );
 }
