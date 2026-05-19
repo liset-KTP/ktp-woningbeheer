@@ -709,7 +709,7 @@ export default function App() {
     logActiviteit("checklist", `${typeLabel} checklist opgeslagen: ${items.length} items afgevinkt${huis?` — ${huis.adres}`:""}`, {type, week, items_count: items.length});
   }
 
-  const openMeldingen = meldingen.filter(m=>m.status==="open");
+  const openMeldingen = meldingen.filter(m=>m.status==="open" && (gebruiker?.rol!=="backoffice" || m.voor_rol==="backoffice"));
   const rol = gebruiker?.rol;
   const openTaken = taken.filter(t=>t.status==="open" && (rol==="backoffice" ? t.voor_rol==="backoffice" : t.voor_rol==="iedereen" || t.voor_rol===rol || !t.voor_rol));
   const mijnMeldingen = meldingen.filter(m=>m.ingediend_door===gebruiker?.naam);
@@ -838,7 +838,7 @@ export default function App() {
               <button className={`tp ${tab==="handleiding"?"act":""}`} onClick={()=>setTab("handleiding")}>📖 Handleiding</button>
             </>)}
             {rol==="backoffice" && (<>
-              <button className={`tp ${tab==="taken"?"act":""}`} onClick={()=>setTab("taken")}>📋 Taken & Meldingen {(openTaken.length+openMeldingen.filter(m=>m.type!=="vertrek_aankondiging").length)>0&&<Notif n={openTaken.length+openMeldingen.filter(m=>m.type!=="vertrek_aankondiging").length}/>}</button>
+              <button className={`tp ${tab==="taken"?"act":""}`} onClick={()=>setTab("taken")}>📋 Taken & Meldingen {(openTaken.length+openMeldingen.length)>0&&<Notif n={openTaken.length+openMeldingen.length}/>}</button>
               <button className={`tp ${tab==="woningen"?"act":""}`} onClick={()=>setTab("woningen")}>🏠 Woningen</button>
               <button className={`tp ${tab==="autos"?"act":""}`} onClick={()=>setTab("autos")}>🚗 Auto's</button>
               <button className={`tp ${tab==="fietsen"?"act":""}`} onClick={()=>setTab("fietsen")}>🚲 Fietsen</button>
@@ -1007,7 +1007,7 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
   const dagNamen = dagplanningDB.length > 0 ? dagplanningDB.map(d => d.dag) : ["ma","di","wo","do","vr"];
   const [gekozenDag, setGekozenDag] = useState(dag in planningMap ? dag : "ma");
   const getoondeDag = planningMap[gekozenDag] || { label: gekozenDag, kleur: C.muted, icon: "🔧", focus: "", woning_ids: [], taken: [] };
-  const openMeldingen = meldingen.filter(m=>m.status==="open");
+  const openMeldingen = meldingen.filter(m=>m.status==="open" && (gebruiker?.rol!=="backoffice" || m.voor_rol==="backoffice"));
   const openTaken = taken.filter(t=>t.status==="open");
   const [notitieMap, setNotitieMap] = useState({});
   const [toonNieuwKlusje, setToonNieuwKlusje] = useState(false);
@@ -1520,7 +1520,7 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
   const mijnMeldingen = meldingen.filter(m => m.ingediend_door === gebruiker?.naam);
 
   const relevanteMeldingen = meldingen.filter(m => {
-    if (isBackoffice) return true;
+    if (isBackoffice) return m.voor_rol === "backoffice";
     if (isHuismeester) return true; // huismeester ziet alles
     if (isCollega) return m.ingediend_door === gebruiker?.naam;
     return false;
@@ -1542,7 +1542,7 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
     return false;
   }).filter(t => filter === "open" ? (t.status === "open" || t.status === "geaccepteerd") : filter === "gedaan" ? t.status === "gedaan" : true);
 
-  const openCount = meldingen.filter(m => { if(isBackoffice) return m.status==="open"; if(isHuismeester) return m.status==="open"||m.status==="geaccepteerd"; if(isCollega) return m.ingediend_door===gebruiker?.naam&&m.status==="open"; return false; }).length + taken.filter(t => { if(isBackoffice) return t.voor_rol==="backoffice"&&(t.status==="open"||t.status==="geaccepteerd"); if(isHuismeester) return (t.voor_rol==="huismeester"||t.voor_rol==="iedereen"||!t.voor_rol)&&(t.status==="open"||t.status==="geaccepteerd"); if(isCollega) return (t.voor_rol==="iedereen"||!t.voor_rol)&&t.status==="open"; return false; }).length;
+  const openCount = meldingen.filter(m => { if(isBackoffice) return m.voor_rol==="backoffice"&&m.status==="open"; if(isHuismeester) return m.status==="open"||m.status==="geaccepteerd"; if(isCollega) return m.ingediend_door===gebruiker?.naam&&m.status==="open"; return false; }).length + taken.filter(t => { if(isBackoffice) return t.voor_rol==="backoffice"&&(t.status==="open"||t.status==="geaccepteerd"); if(isHuismeester) return (t.voor_rol==="huismeester"||t.voor_rol==="iedereen"||!t.voor_rol)&&(t.status==="open"||t.status==="geaccepteerd"); if(isCollega) return (t.voor_rol==="iedereen"||!t.voor_rol)&&t.status==="open"; return false; }).length;
 
   // Zoek filter
   function zoekFilter(item, isMelding) {
