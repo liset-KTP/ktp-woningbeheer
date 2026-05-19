@@ -210,7 +210,7 @@ export default function App() {
   function login(g) {
     try { localStorage.setItem("ktp_sessie", JSON.stringify(g)); } catch {}
     setGebruiker(g);
-    setTab(g.rol==="collega"||g.rol==="financieel"?"taken":g.rol==="huismeester"?"dagplanning":"woningen");
+    setTab(g.rol==="collega"||g.rol==="financieel"?"taken":g.rol==="huismeester"?"dagplanning":"taken");
     loadOngelzenAutoReacties(g.naam);
     loadOngelzenBerichten(g.naam);
   }
@@ -838,8 +838,8 @@ export default function App() {
               <button className={`tp ${tab==="handleiding"?"act":""}`} onClick={()=>setTab("handleiding")}>📖 Handleiding</button>
             </>)}
             {rol==="backoffice" && (<>
+              <button className={`tp ${tab==="taken"?"act":""}`} onClick={()=>setTab("taken")}>📋 Taken & Meldingen {(openTaken.length+openMeldingen.filter(m=>m.type!=="vertrek_aankondiging").length)>0&&<Notif n={openTaken.length+openMeldingen.filter(m=>m.type!=="vertrek_aankondiging").length}/>}</button>
               <button className={`tp ${tab==="woningen"?"act":""}`} onClick={()=>setTab("woningen")}>🏠 Woningen</button>
-              <button className={`tp ${tab==="taken"?"act":""}`} onClick={()=>setTab("taken")}>📋 Taken & Meldingen {(openTaken.length+openMeldingen.length)>0&&<Notif n={openTaken.length+openMeldingen.length}/>}</button>
               <button className={`tp ${tab==="autos"?"act":""}`} onClick={()=>setTab("autos")}>🚗 Auto's</button>
               <button className={`tp ${tab==="fietsen"?"act":""}`} onClick={()=>setTab("fietsen")}>🚲 Fietsen</button>
               <button className={`tp ${tab==="checklist"?"act":""}`} onClick={()=>setTab("checklist")}>✅ Checklists</button>
@@ -1814,7 +1814,7 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
             )
           )}
           {/* Backoffice kan verwerken + notitie */}
-          {isBackoffice && !toonInplannen && (
+          {isBackoffice && !toonInplannen && m.type !== "vertrek_aankondiging" && (
             toonNotitie ? (
               <div style={{width:"100%",background:C.bg,border:`1px solid ${C.border}`,borderRadius:10,padding:14}}>
                 <input value={notitie} onChange={e=>setNotitie(e.target.value)} placeholder="Notitie bij verwerking..." autoFocus
@@ -3326,7 +3326,7 @@ function BackofficeInbox({meldingen,houses,onUpdate,naam,showToast}) {
                 {m.kamer_schoon==="nee"?<strong style={{color:"#f59e0b"}}>NIET schoon → schoonmaakkosten verwerken</strong>:m.kamer_schoon==="controle"?<strong style={{color:"#f59e0b"}}>In controle → huismeester inspecteert</strong>:<span style={{color:C.groen}}>Kamer schoon achtergelaten</span>}
               </div></>)}
             </div>
-            {m.status==="open"&&(<><input className="fi" value={notitieMap[m.id]||""} onChange={e=>setNotitieMap(p=>({...p,[m.id]:e.target.value}))} placeholder="Notitie bij verwerking..." style={{fontSize:13,marginBottom:10}}/><button className="btn-b" style={{width:"100%"}} onClick={()=>onUpdate(m.id,"verwerkt",notitieMap[m.id]||"")}>✓ Verwerkt in administratie</button></>)}
+            {m.status==="open"&&m.type!=="vertrek_aankondiging"&&(<><input className="fi" value={notitieMap[m.id]||""} onChange={e=>setNotitieMap(p=>({...p,[m.id]:e.target.value}))} placeholder="Notitie bij verwerking..." style={{fontSize:13,marginBottom:10}}/><button className="btn-b" style={{width:"100%"}} onClick={()=>onUpdate(m.id,"verwerkt",notitieMap[m.id]||"")}>✓ Verwerkt in administratie</button></>)}
             {m.status!=="open"&&m.afgehandeld_door&&<div style={{fontSize:12,color:C.muted,marginTop:8}}>Verwerkt door {m.afgehandeld_door}{m.notitie?` — "${m.notitie}"`:""}</div>}
           </div>
         );
