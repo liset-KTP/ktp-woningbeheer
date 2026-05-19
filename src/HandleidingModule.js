@@ -1,4 +1,5 @@
 // HandleidingModule.js — KTP Interflex Woningbeheer
+import { useState } from "react";
 
 const C = {
   blauw: "#1B3A6B", groen: "#4A9B3C", oranje: "#F5A623",
@@ -8,7 +9,7 @@ const C = {
 
 export function HandleidingModule({ gebruiker }) {
   const rol = gebruiker?.rol;
-  const [actieveRol, setActieveRol] = React.useState(rol === "backoffice" ? "collega" : rol);
+  const [actieveRol, setActieveRol] = useState(rol === "backoffice" ? "collega" : rol);
 
   const rollen = [
     { id: "collega",     label: "👤 Collega",      kleur: C.groen },
@@ -288,7 +289,7 @@ function InfoBlok({ items }) {
 }
 
 function VraagAntwoord({ items }) {
-  const [open, setOpen] = React.useState(null);
+  const [open, setOpen] = useState(null);
   return (
     <div style={{display:"grid",gap:8}}>
       {items.map((item,i) => (
