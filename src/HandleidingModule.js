@@ -26,15 +26,17 @@ export function HandleidingModule({ gebruiker }) {
         <p style={{fontSize: 14, opacity: 0.85, margin: 0}}>Alles wat je moet weten om de app te gebruiken — simpel uitgelegd!</p>
       </div>
 
-      {/* Rol tabs */}
-      <div style={{display: "flex", gap: 10, marginBottom: 24}}>
-        {rollen.map(r => (
-          <button key={r.id} onClick={() => setActieveRol(r.id)}
-            style={{flex: 1, padding: "12px 8px", borderRadius: 12, border: `2px solid ${actieveRol === r.id ? r.kleur : C.border}`, background: actieveRol === r.id ? r.kleur + "15" : "white", color: actieveRol === r.id ? r.kleur : C.muted, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "inherit", transition: "all .2s"}}>
-            {r.label}
-          </button>
-        ))}
-      </div>
+      {/* Rol tabs — alleen voor backoffice/financieel */}
+      {(rol === "backoffice" || rol === "financieel") && (
+        <div style={{display: "flex", gap: 10, marginBottom: 24}}>
+          {rollen.map(r => (
+            <button key={r.id} onClick={() => setActieveRol(r.id)}
+              style={{flex: 1, padding: "12px 8px", borderRadius: 12, border: `2px solid ${actieveRol === r.id ? r.kleur : C.border}`, background: actieveRol === r.id ? r.kleur + "15" : "white", color: actieveRol === r.id ? r.kleur : C.muted, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "inherit", transition: "all .2s"}}>
+              {r.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Collega */}
       {actieveRol === "collega" && (
