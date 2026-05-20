@@ -1007,7 +1007,7 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
   const dagNamen = dagplanningDB.length > 0 ? dagplanningDB.map(d => d.dag) : ["ma","di","wo","do","vr"];
   const [gekozenDag, setGekozenDag] = useState(dag in planningMap ? dag : "ma");
   const getoondeDag = planningMap[gekozenDag] || { label: gekozenDag, kleur: C.muted, icon: "🔧", focus: "", woning_ids: [], taken: [] };
-  const openMeldingen = meldingen.filter(m=>m.status==="open" && (gebruiker?.rol!=="backoffice" || m.voor_rol==="backoffice"));
+  const openMeldingen = meldingen.filter(m=>m.status==="open");
   const openTaken = taken.filter(t=>t.status==="open");
   const [notitieMap, setNotitieMap] = useState({});
   const [toonNieuwKlusje, setToonNieuwKlusje] = useState(false);
