@@ -1085,16 +1085,9 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
             </div>
             <div>
               <label className="fl">Inplannen op dag</label>
-              <select className="fs" value={nieuwKlusje.ingepland_op || dagDatumVoorKlusje} onChange={e=>setNieuwKlusje(p=>({...p,ingepland_op:e.target.value}))}>
-                {dagNamen.map(d=>{
-                  const nu2 = new Date();
-                  const idx = ["zo","ma","di","wo","do","vr","za"].indexOf(d);
-                  const diff2 = idx - nu2.getDay();
-                  const dt = new Date(nu2); dt.setDate(nu2.getDate()+diff2);
-                  const iso = dt.toISOString().slice(0,10);
-                  return <option key={d} value={iso}>{planningMap[d]?.label || d} ({iso.slice(5).replace("-","/")})</option>;
-                })}
-              </select>
+              <input type="date" className="fi" value={nieuwKlusje.ingepland_op || dagDatumVoorKlusje}
+                min={new Date().toISOString().slice(0,10)}
+                onChange={e=>setNieuwKlusje(p=>({...p,ingepland_op:e.target.value}))}/>
             </div>
             <div>
               <label className="fl">Prioriteit</label>
