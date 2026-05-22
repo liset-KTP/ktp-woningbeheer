@@ -169,6 +169,16 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
       geregistreerd_door: gebruiker.naam,
     }]);
     if (error) { showToast("Fout bij opslaan betaling","err"); return false; }
+    // Auto-afsluiten: als schuld een einddatum heeft en nu volledig betaald is → actief=false
+    const schuld = schulden.find(s => s.id === schuldId);
+    if (schuld?.einddatum && schuld?.actief) {
+      const bijgewerkt = { ...schuld, betalingen: [...(schuld.betalingen||[]), {bedrag: Number(bedrag), datum: datum||todayISO()}] };
+      if (berekenOpenstaand(bijgewerkt) <= 0) {
+        await supabase.from("huurschulden").update({ actief: false }).eq("id", schuldId);
+        showToast("✓ Betaling opgeslagen — schuld volledig afgerond en afgesloten");
+        return true;
+      }
+    }
     showToast("✓ Betaling geregistreerd"); return true;
   }
 
