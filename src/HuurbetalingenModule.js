@@ -120,6 +120,7 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
   const [loading, setLoading] = useState(true);
   const [zoek, setZoek] = useState("");
   const [filterStatus, setFilterStatus] = useState("alle");
+  const [sorteer, setSorteer] = useState("openstaand");
   const [toonNieuw, setToonNieuw] = useState(false);
 
   const isBackoffice = (gebruiker?.rol === "backoffice" || gebruiker?.rol === "financieel") && !readonly;
@@ -215,9 +216,17 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
     })
     .filter(s => !q || (s.naam_medewerker || "").toLowerCase().includes(q) || (s.opmerkingen || "").toLowerCase().includes(q))
     .sort((a, b) => {
-      // Actief voor afgesloten, dan op openstaand bedrag
+      // Altijd actief voor afgesloten
       if (a.actief !== b.actief) return a.actief ? -1 : 1;
-      return berekenOpenstaand(b) - berekenOpenstaand(a);
+      if (sorteer === "openstaand") return berekenOpenstaand(b) - berekenOpenstaand(a);
+      if (sorteer === "naam") return (a.naam_medewerker||"").localeCompare(b.naam_medewerker||"");
+      if (sorteer === "laatste_betaling") {
+        const laatsteA = (a.betalingen||[]).filter(p=>Number(p.bedrag)>0).sort((x,y)=>new Date(y.datum)-new Date(x.datum))[0]?.datum || "0";
+        const laatsteB = (b.betalingen||[]).filter(p=>Number(p.bedrag)>0).sort((x,y)=>new Date(y.datum)-new Date(x.datum))[0]?.datum || "0";
+        return new Date(laatsteA) - new Date(laatsteB); // oudste betaling bovenaan
+      }
+      if (sorteer === "startdatum") return new Date(a.startdatum||0) - new Date(b.startdatum||0);
+      return 0;
     });
 
   const actiefGefilterd  = gefilterd.filter(s => s.actief);
@@ -257,21 +266,28 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
         </div>
       )}
 
-      {/* Zoekbalk + filters */}
-      <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap"}}>
+      {/* Zoekbalk + filters + sortering */}
+      <div style={{display:"flex",gap:10,marginBottom:12,flexWrap:"wrap"}}>
         <input
           value={zoek} onChange={e => setZoek(e.target.value)}
           placeholder="🔍 Zoek op naam..."
           style={{flex:1,minWidth:200,background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"9px 14px",fontSize:13,outline:"none",fontFamily:"inherit"}}
         />
-        <div style={{display:"flex",gap:4}}>
-          {[["alle",`Alles (${schulden.length})`],["openstaand",`💶 Openstaand (${actief.length})`],["afgesloten",`✅ Afgesloten (${gesloten.length})`]].map(([v,l]) => (
-            <button key={v} onClick={() => setFilterStatus(v)}
-              style={{background:filterStatus===v?C.blauw:"white",color:filterStatus===v?"white":C.muted,border:`1.5px solid ${filterStatus===v?C.blauw:C.border}`,borderRadius:20,padding:"7px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
-              {l}
-            </button>
-          ))}
-        </div>
+        <select value={sorteer} onChange={e => setSorteer(e.target.value)}
+          style={{background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"9px 14px",fontSize:13,outline:"none",fontFamily:"inherit",cursor:"pointer"}}>
+          <option value="openstaand">↓ Hoogst openstaand</option>
+          <option value="laatste_betaling">⏰ Langst geen betaling</option>
+          <option value="naam">A–Z Naam</option>
+          <option value="startdatum">📅 Startdatum</option>
+        </select>
+      </div>
+      <div style={{display:"flex",gap:4,marginBottom:16,flexWrap:"wrap"}}>
+        {[["alle",`Alles (${schulden.length})`],["openstaand",`💶 Openstaand (${actief.length})`],["afgesloten",`✅ Afgesloten (${gesloten.length})`]].map(([v,l]) => (
+          <button key={v} onClick={() => setFilterStatus(v)}
+            style={{background:filterStatus===v?C.blauw:"white",color:filterStatus===v?"white":C.muted,border:`1.5px solid ${filterStatus===v?C.blauw:C.border}`,borderRadius:20,padding:"7px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
+            {l}
+          </button>
+        ))}
       </div>
 
       {q && <div style={{fontSize:12,color:C.muted,marginBottom:10}}>{gefilterd.length} resultaten voor "<strong>{zoek}</strong>"</div>}
