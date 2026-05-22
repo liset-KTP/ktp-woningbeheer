@@ -4101,12 +4101,10 @@ function LogView({meldingen,houses,activiteiten}) {
   ].sort((a,b)=>new Date(b.datum||0)-new Date(a.datum||0));
 
   function exportCSV() {
-    let csv="Datum,Tijd,Categorie,Type,Naam/Medewerker,Extra info,Adres,Kamer,Ingediend door,Status
-";
+    let csv="Datum,Tijd,Categorie,Type,Naam/Medewerker,Extra info,Adres,Kamer,Ingediend door,Status\n";
     alles.forEach(item=>{
       const dt=item.datum?new Date(item.datum):new Date();
-      csv+=`"${fmtDate(dt)}","${fmtTime(dt)}","${item.soort}","${item.type}","${item.naam}","${(item.extra||item.notitie||"").replace(/"/g,"'")}","${item.adres}","${item.kamer}","${item.door}","${item.status}"
-`;
+      csv+=`"${fmtDate(dt)}","${fmtTime(dt)}","${item.soort}","${item.type}","${item.naam}","${(item.extra||item.notitie||"").replace(/"/g,"'")}","${item.adres}","${item.kamer}","${item.door}","${item.status}"\n`;
     });
     const blob=new Blob(["﻿"+csv],{type:"text/csv;charset=utf-8;"});
     const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`KTP_volledig_log_${todayISO()}.csv`;a.click();URL.revokeObjectURL(url);
