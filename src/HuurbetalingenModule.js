@@ -118,7 +118,9 @@ function volgendeBetalingsDatum(schuld) {
 export function HuurbetalingenModule({ gebruiker, showToast, readonly = false }) {
   const [schulden, setSchulden] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [subTab, setSubTab] = useState("overzicht");
+  const [zoek, setZoek] = useState("");
+  const [filterStatus, setFilterStatus] = useState("alle");
+  const [toonNieuw, setToonNieuw] = useState(false);
 
   const isBackoffice = (gebruiker?.rol === "backoffice" || gebruiker?.rol === "financieel") && !readonly;
 
@@ -191,49 +193,116 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
 
   const actief   = schulden.filter(s => s.actief);
   const gesloten = schulden.filter(s => !s.actief);
-  const gestoptOpenstaand = actief.filter(s => s.einddatum && berekenOpenstaand(s) > 0);
-  const lopend = actief.filter(s => !s.einddatum);
   const totaalOpen = actief.reduce((s, d) => s + berekenOpenstaand(d), 0);
 
-  const tabs = [
-    { id:"overzicht", label:`💶 Openstaand (${actief.length})` },
-    ...(!readonly ? [{ id:"historie", label:`📋 Afgesloten (${gesloten.length})` }] : []),
-    ...(isBackoffice ? [{ id:"nieuw", label:"+ Nieuwe schuld" }] : []),
-  ];
+  // Zoek + filter
+  const q = zoek.toLowerCase().trim();
+  const gefilterd = schulden
+    .filter(s => {
+      if (filterStatus === "openstaand") return s.actief;
+      if (filterStatus === "afgesloten") return !s.actief;
+      return true;
+    })
+    .filter(s => !q || (s.naam_medewerker || "").toLowerCase().includes(q) || (s.opmerkingen || "").toLowerCase().includes(q))
+    .sort((a, b) => {
+      // Actief voor afgesloten, dan op openstaand bedrag
+      if (a.actief !== b.actief) return a.actief ? -1 : 1;
+      return berekenOpenstaand(b) - berekenOpenstaand(a);
+    });
+
+  const actiefGefilterd  = gefilterd.filter(s => s.actief);
+  const geslotenGefilterd = gefilterd.filter(s => !s.actief);
 
   return (
     <div>
-      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:24}}>
+      {/* Header met stats + knop */}
+      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:16,flexWrap:"wrap",gap:12}}>
         <div>
           <h2 style={{fontSize:20,fontWeight:800,color:C.blauw,marginBottom:3}}>💶 Huurbetalingen</h2>
-          <p style={{fontSize:13,color:C.muted}}>{actief.length} actieve schulden · Totaal openstaand: <strong style={{color:C.rood}}>€{totaalOpen.toFixed(2)}</strong></p>
+          <p style={{fontSize:13,color:C.muted}}>
+            {actief.length} openstaand · {gesloten.length} afgesloten
+            {totaalOpen > 0 && <> · <strong style={{color:C.rood}}>€{totaalOpen.toFixed(2)} open</strong></>}
+          </p>
         </div>
-      </div>
-
-      {totaalOpen > 0 && (
-        <div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:12,padding:"12px 18px",marginBottom:20}}>
-          <div style={{fontWeight:700,color:"#b91c1c"}}>⚠️ Totaal openstaand: €{totaalOpen.toFixed(2)}</div>
-          <div style={{fontSize:13,color:"#b91c1c",marginTop:4}}>Verdeeld over {actief.length} medewerker{actief.length !== 1 ? "s" : ""}. Elke maandag wordt automatisch het weekbedrag bijgeteld.</div>
-        </div>
-      )}
-
-      <div style={{display:"flex",gap:6,marginBottom:24,borderBottom:`2px solid ${C.border}`,paddingBottom:0}}>
-        {tabs.map(t => (
-          <button key={t.id} onClick={() => setSubTab(t.id)}
-            style={{background:"none",border:"none",padding:"10px 18px",fontSize:13,fontWeight:700,color:subTab===t.id?C.blauw:C.muted,borderBottom:subTab===t.id?`3px solid ${C.blauw}`:"3px solid transparent",marginBottom:-2,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
-            {t.label}
+        {isBackoffice && (
+          <button onClick={() => setToonNieuw(!toonNieuw)}
+            style={{background:toonNieuw?"white":C.blauw,color:toonNieuw?C.blauw:"white",border:`2px solid ${C.blauw}`,borderRadius:8,padding:"9px 18px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+            {toonNieuw ? "✕ Annuleren" : "+ Nieuwe schuld"}
           </button>
-        ))}
+        )}
       </div>
 
-      {subTab === "overzicht" && (
-        <SchuldenLijst schulden={actief} gebruiker={gebruiker} isBackoffice={isBackoffice} onBetaling={addBetaling} onAfsluiten={sluitAf} onOpmerking={addOpmerking} showToast={showToast} readonly={readonly} />
+      {/* Nieuw schuld form */}
+      {toonNieuw && isBackoffice && (
+        <div style={{marginBottom:20}}>
+          <NieuweSchuld onSubmit={async (d) => { const ok = await addSchuld(d); if (ok) setToonNieuw(false); }} showToast={showToast} />
+        </div>
       )}
-      {subTab === "historie" && (
-        <SchuldenLijst schulden={gesloten} gebruiker={gebruiker} isBackoffice={isBackoffice} onBetaling={addBetaling} onAfsluiten={sluitAf} onOpmerking={addOpmerking} showToast={showToast} readonly />
+
+      {/* Rode banner als er openstaand is */}
+      {totaalOpen > 0 && !toonNieuw && (
+        <div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:10,padding:"10px 16px",marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}>
+          <div style={{fontWeight:700,color:"#b91c1c",fontSize:13}}>⚠️ Totaal openstaand: €{totaalOpen.toFixed(2)}</div>
+          <div style={{fontSize:12,color:"#b91c1c"}}>Verdeeld over {actief.length} medewerker{actief.length !== 1 ? "s" : ""}</div>
+        </div>
       )}
-      {subTab === "nieuw" && isBackoffice && (
-        <NieuweSchuld onSubmit={async (d) => { const ok = await addSchuld(d); if (ok) setSubTab("overzicht"); }} showToast={showToast} />
+
+      {/* Zoekbalk + filters */}
+      <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap"}}>
+        <input
+          value={zoek} onChange={e => setZoek(e.target.value)}
+          placeholder="🔍 Zoek op naam..."
+          style={{flex:1,minWidth:200,background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"9px 14px",fontSize:13,outline:"none",fontFamily:"inherit"}}
+        />
+        <div style={{display:"flex",gap:4}}>
+          {[["alle",`Alles (${schulden.length})`],["openstaand",`💶 Openstaand (${actief.length})`],["afgesloten",`✅ Afgesloten (${gesloten.length})`]].map(([v,l]) => (
+            <button key={v} onClick={() => setFilterStatus(v)}
+              style={{background:filterStatus===v?C.blauw:"white",color:filterStatus===v?"white":C.muted,border:`1.5px solid ${filterStatus===v?C.blauw:C.border}`,borderRadius:20,padding:"7px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
+              {l}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {q && <div style={{fontSize:12,color:C.muted,marginBottom:10}}>{gefilterd.length} resultaten voor "<strong>{zoek}</strong>"</div>}
+
+      {gefilterd.length === 0 ? (
+        <div style={{textAlign:"center",padding:"60px",color:C.muted}}>
+          <div style={{fontSize:40,marginBottom:10}}>🔍</div>
+          <div>{q ? `Geen resultaten voor "${zoek}"` : "Geen huurschulden gevonden 🎉"}</div>
+        </div>
+      ) : (
+        <div style={{display:"grid",gap:16}}>
+          {/* Openstaande schulden */}
+          {actiefGefilterd.length > 0 && (
+            <>
+              {filterStatus === "alle" && (
+                <div style={{display:"flex",alignItems:"center",gap:10,marginTop:4}}>
+                  <span style={{fontWeight:700,fontSize:13,color:C.rood}}>💶 Openstaand ({actiefGefilterd.length})</span>
+                  <div style={{flex:1,height:1,background:C.border}}/>
+                </div>
+              )}
+              {actiefGefilterd.map(s => (
+                <SchuldKaart key={s.id} schuld={s} isBackoffice={isBackoffice} onBetaling={addBetaling} onAfsluiten={sluitAf} onOpmerking={addOpmerking} showToast={showToast} readonly={readonly} gebruiker={gebruiker} />
+              ))}
+            </>
+          )}
+
+          {/* Afgesloten schulden */}
+          {geslotenGefilterd.length > 0 && (
+            <>
+              {filterStatus === "alle" && (
+                <div style={{display:"flex",alignItems:"center",gap:10,marginTop:8}}>
+                  <span style={{fontWeight:700,fontSize:13,color:C.groen}}>✅ Afgesloten ({geslotenGefilterd.length})</span>
+                  <div style={{flex:1,height:1,background:C.border}}/>
+                </div>
+              )}
+              {geslotenGefilterd.map(s => (
+                <SchuldKaart key={s.id} schuld={s} isBackoffice={isBackoffice} onBetaling={addBetaling} onAfsluiten={sluitAf} onOpmerking={addOpmerking} showToast={showToast} readonly={true} gebruiker={gebruiker} />
+              ))}
+            </>
+          )}
+        </div>
       )}
     </div>
   );
