@@ -267,6 +267,15 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
       status: terugbetalen ? "terugbetaald" : "afgesloten",
       vertrek_datum: new Date().toISOString().slice(0,10),
     }).eq("id", planId);
+    // Log de actie in activiteiten zodat het in het Log verschijnt
+    const plan = plannen.find(p => p.id === planId);
+    const label = terugbetalen ? "💶 Borg terugbetaald" : "Borgplan afgesloten";
+    await supabase.from("activiteiten").insert([{
+      type: terugbetalen ? "borg_terugbetaald" : "borg_afgesloten",
+      omschrijving: `${label}: ${plan?.naam_medewerker || "?"} — €${plan?.totaal_borg || 0} (ingehouden: €${plan?.ingehouden || 0})`,
+      gedaan_door: gebruiker?.naam || "?",
+      extra: { borg_plan_id: planId, naam: plan?.naam_medewerker, bedrag: plan?.totaal_borg },
+    }]);
     showToast(terugbetalen ? "✓ Borg terugbetaald" : "✓ Plan afgesloten");
     await loadAll();
   }
