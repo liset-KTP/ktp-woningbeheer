@@ -77,9 +77,23 @@ function berekenVerschuldigdeWeken(schuld) {
 }
 
 function berekenTotaalVerschuldigd(schuld) {
-  const { weken, weekbedrag } = berekenVerschuldigdeWeken(schuld);
+  const result = berekenVerschuldigdeWeken(schuld);
+  const { weken, weekbedrag, eersteMaandag } = (result && typeof result === "object") ? result : { weken: 0, weekbedrag: 140, eersteMaandag: null };
   const extraBedragen = (schuld.betalingen || []).filter(b => Number(b.bedrag) < 0).reduce((s,b) => s + Math.abs(Number(b.bedrag)), 0);
-  return (weken * weekbedrag) + Number(schuld.beginsaldo || 0) + extraBedragen;
+
+  // Bereken gedeeltelijke eerste week: als niet op maandag gestart, €20/dag tot eerste maandag
+  let partieelBedrag = 0;
+  if (eersteMaandag && schuld.startdatum) {
+    const start = new Date(schuld.startdatum);
+    start.setHours(0,0,0,0);
+    if (start.getDay() !== 1) { // 1 = maandag
+      const dagbedrag = schuld.tarief_dagen ? Number(schuld.tarief_dagen) : 20;
+      const dagenInPartieelWeek = Math.round((eersteMaandag - start) / (1000 * 60 * 60 * 24));
+      partieelBedrag = dagenInPartieelWeek * dagbedrag;
+    }
+  }
+
+  return (weken * weekbedrag) + partieelBedrag + Number(schuld.beginsaldo || 0) + extraBedragen;
 }
 
 function berekenTotaalBetaald(schuld) {
