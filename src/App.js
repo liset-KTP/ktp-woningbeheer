@@ -4015,69 +4015,140 @@ function ChecklistItemsBeheer({ checklistItems, showToast }) {
 function LogView({meldingen,houses,activiteiten}) {
   const [zoek, setZoek] = useState("");
   const [typeFilter, setTypeFilter] = useState("alle");
+  const [autoMeldingen, setAutoMeldingen] = useState([]);
+  const [fietsLog, setFietsLog] = useState([]);
+  const [borgPlannen, setBorgPlannen] = useState([]);
+  const [huurschulden, setHuurschulden] = useState([]);
+  const [huurbetalingen, setHuurbetalingen] = useState([]);
+  const [extraLoading, setExtraLoading] = useState(true);
 
-  function exportCSV() {
-    let csv="Datum,Tijd,Type,Medewerker,Adres,Kamer,Ingediend door,Status,Notitie\n";
-    meldingen.forEach(m=>{const h=houses.find(h=>h.id===m.woning_id);const dt=m.created_at?new Date(m.created_at):new Date();csv+=`"${fmtDate(dt)}","${fmtTime(dt)}","${m.type}","${m.medewerker}","${h?.adres||""}","${m.kamer}","${m.ingediend_door}","${m.status}","${m.notitie||""}"\n`;});
-    const blob=new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"});
-    const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`KTP_log_${todayISO()}.csv`;a.click();URL.revokeObjectURL(url);
-  }
+  useEffect(() => {
+    async function loadExtra() {
+      const [auto, fiets, borg, schulden, betalingen] = await Promise.all([
+        supabase.from("auto_meldingen").select("*").order("created_at",{ascending:false}).limit(500),
+        supabase.from("fiets_log").select("*").order("created_at",{ascending:false}).limit(500),
+        supabase.from("borg_plannen").select("*").order("created_at",{ascending:false}).limit(500),
+        supabase.from("huurschulden").select("*").order("created_at",{ascending:false}).limit(500),
+        supabase.from("huurbetalingen").select("*").order("created_at",{ascending:false}).limit(500),
+      ]);
+      setAutoMeldingen(auto.data||[]);
+      setFietsLog(fiets.data||[]);
+      setBorgPlannen(borg.data||[]);
+      setHuurschulden(schulden.data||[]);
+      setHuurbetalingen(betalingen.data||[]);
+      setExtraLoading(false);
+    }
+    loadExtra();
+  }, []);
 
   const typeKleur = {
-    melding_status:C.groen, taak_gedaan:C.blauw,
-    checklist:"#7c3aed", kamer_wijziging:"#f59e0b", gebruiker:C.muted,
     aankomst:C.groen, vertrek:"#ef4444", reservering:C.blauw, verhuizing:"#7c3aed", overig:C.muted,
+    melding_status:C.groen, taak_gedaan:C.blauw, checklist:"#7c3aed", kamer_wijziging:"#f59e0b", gebruiker:C.muted,
+    uitgifte:"#0891b2", inname:"#0e7490", storing:"#dc2626", schade:"#b91c1c",
+    fiets_uitgifte:"#059669", fiets_inname:"#047857",
+    borg_plan:"#7c3aed", huurschuld:"#d97706", huurbetaling:"#16a34a",
   };
 
-  // Combineer meldingen + activiteiten, sorteer op datum nieuwste eerst
+  const soortIcoon = { melding:"📋", activiteit:"⚡", auto:"🚗", fiets:"🚲", borg:"🔐", huur:"💰" };
+
   const alles = [
-    ...meldingen.map(m => ({
+    ...meldingen.map(m=>({
       id:`m-${m.id}`, soort:"melding", datum:m.created_at,
       type:m.type, naam:m.medewerker, door:m.ingediend_door,
       adres:houses.find(h=>h.id===m.woning_id)?.adres||"",
-      kamer:m.kamer, status:m.status, notitie:m.notitie||"", opmerkingen:m.opmerkingen||"",
+      kamer:m.kamer, status:m.status, notitie:m.notitie||"", extra:m.opmerkingen||"",
     })),
-    ...activiteiten.map(a => ({
+    ...activiteiten.map(a=>({
       id:`a-${a.id}`, soort:"activiteit", datum:a.created_at,
       type:a.type, naam:a.omschrijving, door:a.gedaan_door,
-      adres:"", kamer:"", status:"", notitie:"", opmerkingen:"",
+      adres:"", kamer:"", status:"", notitie:"", extra:"",
     })),
+    ...autoMeldingen.map(a=>({
+      id:`au-${a.id}`, soort:"auto", datum:a.created_at,
+      type:a.actie||"auto", naam:a.naam_medewerker||"-", door:a.ingediend_door||"",
+      adres:"", kamer:"", status:a.status||"",
+      notitie:a.kenteken||"",
+      extra:[a.opmerkingen, a.locatie, a.kilometerstand?`${a.kilometerstand} km`:""].filter(Boolean).join(" · "),
+    })),
+    ...fietsLog.map(f=>({
+      id:`fi-${f.id}`, soort:"fiets", datum:f.created_at,
+      type:`fiets_${f.actie||"log"}`, naam:f.naam_medewerker||"-", door:f.ingediend_door||"",
+      adres:"", kamer:"", status:"",
+      notitie:`Fiets ${f.fietsnummer||""}`, extra:f.opmerkingen||"",
+    })),
+    ...borgPlannen.map(b=>({
+      id:`bp-${b.id}`, soort:"borg", datum:b.created_at,
+      type:"borg_plan", naam:b.naam_medewerker||"-", door:b.aangemaakt_door||b.ingediend_door||"",
+      adres:houses.find(h=>h.id===b.woning_id)?.adres||"",
+      kamer:b.kamer||"", status:b.status||"",
+      notitie:`Borg €${b.totaal_borg||0}`, extra:b.opmerkingen||"",
+    })),
+    ...huurschulden.map(s=>({
+      id:`hs-${s.id}`, soort:"huur", datum:s.created_at,
+      type:"huurschuld", naam:s.naam_medewerker||"-", door:s.aangemaakt_door||"",
+      adres:"", kamer:"", status:s.actief?"actief":"afgesloten",
+      notitie:`Schuld €${s.beginsaldo||0}`, extra:s.opmerkingen||"",
+    })),
+    ...huurbetalingen.map(b=>{
+      const schuld=huurschulden.find(s=>s.id===b.schuld_id);
+      return {
+        id:`hb-${b.id}`, soort:"huur", datum:b.created_at,
+        type:"huurbetaling", naam:schuld?.naam_medewerker||"-", door:b.geregistreerd_door||"",
+        adres:"", kamer:"", status:"",
+        notitie:`Betaling €${b.bedrag||0}`, extra:b.opmerking||"",
+      };
+    }),
   ].sort((a,b)=>new Date(b.datum||0)-new Date(a.datum||0));
 
-  const q = zoek.toLowerCase().trim();
-  const gefilterd = alles.filter(item=>{
-    if (typeFilter==="meldingen" && item.soort!=="melding") return false;
-    if (typeFilter==="activiteiten" && item.soort!=="activiteit") return false;
+  function exportCSV() {
+    let csv="Datum,Tijd,Categorie,Type,Naam/Medewerker,Extra info,Adres,Kamer,Ingediend door,Status
+";
+    alles.forEach(item=>{
+      const dt=item.datum?new Date(item.datum):new Date();
+      csv+=`"${fmtDate(dt)}","${fmtTime(dt)}","${item.soort}","${item.type}","${item.naam}","${(item.extra||item.notitie||"").replace(/"/g,"'")}","${item.adres}","${item.kamer}","${item.door}","${item.status}"
+`;
+    });
+    const blob=new Blob(["﻿"+csv],{type:"text/csv;charset=utf-8;"});
+    const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`KTP_volledig_log_${todayISO()}.csv`;a.click();URL.revokeObjectURL(url);
+  }
+
+  const q=zoek.toLowerCase().trim();
+  const totalen={
+    meldingen:alles.filter(i=>i.soort==="melding").length,
+    activiteiten:alles.filter(i=>i.soort==="activiteit").length,
+    autos:alles.filter(i=>i.soort==="auto").length,
+    fietsen:alles.filter(i=>i.soort==="fiets").length,
+    borg_huur:alles.filter(i=>i.soort==="borg"||i.soort==="huur").length,
+  };
+  const gefilterd=alles.filter(item=>{
+    if (typeFilter==="meldingen"&&item.soort!=="melding") return false;
+    if (typeFilter==="activiteiten"&&item.soort!=="activiteit") return false;
+    if (typeFilter==="autos"&&item.soort!=="auto") return false;
+    if (typeFilter==="fietsen"&&item.soort!=="fiets") return false;
+    if (typeFilter==="borg_huur"&&item.soort!=="borg"&&item.soort!=="huur") return false;
     if (!q) return true;
-    return (item.naam||"").toLowerCase().includes(q)||
-           (item.type||"").toLowerCase().includes(q)||
-           (item.adres||"").toLowerCase().includes(q)||
-           (item.door||"").toLowerCase().includes(q)||
-           (item.notitie||"").toLowerCase().includes(q)||
-           (item.opmerkingen||"").toLowerCase().includes(q);
+    return [item.naam,item.type,item.adres,item.door,item.notitie,item.extra,item.kamer,item.status]
+      .some(v=>(v||"").toLowerCase().includes(q));
   });
 
   return (
     <div>
-      <SH titel="📝 Log" sub={`${meldingen.length} meldingen · ${activiteiten.length} activiteiten`}
+      <SH titel="📝 Log" sub={`${alles.length} totaal · ${extraLoading?"laden...":"alles geladen"}`}
         actie={<button className="btn-out" onClick={exportCSV}>⬇ Exporteer CSV</button>}/>
-
       <div style={{display:"flex",gap:10,marginBottom:12,flexWrap:"wrap"}}>
         <input value={zoek} onChange={e=>setZoek(e.target.value)}
-          placeholder="🔍 Zoek op naam, type, woning, ingediend door..."
+          placeholder="🔍 Zoek op naam, kenteken, adres, ingediend door..."
           style={{flex:1,minWidth:220,background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"9px 14px",fontSize:13,outline:"none",fontFamily:"inherit"}}/>
-        <div style={{display:"flex",gap:4}}>
-          {[["alle","Alles"],["meldingen","📋 Meldingen"],["activiteiten","⚡ Activiteiten"]].map(([v,l])=>(
+        <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+          {[["alle","Alles",alles.length],["meldingen","📋 Woningen",totalen.meldingen],["activiteiten","⚡ Activiteiten",totalen.activiteiten],["autos","🚗 Auto's",totalen.autos],["fietsen","🚲 Fietsen",totalen.fietsen],["borg_huur","💰 Borg/Huur",totalen.borg_huur]].map(([v,l,n])=>(
             <button key={v} onClick={()=>setTypeFilter(v)}
-              style={{background:typeFilter===v?C.blauw:"white",color:typeFilter===v?"white":C.muted,border:`1.5px solid ${typeFilter===v?C.blauw:C.border}`,borderRadius:20,padding:"7px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
-              {l}
+              style={{background:typeFilter===v?C.blauw:"white",color:typeFilter===v?"white":C.muted,border:`1.5px solid ${typeFilter===v?C.blauw:C.border}`,borderRadius:20,padding:"7px 12px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
+              {l} <span style={{opacity:.7,fontSize:10}}>({n})</span>
             </button>
           ))}
         </div>
       </div>
-
       {q&&<div style={{fontSize:13,color:C.muted,marginBottom:10}}>{gefilterd.length} resultaten voor "<strong>{zoek}</strong>"</div>}
-
       {gefilterd.length===0?(
         <div className="card" style={{textAlign:"center",padding:"50px"}}>
           <div style={{fontSize:40,marginBottom:10}}>🔍</div>
@@ -4085,24 +4156,27 @@ function LogView({meldingen,houses,activiteiten}) {
         </div>
       ):(
         <div className="card" style={{padding:0,overflow:"hidden"}}>
-          <div style={{display:"grid",gridTemplateColumns:"85px 50px 110px 50px 1fr 1fr 90px",padding:"10px 16px",fontSize:10,fontWeight:700,color:C.muted,letterSpacing:".6px",textTransform:"uppercase",borderBottom:`1px solid ${C.border}`,background:C.bg}}>
-            <span>Datum</span><span>Tijd</span><span>Type</span><span>Bron</span><span>Naam / Omschrijving</span><span>Adres</span><span>Door</span>
+          <div style={{display:"grid",gridTemplateColumns:"85px 50px 110px 30px 1fr 1fr 90px",padding:"10px 16px",fontSize:10,fontWeight:700,color:C.muted,letterSpacing:".6px",textTransform:"uppercase",borderBottom:`1px solid ${C.border}`,background:C.bg}}>
+            <span>Datum</span><span>Tijd</span><span>Type</span><span></span><span>Naam / Omschrijving</span><span>Extra info</span><span>Door</span>
           </div>
           {gefilterd.map((item,i)=>{
             const dt=item.datum?new Date(item.datum):new Date();
             const kleur=typeKleur[item.type]||C.muted;
             return(
-              <div key={item.id} style={{display:"grid",gridTemplateColumns:"85px 50px 110px 50px 1fr 1fr 90px",padding:"10px 16px",fontSize:12,borderBottom:i<gefilterd.length-1?`1px solid ${C.border}`:"none",alignItems:"center",background:i%2===0?"white":C.bg+"60"}}>
+              <div key={item.id} style={{display:"grid",gridTemplateColumns:"85px 50px 110px 30px 1fr 1fr 90px",padding:"10px 16px",fontSize:12,borderBottom:i<gefilterd.length-1?`1px solid ${C.border}`:"none",alignItems:"center",background:i%2===0?"white":C.bg+"60"}}>
                 <span style={{color:C.muted}}>{fmtDate(dt)}</span>
                 <span style={{color:C.muted}}>{fmtTime(dt)}</span>
                 <span style={{padding:"2px 6px",borderRadius:4,background:kleur+"18",color:kleur,fontSize:9,fontWeight:700,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{item.type}</span>
-                <span style={{fontSize:11,textAlign:"center"}}>{item.soort==="melding"?"📋":"⚡"}</span>
+                <span style={{fontSize:14,textAlign:"center"}}>{soortIcoon[item.soort]||"•"}</span>
                 <div>
                   <div style={{fontWeight:600,color:C.text,marginBottom:1}}>{item.naam}</div>
-                  {item.notitie&&<div style={{fontSize:11,color:C.muted,fontStyle:"italic"}}>"{item.notitie.slice(0,60)}{item.notitie.length>60?"...":""}"</div>}
-                  {item.status&&<span style={{fontSize:10,fontWeight:700,color:item.status==="open"?C.blauw:C.groen}}>{item.status.toUpperCase()}</span>}
+                  {item.notitie&&<div style={{fontSize:11,color:C.muted}}>{item.notitie}</div>}
+                  {item.status&&<span style={{fontSize:10,fontWeight:700,color:item.status==="open"||item.status==="actief"?C.blauw:C.groen}}>{item.status.toUpperCase()}</span>}
                 </div>
-                <span style={{color:C.muted}}>{item.adres}{item.kamer?` · K${item.kamer}`:""}</span>
+                <div>
+                  <div style={{color:C.muted,fontSize:11}}>{item.adres}{item.kamer?` · K${item.kamer}`:""}</div>
+                  {item.extra&&<div style={{fontSize:11,color:C.text,fontStyle:"italic"}}>{item.extra.slice(0,70)}{item.extra.length>70?"...":""}</div>}
+                </div>
                 <span style={{fontWeight:600,color:C.blauw,fontSize:11}}>{item.door}</span>
               </div>
             );
