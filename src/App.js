@@ -817,7 +817,6 @@ export default function App() {
             {rol==="huismeester" && (<>
               <button className={`tp ${tab==="dagplanning"?"act":""}`} onClick={()=>setTab("dagplanning")}>📅 Mijn dag {totalNotifs>0&&<Notif n={totalNotifs}/>}</button>
               <button className={`tp ${tab==="taken"?"act":""}`} onClick={()=>setTab("taken")}>📋 Taken & Meldingen {(openTaken.length+openMeldingen.filter(m=>m.voor_rol==="huismeester"||!m.voor_rol).length)>0&&<Notif n={openTaken.length+openMeldingen.filter(m=>m.voor_rol==="huismeester"||!m.voor_rol).length}/>}</button>
-              <button className={`tp ${tab==="checklist"?"act":""}`} onClick={()=>setTab("checklist")}>✅ Checklists</button>
               <button className={`tp ${tab==="woningen"?"act":""}`} onClick={()=>setTab("woningen")}>🏠 Woningen</button>
               <button className={`tp ${tab==="autos"?"act":""}`} onClick={()=>setTab("autos")}>🚗 Auto's {ongelzenAutoReacties>0&&<Notif n={ongelzenAutoReacties}/>}</button>
               <button className={`tp ${tab==="fietsen"?"act":""}`} onClick={()=>setTab("fietsen")}>🚲 Fietsen</button>
@@ -842,7 +841,6 @@ export default function App() {
               <button className={`tp ${tab==="woningen"?"act":""}`} onClick={()=>setTab("woningen")}>🏠 Woningen</button>
               <button className={`tp ${tab==="autos"?"act":""}`} onClick={()=>setTab("autos")}>🚗 Auto's</button>
               <button className={`tp ${tab==="fietsen"?"act":""}`} onClick={()=>setTab("fietsen")}>🚲 Fietsen</button>
-              <button className={`tp ${tab==="checklist"?"act":""}`} onClick={()=>setTab("checklist")}>✅ Checklists</button>
               <button className={`tp ${tab==="huurbetalingen"?"act":""}`} onClick={()=>setTab("huurbetalingen")}>💶 Huurbetalingen</button>
               <button className={`tp ${tab==="borg"?"act":""}`} onClick={()=>setTab("borg")}>🛡️ Inhoudingen</button>
               <button className={`tp ${tab==="log"?"act":""}`} onClick={()=>setTab("log")}>📝 Log</button>
@@ -861,13 +859,12 @@ export default function App() {
         {tab==="autos"&&<AutoModule gebruiker={gebruiker} showToast={showToast}/>}
         {tab==="fietsen"&&<FietsModule gebruiker={gebruiker} showToast={showToast} houses={houses} onMeldingIndienen={addMelding}/>}
         {rol==="huismeester"&&tab==="dagplanning"&&<DagplanningView meldingen={meldingen} taken={taken} houses={houses} onUpdate={updateMeldingStatus} onUpdateTaak={updateTaak} naam={naam} dagplanningDB={dagplanningDB} checklistItems={checklistItems} checklists={checklists}/>}
-        {tab==="checklist"&&<ChecklistView houses={houses} checklists={checklists} checklistItems={checklistItems} onSave={slaChecklistOp} gebruiker={gebruiker}/>}
         {rol==="backoffice"&&tab==="log"&&<LogView meldingen={meldingen} houses={houses} activiteiten={activiteiten}/>}
         {tab==="huurbetalingen"&&<HuurbetalingenModule gebruiker={gebruiker} showToast={showToast} readonly={rol!=="backoffice"&&rol!=="financieel"}/>}
         {tab==="berichten"&&<BerichtenModule gebruiker={gebruiker} houses={houses} taken={taken} meldingen={meldingen} autos={[]}/>}
         {tab==="borg"&&<BorgModule gebruiker={gebruiker} houses={houses} showToast={showToast} readonly={rol!=="backoffice"}/>}
         {tab==="handleiding"&&<HandleidingModule gebruiker={gebruiker}/>}
-        {tab==="huismeesterplanning"&&<HuismeesterPlanningView dagplanningDB={dagplanningDB} houses={houses} taken={taken} meldingen={meldingen}/>}
+        {tab==="huismeesterplanning"&&<HuismeesterPlanningView dagplanningDB={dagplanningDB} houses={houses} taken={taken} meldingen={meldingen} checklists={checklists} checklistItems={checklistItems}/>}
         {rol==="backoffice"&&isLiset&&tab==="beheer"&&<BeheerView houses={houses} onAdd={addWoning} onUpdate={updateWoning} onDelete={deleteWoning} showToast={showToast} gebruikers={gebruikers} onAddGebruiker={voegGebruikerToe} onUpdateGebruiker={updateGebruiker} onDeleteGebruiker={verwijderGebruiker} checklistItems={checklistItems} dagplanningDB={dagplanningDB}/>}
       </div>
     </div>
@@ -1354,11 +1351,11 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
 // ─── WONING KAART DAG (uitklapbaar met inline checklist) ─────────────────────
 function WoningKaartDag({ huis, kleur, hTaken, hMeldingen, checklistItems, checklists, naam, onUpdateTaak, gekozenDag, weekJaar: weekJaarProp, weekOffset=0 }) {
   const [open, setOpen] = useState(false);
-  const [savingChecklist, setSavingChecklist] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [toonOpmerkingItem, setToonOpmerkingItem] = useState({});
   const [opmerkingItem, setOpmerkingItem] = useState({});
 
-  // Week/jaar — gebruik prop als meegegeven (week navigatie), anders huidige week
+  // Week/jaar — gebruik prop als meegegeven, anders huidige week
   const weekJaar = weekJaarProp || (() => {
     const nu = new Date();
     const d = new Date(nu); d.setHours(0,0,0,0); d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
@@ -1367,97 +1364,123 @@ function WoningKaartDag({ huis, kleur, hTaken, hMeldingen, checklistItems, check
     return `${weekNr}-${d.getFullYear()}`;
   })();
 
-  // Bestaande checklist voor deze woning deze week
-  const bestaandeChecklist = checklists.find(c =>
-    c.woning_id === huis.id && c.week_jaar === weekJaar && c.type === "wekelijks"
-  );
-  const afgevinkt = bestaandeChecklist?.items || [];
-  const weekItems = checklistItems.filter(i => i.type === "wekelijks" && i.actief);
-  const aantalAfgevinkt = weekItems.filter(i => afgevinkt.includes(i.id)).length;
+  // Periode keys afleiden uit weekJaar (bijv. "21-2026")
+  const [wnStr, jaarStr] = weekJaar.split("-");
+  const wnNum = parseInt(wnStr) || 1;
+  const jaarNum = parseInt(jaarStr) || new Date().getFullYear();
+  const periode4W = `4W${Math.ceil(wnNum / 4)}-${jaarNum}`;
+  const periodeQ   = `Q${Math.ceil(wnNum / 13)}-${jaarNum}`;
 
-  const itemOpmerkingen = bestaandeChecklist?.items_opmerkingen || {};
+  // ─── Wekelijkse checklist ─────────────────────────────────────────────────
+  const weekItems  = checklistItems.filter(i => i.type === "wekelijks" && i.actief);
+  const chkWeek    = checklists.find(c => c.woning_id === huis.id && c.week_jaar === weekJaar && c.type === "wekelijks");
+  const afgWeek    = chkWeek?.items || [];
+  const opmWeek    = chkWeek?.items_opmerkingen || {};
+  const alleWeekKlaar = weekItems.length > 0 && weekItems.every(i => afgWeek.includes(i.id));
+  const aantalWeekAfg = weekItems.filter(i => afgWeek.includes(i.id)).length;
 
-  async function toggleItem(itemId) {
-    setSavingChecklist(true);
-    const nieuweAfgevinkt = afgevinkt.includes(itemId)
-      ? afgevinkt.filter(i => i !== itemId)
-      : [...afgevinkt, itemId];
+  // ─── 4-wekelijkse checklist ───────────────────────────────────────────────
+  const items4W    = checklistItems.filter(i => i.type === "4wekelijks" && i.actief);
+  const chk4W      = checklists.find(c => c.woning_id === huis.id && c.week_jaar === periode4W && c.type === "4wekelijks");
+  const afg4W      = chk4W?.items || [];
+  const alle4WKlaar = items4W.length > 0 && items4W.every(i => afg4W.includes(i.id));
 
-    if (bestaandeChecklist) {
-      await supabase.from("checklists").update({
-        items: nieuweAfgevinkt,
-        bijgewerkt_door: naam,
-        updated_at: new Date().toISOString(),
-      }).eq("id", bestaandeChecklist.id);
+  // ─── Kwartaal checklist ───────────────────────────────────────────────────
+  const itemsQ     = checklistItems.filter(i => i.type === "kwartaal" && i.actief);
+  const chkQ       = checklists.find(c => c.woning_id === huis.id && c.week_jaar === periodeQ && c.type === "kwartaal");
+  const afgQ       = chkQ?.items || [];
+  const allesQKlaar = itemsQ.length > 0 && itemsQ.every(i => afgQ.includes(i.id));
+
+  // Totaal openstaand voor header badge
+  const totaalOpenChecklist = (alleWeekKlaar ? 0 : weekItems.length - aantalWeekAfg)
+    + (alle4WKlaar || items4W.length === 0 ? 0 : items4W.filter(i => !afg4W.includes(i.id)).length)
+    + (allesQKlaar || itemsQ.length === 0  ? 0 : itemsQ.filter(i => !afgQ.includes(i.id)).length);
+
+  // ─── Toggle helpers ───────────────────────────────────────────────────────
+  async function toggleChecklist(type, periodeKey, sleutelPrefix, bestaand, afgevinkt, itemId) {
+    setSaving(true);
+    const nieuw = afgevinkt.includes(itemId) ? afgevinkt.filter(i => i !== itemId) : [...afgevinkt, itemId];
+    const sleutel = `${huis.id}-${sleutelPrefix}-${periodeKey}`;
+    if (bestaand) {
+      await supabase.from("checklists").update({ items: nieuw, bijgewerkt_door: naam, updated_at: new Date().toISOString() }).eq("id", bestaand.id);
     } else {
-      await supabase.from("checklists").insert([{
-        sleutel: `${huis.id}-wekelijks-${weekJaar}`,
-        type: "wekelijks",
-        week_jaar: weekJaar,
-        woning_id: huis.id,
-        items: nieuweAfgevinkt,
-        items_opmerkingen: {},
-        aangemaakt_door: naam,
-        bijgewerkt_door: naam,
-      }]);
+      await supabase.from("checklists").insert([{ sleutel, type, week_jaar: periodeKey, woning_id: huis.id, items: nieuw, items_opmerkingen: {}, aangemaakt_door: naam, bijgewerkt_door: naam }]);
     }
-    setSavingChecklist(false);
+    setSaving(false);
   }
 
   async function slaOpmerkingOp(itemId, tekst) {
-    setSavingChecklist(true);
-    const nieuweOpmerkingen = { ...itemOpmerkingen, [itemId]: tekst };
-    if (bestaandeChecklist) {
-      await supabase.from("checklists").update({
-        items_opmerkingen: nieuweOpmerkingen,
-        bijgewerkt_door: naam,
-        updated_at: new Date().toISOString(),
-      }).eq("id", bestaandeChecklist.id);
+    setSaving(true);
+    const nieuweOpm = { ...opmWeek, [itemId]: tekst };
+    const sleutel = `${huis.id}-wekelijks-${weekJaar}`;
+    if (chkWeek) {
+      await supabase.from("checklists").update({ items_opmerkingen: nieuweOpm, bijgewerkt_door: naam, updated_at: new Date().toISOString() }).eq("id", chkWeek.id);
     } else {
-      // Maak checklist aan met opmerking maar nog niet afgevinkt
-      await supabase.from("checklists").insert([{
-        sleutel: `${huis.id}-wekelijks-${weekJaar}`,
-        type: "wekelijks",
-        week_jaar: weekJaar,
-        woning_id: huis.id,
-        items: [],
-        items_opmerkingen: nieuweOpmerkingen,
-        aangemaakt_door: naam,
-        bijgewerkt_door: naam,
-      }]);
+      await supabase.from("checklists").insert([{ sleutel, type: "wekelijks", week_jaar: weekJaar, woning_id: huis.id, items: [], items_opmerkingen: nieuweOpm, aangemaakt_door: naam, bijgewerkt_door: naam }]);
     }
-    setSavingChecklist(false);
+    setSaving(false);
     setToonOpmerkingItem(p => ({...p, [itemId]: false}));
   }
 
-  const allesKlaar = hTaken.length === 0 && hMeldingen.length === 0 && aantalAfgevinkt === weekItems.length;
+  const openTakenVoorWoning = hTaken.filter(t => t.status === "open");
+  const allesKlaar = openTakenVoorWoning.length === 0 && hMeldingen.length === 0 && alleWeekKlaar && alle4WKlaar && allesQKlaar;
+
+  function ChecklistSectie({ type, label, icon, kleurSectie, periodeKey, sleutelPrefix, bestaand, afgevinkt, items, allesKlaarFlag }) {
+    if (items.length === 0) return null;
+    if (allesKlaarFlag) return (
+      <div style={{fontSize:11,color:kleurSectie,padding:"4px 0",borderTop:`1px solid ${C.border}`,marginTop:8}}>
+        {icon} {label} ✓ alles afgerond voor deze periode
+      </div>
+    );
+    return (
+      <div style={{marginTop:12}}>
+        <div style={{fontSize:11,fontWeight:700,color:kleurSectie,letterSpacing:".6px",textTransform:"uppercase",marginBottom:8}}>
+          {icon} {label} {saving && "⏳"}
+        </div>
+        {items.map(item => {
+          const gedaan = afgevinkt.includes(item.id);
+          return (
+            <div key={item.id} style={{display:"flex",gap:10,padding:"7px 0",borderBottom:`1px solid ${C.border}`,alignItems:"flex-start"}}>
+              <div onClick={() => toggleChecklist(type, periodeKey, sleutelPrefix, bestaand, afgevinkt, item.id)}
+                style={{width:20,height:20,borderRadius:4,border:`2px solid ${gedaan ? kleurSectie : C.border}`,background:gedaan ? kleurSectie : "white",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:1,cursor:"pointer"}}>
+                {gedaan && <span style={{color:"white",fontSize:11,fontWeight:700}}>✓</span>}
+              </div>
+              <span onClick={() => toggleChecklist(type, periodeKey, sleutelPrefix, bestaand, afgevinkt, item.id)}
+                style={{fontSize:13,color:gedaan ? kleurSectie : C.text,textDecoration:gedaan ? "line-through" : "none",lineHeight:1.4,cursor:"pointer",flex:1}}>
+                {item.tekst}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
 
   return (
     <div style={{
       background: allesKlaar ? "#f0fdf4" : "white",
-      borderRadius:10,
-      marginBottom:8,
+      borderRadius:10, marginBottom:8,
       border:`1px solid ${allesKlaar ? "#bbf7d0" : C.border}`,
       borderLeft:`4px solid ${allesKlaar ? C.groen : kleur}`,
       overflow:"hidden",
     }}>
-      {/* Header — klikbaar */}
-      <div onClick={()=>setOpen(!open)}
-        style={{padding:"12px 14px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+      {/* Header */}
+      <div onClick={()=>setOpen(!open)} style={{padding:"12px 14px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
         <div style={{flex:1}}>
-          <div style={{fontWeight:700,fontSize:13,color:allesKlaar?C.groen:kleur}}>
+          <div style={{fontWeight:700,fontSize:13,color:allesKlaar ? C.groen : kleur}}>
             📍 {huis.adres}, {huis.stad}
           </div>
-          <div style={{fontSize:11,color:C.muted,marginTop:3,display:"flex",gap:10}}>
-            {hTaken.length > 0 && <span style={{color:"#f59e0b"}}>🔧 {hTaken.length} taak{hTaken.length>1?"en":""}</span>}
+          <div style={{fontSize:11,color:C.muted,marginTop:3,display:"flex",gap:10,flexWrap:"wrap"}}>
+            {openTakenVoorWoning.length > 0 && <span style={{color:"#f59e0b"}}>🔧 {openTakenVoorWoning.length} taak{openTakenVoorWoning.length>1?"en":""}</span>}
             {hMeldingen.length > 0 && <span style={{color:"#ef4444"}}>⚠️ {hMeldingen.length} melding{hMeldingen.length>1?"en":""}</span>}
-            <span style={{color:aantalAfgevinkt===weekItems.length?C.groen:C.muted}}>
-              ✓ {aantalAfgevinkt}/{weekItems.length} checklist
-            </span>
+            {weekItems.length > 0 && <span style={{color:alleWeekKlaar ? C.groen : C.muted}}>📋 {aantalWeekAfg}/{weekItems.length} wekelijks</span>}
+            {items4W.length > 0 && <span style={{color:alle4WKlaar ? C.groen : "#7c3aed"}}>📅 4-wekelijks {alle4WKlaar ? "✓" : `${afg4W.length}/${items4W.length}`}</span>}
+            {itemsQ.length > 0 && <span style={{color:allesQKlaar ? C.groen : "#f59e0b"}}>🏆 kwartaal {allesQKlaar ? "✓" : `${afgQ.length}/${itemsQ.length}`}</span>}
           </div>
         </div>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
           {allesKlaar && <span style={{fontSize:11,fontWeight:700,color:C.groen}}>✅ Klaar</span>}
+          {!allesKlaar && totaalOpenChecklist > 0 && <span style={{fontSize:11,fontWeight:700,color:"#b45309",background:"#fef3c7",borderRadius:10,padding:"2px 8px"}}>{totaalOpenChecklist} open</span>}
           <span style={{color:C.muted,fontSize:14}}>{open?"▲":"▼"}</span>
         </div>
       </div>
@@ -1468,17 +1491,20 @@ function WoningKaartDag({ huis, kleur, hTaken, hMeldingen, checklistItems, check
           {/* Open taken */}
           {hTaken.length > 0 && (
             <div style={{marginBottom:12}}>
-              <div style={{fontSize:11,fontWeight:700,color:"#f59e0b",letterSpacing:".6px",textTransform:"uppercase",marginBottom:8}}>🔧 Open taken</div>
-              {hTaken.map(t=>(
+              <div style={{fontSize:11,fontWeight:700,color:"#f59e0b",letterSpacing:".6px",textTransform:"uppercase",marginBottom:8}}>🔧 Taken</div>
+              {hTaken.map(t => (
                 <div key={t.id} style={{display:"flex",gap:10,padding:"7px 0",borderBottom:`1px solid ${C.border}`,alignItems:"center"}}>
                   <div style={{flex:1}}>
-                    <div style={{fontSize:13,fontWeight:600,color:C.text}}>{t.titel}</div>
+                    <div style={{fontSize:13,fontWeight:600,color:t.status==="gedaan"?C.groen:C.text,textDecoration:t.status==="gedaan"?"line-through":"none"}}>{t.titel}</div>
                     {t.omschrijving&&<div style={{fontSize:11,color:C.muted,marginTop:1}}>{t.omschrijving}</div>}
+                    {t.status==="gedaan"&&t.afgehandeld_door&&<div style={{fontSize:11,color:C.groen,marginTop:1}}>✓ {t.afgehandeld_door}</div>}
                   </div>
-                  <button onClick={()=>onUpdateTaak(t.id,{status:"gedaan",afgehandeld_door:naam,afgehandeld_op:new Date().toISOString()})}
-                    style={{background:C.groen,color:"white",border:"none",borderRadius:6,padding:"5px 12px",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit",flexShrink:0}}>
-                    ✓ Gedaan
-                  </button>
+                  {t.status !== "gedaan" && (
+                    <button onClick={()=>onUpdateTaak(t.id,{status:"gedaan",afgehandeld_door:naam,afgehandeld_op:new Date().toISOString()})}
+                      style={{background:C.groen,color:"white",border:"none",borderRadius:6,padding:"5px 12px",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit",flexShrink:0}}>
+                      ✓ Gedaan
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -1497,69 +1523,67 @@ function WoningKaartDag({ huis, kleur, hTaken, hMeldingen, checklistItems, check
             </div>
           )}
 
-          {/* Wekelijkse checklist */}
-          <div>
-            <div style={{fontSize:11,fontWeight:700,color:C.blauw,letterSpacing:".6px",textTransform:"uppercase",marginBottom:8}}>
-              ✅ Wekelijkse checklist {savingChecklist&&"⏳"}
-            </div>
-            {weekItems.map(item=>{
-              const gedaan = afgevinkt.includes(item.id);
-              const opmerking = itemOpmerkingen[item.id] || "";
-              const toonOpm = toonOpmerkingItem[item.id];
-              return (
-                <div key={item.id} style={{borderBottom:`1px solid ${C.border}`}}>
-                  <div style={{display:"flex",gap:10,padding:"8px 0",alignItems:"flex-start"}}>
-                    {/* Checkbox */}
-                    <div onClick={()=>toggleItem(item.id)}
-                      style={{width:20,height:20,borderRadius:4,border:`2px solid ${gedaan?C.groen:C.border}`,background:gedaan?C.groen:"white",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:1,cursor:"pointer"}}>
-                      {gedaan&&<span style={{color:"white",fontSize:11,fontWeight:700}}>✓</span>}
-                    </div>
-                    {/* Tekst */}
-                    <div style={{flex:1}}>
-                      <span onClick={()=>toggleItem(item.id)}
-                        style={{fontSize:13,color:gedaan?C.groen:C.text,textDecoration:gedaan?"line-through":"none",lineHeight:1.4,cursor:"pointer"}}>
-                        {item.tekst}
-                      </span>
-                      {opmerking && !toonOpm && (
-                        <div style={{fontSize:11,color:C.blauw,marginTop:3,fontStyle:"italic"}}>💬 {opmerking}</div>
-                      )}
-                    </div>
-                    {/* Opmerking knop */}
-                    <button onClick={()=>{ setToonOpmerkingItem(p=>({...p,[item.id]:!p[item.id]})); setOpmerkingItem(p=>({...p,[item.id]:opmerking})); }}
-                      style={{background:"none",border:"none",color:opmerking?C.blauw:C.muted,fontSize:14,cursor:"pointer",padding:"2px 6px",flexShrink:0}}
-                      title="Opmerking toevoegen">
-                      💬
-                    </button>
-                  </div>
-                  {/* Opmerkingveld uitklappen */}
-                  {toonOpm && (
-                    <div style={{paddingBottom:8,paddingLeft:30}}>
-                      <input value={opmerkingItem[item.id]||""} onChange={e=>setOpmerkingItem(p=>({...p,[item.id]:e.target.value}))}
-                        placeholder={`Opmerking bij "${item.tekst.slice(0,30)}..."`}
-                        autoFocus
-                        style={{width:"100%",background:"white",border:`1.5px solid ${C.blauw}`,borderRadius:8,color:C.text,padding:"6px 10px",fontSize:12,outline:"none",fontFamily:"inherit",boxSizing:"border-box",marginBottom:6}}/>
-                      <div style={{display:"flex",gap:6}}>
-                        <button onClick={()=>slaOpmerkingOp(item.id, opmerkingItem[item.id]||"")}
-                          style={{background:C.blauw,color:"white",border:"none",borderRadius:6,padding:"5px 12px",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                          ✓ Opslaan
-                        </button>
-                        {opmerking && (
-                          <button onClick={()=>slaOpmerkingOp(item.id, "")}
-                            style={{background:"white",border:"1px solid #fecaca",color:"#ef4444",borderRadius:6,padding:"5px 10px",fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>
-                            🗑 Verwijder
-                          </button>
-                        )}
-                        <button onClick={()=>setToonOpmerkingItem(p=>({...p,[item.id]:false}))}
-                          style={{background:"white",border:`1px solid ${C.border}`,color:C.muted,borderRadius:6,padding:"5px 10px",fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>
-                          Annuleren
-                        </button>
+          {/* ─── Wekelijkse checklist ─── */}
+          {weekItems.length > 0 && (
+            <div style={{marginTop: hTaken.length > 0 || hMeldingen.length > 0 ? 0 : 0}}>
+              <div style={{fontSize:11,fontWeight:700,color:C.blauw,letterSpacing:".6px",textTransform:"uppercase",marginBottom:8}}>
+                📋 Wekelijks {saving && "⏳"} {alleWeekKlaar && <span style={{color:C.groen}}>✓ klaar</span>}
+              </div>
+              {weekItems.map(item => {
+                const gedaan = afgWeek.includes(item.id);
+                const opmerking = opmWeek[item.id] || "";
+                const toonOpm = toonOpmerkingItem[item.id];
+                return (
+                  <div key={item.id} style={{borderBottom:`1px solid ${C.border}`}}>
+                    <div style={{display:"flex",gap:10,padding:"8px 0",alignItems:"flex-start"}}>
+                      <div onClick={()=>toggleChecklist("wekelijks", weekJaar, "wekelijks", chkWeek, afgWeek, item.id)}
+                        style={{width:20,height:20,borderRadius:4,border:`2px solid ${gedaan?C.groen:C.border}`,background:gedaan?C.groen:"white",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:1,cursor:"pointer"}}>
+                        {gedaan&&<span style={{color:"white",fontSize:11,fontWeight:700}}>✓</span>}
                       </div>
+                      <div style={{flex:1}}>
+                        <span onClick={()=>toggleChecklist("wekelijks", weekJaar, "wekelijks", chkWeek, afgWeek, item.id)}
+                          style={{fontSize:13,color:gedaan?C.groen:C.text,textDecoration:gedaan?"line-through":"none",lineHeight:1.4,cursor:"pointer"}}>
+                          {item.tekst}
+                        </span>
+                        {opmerking && !toonOpm && <div style={{fontSize:11,color:C.blauw,marginTop:3,fontStyle:"italic"}}>💬 {opmerking}</div>}
+                      </div>
+                      <button onClick={()=>{ setToonOpmerkingItem(p=>({...p,[item.id]:!p[item.id]})); setOpmerkingItem(p=>({...p,[item.id]:opmerking})); }}
+                        style={{background:"none",border:"none",color:opmerking?C.blauw:C.muted,fontSize:14,cursor:"pointer",padding:"2px 6px",flexShrink:0}}>💬</button>
                     </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+                    {toonOpm && (
+                      <div style={{paddingBottom:8,paddingLeft:30}}>
+                        <input value={opmerkingItem[item.id]||""} onChange={e=>setOpmerkingItem(p=>({...p,[item.id]:e.target.value}))}
+                          placeholder={`Opmerking bij "${item.tekst.slice(0,30)}..."`} autoFocus
+                          style={{width:"100%",background:"white",border:`1.5px solid ${C.blauw}`,borderRadius:8,color:C.text,padding:"6px 10px",fontSize:12,outline:"none",fontFamily:"inherit",boxSizing:"border-box",marginBottom:6}}/>
+                        <div style={{display:"flex",gap:6}}>
+                          <button onClick={()=>slaOpmerkingOp(item.id, opmerkingItem[item.id]||"")}
+                            style={{background:C.blauw,color:"white",border:"none",borderRadius:6,padding:"5px 12px",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>✓ Opslaan</button>
+                          {opmerking&&<button onClick={()=>slaOpmerkingOp(item.id,"")}
+                            style={{background:"white",border:"1px solid #fecaca",color:"#ef4444",borderRadius:6,padding:"5px 10px",fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>🗑</button>}
+                          <button onClick={()=>setToonOpmerkingItem(p=>({...p,[item.id]:false}))}
+                            style={{background:"white",border:`1px solid ${C.border}`,color:C.muted,borderRadius:6,padding:"5px 10px",fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>Annuleren</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* ─── 4-wekelijkse checklist ─── */}
+          <ChecklistSectie
+            type="4wekelijks" label="4-wekelijks" icon="📅" kleurSectie="#7c3aed"
+            periodeKey={periode4W} sleutelPrefix="4wekelijks"
+            bestaand={chk4W} afgevinkt={afg4W} items={items4W} allesKlaarFlag={alle4WKlaar}
+          />
+
+          {/* ─── Kwartaal checklist ─── */}
+          <ChecklistSectie
+            type="kwartaal" label="Kwartaal" icon="🏆" kleurSectie="#f59e0b"
+            periodeKey={periodeQ} sleutelPrefix="kwartaal"
+            bestaand={chkQ} afgevinkt={afgQ} items={itemsQ} allesKlaarFlag={allesQKlaar}
+          />
         </div>
       )}
     </div>
@@ -2837,7 +2861,7 @@ function ChecklistView({ houses, checklists, checklistItems, onSave, gebruiker }
 }
 
 // ─── WEEKPLANNING CRISTIAN (voor collega's) ───────────────────────────────────────────────────────────────────────────────────────
-function HuismeesterPlanningView({ dagplanningDB, houses, taken=[], meldingen=[] }) {
+function HuismeesterPlanningView({ dagplanningDB, houses, taken=[], meldingen=[], checklists=[], checklistItems=[] }) {
   const dag = dagVanDeWeek();
   const [weekOffset, setWeekOffset] = useState(0);
 
@@ -2900,6 +2924,40 @@ function HuismeesterPlanningView({ dagplanningDB, houses, taken=[], meldingen=[]
         rows.push([weekInfo.key, d.label, dagDatum, h?`${h.adres} ${h.stad}`:"Algemeen", t.titel, "Extra taak", t.status==="gedaan"?"Gedaan":"Open", t.afgehandeld_door||"", t.afgehandeld_op?t.afgehandeld_op.slice(0,10):"", t.omschrijving||""]);
       });
     });
+
+    // Wekelijkse checklist per woning
+    const weekItems = checklistItems.filter(i => i.type === "wekelijks" && i.actief);
+    const items4W = checklistItems.filter(i => i.type === "4wekelijks" && i.actief);
+    const itemsQ = checklistItems.filter(i => i.type === "kwartaal" && i.actief);
+    const [wnStr, jaarStr] = weekInfo.key.split("-");
+    const wnNum = parseInt(wnStr)||1; const jaarNum = parseInt(jaarStr)||2026;
+    const periode4W = `4W${Math.ceil(wnNum/4)}-${jaarNum}`;
+    const periodeQ = `Q${Math.ceil(wnNum/13)}-${jaarNum}`;
+
+    houses.forEach(h => {
+      if (weekItems.length > 0) {
+        const chk = checklists.find(c => c.woning_id === h.id && c.week_jaar === weekInfo.key && c.type === "wekelijks");
+        const afg = chk?.items || [];
+        weekItems.forEach(item => {
+          rows.push([weekInfo.key, "Wekelijks", weekInfo.start, `${h.adres} ${h.stad}`, item.tekst, "Wekelijkse checklist", afg.includes(item.id)?"Gedaan":"Open", chk?.bijgewerkt_door||"", chk?.updated_at?chk.updated_at.slice(0,10):"", ""]);
+        });
+      }
+      if (items4W.length > 0) {
+        const chk = checklists.find(c => c.woning_id === h.id && c.week_jaar === periode4W && c.type === "4wekelijks");
+        const afg = chk?.items || [];
+        items4W.forEach(item => {
+          rows.push([weekInfo.key, "4-wekelijks", weekInfo.start, `${h.adres} ${h.stad}`, item.tekst, "4-wekelijkse checklist", afg.includes(item.id)?"Gedaan":"Open", chk?.bijgewerkt_door||"", chk?.updated_at?chk.updated_at.slice(0,10):"", ""]);
+        });
+      }
+      if (itemsQ.length > 0) {
+        const chk = checklists.find(c => c.woning_id === h.id && c.week_jaar === periodeQ && c.type === "kwartaal");
+        const afg = chk?.items || [];
+        itemsQ.forEach(item => {
+          rows.push([weekInfo.key, "Kwartaal", weekInfo.start, `${h.adres} ${h.stad}`, item.tekst, "Kwartaalchecklist", afg.includes(item.id)?"Gedaan":"Open", chk?.bijgewerkt_door||"", chk?.updated_at?chk.updated_at.slice(0,10):"", ""]);
+        });
+      }
+    });
+
     const csv = "sep=;\n" + rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(";")).join("\n");
     const blob = new Blob(["﻿"+csv], {type:"text/csv;charset=utf-8"});
     const url = URL.createObjectURL(blob);
