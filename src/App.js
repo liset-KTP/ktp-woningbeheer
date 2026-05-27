@@ -90,6 +90,7 @@ export default function App() {
   const [checklistItems, setChecklistItems] = useState([]);
   const [activiteiten, setActiviteiten] = useState([]);
   const [dagplanningDB, setDagplanningDB] = useState([]);
+  const [autoMeldingenApp, setAutoMeldingenApp] = useState([]);
   const [ongelzenAutoReacties, setOngelzenAutoReacties] = useState(0);
   const [ongelzenBerichten, setOngelzenBerichten] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -126,6 +127,15 @@ export default function App() {
       .or(`aan.is.null,aan.eq.${naam},van.eq.${naam}`);
     const ongelezen = (data || []).filter(b => !(b.gelezen_door || []).includes(naam)).length;
     setOngelzenBerichten(ongelezen);
+  }, []);
+
+  const loadAutoMeldingenApp = useCallback(async () => {
+    const { data } = await supabase.from("auto_meldingen")
+      .select("*")
+      .in("type", ["storing", "reservering"])
+      .eq("status", "open")
+      .order("created_at", { ascending: false });
+    setAutoMeldingenApp(data || []);
   }, []);
 
   const loadOngelzenAutoReacties = useCallback(async (naam) => {
@@ -186,7 +196,7 @@ export default function App() {
   useEffect(() => {
     async function init() {
       setLoading(true);
-      await Promise.all([loadGebruikers(), loadHouses(), loadMeldingen(), loadTaken(), loadChecklists(), loadChecklistItems(), loadActiviteiten(), loadDagplanning()]);
+      await Promise.all([loadGebruikers(), loadHouses(), loadMeldingen(), loadTaken(), loadChecklists(), loadChecklistItems(), loadActiviteiten(), loadDagplanning(), loadAutoMeldingenApp()]);
       // Wordt geladen na login via realtime
       setLoading(false);
     }
@@ -202,8 +212,9 @@ export default function App() {
     const s6 = supabase.channel("chi-rt").on("postgres_changes",{event:"*",schema:"public",table:"checklist_items"},()=>loadChecklistItems()).subscribe();
     const s7 = supabase.channel("act-rt").on("postgres_changes",{event:"*",schema:"public",table:"activiteiten"},()=>loadActiviteiten()).subscribe();
     const s8 = supabase.channel("dag-rt").on("postgres_changes",{event:"*",schema:"public",table:"dagplanning"},()=>loadDagplanning()).subscribe();
-    return () => { supabase.removeChannel(s1); supabase.removeChannel(s2); supabase.removeChannel(s3); supabase.removeChannel(s4); supabase.removeChannel(s5); supabase.removeChannel(s6); supabase.removeChannel(s7); };
-  }, [loadHouses, loadMeldingen, loadTaken, loadChecklists, loadGebruikers, loadChecklistItems, loadActiviteiten, loadDagplanning, loadOngelzenAutoReacties]);
+    const s9 = supabase.channel("aut-rt").on("postgres_changes",{event:"*",schema:"public",table:"auto_meldingen"},()=>loadAutoMeldingenApp()).subscribe();
+    return () => { supabase.removeChannel(s1); supabase.removeChannel(s2); supabase.removeChannel(s3); supabase.removeChannel(s4); supabase.removeChannel(s5); supabase.removeChannel(s6); supabase.removeChannel(s7); supabase.removeChannel(s9); };
+  }, [loadHouses, loadMeldingen, loadTaken, loadChecklists, loadGebruikers, loadChecklistItems, loadActiviteiten, loadDagplanning, loadOngelzenAutoReacties, loadAutoMeldingenApp]);
 
   function showToast(msg, type="ok") { setToast({msg,type}); setTimeout(()=>setToast(null),3500); }
 
@@ -859,7 +870,7 @@ export default function App() {
         {tab==="woningen"&&<WoningenDetail houses={houses} onUpdateWoning={rol==="backoffice"||rol==="huismeester"?updateWoning:null}/>}
         {tab==="autos"&&<AutoModule gebruiker={gebruiker} showToast={showToast}/>}
         {tab==="fietsen"&&<FietsModule gebruiker={gebruiker} showToast={showToast} houses={houses} onMeldingIndienen={addMelding}/>}
-        {rol==="huismeester"&&tab==="dagplanning"&&<DagplanningView meldingen={meldingen} taken={taken} houses={houses} onUpdate={updateMeldingStatus} onUpdateTaak={updateTaak} naam={naam} dagplanningDB={dagplanningDB} checklistItems={checklistItems} checklists={checklists}/>}
+        {rol==="huismeester"&&tab==="dagplanning"&&<DagplanningView meldingen={meldingen} taken={taken} houses={houses} onUpdate={updateMeldingStatus} onUpdateTaak={updateTaak} naam={naam} dagplanningDB={dagplanningDB} checklistItems={checklistItems} checklists={checklists} autoMeldingen={autoMeldingenApp}/>}
         {rol==="backoffice"&&tab==="log"&&<LogView meldingen={meldingen} houses={houses} activiteiten={activiteiten}/>}
         {tab==="huurbetalingen"&&<HuurbetalingenModule gebruiker={gebruiker} showToast={showToast} readonly={rol!=="backoffice"&&rol!=="financieel"}/>}
         {tab==="berichten"&&<BerichtenModule gebruiker={gebruiker} houses={houses} taken={taken} meldingen={meldingen} autos={[]}/>}
@@ -995,7 +1006,7 @@ function SK({label,val,color}) {
 }
 
 // ─── DAGPLANNING HUISMEESTER ──────────────────────────────────────────────────
-function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naam, dagplanningDB = [], checklistItems = [], checklists = [] }) {
+function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naam, dagplanningDB = [], checklistItems = [], checklists = [], autoMeldingen = [] }) {
   const dag = dagVanDeWeek();
   const planningMap = dagplanningDB.length > 0
     ? Object.fromEntries(dagplanningDB.map(d => [d.dag, { label: d.label, kleur: d.kleur, icon: d.icon, focus: d.focus, taken: d.taken, woning_ids: d.woning_ids||[] }]))
@@ -1323,6 +1334,30 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
               })}
             {openMeldingen.length>5&&<div style={{fontSize:12,color:C.muted,marginTop:8,fontStyle:"italic"}}>+{openMeldingen.length-5} meer</div>}
           </div>
+
+          {/* Auto meldingen: storingen + reserveringen */}
+          {autoMeldingen.length > 0 && (
+            <div className="card" style={{marginBottom:16,borderTop:"4px solid #7c3aed"}}>
+              <div style={{fontWeight:800,fontSize:15,color:"#7c3aed",marginBottom:12}}>🚗 Auto meldingen ({autoMeldingen.length})</div>
+              {autoMeldingen.map(a => (
+                <div key={a.id} style={{padding:"10px 0",borderBottom:`1px solid ${C.border}`,display:"flex",gap:10,alignItems:"flex-start"}}>
+                  <span style={{fontSize:18}}>{a.type==="storing"?"🔧":"📅"}</span>
+                  <div style={{flex:1}}>
+                    <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap",marginBottom:3}}>
+                      <span style={{fontWeight:700,fontSize:13,color:C.text}}>{a.kenteken||"?"}</span>
+                      <span style={{fontSize:11,color:"white",background:a.type==="storing"?"#dc2626":"#7c3aed",borderRadius:6,padding:"1px 7px",fontWeight:600}}>
+                        {a.type==="storing"?"STORING":"RESERVERING"}
+                      </span>
+                    </div>
+                    {a.naam_medewerker&&<div style={{fontSize:12,color:C.muted}}>👤 {a.naam_medewerker}</div>}
+                    {a.omschrijving&&<div style={{fontSize:12,color:C.text,marginTop:2,fontStyle:"italic"}}>"{a.omschrijving}"</div>}
+                    {a.datum_van&&<div style={{fontSize:12,fontWeight:700,color:"#7c3aed",marginTop:2}}>📅 {a.type==="reservering"?"Van":"Datum"}: {fmtDate(a.datum_van)}{a.datum_tot?` → ${fmtDate(a.datum_tot)}`:""}</div>}
+                    <div style={{fontSize:11,color:C.muted,marginTop:2}}>Door: {a.ingediend_door||"?"}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           <div className="card" style={{borderTop:`4px solid ${C.groen}`}}>
             <div style={{fontWeight:800,fontSize:15,color:C.groen,marginBottom:12}}>
