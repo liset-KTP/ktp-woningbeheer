@@ -1268,10 +1268,17 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
                     {gedaanIngepland.map(t => {
                       const h = houses.find(h=>h.id===t.woning_id);
                       return (
-                        <div key={t.id} style={{background:"#f0fdf4",borderRadius:10,padding:"10px 14px",marginBottom:8,border:"1px solid #bbf7d0",opacity:.85}}>
-                          <div style={{fontWeight:700,fontSize:13,color:C.groen,textDecoration:"line-through"}}>{t.titel}</div>
-                          {h && <div style={{fontSize:12,color:C.muted}}>📍 {h.adres}{t.kamer?` · K${t.kamer}`:""}</div>}
-                          {t.afgehandeld_door && <div style={{fontSize:11,color:C.groen,marginTop:2}}>✓ {t.afgehandeld_door}{t.afgehandeld_op?` · ${fmtDate(t.afgehandeld_op)}`:""}</div>}
+                        <div key={t.id} style={{background:"#f0fdf4",borderRadius:10,padding:"10px 14px",marginBottom:8,border:"1px solid #bbf7d0",display:"flex",alignItems:"flex-start",gap:10}}>
+                          <div style={{flex:1}}>
+                            <div style={{fontWeight:700,fontSize:13,color:C.groen,textDecoration:"line-through"}}>{t.titel}</div>
+                            {h && <div style={{fontSize:12,color:C.muted}}>📍 {h.adres}{t.kamer?` · K${t.kamer}`:""}</div>}
+                            {t.afgehandeld_door && <div style={{fontSize:11,color:C.groen,marginTop:2}}>✓ {t.afgehandeld_door}{t.afgehandeld_op?` · ${fmtDate(t.afgehandeld_op)}`:""}</div>}
+                          </div>
+                          <button onClick={()=>onUpdateTaak(t.id,{status:"open",afgehandeld_door:null,afgehandeld_op:null})}
+                            title="Terugzetten naar open"
+                            style={{background:"#fee2e2",color:"#b91c1c",border:"1px solid #fca5a5",borderRadius:6,padding:"5px 10px",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit",flexShrink:0}}>
+                            ↩
+                          </button>
                         </div>
                       );
                     })}
@@ -1335,8 +1342,14 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
                       {t.ingepland_op && <div style={{fontSize:12,fontWeight:700,color:"#7c3aed",marginTop:2}}>📅 {fmtDate(t.ingepland_op)}</div>}
                       {isDone && t.afgehandeld_door && <div style={{fontSize:11,color:C.groen,marginTop:1}}>✓ {t.afgehandeld_door}</div>}
                     </div>
-                    {!isDone && (
+                    {!isDone ? (
                       <button className="btn-b" style={{padding:"5px 12px",fontSize:11}} onClick={()=>onUpdateTaak(t.id,{status:"gedaan",afgehandeld_door:naam,afgehandeld_op:new Date().toISOString(),notitie:null})}>✓</button>
+                    ) : (
+                      <button onClick={()=>onUpdateTaak(t.id,{status:"open",afgehandeld_door:null,afgehandeld_op:null})}
+                        title="Terugzetten naar open"
+                        style={{background:"#fee2e2",color:"#b91c1c",border:"1px solid #fca5a5",borderRadius:6,padding:"5px 10px",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit",flexShrink:0}}>
+                        ↩
+                      </button>
                     )}
                   </div>
                 );
@@ -1476,10 +1489,16 @@ function WoningKaartDag({ huis, kleur, hTaken, hMeldingen, checklistItems, check
                     {t.omschrijving&&<div style={{fontSize:11,color:C.muted,marginTop:1}}>{t.omschrijving}</div>}
                     {t.status==="gedaan"&&t.afgehandeld_door&&<div style={{fontSize:11,color:C.groen,marginTop:1}}>✓ {t.afgehandeld_door}</div>}
                   </div>
-                  {t.status !== "gedaan" && (
+                  {t.status !== "gedaan" ? (
                     <button onClick={()=>onUpdateTaak(t.id,{status:"gedaan",afgehandeld_door:naam,afgehandeld_op:new Date().toISOString()})}
                       style={{background:C.groen,color:"white",border:"none",borderRadius:6,padding:"5px 12px",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit",flexShrink:0}}>
                       ✓ Gedaan
+                    </button>
+                  ) : (
+                    <button onClick={()=>onUpdateTaak(t.id,{status:"open",afgehandeld_door:null,afgehandeld_op:null})}
+                      title="Terugzetten naar open"
+                      style={{background:"#fee2e2",color:"#b91c1c",border:"1px solid #fca5a5",borderRadius:6,padding:"5px 10px",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit",flexShrink:0}}>
+                      ↩ Terugzetten
                     </button>
                   )}
                 </div>
