@@ -2900,7 +2900,7 @@ function HuismeesterPlanningView({ dagplanningDB, houses, taken=[], meldingen=[]
         rows.push([weekInfo.key, d.label, dagDatum, h?`${h.adres} ${h.stad}`:"Algemeen", t.titel, "Extra taak", t.status==="gedaan"?"Gedaan":"Open", t.afgehandeld_door||"", t.afgehandeld_op?t.afgehandeld_op.slice(0,10):"", t.omschrijving||""]);
       });
     });
-    const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(",")).join("\n");
+    const csv = "sep=;\n" + rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(";")).join("\n");
     const blob = new Blob(["﻿"+csv], {type:"text/csv;charset=utf-8"});
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a"); a.href = url;
@@ -4245,10 +4245,10 @@ function LogView({meldingen,houses,activiteiten}) {
   ].sort((a,b)=>new Date(b.datum||0)-new Date(a.datum||0));
 
   function exportCSV() {
-    let csv="Datum,Tijd,Categorie,Type,Naam/Medewerker,Extra info,Adres,Kamer,Ingediend door,Status\n";
+    let csv="sep=;\nDatum;Tijd;Categorie;Type;Naam/Medewerker;Extra info;Adres;Kamer;Ingediend door;Status\n";
     alles.forEach(item=>{
       const dt=item.datum?new Date(item.datum):new Date();
-      csv+=`"${fmtDate(dt)}","${fmtTime(dt)}","${item.soort}","${item.type}","${item.naam}","${(item.extra||item.notitie||"").replace(/"/g,"'")}","${item.adres}","${item.kamer}","${item.door}","${item.status}"\n`;
+      csv+=`"${fmtDate(dt)}";"${fmtTime(dt)}";"${item.soort}";"${item.type}";"${item.naam}";"${(item.extra||item.notitie||"").replace(/"/g,"'")}";"${item.adres}";"${item.kamer}";"${item.door}";"${item.status}"\n`;
     });
     const blob=new Blob(["﻿"+csv],{type:"text/csv;charset=utf-8;"});
     const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`KTP_volledig_log_${todayISO()}.csv`;a.click();URL.revokeObjectURL(url);
