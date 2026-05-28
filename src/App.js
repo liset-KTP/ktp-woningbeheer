@@ -132,7 +132,7 @@ export default function App() {
   const loadAutoMeldingenApp = useCallback(async () => {
     const { data } = await supabase.from("auto_meldingen")
       .select("*")
-      .in("type", ["storing", "reservering"])
+      .in("actie", ["storing", "reservering"])
       .eq("status", "open")
       .order("created_at", { ascending: false });
     setAutoMeldingenApp(data || []);
@@ -1341,17 +1341,17 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
               <div style={{fontWeight:800,fontSize:15,color:"#7c3aed",marginBottom:12}}>🚗 Auto meldingen ({autoMeldingen.length})</div>
               {autoMeldingen.map(a => (
                 <div key={a.id} style={{padding:"10px 0",borderBottom:`1px solid ${C.border}`,display:"flex",gap:10,alignItems:"flex-start"}}>
-                  <span style={{fontSize:18}}>{a.type==="storing"?"🔧":"📅"}</span>
+                  <span style={{fontSize:18}}>{a.actie==="storing"?"🔧":"📅"}</span>
                   <div style={{flex:1}}>
                     <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap",marginBottom:3}}>
                       <span style={{fontWeight:700,fontSize:13,color:C.text}}>{a.kenteken||"?"}</span>
-                      <span style={{fontSize:11,color:"white",background:a.type==="storing"?"#dc2626":"#7c3aed",borderRadius:6,padding:"1px 7px",fontWeight:600}}>
-                        {a.type==="storing"?"STORING":"RESERVERING"}
+                      <span style={{fontSize:11,color:"white",background:a.actie==="storing"?"#dc2626":"#7c3aed",borderRadius:6,padding:"1px 7px",fontWeight:600}}>
+                        {a.actie==="storing"?"STORING":"RESERVERING"}
                       </span>
                     </div>
-                    {a.naam_medewerker&&<div style={{fontSize:12,color:C.muted}}>👤 {a.naam_medewerker}</div>}
-                    {a.omschrijving&&<div style={{fontSize:12,color:C.text,marginTop:2,fontStyle:"italic"}}>"{a.omschrijving}"</div>}
-                    {a.datum_van&&<div style={{fontSize:12,fontWeight:700,color:"#7c3aed",marginTop:2}}>📅 {a.type==="reservering"?"Van":"Datum"}: {fmtDate(a.datum_van)}{a.datum_tot?` → ${fmtDate(a.datum_tot)}`:""}</div>}
+                    {a.naam_medewerker&&a.naam_medewerker!=="-"&&<div style={{fontSize:12,color:C.muted}}>👤 {a.naam_medewerker}</div>}
+                    {a.opmerkingen&&<div style={{fontSize:12,color:C.text,marginTop:2,fontStyle:"italic"}}>"{a.opmerkingen}"</div>}
+                    {a.datum_tijd&&<div style={{fontSize:12,fontWeight:700,color:"#7c3aed",marginTop:2}}>📅 {fmtDate(a.datum_tijd)}</div>}
                     <div style={{fontSize:11,color:C.muted,marginTop:2}}>Door: {a.ingediend_door||"?"}</div>
                   </div>
                 </div>
