@@ -697,7 +697,16 @@ function App() {
     }
     showToast("✓ Opgeslagen"); await loadTaken();
     if (updates.status==="gedaan") {
-      logActiviteit("taak_gedaan", `✅ Taak gedaan: ${t?.titel||"?"}${updates.notitie?` — "${updates.notitie}"`:""}${huis?` — ${huis.adres}`:" — Algemeen"}${t?.kamer?` K${t.kamer}`:""}`, {taak_id:id, notitie:updates.notitie||null});
+      let extraLog = "";
+      if (updates.extra_info) {
+        try {
+          const ei = JSON.parse(updates.extra_info);
+          if (ei.woning_schoon) extraLog += ` | 🧹 Schoon: ${ei.woning_schoon}`;
+          if (ei.sleutel_terug) extraLog += ` | 🔑 Sleutel: ${ei.sleutel_terug}`;
+          if (ei.opmerkingen) extraLog += ` | "${ei.opmerkingen}"`;
+        } catch(e) {}
+      }
+      logActiviteit("taak_gedaan", `✅ Taak gedaan: ${t?.titel||"?"}${updates.notitie?` — "${updates.notitie}"`:""}${extraLog}${huis?` — ${huis.adres}`:" — Algemeen"}${t?.kamer?` K${t.kamer}`:""}`, {taak_id:id, notitie:updates.notitie||null});
       stuurMail({
         type: "✅ Taak afgevinkt",
         type_icon: "✅",
@@ -963,7 +972,13 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
       setHuurSchuldId(actieveSchuld?.id||null);
       const actieveBorg = (borgRes.data||[]).find(b=>b.status==="actief");
       setBorgPlanId(actieveBorg?.id||null);
-      setData({ kamers, autos: autoRes.data||[], fietsen: fietsRes.data||[], borgPlannen: borgRes.data||[], huurschulden: huurdata, autoMeldingen: autoMeldRes.data||[] });
+      // Laatste kamercontrole
+      const { data: vertrekRaw } = await supabase.from("taken")
+        .select("*").ilike("titel",`%${naam}%`)
+        .not("extra_info","is",null)
+        .order("afgehandeld_op",{ascending:false}).limit(1);
+      const vertrekControle = vertrekRaw?.[0] || null;
+      setData({ kamers, autos: autoRes.data||[], fietsen: fietsRes.data||[], borgPlannen: borgRes.data||[], huurschulden: huurdata, autoMeldingen: autoMeldRes.data||[], vertrekControle });
       setNotities(notitieRes.data||[]);
     } catch(e) { console.error(e); }
     setLaden(false);
@@ -1146,6 +1161,33 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
                   </div>
                 </div>
               ))}
+              {data.vertrekControle && (() => {
+                try {
+                  const ei = JSON.parse(data.vertrekControle.extra_info || "{}");
+                  if (!ei.woning_schoon) return null;
+                  const ok = ei.woning_schoon==="ja" && ei.sleutel_terug==="ja";
+                  const kleur = ok?"#16a34a":ei.woning_schoon==="gedeeltelijk"?"#d97706":"#b91c1c";
+                  return (
+                    <div style={{background:ok?"#f0fdf4":ei.woning_schoon==="gedeeltelijk"?"#fffbeb":"#fff1f2",
+                      borderRadius:8,padding:"10px 12px",marginTop:8,
+                      border:`1px solid ${ok?"#bbf7d0":ei.woning_schoon==="gedeeltelijk"?"#fde68a":"#fecdd3"}`}}>
+                      <div style={{fontWeight:700,fontSize:12,color:"#374151",marginBottom:6}}>
+                        🏠 Laatste kamercontrole
+                        {data.vertrekControle.afgehandeld_op&&<span style={{fontWeight:400,color:"#6b7280",marginLeft:6}}>{fmtDate(data.vertrekControle.afgehandeld_op)}</span>}
+                        {data.vertrekControle.afgehandeld_door&&<span style={{fontWeight:400,color:"#6b7280",marginLeft:4}}>· {data.vertrekControle.afgehandeld_door}</span>}
+                      </div>
+                      <div style={{display:"flex",gap:16,fontSize:12,marginBottom:4}}>
+                        <span>🧹 Schoon: <strong>{ei.woning_schoon==="ja"?"✅ Ja":ei.woning_schoon==="nee"?"❌ Nee":"⚠️ Gedeeltelijk"}</strong></span>
+                        <span>🔑 Sleutel: <strong>{ei.sleutel_terug==="ja"?"✅ Ja":"❌ Nee"}</strong></span>
+                      </div>
+                      {ei.opmerkingen&&<div style={{fontSize:11,color:"#6b7280",fontStyle:"italic",marginBottom:4}}>"{ei.opmerkingen}"</div>}
+                      <div style={{fontWeight:700,fontSize:12,color:kleur}}>
+                        💰 Borg advies: {ok?"Borg teruggeven":ei.woning_schoon==="gedeeltelijk"?"Borg gedeeltelijk inhouden":"Borg inhouden"}
+                      </div>
+                    </div>
+                  );
+                } catch(e){return null;}
+              })()}
             </div>
 
             {/* 🚗 Auto */}
@@ -1204,25 +1246,47 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
             <div style={S.card("#f59e0b")}>
               <div style={S.titel("#f59e0b")}>💶 Huurschuld</div>
               {data.huurschulden.length === 0 ? <div style={{fontSize:13,color:C.muted,fontStyle:"italic"}}>Geen huurschuld gevonden</div>
-                : data.huurschulden.slice(0,2).map(h => {
-                  const betalingen = h.huurbetalingen||[];
+                : data.huurschulden.slice(0,3).map(h => {
+                  const betalingen = (h.huurbetalingen||[]).sort((a,b)=>b.datum>a.datum?1:-1);
                   const totaalBetaald = betalingen.reduce((s,b)=>s+parseFloat(b.bedrag||0),0);
+                  const openstaand = (h.beginsaldo||0) - totaalBetaald;
                   return (
-                  <div key={h.id} style={{marginBottom:10,paddingBottom:10,borderBottom:`1px solid ${C.border}`}}>
-                    <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:6}}>
+                  <div key={h.id} style={{marginBottom:12,paddingBottom:12,borderBottom:`1px solid ${C.border}`}}>
+                    <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:8}}>
                       <span style={S.badge(h.actief?"#f59e0b":"#9ca3af")}>{h.actief?"Actief":"Afgesloten"}</span>
-                      {h.id===huurSchuldId&&<span style={{fontSize:11,color:"#f59e0b",fontStyle:"italic"}}>← actief</span>}
                       {h.startdatum&&<span style={{fontSize:12,color:C.muted}}>Vanaf {fmtDate(h.startdatum)}</span>}
                     </div>
                     <div style={S.rij}><span style={S.lbl}>Beginsaldo</span><span style={S.val}>€{(h.beginsaldo||0).toFixed(2)}</span></div>
                     <div style={S.rij}><span style={S.lbl}>Betaald</span><span style={{...S.val,color:C.groen}}>€{totaalBetaald.toFixed(2)} ({betalingen.length}x)</span></div>
-                    <div style={S.rij}><span style={S.lbl}>Openstaand</span><span style={{...S.val,color:(h.beginsaldo||0)-totaalBetaald>0?"#dc2626":C.groen}}>€{((h.beginsaldo||0)-totaalBetaald).toFixed(2)}</span></div>
+                    <div style={S.rij}><span style={S.lbl}>Openstaand</span><span style={{...S.val,fontWeight:700,color:openstaand>0?"#dc2626":C.groen}}>€{openstaand.toFixed(2)}</span></div>
                     <div style={S.rij}><span style={S.lbl}>Tarief</span><span style={S.val}>€{(h.tarief_bedrag||0).toFixed(2)} / {h.tarief_dagen||7} d</span></div>
+
+                    {/* Betalingen lijst */}
                     {betalingen.length>0&&(
-                      <div style={{marginTop:6,fontSize:11,color:C.muted}}>
-                        Laatste betaling: {fmtDate(betalingen.sort((a,b)=>b.datum>a.datum?1:-1)[0]?.datum)} — €{parseFloat(betalingen[0]?.bedrag||0).toFixed(2)}
+                      <div style={{marginTop:10}}>
+                        <div style={{fontSize:11,fontWeight:700,color:"#374151",marginBottom:6,textTransform:"uppercase",letterSpacing:".5px"}}>Betalingen</div>
+                        {betalingen.map(b=>(
+                          <div key={b.id} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 0",borderBottom:`1px solid ${C.border}`,fontSize:12}}>
+                            <div style={{flex:1}}>
+                              <span style={{fontWeight:600,color:C.groen}}>€{parseFloat(b.bedrag||0).toFixed(2)}</span>
+                              <span style={{color:C.muted,marginLeft:8}}>{fmtDate(b.datum)}</span>
+                              {b.omschrijving&&<span style={{color:C.muted,marginLeft:6,fontStyle:"italic"}}>— {b.omschrijving}</span>}
+                            </div>
+                            {!isReadonly&&(
+                              <button onClick={async()=>{
+                                if(!window.confirm("Betaling verwijderen?")) return;
+                                await supabase.from("huurbetalingen").delete().eq("id",b.id);
+                                showToast("Betaling verwijderd");
+                                laad(gekozen);
+                              }} style={{background:"#fee2e2",color:"#b91c1c",border:"none",borderRadius:5,padding:"2px 8px",fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>✕</button>
+                            )}
+                          </div>
+                        ))}
                       </div>
                     )}
+
+                    {/* Betaling toevoegen */}
+                    {!isReadonly&&h.actief&&<HuurBetalingInline schuldId={h.id} onOpgeslagen={()=>laad(gekozen)} showToast={showToast}/>}
                   </div>
                 );
               })}
@@ -1377,7 +1441,100 @@ function SK({label,val,color}) {
 }
 
 // ─── DAGPLANNING HUISMEESTER ──────────────────────────────────────────────────
+
+// ─── HELPER: is dit een vertrek/kamer-controle taak? ─────────────────────────
+function isVertrekTaak(titel) {
+  const t = (titel || "").toLowerCase();
+  return t.includes("vertrek") || t.includes("kamer controleren");
+}
+
+// ─── VERTREK CONTROLE MODAL ───────────────────────────────────────────────────
+function VertrekControleModal({ taak, onBevestig, onAnnuleer }) {
+  const [schoon, setSchoon] = useState("ja");
+  const [sleutel, setSleutel] = useState("ja");
+  const [opmerking, setOpmerking] = useState("");
+  const allesOk = schoon === "ja" && sleutel === "ja";
+  const borgAdvies = allesOk ? "Borg teruggeven" : schoon === "gedeeltelijk" ? "Borg gedeeltelijk inhouden" : "Borg inhouden — nader beoordelen";
+  const borgKleur = allesOk ? "#16a34a" : schoon === "gedeeltelijk" ? "#d97706" : "#b91c1c";
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.55)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+      <div style={{background:"white",borderRadius:16,padding:24,maxWidth:400,width:"100%",boxShadow:"0 20px 60px rgba(0,0,0,.35)"}}>
+        <div style={{fontWeight:800,fontSize:16,marginBottom:3}}>🏠 Kamercontrole invullen</div>
+        <div style={{fontSize:12,color:"#6b7280",marginBottom:20}}>{taak.titel}</div>
+
+        <div style={{marginBottom:16}}>
+          <div style={{fontSize:13,fontWeight:700,marginBottom:8}}>🧹 Is de woning schoon?</div>
+          <div style={{display:"flex",gap:8}}>
+            {[["ja","✅ Ja"],["gedeeltelijk","⚠️ Gedeeltelijk"],["nee","❌ Nee"]].map(([v,l]) => (
+              <button key={v} onClick={()=>setSchoon(v)}
+                style={{flex:1,padding:"8px 4px",borderRadius:8,border:"2px solid",
+                  borderColor:schoon===v?"#7c3aed":"#e5e7eb",
+                  background:schoon===v?"#f5f3ff":"white",
+                  color:schoon===v?"#7c3aed":"#374151",
+                  fontWeight:schoon===v?700:400,
+                  fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>
+                {l}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{marginBottom:16}}>
+          <div style={{fontSize:13,fontWeight:700,marginBottom:8}}>🔑 Sleutel terug?</div>
+          <div style={{display:"flex",gap:8}}>
+            {[["ja","✅ Ja"],["nee","❌ Nee"]].map(([v,l]) => (
+              <button key={v} onClick={()=>setSleutel(v)}
+                style={{flex:1,padding:"10px",borderRadius:8,border:"2px solid",
+                  borderColor:sleutel===v?"#7c3aed":"#e5e7eb",
+                  background:sleutel===v?"#f5f3ff":"white",
+                  color:sleutel===v?"#7c3aed":"#374151",
+                  fontWeight:sleutel===v?700:400,
+                  fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
+                {l}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{marginBottom:16}}>
+          <div style={{fontSize:13,fontWeight:700,marginBottom:6}}>💬 Opmerkingen (optioneel)</div>
+          <textarea value={opmerking} onChange={e=>setOpmerking(e.target.value)}
+            placeholder="Bijv. schade aan raam, borg gedeeltelijk inhouden..."
+            style={{width:"100%",borderRadius:8,border:"1px solid #e5e7eb",padding:"8px 10px",
+              fontSize:12,fontFamily:"inherit",resize:"vertical",minHeight:60,boxSizing:"border-box"}}/>
+        </div>
+
+        <div style={{background:allesOk?"#f0fdf4":schoon==="gedeeltelijk"?"#fffbeb":"#fff1f2",
+          borderRadius:10,padding:"10px 14px",marginBottom:20,
+          border:`1px solid ${allesOk?"#bbf7d0":schoon==="gedeeltelijk"?"#fde68a":"#fecdd3"}`}}>
+          <div style={{fontWeight:700,fontSize:13,color:borgKleur}}>💰 Borg advies: {borgAdvies}</div>
+        </div>
+
+        <div style={{display:"flex",gap:10}}>
+          <button onClick={onAnnuleer}
+            style={{flex:1,padding:"10px",borderRadius:8,border:"1px solid #e5e7eb",
+              background:"white",cursor:"pointer",fontSize:13,fontFamily:"inherit"}}>
+            Annuleren
+          </button>
+          <button onClick={()=>onBevestig({schoon,sleutel,opmerking})}
+            style={{flex:2,padding:"10px",borderRadius:8,border:"none",
+              background:"#16a34a",color:"white",cursor:"pointer",
+              fontSize:13,fontWeight:700,fontFamily:"inherit"}}>
+            ✓ Afvinken & opslaan
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naam, dagplanningDB = [], checklistItems = [], checklists = [], autoMeldingen = [] }) {
+  const [vertrekModalTaak, setVertrekModalTaak] = useState(null);
+  const bevestigVertrek = ({schoon, sleutel, opmerking}) => {
+    const ei = JSON.stringify({woning_schoon:schoon, sleutel_terug:sleutel, opmerkingen:opmerking, gecontroleerd_op:new Date().toISOString()});
+    onUpdateTaak(vertrekModalTaak.id, {status:"gedaan", afgehandeld_door:naam, afgehandeld_op:new Date().toISOString(), extra_info:ei});
+    setVertrekModalTaak(null);
+  };
   const dag = dagVanDeWeek();
   const planningMap = dagplanningDB.length > 0
     ? Object.fromEntries(dagplanningDB.map(d => [d.dag, { label: d.label, kleur: d.kleur, icon: d.icon, focus: d.focus, taken: d.taken, woning_ids: d.woning_ids||[] }]))
@@ -1454,6 +1611,7 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
 
   return (
     <div>
+      {vertrekModalTaak && <VertrekControleModal taak={vertrekModalTaak} onBevestig={bevestigVertrek} onAnnuleer={()=>setVertrekModalTaak(null)}/>}
       <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:4}}>
         <div>
           <h2 style={{fontSize:20,fontWeight:800,color:C.blauw,marginBottom:3}}>📅 Mijn werkdag</h2>
@@ -1635,9 +1793,9 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
                             {h && <div style={{fontSize:12,color:C.muted}}>📍 {h.adres}, {h.stad}{t.kamer?` · K${t.kamer}`:""}</div>}
                             {t.huismeester_opmerking && <div style={{fontSize:12,color:C.muted,fontStyle:"italic"}}>"{t.huismeester_opmerking}"</div>}
                           </div>
-                          <button onClick={()=>onUpdateTaak(t.id,{status:"gedaan",afgehandeld_door:naam,afgehandeld_op:new Date().toISOString()})}
-                            style={{background:C.groen,color:"white",border:"none",borderRadius:6,padding:"5px 12px",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit",flexShrink:0}}>
-                            Gedaan
+                          <button onClick={()=>isVertrekTaak(t.titel)?setVertrekModalTaak(t):onUpdateTaak(t.id,{status:"gedaan",afgehandeld_door:naam,afgehandeld_op:new Date().toISOString()})}
+                            style={{background:isVertrekTaak(t.titel)?"#7c3aed":C.groen,color:"white",border:"none",borderRadius:6,padding:"5px 12px",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit",flexShrink:0}}>
+                            {isVertrekTaak(t.titel)?"🏠 Controleren":"Gedaan"}
                           </button>
                         </div>
                       );
@@ -1655,6 +1813,7 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
                             <div style={{fontWeight:700,fontSize:13,color:C.groen,textDecoration:"line-through"}}>{t.titel}</div>
                             {h && <div style={{fontSize:12,color:C.muted}}>📍 {h.adres}{t.kamer?` · K${t.kamer}`:""}</div>}
                             {t.afgehandeld_door && <div style={{fontSize:11,color:C.groen,marginTop:2}}>✓ {t.afgehandeld_door}{t.afgehandeld_op?` · ${fmtDate(t.afgehandeld_op)}`:""}</div>}
+                            {t.extra_info&&(()=>{try{const ei=JSON.parse(t.extra_info);if(ei.woning_schoon)return(<div style={{fontSize:11,color:"#6b7280",marginTop:2}}>🧹 {ei.woning_schoon==="ja"?"Schoon ✅":ei.woning_schoon==="nee"?"Niet schoon ❌":"Gedeeltelijk ⚠️"} · 🔑 {ei.sleutel_terug==="ja"?"Sleutel ✅":"Sleutel ❌"}{ei.opmerkingen?` · "${ei.opmerkingen}"`:""}</div>);}catch(e){}return null;})()}
                           </div>
                           <button onClick={()=>onUpdateTaak(t.id,{status:"open",afgehandeld_door:null,afgehandeld_op:null})}
                             title="Terugzetten naar open"
@@ -1749,7 +1908,7 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
                       {isDone && t.afgehandeld_door && <div style={{fontSize:11,color:C.groen,marginTop:1}}>✓ {t.afgehandeld_door}</div>}
                     </div>
                     {!isDone ? (
-                      <button className="btn-b" style={{padding:"5px 12px",fontSize:11}} onClick={()=>onUpdateTaak(t.id,{status:"gedaan",afgehandeld_door:naam,afgehandeld_op:new Date().toISOString(),notitie:null})}>✓</button>
+                      <button className="btn-b" style={{padding:"5px 12px",fontSize:11,background:isVertrekTaak(t.titel)?"#7c3aed":undefined}} onClick={()=>isVertrekTaak(t.titel)?setVertrekModalTaak(t):onUpdateTaak(t.id,{status:"gedaan",afgehandeld_door:naam,afgehandeld_op:new Date().toISOString(),notitie:null})}>{isVertrekTaak(t.titel)?"🏠":"✓"}</button>
                     ) : (
                       <button onClick={()=>onUpdateTaak(t.id,{status:"open",afgehandeld_door:null,afgehandeld_op:null})}
                         title="Terugzetten naar open"
@@ -1771,6 +1930,12 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
 // ─── WONING KAART DAG (uitklapbaar met inline checklist) ─────────────────────
 function WoningKaartDag({ huis, kleur, hTaken, hMeldingen, checklistItems, checklists, naam, onUpdateTaak, gekozenDag, weekJaar: weekJaarProp, weekOffset=0 }) {
   const [open, setOpen] = useState(false);
+  const [vertrekModalTaak, setVertrekModalTaak] = useState(null);
+  const bevestigVertrekWKD = ({schoon, sleutel, opmerking}) => {
+    const ei = JSON.stringify({woning_schoon:schoon, sleutel_terug:sleutel, opmerkingen:opmerking, gecontroleerd_op:new Date().toISOString()});
+    onUpdateTaak(vertrekModalTaak.id, {status:"gedaan", afgehandeld_door:naam, afgehandeld_op:new Date().toISOString(), extra_info:ei});
+    setVertrekModalTaak(null);
+  };
   const [checklistTab, setChecklistTab] = useState("wekelijks");
   const [saving, setSaving] = useState(false);
   const [toonOpmerkingItem, setToonOpmerkingItem] = useState({});
@@ -1853,6 +2018,8 @@ function WoningKaartDag({ huis, kleur, hTaken, hMeldingen, checklistItems, check
   const actieveConfig = typeConfig[checklistTab];
 
   return (
+    <>
+    {vertrekModalTaak && <VertrekControleModal taak={vertrekModalTaak} onBevestig={bevestigVertrekWKD} onAnnuleer={()=>setVertrekModalTaak(null)}/>}
     <div style={{
       background: allesKlaar ? "#f0fdf4" : "white",
       borderRadius: 10, marginBottom: 8,
@@ -1894,11 +2061,12 @@ function WoningKaartDag({ huis, kleur, hTaken, hMeldingen, checklistItems, check
                     <div style={{fontSize:13,fontWeight:600,color:t.status==="gedaan"?C.groen:C.text,textDecoration:t.status==="gedaan"?"line-through":"none"}}>{t.titel}</div>
                     {t.omschrijving&&<div style={{fontSize:11,color:C.muted,marginTop:1}}>{t.omschrijving}</div>}
                     {t.status==="gedaan"&&t.afgehandeld_door&&<div style={{fontSize:11,color:C.groen,marginTop:1}}>✓ {t.afgehandeld_door}</div>}
+                    {t.status==="gedaan"&&t.extra_info&&(()=>{try{const ei=JSON.parse(t.extra_info);if(ei.woning_schoon)return(<div style={{fontSize:11,color:"#6b7280",marginTop:2}}>🧹 {ei.woning_schoon==="ja"?"Schoon ✅":ei.woning_schoon==="nee"?"Niet schoon ❌":"Gedeeltelijk ⚠️"} · 🔑 Sleutel: {ei.sleutel_terug==="ja"?"✅":"❌"}{ei.opmerkingen?` · "${ei.opmerkingen}"`:""}</div>);}catch(e){}return null;})()}
                   </div>
                   {t.status !== "gedaan" ? (
-                    <button onClick={()=>onUpdateTaak(t.id,{status:"gedaan",afgehandeld_door:naam,afgehandeld_op:new Date().toISOString()})}
-                      style={{background:C.groen,color:"white",border:"none",borderRadius:6,padding:"5px 12px",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit",flexShrink:0}}>
-                      ✓ Gedaan
+                    <button onClick={()=>isVertrekTaak(t.titel)?setVertrekModalTaak(t):onUpdateTaak(t.id,{status:"gedaan",afgehandeld_door:naam,afgehandeld_op:new Date().toISOString()})}
+                      style={{background:isVertrekTaak(t.titel)?"#7c3aed":C.groen,color:"white",border:"none",borderRadius:6,padding:"5px 12px",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit",flexShrink:0}}>
+                      {isVertrekTaak(t.titel)?"🏠 Controleren":"✓ Gedaan"}
                     </button>
                   ) : (
                     <button onClick={()=>onUpdateTaak(t.id,{status:"open",afgehandeld_door:null,afgehandeld_op:null})}
@@ -2012,6 +2180,7 @@ function WoningKaartDag({ huis, kleur, hTaken, hMeldingen, checklistItems, check
         </div>
       )}
     </div>
+    </>
   );
 }
 
