@@ -198,14 +198,17 @@ export default function App() {
   useEffect(() => {
     async function init() {
       setLoading(true);
-      await Promise.all([loadGebruikers(), loadHouses(), loadMeldingen(), loadTaken(), loadChecklists(), loadChecklistItems(), loadActiviteiten(), loadDagplanning()]);
-      // Wordt geladen na login via realtime
+      try {
+        await Promise.all([loadGebruikers(), loadHouses(), loadMeldingen(), loadTaken(), loadChecklists(), loadChecklistItems(), loadActiviteiten(), loadDagplanning()]);
+      } catch(e) {
+        console.error("Init fout:", e);
+      }
       setLoading(false);
-      // Auto meldingen apart laden (niet kritiek voor app start)
       loadAutoMeldingenApp();
     }
     init();
-  }, [loadGebruikers, loadHouses, loadMeldingen, loadTaken, loadChecklists, loadChecklistItems, loadActiviteiten]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadGebruikers, loadHouses, loadMeldingen, loadTaken, loadChecklists, loadChecklistItems, loadActiviteiten, loadAutoMeldingenApp]);
 
   useEffect(() => {
     const s1 = supabase.channel("mel-rt").on("postgres_changes",{event:"*",schema:"public",table:"meldingen"},()=>loadMeldingen()).subscribe();
