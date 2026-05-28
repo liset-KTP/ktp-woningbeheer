@@ -219,7 +219,7 @@ export default function App() {
     const s7 = supabase.channel("act-rt").on("postgres_changes",{event:"*",schema:"public",table:"activiteiten"},()=>loadActiviteiten()).subscribe();
     const s8 = supabase.channel("dag-rt").on("postgres_changes",{event:"*",schema:"public",table:"dagplanning"},()=>loadDagplanning()).subscribe();
     const s9 = supabase.channel("aut-rt").on("postgres_changes",{event:"*",schema:"public",table:"auto_meldingen"},()=>loadAutoMeldingenApp()).subscribe();
-    return () => { supabase.removeChannel(s1); supabase.removeChannel(s2); supabase.removeChannel(s3); supabase.removeChannel(s4); supabase.removeChannel(s5); supabase.removeChannel(s6); supabase.removeChannel(s7); supabase.removeChannel(s9); };
+    return () => { supabase.removeChannel(s1); supabase.removeChannel(s2); supabase.removeChannel(s3); supabase.removeChannel(s4); supabase.removeChannel(s5); supabase.removeChannel(s6); supabase.removeChannel(s7); supabase.removeChannel(s8); supabase.removeChannel(s9); };
   }, [loadHouses, loadMeldingen, loadTaken, loadChecklists, loadGebruikers, loadChecklistItems, loadActiviteiten, loadDagplanning, loadOngelzenAutoReacties, loadAutoMeldingenApp]);
 
   function showToast(msg, type="ok") { setToast({msg,type}); setTimeout(()=>setToast(null),3500); }
