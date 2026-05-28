@@ -130,12 +130,14 @@ export default function App() {
   }, []);
 
   const loadAutoMeldingenApp = useCallback(async () => {
-    const { data } = await supabase.from("auto_meldingen")
-      .select("*")
-      .in("actie", ["storing", "reservering"])
-      .eq("status", "open")
-      .order("created_at", { ascending: false });
-    setAutoMeldingenApp(data || []);
+    try {
+      const { data } = await supabase.from("auto_meldingen")
+        .select("*")
+        .in("actie", ["storing", "reservering"])
+        .eq("status", "open")
+        .order("created_at", { ascending: false });
+      setAutoMeldingenApp(data || []);
+    } catch(e) { /* niet kritiek, app blijft werken */ }
   }, []);
 
   const loadOngelzenAutoReacties = useCallback(async (naam) => {
@@ -196,9 +198,11 @@ export default function App() {
   useEffect(() => {
     async function init() {
       setLoading(true);
-      await Promise.all([loadGebruikers(), loadHouses(), loadMeldingen(), loadTaken(), loadChecklists(), loadChecklistItems(), loadActiviteiten(), loadDagplanning(), loadAutoMeldingenApp()]);
+      await Promise.all([loadGebruikers(), loadHouses(), loadMeldingen(), loadTaken(), loadChecklists(), loadChecklistItems(), loadActiviteiten(), loadDagplanning()]);
       // Wordt geladen na login via realtime
       setLoading(false);
+      // Auto meldingen apart laden (niet kritiek voor app start)
+      loadAutoMeldingenApp();
     }
     init();
   }, [loadGebruikers, loadHouses, loadMeldingen, loadTaken, loadChecklists, loadChecklistItems, loadActiviteiten]);
