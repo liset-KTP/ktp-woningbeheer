@@ -1,4 +1,22 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Component } from "react";
+
+class ErrorBoundary extends Component {
+  constructor(props) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(error) { return { error }; }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{padding:40,fontFamily:"monospace",background:"#fff0f0",minHeight:"100vh"}}>
+          <h2 style={{color:"#dc2626"}}>App fout gevonden:</h2>
+          <pre style={{background:"#fee2e2",padding:20,borderRadius:8,overflow:"auto",fontSize:13,color:"#7f1d1d"}}>
+            {this.state.error.toString() + "\n\n" + (this.state.error.stack || "")}
+          </pre>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 import { supabase } from "./supabaseClient";
 import { t as vertaal, TALEN } from "./translations";
 import { AutoModule } from "./AutoModule";
@@ -77,7 +95,7 @@ function todayISO() { return new Date().toISOString().slice(0,10); }
 function dagVanDeWeek() { return ["zo","ma","di","wo","do","vr","za"][new Date().getDay()]; }
 
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
-export default function App() {
+function App() {
   const [gebruiker, setGebruiker] = useState(() => {
     try { const g = localStorage.getItem("ktp_sessie"); return g ? JSON.parse(g) : null; } catch { return null; }
   });
@@ -4446,3 +4464,8 @@ function LogView({meldingen,houses,activiteiten}) {
     </div>
   );
 }
+
+function AppWithBoundary() {
+  return <ErrorBoundary><App /></ErrorBoundary>;
+}
+export default AppWithBoundary;
