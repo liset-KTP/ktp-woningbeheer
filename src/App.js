@@ -207,7 +207,6 @@ export default function App() {
       loadAutoMeldingenApp();
     }
     init();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadGebruikers, loadHouses, loadMeldingen, loadTaken, loadChecklists, loadChecklistItems, loadActiviteiten, loadAutoMeldingenApp]);
 
   useEffect(() => {
