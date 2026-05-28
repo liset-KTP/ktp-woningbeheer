@@ -957,13 +957,15 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
     setGekozen(naam); setLaden(true); setData(null);
     setShowTaakForm(false); setShowHuurForm(false); setShowBorgForm(false);
     try {
-      const [autoRes, fietsRes, borgRes, huurRes, autoMeldRes, notitieRes] = await Promise.all([
+      const [autoRes, fietsRes, borgRes, huurRes, autoMeldRes, notitieRes, autoHistRes, meldHistRes] = await Promise.all([
         supabase.from("autos").select("*").eq("naam_medewerker", naam),
         supabase.from("fietsen").select("*").eq("naam_medewerker", naam).order("created_at",{ascending:false}),
         supabase.from("borg_plannen").select("*").eq("naam_medewerker", naam).order("created_at",{ascending:false}),
         supabase.from("huurschulden").select("*, huurbetalingen(*)").eq("naam_medewerker", naam).order("created_at",{ascending:false}),
         supabase.from("auto_meldingen").select("*").eq("naam_medewerker", naam).order("created_at",{ascending:false}).limit(5),
         supabase.from("activiteiten").select("*").eq("type","medewerker_notitie").filter("omschrijving","like",`%[${naam}]%`).order("created_at",{ascending:false}).limit(20),
+        supabase.from("auto_meldingen").select("*").eq("naam_medewerker", naam).in("actie",["uitgifte","inname"]).order("datum_tijd",{ascending:false}).limit(30),
+        supabase.from("meldingen").select("*").eq("medewerker", naam).in("type",["aankomst","vertrek"]).order("datum",{ascending:false}).limit(10),
       ]);
       const kamers = [];
       houses.forEach(h => (h.kamers||[]).forEach(k => { if (k.naam === naam) kamers.push({huis:h, kamer:k}); }));
@@ -978,7 +980,16 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
         .not("extra_info","is",null)
         .order("afgehandeld_op",{ascending:false}).limit(1);
       const vertrekControle = vertrekRaw?.[0] || null;
-      setData({ kamers, autos: autoRes.data||[], fietsen: fietsRes.data||[], borgPlannen: borgRes.data||[], huurschulden: huurdata, autoMeldingen: autoMeldRes.data||[], vertrekControle });
+      // Bouw auto-geschiedenis op: groepeer uitgifte+inname per kenteken
+      const autoHist = autoHistRes?.data || [];
+      const autoGeschiedenis = {};
+      autoHist.forEach(m => {
+        if (!autoGeschiedenis[m.kenteken]) autoGeschiedenis[m.kenteken] = { kenteken: m.kenteken, uitgifte: null, inname: null };
+        if (m.actie === "uitgifte" && !autoGeschiedenis[m.kenteken].uitgifte) autoGeschiedenis[m.kenteken].uitgifte = m.datum_tijd || m.created_at;
+        if (m.actie === "inname" && !autoGeschiedenis[m.kenteken].inname) autoGeschiedenis[m.kenteken].inname = m.datum_tijd || m.created_at;
+      });
+      const autoGeschList = Object.values(autoGeschiedenis).sort((a,b) => (b.uitgifte||"") > (a.uitgifte||"") ? 1 : -1);
+      setData({ kamers, autos: autoRes.data||[], fietsen: fietsRes.data||[], borgPlannen: borgRes.data||[], huurschulden: huurdata, autoMeldingen: autoMeldRes.data||[], vertrekControle, autoGeschiedenis: autoGeschList, meldHistorie: meldHistRes?.data||[] });
       setNotities(notitieRes.data||[]);
     } catch(e) { console.error(e); }
     setLaden(false);
@@ -1153,12 +1164,24 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
                 : data.kamers.map((item,i) => (
                 <div key={i} style={{paddingBottom:6,marginBottom:6,borderBottom:`1px solid ${C.border}`}}>
                   <div style={{fontWeight:700,fontSize:13,marginBottom:4}}>{item.huis.adres}, {item.huis.stad} — Kamer {item.kamer.k}</div>
-                  <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                  <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:6}}>
                     <span style={S.badge(item.kamer.status==="Lopend"?C.groen:"#f59e0b")}>{item.kamer.status}</span>
                     {item.kamer.bedrijf&&<span style={S.badge(C.blauw+"22",C.blauw)}>{item.kamer.bedrijf}</span>}
                     {item.kamer.huurtype&&<span style={S.badge("#f5f3ff","#7c3aed")}>{item.kamer.huurtype}</span>}
                     {item.kamer.vestiging&&<span style={{fontSize:11,color:C.muted,paddingTop:3}}>Vestiging: {item.kamer.vestiging}</span>}
                   </div>
+                  {/* Aankomst datum uit kamer JSONB of meldingen */}
+                  {(item.kamer.aankomst_datum || data.meldHistorie.find(m=>m.type==="aankomst")) && (() => {
+                    const aankomstDatum = item.kamer.aankomst_datum ||
+                      data.meldHistorie.find(m=>m.type==="aankomst")?.datum;
+                    const vertrekDatum = data.meldHistorie.find(m=>m.type==="vertrek")?.datum;
+                    return (
+                      <div style={{fontSize:12,color:C.muted,display:"flex",gap:16,flexWrap:"wrap"}}>
+                        {aankomstDatum && <span>📅 In dienst: <strong style={{color:C.text}}>{fmtDate(aankomstDatum)}</strong></span>}
+                        {vertrekDatum && <span>🚪 Vertrek: <strong style={{color:"#ef4444"}}>{fmtDate(vertrekDatum)}</strong></span>}
+                      </div>
+                    );
+                  })()}
                 </div>
               ))}
               {data.vertrekControle && (() => {
@@ -1193,15 +1216,32 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
             {/* 🚗 Auto */}
             <div style={S.card("#0891b2")}>
               <div style={S.titel("#0891b2")}>🚗 Auto</div>
-              {data.autos.length === 0 ? <div style={{fontSize:13,color:C.muted,fontStyle:"italic"}}>Geen auto toegewezen</div>
-                : data.autos.map(a => (
-                <div key={a.id}>
-                  <div style={{display:"flex",gap:10,alignItems:"center",marginBottom:6}}>
-                    <span style={{fontWeight:700,fontSize:15}}>{a.kenteken}</span>
-                    <span style={S.badge(a.status==="In gebruik"?"#0891b2":a.status==="Beschikbaar"?C.groen:"#9ca3af")}>{a.status}</span>
+              {data.autos.length === 0 && data.autoGeschiedenis.length === 0
+                  ? <div style={{fontSize:13,color:C.muted,fontStyle:"italic"}}>Geen auto toegewezen</div>
+                : data.autos.map(a => {
+                  const hist = data.autoGeschiedenis.find(g=>g.kenteken===a.kenteken);
+                  return (
+                  <div key={a.id} style={{marginBottom:8,paddingBottom:8,borderBottom:`1px solid ${C.border}`}}>
+                    <div style={{display:"flex",gap:10,alignItems:"center",marginBottom:6}}>
+                      <span style={{fontWeight:700,fontSize:15}}>{a.kenteken}</span>
+                      <span style={S.badge(a.status==="In gebruik"?"#0891b2":a.status==="Beschikbaar"?C.groen:"#9ca3af")}>{a.status}</span>
+                    </div>
+                    {a.merk_model&&<div style={S.rij}><span style={S.lbl}>Model</span><span style={S.val}>{a.merk_model}</span></div>}
+                    {(hist?.uitgifte||a.datum_uitgifte)&&<div style={S.rij}><span style={S.lbl}>🗓 Uitgifte</span><span style={{...S.val,color:"#0891b2",fontWeight:600}}>{fmtDate(hist?.uitgifte||a.datum_uitgifte)}</span></div>}
+                    {hist?.inname&&<div style={S.rij}><span style={S.lbl}>🔑 Inname</span><span style={{...S.val,color:C.groen,fontWeight:600}}>{fmtDate(hist.inname)}</span></div>}
+                    {a.apk_datum&&<div style={S.rij}><span style={S.lbl}>APK</span><span style={{...S.val,color:new Date(a.apk_datum)<new Date()?"#dc2626":C.text}}>{fmtDate(a.apk_datum)}{new Date(a.apk_datum)<new Date()?" ⚠️ VERLOPEN":""}</span></div>}
                   </div>
-                  {a.merk_model&&<div style={S.rij}><span style={S.lbl}>Model</span><span style={S.val}>{a.merk_model}</span></div>}
-                  {a.apk_datum&&<div style={S.rij}><span style={S.lbl}>APK</span><span style={{...S.val,color:new Date(a.apk_datum)<new Date()?"#dc2626":C.text}}>{fmtDate(a.apk_datum)}{new Date(a.apk_datum)<new Date()?" ⚠️ VERLOPEN":""}</span></div>}
+                  );
+                })}
+              {/* Vorige auto's (alleen in geschiedenis, niet meer actief toegewezen) */}
+              {data.autoGeschiedenis.filter(g => !data.autos.find(a=>a.kenteken===g.kenteken)).map(g => (
+                <div key={g.kenteken} style={{marginBottom:6,paddingBottom:6,borderBottom:`1px solid ${C.border}`,opacity:.75}}>
+                  <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:4}}>
+                    <span style={{fontWeight:600,fontSize:13,color:C.text}}>{g.kenteken}</span>
+                    <span style={S.badge("#9ca3af")}>Vroeger</span>
+                  </div>
+                  {g.uitgifte&&<div style={S.rij}><span style={S.lbl}>🗓 Uitgifte</span><span style={{...S.val,color:"#0891b2"}}>{fmtDate(g.uitgifte)}</span></div>}
+                  {g.inname&&<div style={S.rij}><span style={S.lbl}>🔑 Inname</span><span style={{...S.val,color:C.groen}}>{fmtDate(g.inname)}</span></div>}
                 </div>
               ))}
               {data.autoMeldingen.filter(m=>m.actie==="storing"&&m.status==="open").map(m=>(
@@ -1214,10 +1254,14 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
               <div style={S.titel(C.groen)}>🚲 Fiets</div>
               {data.fietsen.length === 0 ? <div style={{fontSize:13,color:C.muted,fontStyle:"italic"}}>Geen fiets geregistreerd</div>
                 : data.fietsen.map(f => (
-                <div key={f.id} style={{...S.rij}}>
-                  <div style={{flex:1}}><span style={{fontWeight:700}}>#{f.fietsnummer}</span>{f.merk?` — ${f.merk}`:""}</div>
-                  <span style={S.badge(f.status==="In gebruik"?C.groen:f.status==="Beschikbaar"?"#9ca3af":"#f59e0b")}>{f.status}</span>
-                  {f.datum_uitgifte&&<span style={{fontSize:11,color:C.muted}}>{fmtDate(f.datum_uitgifte)}</span>}
+                <div key={f.id} style={{marginBottom:8,paddingBottom:8,borderBottom:`1px solid ${C.border}`}}>
+                  <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:4}}>
+                    <span style={{fontWeight:700}}>#{f.fietsnummer}</span>
+                    {f.merk&&<span style={{fontSize:12,color:C.muted}}>— {f.merk}</span>}
+                    <span style={S.badge(f.status==="In gebruik"?C.groen:f.status==="Beschikbaar"?"#9ca3af":"#f59e0b")}>{f.status}</span>
+                  </div>
+                  {f.datum_uitgifte&&<div style={S.rij}><span style={S.lbl}>🗓 Uitgifte</span><span style={{...S.val,color:C.groen,fontWeight:600}}>{fmtDate(f.datum_uitgifte)}</span></div>}
+                  {f.datum_inname&&<div style={S.rij}><span style={S.lbl}>🔑 Inname</span><span style={{...S.val,color:C.text}}>{fmtDate(f.datum_inname)}</span></div>}
                 </div>
               ))}
             </div>
@@ -1233,6 +1277,8 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
                     <span style={S.badge(b.status==="actief"?"#7c3aed":b.status==="afgerond"?C.groen:"#9ca3af")}>{b.status||"?"}</span>
                     {b.id===borgPlanId&&<span style={{fontSize:11,color:"#7c3aed",fontStyle:"italic"}}>← actief plan</span>}
                   </div>
+                  {b.startdatum&&<div style={S.rij}><span style={S.lbl}>📅 Startdatum</span><span style={{...S.val,fontWeight:600}}>{fmtDate(b.startdatum)}</span></div>}
+                  {b.einddatum&&<div style={S.rij}><span style={S.lbl}>🏁 Einddatum</span><span style={S.val}>{fmtDate(b.einddatum)}</span></div>}
                   <div style={S.rij}><span style={S.lbl}>Totaal borg</span><span style={S.val}>€{(b.totaal_borg||0).toFixed(2)}</span></div>
                   <div style={S.rij}><span style={S.lbl}>Ingehouden</span><span style={{...S.val,color:(b.ingehouden||0)>0?"#dc2626":C.groen}}>€{(b.ingehouden||0).toFixed(2)}</span></div>
                   <div style={S.rij}><span style={S.lbl}>Restant</span><span style={{...S.val,color:C.groen}}>€{((b.totaal_borg||0)-(b.ingehouden||0)).toFixed(2)}</span></div>
