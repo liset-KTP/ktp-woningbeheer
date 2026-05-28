@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, Component } from "react";
+import { useState, useEffect, useCallback, useMemo, Component } from "react";
 
 class ErrorBoundary extends Component {
   constructor(props) { super(props); this.state = { error: null }; }
@@ -912,13 +912,13 @@ function App() {
 
 // ─── MEDEWERKER 360° OVERZICHT ───────────────────────────────────────────────
 function Medewerker360View({ houses }) {
-  const [zoek, setZoek] = React.useState("");
-  const [gekozen, setGekozen] = React.useState(null);
-  const [data, setData] = React.useState(null);
-  const [laden, setLaden] = React.useState(false);
+  const [zoek, setZoek] = useState("");
+  const [gekozen, setGekozen] = useState(null);
+  const [data, setData] = useState(null);
+  const [laden, setLaden] = useState(false);
 
   // Verzamel alle actieve medewerkers uit woningen.kamers
-  const alleMedewerkers = React.useMemo(() => {
+  const alleMedewerkers = useMemo(() => {
     const namen = new Set();
     houses.forEach(h => (h.kamers||[]).forEach(k => { if (k.naam && k.naam.trim()) namen.add(k.naam.trim()); }));
     return [...namen].sort((a,b) => a.localeCompare(b));
