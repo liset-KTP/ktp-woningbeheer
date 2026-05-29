@@ -923,6 +923,93 @@ function App() {
 
 
 // ─── MEDEWERKER 360° OVERZICHT ───────────────────────────────────────────────
+
+// ─── BORG INHOUDING INLINE COMPONENT ─────────────────────────────────────────
+function BorgInhoudingInline({ plan, gekozen, onOpgeslagen, showToast }) {
+  const [open, setOpen] = useState(false);
+  const [actie, setActie] = useState("inhouden");
+  const [bedrag, setBedrag] = useState("");
+  const [omschr, setOmschr] = useState("");
+  const [bezig, setBezig] = useState(false);
+
+  async function verwerk() {
+    if (!bedrag || isNaN(parseFloat(bedrag))) { showToast("Vul een bedrag in","err"); return; }
+    setBezig(true);
+    const b = parseFloat(bedrag);
+    const nieuw = actie==="inhouden"
+      ? (plan.ingehouden||0) + b
+      : Math.max(0, (plan.ingehouden||0) - b);
+    const { error } = await supabase.from("borg_plannen").update({ ingehouden: nieuw }).eq("id", plan.id);
+    if (error) { showToast("Fout: "+error.message,"err"); setBezig(false); return; }
+    await supabase.from("activiteiten").insert([{
+      type:"borg_update",
+      omschrijving:`${actie==="inhouden"?"💸 Ingehouden":"💚 Teruggegeven"} €${b.toFixed(2)} van borg ${gekozen}${omschr?` — ${omschr}`:""}`,
+      gedaan_door:"backoffice", extra:{medewerker:gekozen,plan_id:plan.id,actie,bedrag:b}
+    }]);
+    showToast(actie==="inhouden"?"💸 Ingehouden":"💚 Teruggegeven");
+    setBedrag(""); setOmschr(""); setOpen(false); setBezig(false);
+    onOpgeslagen();
+  }
+
+  if (!open) return (
+    <div style={{display:"flex",gap:8,marginTop:10}}>
+      <button onClick={()=>{setActie("inhouden");setOpen(true);}}
+        style={{flex:1,padding:"6px 10px",borderRadius:7,border:"1px dashed #dc2626",background:"#fff1f2",
+          color:"#b91c1c",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+        💸 Inhouden
+      </button>
+      <button onClick={()=>{setActie("teruggeven");setOpen(true);}}
+        style={{flex:1,padding:"6px 10px",borderRadius:7,border:"1px dashed #16a34a",background:"#f0fdf4",
+          color:"#15803d",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+        💚 Teruggeven
+      </button>
+    </div>
+  );
+
+  return (
+    <div style={{marginTop:10,background:actie==="inhouden"?"#fff1f2":"#f0fdf4",borderRadius:8,padding:"12px",
+      border:`1px solid ${actie==="inhouden"?"#fecdd3":"#bbf7d0"}`}}>
+      <div style={{display:"flex",gap:8,marginBottom:10}}>
+        {["inhouden","teruggeven"].map(a=>(
+          <button key={a} onClick={()=>setActie(a)}
+            style={{flex:1,padding:"7px",borderRadius:7,border:"2px solid",
+              borderColor:actie===a?(a==="inhouden"?"#dc2626":"#16a34a"):"#e5e7eb",
+              background:actie===a?(a==="inhouden"?"#dc2626":"#16a34a"):"white",
+              color:actie===a?"white":C.text,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+            {a==="inhouden"?"💸 Inhouden":"💚 Teruggeven"}
+          </button>
+        ))}
+      </div>
+      <div style={{display:"flex",gap:8,marginBottom:8,flexWrap:"wrap"}}>
+        <div style={{flex:"1 1 100px"}}>
+          <label style={{fontSize:11,color:"#6b7280",display:"block",marginBottom:3}}>Bedrag (€)</label>
+          <input type="number" value={bedrag} onChange={e=>setBedrag(e.target.value)}
+            placeholder="0.00" min="0" step="0.01"
+            style={{width:"100%",borderRadius:6,border:"1px solid #e5e7eb",padding:"6px 8px",fontSize:13,fontFamily:"inherit",boxSizing:"border-box"}}/>
+        </div>
+        <div style={{flex:"2 1 160px"}}>
+          <label style={{fontSize:11,color:"#6b7280",display:"block",marginBottom:3}}>Reden (optioneel)</label>
+          <input value={omschr} onChange={e=>setOmschr(e.target.value)}
+            placeholder="bijv. schade aan raam"
+            style={{width:"100%",borderRadius:6,border:"1px solid #e5e7eb",padding:"6px 8px",fontSize:13,fontFamily:"inherit",boxSizing:"border-box"}}/>
+        </div>
+      </div>
+      <div style={{display:"flex",gap:8}}>
+        <button onClick={verwerk} disabled={bezig}
+          style={{flex:1,padding:"8px",borderRadius:6,border:"none",
+            background:actie==="inhouden"?"#dc2626":"#16a34a",color:"white",
+            fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>
+          {bezig?"Bezig...":`✓ ${actie==="inhouden"?"Inhouden":"Teruggeven"}`}
+        </button>
+        <button onClick={()=>setOpen(false)}
+          style={{padding:"8px 12px",borderRadius:6,border:"1px solid #e5e7eb",background:"white",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>
+          Annuleer
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
   const [zoek, setZoek] = useState("");
   const [gekozen, setGekozen] = useState(null);
@@ -1117,7 +1204,7 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
                 <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
                   <button style={S.actieBtn(C.groen)} onClick={()=>{setShowTaakForm(!showTaakForm);setShowHuurForm(false);setShowBorgForm(false);}}>+ Taak huismeester</button>
                   {huurSchuldId && <button style={S.actieBtn("#f59e0b")} onClick={()=>{setShowHuurForm(!showHuurForm);setShowTaakForm(false);setShowBorgForm(false);}}>💶 Huur afstrepen</button>}
-                  {borgPlanId && <button style={S.actieBtn("#7c3aed")} onClick={()=>{setShowBorgForm(!showBorgForm);setShowTaakForm(false);setShowHuurForm(false);}}>📋 Borg aanpassen</button>}
+
                 </div>
               )}
             </div>
@@ -1156,34 +1243,7 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
               </div>
             )}
 
-            {/* Borg form */}
-            {showBorgForm && (
-              <div style={{...S.card("#7c3aed"),marginBottom:12}}>
-                <div style={S.titel("#7c3aed")}>📋 Borg aanpassen</div>
-                <div style={{display:"flex",gap:8,marginBottom:10}}>
-                  {["inhouden","teruggeven"].map(a=>(
-                    <button key={a} onClick={()=>setBorgActie(a)}
-                      style={{flex:1,padding:"8px",borderRadius:7,border:`2px solid ${borgActie===a?"#7c3aed":C.border}`,background:borgActie===a?"#7c3aed":"white",color:borgActie===a?"white":C.text,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                      {a==="inhouden"?"💸 Inhouden":"💚 Teruggeven"}
-                    </button>
-                  ))}
-                </div>
-                <div style={{display:"flex",gap:10,marginBottom:8,flexWrap:"wrap"}}>
-                  <div style={{flex:1,minWidth:120}}>
-                    <label className="fl">Bedrag (€)</label>
-                    <input className="fi" type="number" placeholder="0.00" value={borgBedrag} onChange={e=>setBorgBedrag(e.target.value)} style={{fontSize:13}}/>
-                  </div>
-                  <div style={{flex:2,minWidth:200}}>
-                    <label className="fl">Omschrijving</label>
-                    <input className="fi" placeholder="Reden..." value={borgOmschr} onChange={e=>setBorgOmschr(e.target.value)} style={{fontSize:13}}/>
-                  </div>
-                </div>
-                <div style={{display:"flex",gap:8}}>
-                  <button style={S.actieBtn("#7c3aed")} onClick={verwerkBorg}>✓ Opslaan</button>
-                  <button style={S.actieBtn("#9ca3af")} onClick={()=>setShowBorgForm(false)}>Annuleer</button>
-                </div>
-              </div>
-            )}
+
 
             {/* 🏠 Kamer */}
             <div style={S.card(C.blauw)}>
@@ -1300,20 +1360,20 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
             <div style={S.card("#7c3aed")}>
               <div style={S.titel("#7c3aed")}>📋 Borg & inhouding</div>
               {data.borgPlannen.length === 0 ? <div style={{fontSize:13,color:C.muted,fontStyle:"italic"}}>Geen borgplan gevonden</div>
-                : data.borgPlannen.slice(0,3).map(b => (
-                <div key={b.id} style={{marginBottom:10,paddingBottom:10,borderBottom:`1px solid ${C.border}`}}>
-                  <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:6}}>
+                : data.borgPlannen.slice(0,5).map(b => (
+                <div key={b.id} style={{marginBottom:14,paddingBottom:14,borderBottom:`1px solid ${C.border}`}}>
+                  <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:8}}>
                     <span style={{fontWeight:700,fontSize:13}}>Kamer {b.kamer}</span>
                     <span style={S.badge(b.status==="actief"?"#7c3aed":b.status==="afgerond"?C.groen:"#9ca3af")}>{b.status||"?"}</span>
-                    {b.id===borgPlanId&&<span style={{fontSize:11,color:"#7c3aed",fontStyle:"italic"}}>← actief plan</span>}
                   </div>
-                  {b.startdatum&&<div style={S.rij}><span style={S.lbl}>📅 Startdatum</span><span style={{...S.val,fontWeight:600}}>{fmtDate(b.startdatum)}</span></div>}
-                  {b.einddatum&&<div style={S.rij}><span style={S.lbl}>🏁 Einddatum</span><span style={S.val}>{fmtDate(b.einddatum)}</span></div>}
+                  {b.startdatum&&<div style={S.rij}><span style={S.lbl}>📅 Startdatum</span><span style={{...S.val,fontWeight:600}}>{fmtDateJaar(b.startdatum)}</span></div>}
+                  {b.einddatum&&<div style={S.rij}><span style={S.lbl}>🏁 Einddatum</span><span style={{...S.val}}>{fmtDateJaar(b.einddatum)}</span></div>}
                   <div style={S.rij}><span style={S.lbl}>Totaal borg</span><span style={S.val}>€{(b.totaal_borg||0).toFixed(2)}</span></div>
-                  <div style={S.rij}><span style={S.lbl}>Ingehouden</span><span style={{...S.val,color:(b.ingehouden||0)>0?"#dc2626":C.groen}}>€{(b.ingehouden||0).toFixed(2)}</span></div>
-                  <div style={S.rij}><span style={S.lbl}>Restant</span><span style={{...S.val,color:C.groen}}>€{((b.totaal_borg||0)-(b.ingehouden||0)).toFixed(2)}</span></div>
-                  {b.aankomst_datum&&<div style={S.rij}><span style={S.lbl}>Aankomst</span><span style={S.val}>{fmtDate(b.aankomst_datum)}</span></div>}
-                  {b.vertrek_datum&&<div style={S.rij}><span style={S.lbl}>Vertrek</span><span style={S.val}>{fmtDate(b.vertrek_datum)}</span></div>}
+                  <div style={S.rij}><span style={S.lbl}>Ingehouden</span><span style={{...S.val,color:(b.ingehouden||0)>0?"#dc2626":C.groen,fontWeight:700}}>€{(b.ingehouden||0).toFixed(2)}</span></div>
+                  <div style={S.rij}><span style={S.lbl}>Restant</span><span style={{...S.val,fontWeight:700,color:((b.totaal_borg||0)-(b.ingehouden||0))>0?C.text:C.groen}}>€{((b.totaal_borg||0)-(b.ingehouden||0)).toFixed(2)}</span></div>
+                  {b.aankomst_datum&&<div style={S.rij}><span style={S.lbl}>Aankomst</span><span style={S.val}>{fmtDateJaar(b.aankomst_datum)}</span></div>}
+                  {b.vertrek_datum&&<div style={S.rij}><span style={S.lbl}>Vertrek</span><span style={S.val}>{fmtDateJaar(b.vertrek_datum)}</span></div>}
+                  {!isReadonly&&<BorgInhoudingInline plan={b} gekozen={gekozen} onOpgeslagen={()=>laad(gekozen)} showToast={showToast}/>}
                 </div>
               ))}
             </div>
