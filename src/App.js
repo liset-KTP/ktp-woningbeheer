@@ -89,6 +89,7 @@ const DAGPLANNING = {
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 function fmtDate(d) { const dt = typeof d==="string"?new Date(d):d; return dt.toLocaleDateString("nl-NL",{day:"2-digit",month:"2-digit"}); }
+function fmtDateJaar(d) { if(!d) return "—"; const dt = typeof d==="string"?new Date(d):d; return dt.toLocaleDateString("nl-NL",{day:"2-digit",month:"2-digit",year:"numeric"}); }
 function fmtTime(d) { const dt = typeof d==="string"?new Date(d):d; return dt.toLocaleTimeString("nl-NL",{hour:"2-digit",minute:"2-digit"}); }
 function fmtFull(d) { return `${fmtDate(d)} ${fmtTime(d)}`; }
 function todayISO() { return new Date().toISOString().slice(0,10); }
@@ -941,6 +942,12 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
   const [borgBedrag, setBorgBedrag] = useState("");
   const [borgPlanId, setBorgPlanId] = useState(null);
   const [borgOmschr, setBorgOmschr] = useState("");
+  const [showNieuweSchuld, setShowNieuweSchuld] = useState(false);
+  const [nieuweSchuldBedrag, setNieuweSchuldBedrag] = useState("");
+  const [nieuweSchuldTarief, setNieuweSchuldTarief] = useState("");
+  const [nieuweSchuldDagen, setNieuweSchuldDagen] = useState("7");
+  const [nieuweSchuldDatum, setNieuweSchuldDatum] = useState(new Date().toISOString().slice(0,10));
+  const [nieuweSchuldOmschr, setNieuweSchuldOmschr] = useState("");
   const isReadonly = gebruiker?.rol === "huismeester" || gebruiker?.rol === "collega";
 
   const alleMedewerkers = useMemo(() => {
@@ -993,6 +1000,27 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
       setNotities(notitieRes.data||[]);
     } catch(e) { console.error(e); }
     setLaden(false);
+  }
+
+  async function maakNieuweSchuld() {
+    if (!nieuweSchuldBedrag || isNaN(parseFloat(nieuweSchuldBedrag))) {
+      showToast("Vul een beginsaldo in","err"); return;
+    }
+    const { error } = await supabase.from("huurschulden").insert([{
+      naam_medewerker: gekozen,
+      beginsaldo: parseFloat(nieuweSchuldBedrag),
+      tarief_bedrag: parseFloat(nieuweSchuldTarief)||null,
+      tarief_dagen: parseInt(nieuweSchuldDagen)||7,
+      startdatum: nieuweSchuldDatum||null,
+      omschrijving: nieuweSchuldOmschr||null,
+      actief: true
+    }]);
+    if (error) { showToast("Fout: "+error.message,"err"); return; }
+    showToast("✓ Huurschuld aangemaakt");
+    setShowNieuweSchuld(false);
+    setNieuweSchuldBedrag(""); setNieuweSchuldTarief(""); setNieuweSchuldOmschr("");
+    setNieuweSchuldDatum(new Date().toISOString().slice(0,10));
+    laad(gekozen);
   }
 
   async function slaNotitieOp() {
@@ -1171,14 +1199,16 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
                     {item.kamer.vestiging&&<span style={{fontSize:11,color:C.muted,paddingTop:3}}>Vestiging: {item.kamer.vestiging}</span>}
                   </div>
                   {/* Aankomst datum uit kamer JSONB of meldingen */}
-                  {(item.kamer.aankomst_datum || data.meldHistorie.find(m=>m.type==="aankomst")) && (() => {
+                  {(() => {
                     const aankomstDatum = item.kamer.aankomst_datum ||
-                      data.meldHistorie.find(m=>m.type==="aankomst")?.datum;
-                    const vertrekDatum = data.meldHistorie.find(m=>m.type==="vertrek")?.datum;
+                      data.meldHistorie?.find(m=>m.type==="aankomst")?.datum;
+                    const vertrekDatum = item.kamer.vertrek_datum ||
+                      data.meldHistorie?.find(m=>m.type==="vertrek")?.datum;
+                    if (!aankomstDatum && !vertrekDatum) return null;
                     return (
-                      <div style={{fontSize:12,color:C.muted,display:"flex",gap:16,flexWrap:"wrap"}}>
-                        {aankomstDatum && <span>📅 In dienst: <strong style={{color:C.text}}>{fmtDate(aankomstDatum)}</strong></span>}
-                        {vertrekDatum && <span>🚪 Vertrek: <strong style={{color:"#ef4444"}}>{fmtDate(vertrekDatum)}</strong></span>}
+                      <div style={{fontSize:12,marginTop:6,display:"flex",gap:16,flexWrap:"wrap"}}>
+                        {aankomstDatum && <span style={{color:"#374151"}}>📅 In dienst: <strong style={{color:C.blauw}}>{fmtDateJaar(aankomstDatum)}</strong></span>}
+                        {vertrekDatum && <span style={{color:"#374151"}}>🚪 Vertrek: <strong style={{color:"#ef4444"}}>{fmtDateJaar(vertrekDatum)}</strong></span>}
                       </div>
                     );
                   })()}
@@ -1227,8 +1257,8 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
                       <span style={S.badge(a.status==="In gebruik"?"#0891b2":a.status==="Beschikbaar"?C.groen:"#9ca3af")}>{a.status}</span>
                     </div>
                     {a.merk_model&&<div style={S.rij}><span style={S.lbl}>Model</span><span style={S.val}>{a.merk_model}</span></div>}
-                    {(hist?.uitgifte||a.datum_uitgifte)&&<div style={S.rij}><span style={S.lbl}>🗓 Uitgifte</span><span style={{...S.val,color:"#0891b2",fontWeight:600}}>{fmtDate(hist?.uitgifte||a.datum_uitgifte)}</span></div>}
-                    {hist?.inname&&<div style={S.rij}><span style={S.lbl}>🔑 Inname</span><span style={{...S.val,color:C.groen,fontWeight:600}}>{fmtDate(hist.inname)}</span></div>}
+                    {(hist?.uitgifte||a.datum_uitgifte)&&<div style={S.rij}><span style={S.lbl}>🗓 Uitgifte</span><span style={{...S.val,color:"#0891b2",fontWeight:600}}>{fmtDateJaar(hist?.uitgifte||a.datum_uitgifte)}</span></div>}
+                    {hist?.inname&&<div style={S.rij}><span style={S.lbl}>🔑 Inname</span><span style={{...S.val,color:C.groen,fontWeight:600}}>{fmtDateJaar(hist.inname)}</span></div>}
                     {a.apk_datum&&<div style={S.rij}><span style={S.lbl}>APK</span><span style={{...S.val,color:new Date(a.apk_datum)<new Date()?"#dc2626":C.text}}>{fmtDate(a.apk_datum)}{new Date(a.apk_datum)<new Date()?" ⚠️ VERLOPEN":""}</span></div>}
                   </div>
                   );
@@ -1290,7 +1320,52 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
 
             {/* 💶 Huur */}
             <div style={S.card("#f59e0b")}>
-              <div style={S.titel("#f59e0b")}>💶 Huurschuld</div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+                <div style={S.titel("#f59e0b")}>💶 Huurschuld</div>
+                {!isReadonly&&<button onClick={()=>setShowNieuweSchuld(v=>!v)}
+                  style={{padding:"5px 12px",borderRadius:7,border:"1px dashed #f59e0b",background:"#fffbeb",
+                    color:"#b45309",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                  {showNieuweSchuld?"Annuleer":"+ Nieuwe schuld"}
+                </button>}
+              </div>
+              {!isReadonly&&showNieuweSchuld&&(
+                <div style={{background:"#fffbeb",borderRadius:10,padding:"14px",marginBottom:14,border:"1px solid #fde68a"}}>
+                  <div style={{fontWeight:700,fontSize:13,color:"#92400e",marginBottom:12}}>➕ Nieuwe huurschuld aanmaken</div>
+                  <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:8}}>
+                    <div style={{flex:"1 1 120px"}}>
+                      <label style={{fontSize:11,color:"#6b7280",display:"block",marginBottom:3}}>Beginsaldo (€) *</label>
+                      <input type="number" value={nieuweSchuldBedrag} onChange={e=>setNieuweSchuldBedrag(e.target.value)}
+                        placeholder="bv. 500.00" style={{width:"100%",borderRadius:6,border:"1px solid #e5e7eb",padding:"7px 9px",fontSize:13,fontFamily:"inherit",boxSizing:"border-box"}}/>
+                    </div>
+                    <div style={{flex:"1 1 120px"}}>
+                      <label style={{fontSize:11,color:"#6b7280",display:"block",marginBottom:3}}>Tarief per periode (€)</label>
+                      <input type="number" value={nieuweSchuldTarief} onChange={e=>setNieuweSchuldTarief(e.target.value)}
+                        placeholder="bv. 50.00" style={{width:"100%",borderRadius:6,border:"1px solid #e5e7eb",padding:"7px 9px",fontSize:13,fontFamily:"inherit",boxSizing:"border-box"}}/>
+                    </div>
+                    <div style={{flex:"0 1 80px"}}>
+                      <label style={{fontSize:11,color:"#6b7280",display:"block",marginBottom:3}}>Periode (dagen)</label>
+                      <input type="number" value={nieuweSchuldDagen} onChange={e=>setNieuweSchuldDagen(e.target.value)}
+                        style={{width:"100%",borderRadius:6,border:"1px solid #e5e7eb",padding:"7px 9px",fontSize:13,fontFamily:"inherit",boxSizing:"border-box"}}/>
+                    </div>
+                  </div>
+                  <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:8}}>
+                    <div style={{flex:"1 1 140px"}}>
+                      <label style={{fontSize:11,color:"#6b7280",display:"block",marginBottom:3}}>Startdatum</label>
+                      <input type="date" value={nieuweSchuldDatum} onChange={e=>setNieuweSchuldDatum(e.target.value)}
+                        style={{width:"100%",borderRadius:6,border:"1px solid #e5e7eb",padding:"7px 9px",fontSize:13,fontFamily:"inherit",boxSizing:"border-box"}}/>
+                    </div>
+                    <div style={{flex:"2 1 180px"}}>
+                      <label style={{fontSize:11,color:"#6b7280",display:"block",marginBottom:3}}>Omschrijving (optioneel)</label>
+                      <input value={nieuweSchuldOmschr} onChange={e=>setNieuweSchuldOmschr(e.target.value)}
+                        placeholder="bv. Huurschuld kamer 3" style={{width:"100%",borderRadius:6,border:"1px solid #e5e7eb",padding:"7px 9px",fontSize:13,fontFamily:"inherit",boxSizing:"border-box"}}/>
+                    </div>
+                  </div>
+                  <button onClick={maakNieuweSchuld}
+                    style={{padding:"8px 20px",borderRadius:7,border:"none",background:"#f59e0b",color:"white",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
+                    ✓ Aanmaken
+                  </button>
+                </div>
+              )}
               {data.huurschulden.length === 0 ? <div style={{fontSize:13,color:C.muted,fontStyle:"italic"}}>Geen huurschuld gevonden</div>
                 : data.huurschulden.slice(0,3).map(h => {
                   const betalingen = (h.huurbetalingen||[]).sort((a,b)=>b.datum>a.datum?1:-1);
@@ -1300,7 +1375,7 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
                   <div key={h.id} style={{marginBottom:12,paddingBottom:12,borderBottom:`1px solid ${C.border}`}}>
                     <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:8}}>
                       <span style={S.badge(h.actief?"#f59e0b":"#9ca3af")}>{h.actief?"Actief":"Afgesloten"}</span>
-                      {h.startdatum&&<span style={{fontSize:12,color:C.muted}}>Vanaf {fmtDate(h.startdatum)}</span>}
+                      {h.startdatum&&<span style={{fontSize:12,color:C.muted}}>Vanaf {fmtDateJaar(h.startdatum)}</span>}
                     </div>
                     <div style={S.rij}><span style={S.lbl}>Beginsaldo</span><span style={S.val}>€{(h.beginsaldo||0).toFixed(2)}</span></div>
                     <div style={S.rij}><span style={S.lbl}>Betaald</span><span style={{...S.val,color:C.groen}}>€{totaalBetaald.toFixed(2)} ({betalingen.length}x)</span></div>
@@ -1333,6 +1408,17 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
 
                     {/* Betaling toevoegen */}
                     {!isReadonly&&h.actief&&<HuurBetalingInline schuldId={h.id} onOpgeslagen={()=>laad(gekozen)} showToast={showToast}/>}
+                    {!isReadonly&&(
+                      <button onClick={async()=>{
+                        const nieuweStatus = !h.actief;
+                        await supabase.from("huurschulden").update({actief:nieuweStatus}).eq("id",h.id);
+                        showToast(nieuweStatus?"Schuld heropend":"Schuld afgesloten");
+                        laad(gekozen);
+                      }} style={{marginTop:8,padding:"5px 12px",borderRadius:6,border:"1px solid #e5e7eb",
+                        background:"white",color:C.muted,fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>
+                        {h.actief?"🔒 Afsluiten":"🔓 Heropenen"}
+                      </button>
+                    )}
                   </div>
                 );
               })}
