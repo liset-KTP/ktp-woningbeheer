@@ -824,9 +824,9 @@ function BoeteOpzoeken({ meldingen, autos }) {
                   <div style={{fontSize:12,color:C.muted}}>{resultaat.auto?.merk_model||"—"}</div>
                 </div>
                 <div style={{padding:"12px 16px",background:C.bg,borderRadius:8}}>
-                  <div style={{fontSize:11,color:C.muted,fontWeight:600,marginBottom:3}}>{resultaat.fallback ? "HUIDIGE STATUS" : "UITGEGEVEN OP"}</div>
-                  <div style={{fontSize:13,fontWeight:700,color:C.text}}>{resultaat.fallback ? resultaat.auto?.status : fmtDate(resultaat.uitgifte.created_at)}</div>
-                  <div style={{fontSize:12,color:C.muted}}>{resultaat.fallback ? "geen uitgifte-datum bekend" : fmtTime(resultaat.uitgifte.created_at)}</div>
+                  <div style={{fontSize:11,color:C.muted,fontWeight:600,marginBottom:3}}>UITGEGEVEN OP</div>
+                  <div style={{fontSize:13,fontWeight:700,color:C.text}}>{resultaat.fallback ? fmtDate(resultaat.uitgifteDatumAuto) : fmtDate(resultaat.uitgifte.created_at)}</div>
+                  <div style={{fontSize:12,color:C.muted}}>{resultaat.fallback ? "datum uit auto-registratie" : fmtTime(resultaat.uitgifte.created_at)}</div>
                 </div>
               </div>
             </>
