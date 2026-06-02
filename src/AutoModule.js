@@ -3,9 +3,9 @@ import { supabase } from "./supabaseClient";
 import { BijlageUploader, BijlageWeergave, uploadBijlages } from "./BijlageUploader";
 
 // ─── EMAILJS ─────────────────────────────────────────────────────────────────
-const EMAILJS_SERVICE  = "service_1af258e";
-const EMAILJS_TEMPLATE = "template_2mjnbok";
-const EMAILJS_PUBLIC   = "CJEVdAOdA03ZQxE28";
+const EMAILJS_SERVICE  = process.env.REACT_APP_EMAILJS_SERVICE  || "";
+const EMAILJS_TEMPLATE = process.env.REACT_APP_EMAILJS_TEMPLATE || "";
+const EMAILJS_PUBLIC   = process.env.REACT_APP_EMAILJS_PUBLIC   || "";
 
 async function stuurMail(params) {
   try {
@@ -196,6 +196,7 @@ export function AutoModule({ gebruiker, showToast }) {
     { id:"melding",   label:"📋 Melding doorgeven" },
     { id:"log",       label:`📝 Log ${openMeldingen.length>0?`(${openMeldingen.length} open)`:""}` },
     ...(isBackoffice ? [{ id:"beheer", label:"⚙️ Auto beheer" }] : []),
+    ...(isBackoffice ? [{ id:"boete", label:"🔍 Boete opzoeken" }] : []),
   ];
 
   return (
@@ -216,6 +217,7 @@ export function AutoModule({ gebruiker, showToast }) {
       {subTab==="melding"   && <AutoMeldingForm autos={autos} gebruiker={gebruiker} onSubmit={addAutoMelding} showToast={showToast} />}
       {subTab==="log"       && <AutoLog meldingen={autoMeldingen} autos={autos} onUpdate={updateAutoMelding} gebruiker={gebruiker} isBackoffice={isBackoffice} onReactie={stuurReactie} onMarkeerGelezen={markeerGelezen} />}
       {subTab==="beheer" && isBackoffice && <AutoBeheer autos={autos} onAdd={addAuto} onUpdate={updateAuto} onDelete={deleteAuto} showToast={showToast} />}
+      {subTab==="boete" && isBackoffice && <BoeteOpzoeken meldingen={autoMeldingen} autos={autos} />}
     </div>
   );
 }
@@ -721,6 +723,149 @@ function AutoLog({ meldingen, autos, onUpdate, gebruiker, isBackoffice, onReacti
           </div>
         );
       })}
+    </div>
+  );
+}
+
+
+// ─── BOETE OPZOEKEN ───────────────────────────────────────────────────────────
+function BoeteOpzoeken({ meldingen, autos }) {
+  const [kenteken, setKenteken] = useState("");
+  const [datum, setDatum] = useState("");
+  const [resultaat, setResultaat] = useState(null);
+
+  function zoek() {
+    if (!kenteken || !datum) return;
+    const zoekDatum = new Date(datum + "T23:59:59");
+    const zoekKenteken = kenteken.trim().toUpperCase().replace(/\s/g,"");
+
+    // Filter alle meldingen voor dit kenteken
+    const autoMeld = meldingen
+      .filter(m => (m.kenteken||"").toUpperCase().replace(/\s/g,"") === zoekKenteken)
+      .sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
+
+    if (autoMeld.length === 0) {
+      setResultaat({ gevonden: false, reden: "Geen meldingen gevonden voor dit kenteken." });
+      return;
+    }
+
+    // Vind de meest recente uitgifte vóór of op de zoekdatum
+    const vóórDatum = autoMeld.filter(m => new Date(m.created_at) <= zoekDatum);
+    const uitgiftes = vóórDatum.filter(m => m.actie === "uitgifte");
+    const innames   = vóórDatum.filter(m => m.actie === "inname");
+
+    if (uitgiftes.length === 0) {
+      setResultaat({ gevonden: false, reden: "Op die datum was de auto nog niet uitgegeven aan iemand.", meldingen: vóórDatum });
+      return;
+    }
+
+    const laagsteUitgifte = uitgiftes[uitgiftes.length - 1];
+    // Was er een inname NA deze uitgifte maar VOOR de zoekdatum?
+    const innameNa = innames.find(i => new Date(i.created_at) > new Date(laagsteUitgifte.created_at));
+
+    const auto = autos.find(a => (a.kenteken||"").toUpperCase().replace(/\s/g,"") === zoekKenteken);
+
+    setResultaat({
+      gevonden: !innameNa,
+      bestuurder: innameNa ? null : laagsteUitgifte.naam_medewerker,
+      uitgifte: laagsteUitgifte,
+      inname: innameNa || null,
+      auto,
+      alleAuto: autoMeld,
+    });
+  }
+
+  const uniekKentekens = [...new Set(autos.map(a => a.kenteken).filter(Boolean))].sort();
+
+  return (
+    <div style={{maxWidth:680}}>
+      <div style={{background:"white",border:`1px solid ${C.border}`,borderRadius:14,padding:28,marginBottom:20,boxShadow:"0 1px 4px rgba(0,0,0,.05)"}}>
+        <h3 style={{fontSize:16,fontWeight:800,color:C.blauw,marginBottom:4}}>🔍 Wie reed er op een bepaalde datum?</h3>
+        <p style={{fontSize:13,color:C.muted,marginBottom:20}}>Vul het kenteken en de datum van de boete in om te zien wie de auto op dat moment had.</p>
+
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:16}}>
+          <div>
+            <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Kenteken</label>
+            <select value={kenteken} onChange={e=>setKenteken(e.target.value)}
+              style={{width:"100%",border:`1.5px solid ${C.border}`,borderRadius:8,padding:"10px 14px",fontSize:14,fontFamily:"inherit",color:C.text,background:"white",outline:"none"}}>
+              <option value="">— Selecteer kenteken —</option>
+              {uniekKentekens.map(k => <option key={k} value={k}>{k}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Datum boete</label>
+            <input type="date" value={datum} onChange={e=>setDatum(e.target.value)}
+              style={{width:"100%",border:`1.5px solid ${C.border}`,borderRadius:8,padding:"10px 14px",fontSize:14,fontFamily:"inherit",color:C.text,background:"white",outline:"none",boxSizing:"border-box"}}/>
+          </div>
+        </div>
+
+        <button onClick={zoek} disabled={!kenteken||!datum}
+          style={{background:kenteken&&datum?C.blauw:C.border,color:"white",border:"none",borderRadius:8,padding:"11px 28px",fontSize:14,fontWeight:700,cursor:kenteken&&datum?"pointer":"not-allowed",fontFamily:"inherit"}}>
+          🔍 Zoeken
+        </button>
+      </div>
+
+      {resultaat && (
+        <div style={{background:"white",border:`1px solid ${C.border}`,borderRadius:14,padding:28,boxShadow:"0 1px 4px rgba(0,0,0,.05)"}}>
+          {resultaat.gevonden ? (
+            <>
+              <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20,padding:"14px 18px",background:"#f0fdf4",border:"1.5px solid #86efac",borderRadius:10}}>
+                <span style={{fontSize:28}}>✅</span>
+                <div>
+                  <div style={{fontSize:13,color:"#166534",fontWeight:600}}>Bestuurder gevonden</div>
+                  <div style={{fontSize:20,fontWeight:800,color:"#14532d",marginTop:2}}>{resultaat.bestuurder}</div>
+                </div>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:20}}>
+                <div style={{padding:"12px 16px",background:C.bg,borderRadius:8}}>
+                  <div style={{fontSize:11,color:C.muted,fontWeight:600,marginBottom:3}}>AUTO</div>
+                  <div style={{fontSize:13,fontWeight:700,color:C.text}}>{resultaat.auto?.kenteken}</div>
+                  <div style={{fontSize:12,color:C.muted}}>{resultaat.auto?.merk_model||"—"}</div>
+                </div>
+                <div style={{padding:"12px 16px",background:C.bg,borderRadius:8}}>
+                  <div style={{fontSize:11,color:C.muted,fontWeight:600,marginBottom:3}}>UITGEGEVEN OP</div>
+                  <div style={{fontSize:13,fontWeight:700,color:C.text}}>{fmtDate(resultaat.uitgifte.created_at)}</div>
+                  <div style={{fontSize:12,color:C.muted}}>{fmtTime(resultaat.uitgifte.created_at)}</div>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div style={{padding:"16px 18px",background:"#fff7ed",border:"1.5px solid #fed7aa",borderRadius:10,marginBottom:resultaat.alleAuto?.length?16:0}}>
+              <span style={{fontSize:20}}>⚠️</span>
+              <span style={{fontSize:14,color:"#92400e",fontWeight:600,marginLeft:10}}>{resultaat.reden || "Op deze datum was de auto niet uitgegeven."}</span>
+              {resultaat.inname && <div style={{fontSize:12,color:C.muted,marginTop:6}}>Auto was al terug ingenomen op {fmtFull(resultaat.inname.created_at)}</div>}
+            </div>
+          )}
+
+          {/* Historie rond die datum */}
+          {resultaat.alleAuto?.length > 0 && (
+            <div>
+              <div style={{fontSize:12,fontWeight:700,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:10,marginTop:resultaat.gevonden?0:16}}>Historie voor {resultaat.auto?.kenteken||kenteken}</div>
+              <div style={{display:"grid",gap:8}}>
+                {resultaat.alleAuto.slice(-10).reverse().map((m,i) => {
+                  const isUitgifte = m.actie==="uitgifte";
+                  const isInname   = m.actie==="inname";
+                  const isDatumDag = m.created_at?.slice(0,10) === datum;
+                  return (
+                    <div key={m.id} style={{display:"flex",gap:12,alignItems:"center",padding:"8px 12px",borderRadius:8,
+                      background: isDatumDag?"#fefce8":isUitgifte?"#f0fdf4":isInname?"#f0f9ff":C.bg,
+                      border:`1px solid ${isDatumDag?"#fde047":isUitgifte?"#bbf7d0":isInname?"#bae6fd":C.border}`}}>
+                      <span style={{fontSize:16}}>{isUitgifte?"🚗":isInname?"🔑":m.actie==="storing"?"⚠️":"📋"}</span>
+                      <div style={{flex:1}}>
+                        <div style={{fontSize:13,fontWeight:600,color:C.text}}>
+                          {isUitgifte?"Uitgegeven aan":isInname?"Ingenomen van":m.actie} {m.naam_medewerker||""}
+                        </div>
+                        <div style={{fontSize:11,color:C.muted}}>{fmtFull(m.created_at)} · {m.ingediend_door}</div>
+                      </div>
+                      {isDatumDag && <span style={{fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:10,background:"#fef08a",color:"#713f12"}}>boetedatum</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
