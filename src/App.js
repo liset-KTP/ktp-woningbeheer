@@ -758,7 +758,7 @@ function App() {
   const openTaken = taken.filter(t=>t.status==="open" && (rol==="backoffice" ? t.voor_rol==="backoffice" : t.voor_rol==="iedereen" || t.voor_rol===rol || !t.voor_rol));
   const mijnMeldingen = meldingen.filter(m=>m.ingediend_door===gebruiker?.naam);
   const naam = gebruiker?.naam;
-  const isLiset = naam==="Liset" || naam==="Warscha";
+  const isLiset = ["liset","warscha"].includes(naam?.trim().toLowerCase());
 
   if (loading) return <LoadingScreen />;
   if (!gebruiker) return <LoginScreen gebruikers={gebruikers} onLogin={login} taal={taal} onTaalWissel={wisselTaal}/>;
