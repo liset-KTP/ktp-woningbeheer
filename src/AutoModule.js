@@ -812,8 +812,9 @@ function BoeteOpzoeken({ meldingen, autos }) {
               <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20,padding:"14px 18px",background:"#f0fdf4",border:"1.5px solid #86efac",borderRadius:10}}>
                 <span style={{fontSize:28}}>✅</span>
                 <div>
-                  <div style={{fontSize:13,color:"#166534",fontWeight:600}}>Bestuurder gevonden</div>
+                  <div style={{fontSize:13,color:"#166534",fontWeight:600}}>{resultaat.fallback ? "Huidig gekoppelde medewerker (geen uitgifte-log gevonden)" : "Bestuurder gevonden"}</div>
                   <div style={{fontSize:20,fontWeight:800,color:"#14532d",marginTop:2}}>{resultaat.bestuurder}</div>
+                  {resultaat.fallback && <div style={{fontSize:11,color:"#166534",marginTop:4}}>⚠️ Geen uitgifte-registratie gevonden voor deze datum — dit is de huidige koppeling.</div>}
                 </div>
               </div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:20}}>
@@ -823,9 +824,9 @@ function BoeteOpzoeken({ meldingen, autos }) {
                   <div style={{fontSize:12,color:C.muted}}>{resultaat.auto?.merk_model||"—"}</div>
                 </div>
                 <div style={{padding:"12px 16px",background:C.bg,borderRadius:8}}>
-                  <div style={{fontSize:11,color:C.muted,fontWeight:600,marginBottom:3}}>UITGEGEVEN OP</div>
-                  <div style={{fontSize:13,fontWeight:700,color:C.text}}>{fmtDate(resultaat.uitgifte.created_at)}</div>
-                  <div style={{fontSize:12,color:C.muted}}>{fmtTime(resultaat.uitgifte.created_at)}</div>
+                  <div style={{fontSize:11,color:C.muted,fontWeight:600,marginBottom:3}}>{resultaat.fallback ? "HUIDIGE STATUS" : "UITGEGEVEN OP"}</div>
+                  <div style={{fontSize:13,fontWeight:700,color:C.text}}>{resultaat.fallback ? resultaat.auto?.status : fmtDate(resultaat.uitgifte.created_at)}</div>
+                  <div style={{fontSize:12,color:C.muted}}>{resultaat.fallback ? "geen uitgifte-datum bekend" : fmtTime(resultaat.uitgifte.created_at)}</div>
                 </div>
               </div>
             </>
