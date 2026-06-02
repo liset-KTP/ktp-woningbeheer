@@ -28,9 +28,9 @@ import { BorgModule } from "./BorgModule";
 import { HandleidingModule } from "./HandleidingModule";
 
 // ─── EMAILJS ──────────────────────────────────────────────────────────────────
-const EMAILJS_SERVICE  = "service_1af258e";
-const EMAILJS_TEMPLATE = "template_2mjnbok";
-const EMAILJS_PUBLIC   = "CJEVdAOdA03ZQxE28";
+const EMAILJS_SERVICE  = process.env.REACT_APP_EMAILJS_SERVICE  || "";
+const EMAILJS_TEMPLATE = process.env.REACT_APP_EMAILJS_TEMPLATE || "";
+const EMAILJS_PUBLIC   = process.env.REACT_APP_EMAILJS_PUBLIC   || "";
 
 async function stuurMail(params) {
   try {
