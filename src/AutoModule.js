@@ -739,37 +739,61 @@ function BoeteOpzoeken({ meldingen, autos }) {
     const zoekDatum = new Date(datum + "T23:59:59");
     const zoekKenteken = kenteken.trim().toUpperCase().replace(/\s/g,"");
 
-    // Filter alle meldingen voor dit kenteken
+    // Zoek de auto in de autos-tabel
+    const auto = autos.find(a => (a.kenteken||"").toUpperCase().replace(/\s/g,"") === zoekKenteken);
+
+    // Filter alle log-meldingen voor dit kenteken
     const autoMeld = meldingen
       .filter(m => (m.kenteken||"").toUpperCase().replace(/\s/g,"") === zoekKenteken)
       .sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
 
-    if (autoMeld.length === 0) {
-      setResultaat({ gevonden: false, reden: "Geen meldingen gevonden voor dit kenteken." });
-      return;
-    }
-
-    // Vind de meest recente uitgifte vóór of op de zoekdatum
     const vóórDatum = autoMeld.filter(m => new Date(m.created_at) <= zoekDatum);
     const uitgiftes = vóórDatum.filter(m => m.actie === "uitgifte");
     const innames   = vóórDatum.filter(m => m.actie === "inname");
 
-    if (uitgiftes.length === 0) {
-      setResultaat({ gevonden: false, reden: "Op die datum was de auto nog niet uitgegeven aan iemand.", meldingen: vóórDatum });
+    // STAP 1: Uitgifte-log gevonden vóór de boetedatum
+    if (uitgiftes.length > 0) {
+      const laagsteUitgifte = uitgiftes[uitgiftes.length - 1];
+      const innameNa = innames.find(i => new Date(i.created_at) > new Date(laagsteUitgifte.created_at));
+      setResultaat({
+        gevonden: !innameNa,
+        bestuurder: innameNa ? null : laagsteUitgifte.naam_medewerker,
+        uitgifte: laagsteUitgifte,
+        inname: innameNa || null,
+        auto,
+        alleAuto: autoMeld,
+      });
       return;
     }
 
-    const laagsteUitgifte = uitgiftes[uitgiftes.length - 1];
-    // Was er een inname NA deze uitgifte maar VOOR de zoekdatum?
-    const innameNa = innames.find(i => new Date(i.created_at) > new Date(laagsteUitgifte.created_at));
+    // STAP 2: Geen log — gebruik datum_uitgifte uit de auto-tabel als fallback
+    if (auto && auto.naam_medewerker && auto.datum_uitgifte) {
+      const autoDatumUitgifte = new Date(auto.datum_uitgifte);
+      if (!isNaN(autoDatumUitgifte) && autoDatumUitgifte <= zoekDatum) {
+        // Check of er toch een inname was na die uitgifte maar voor de boetedatum
+        const innameNaAutoDatum = innames.find(i => new Date(i.created_at) > autoDatumUitgifte);
+        setResultaat({
+          gevonden: !innameNaAutoDatum,
+          bestuurder: innameNaAutoDatum ? null : auto.naam_medewerker,
+          uitgifte: null,
+          uitgifteDatumAuto: auto.datum_uitgifte,
+          inname: innameNaAutoDatum || null,
+          auto,
+          alleAuto: autoMeld,
+          fallback: true,
+        });
+        return;
+      }
+    }
 
-    const auto = autos.find(a => (a.kenteken||"").toUpperCase().replace(/\s/g,"") === zoekKenteken);
-
+    // STAP 3: Niets gevonden
     setResultaat({
-      gevonden: !innameNa,
-      bestuurder: innameNa ? null : laagsteUitgifte.naam_medewerker,
-      uitgifte: laagsteUitgifte,
-      inname: innameNa || null,
+      gevonden: false,
+      reden: !auto
+        ? "Kenteken niet gevonden in het systeem."
+        : autoMeld.length === 0
+          ? "Geen uitgifte-registratie gevonden. De auto staat op naam van " + (auto.naam_medewerker||"onbekend") + " maar zonder datum."
+          : "Op die datum was de auto niet uitgegeven aan iemand.",
       auto,
       alleAuto: autoMeld,
     });
