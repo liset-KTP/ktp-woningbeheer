@@ -245,7 +245,7 @@ function App() {
   function login(g) {
     try { localStorage.setItem("ktp_sessie", JSON.stringify(g)); } catch {}
     setGebruiker(g);
-    setTab(g.rol==="collega"||g.rol==="financieel"?"taken":g.rol==="huismeester"?"dagplanning":"taken");
+    setTab(g.rol==="collega"||g.rol==="financieel"?"taken":g.rol==="huismeester"?"dagplanning":"dashboard");
     loadOngelzenAutoReacties(g.naam);
     loadOngelzenBerichten(g.naam);
   }
@@ -884,6 +884,7 @@ function App() {
               <button className={`tp ${tab==="handleiding"?"act":""}`} onClick={()=>setTab("handleiding")}>📖 Handleiding</button>
             </>)}
             {rol==="backoffice" && (<>
+              <button className={`tp ${tab==="dashboard"?"act":""}`} onClick={()=>setTab("dashboard")}>📊 Dashboard</button>
               <button className={`tp ${tab==="taken"?"act":""}`} onClick={()=>setTab("taken")}>📋 Taken {(openTaken.length+openMeldingen.length)>0&&<Notif n={openTaken.length+openMeldingen.length}/>}</button>
               {isLiset&&<button className={`tp ${tab==="beheer"?"act":""}`} onClick={()=>setTab("beheer")} style={{fontWeight:800}}>⚙️ Beheer</button>}
               <button className={`tp ${tab==="woningen"?"act":""}`} onClick={()=>setTab("woningen")}>🏠 Woningen</button>
@@ -903,6 +904,7 @@ function App() {
 
       {/* CONTENT */}
       <div style={{maxWidth:1400,margin:"0 auto",padding:"20px 12px"}}>
+        {rol==="backoffice"&&tab==="dashboard"&&<DashboardView houses={houses} meldingen={meldingen} taken={taken} gebruikers={gebruikers} activiteiten={activiteiten}/>}
         {tab==="taken"&&<TakenMeldingenView taken={taken} meldingen={meldingen} houses={houses} gebruiker={gebruiker} onAddTaak={addTaak} onUpdateTaak={updateTaak} onAddMelding={addMelding} onUpdateMelding={updateMeldingStatus} showToast={showToast} taal={taal}/>}
         {tab==="woningen"&&<WoningenDetail houses={houses} onUpdateWoning={rol==="backoffice"||rol==="huismeester"?updateWoning:null}/>}
         {tab==="autos"&&<AutoModule gebruiker={gebruiker} showToast={showToast}/>}
@@ -4501,6 +4503,162 @@ function PlanningView({houses}) {
     </div>
   );
 }
+
+// ─── DASHBOARD VIEW ───────────────────────────────────────────────────────────
+function DashboardView({ houses, meldingen, taken, gebruikers, activiteiten }) {
+  const vandaag = todayISO();
+  const nu = new Date();
+
+  // Kamer statistieken
+  const alleKamers = houses.flatMap(h => (h.kamers || []));
+  const kamerstats = {
+    totaal:      alleKamers.length,
+    lopend:      alleKamers.filter(k => k.status === "Lopend").length,
+    beschikbaar: alleKamers.filter(k => k.status === "Beschikbaar").length,
+    gereserveerd:alleKamers.filter(k => k.status === "Gereserveerd").length,
+    controle:    alleKamers.filter(k => k.status === "Controle" || k.status === "Niet beschikbaar").length,
+    aandacht:    alleKamers.filter(k => k.status === "Moet aan het werk").length,
+  };
+  const bezetting = kamerstats.totaal > 0 ? Math.round((kamerstats.lopend / kamerstats.totaal) * 100) : 0;
+
+  // Melding statistieken
+  const openMeld    = meldingen.filter(m => m.status === "open");
+  const inBehandeling = meldingen.filter(m => m.status === "in_behandeling");
+  const vandaagMeld = meldingen.filter(m => m.created_at?.slice(0,10) === vandaag);
+  const aankomsten  = meldingen.filter(m => m.type === "aankomst" && m.datum >= vandaag && m.datum <= new Date(nu.getTime()+7*86400000).toISOString().slice(0,10));
+  const vertrekken  = meldingen.filter(m => (m.type === "vertrek" || m.type === "vertrek_aankondiging") && m.datum >= vandaag && m.datum <= new Date(nu.getTime()+7*86400000).toISOString().slice(0,10));
+
+  // Taak statistieken
+  const openTakenAll = taken.filter(t => t.status === "open");
+  const hoogTaken    = openTakenAll.filter(t => t.prioriteit === "hoog");
+
+  // Per stad bezetting
+  const steden = [...new Set(houses.map(h => h.stad))].sort();
+
+  // Recente activiteit (laatste 5)
+  const recentMeldingen = [...meldingen].sort((a,b) => new Date(b.created_at)-new Date(a.created_at)).slice(0,5);
+
+  const card = (inhoud) => (
+    <div style={{background:"white",borderRadius:12,padding:20,border:`1px solid ${C.border}`,boxShadow:"0 1px 4px rgba(0,0,0,.05)"}}>
+      {inhoud}
+    </div>
+  );
+
+  const statCard = (icon, label, waarde, kleur, sub) => (
+    <div style={{background:"white",borderRadius:12,padding:"16px 20px",border:`1px solid ${C.border}`,borderLeft:`4px solid ${kleur}`,boxShadow:"0 1px 4px rgba(0,0,0,.05)"}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <div>
+          <div style={{fontSize:11,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:".8px",marginBottom:4}}>{label}</div>
+          <div style={{fontSize:28,fontWeight:800,color:C.text}}>{waarde}</div>
+          {sub && <div style={{fontSize:11,color:C.muted,marginTop:2}}>{sub}</div>}
+        </div>
+        <div style={{fontSize:28,opacity:.7}}>{icon}</div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div style={{maxWidth:1200,margin:"0 auto"}}>
+      <SH titel="📊 Dashboard" sub={`Overzicht — ${new Date().toLocaleDateString("nl-NL",{weekday:"long",day:"numeric",month:"long"})}`}/>
+
+      {/* Stat cards */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:14,marginBottom:24}}>
+        {statCard("🏠", "Bezetting", `${bezetting}%`, C.blauw, `${kamerstats.lopend} van ${kamerstats.totaal} kamers`)}
+        {statCard("✅", "Beschikbaar", kamerstats.beschikbaar, C.groen, "kamers vrij")}
+        {statCard("📋", "Open meldingen", openMeld.length, "#f59e0b", `${inBehandeling.length} in behandeling`)}
+        {statCard("⚡", "Urgente taken", hoogTaken.length, "#ef4444", `${openTakenAll.length} taken totaal`)}
+        {statCard("🚪", "Aankomsten", aankomsten.length, "#8b5cf6", "komende 7 dagen")}
+        {statCard("🧳", "Vertrekken", vertrekken.length, "#6b7280", "komende 7 dagen")}
+      </div>
+
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
+        {/* Kamerstatus per stad */}
+        {card(<>
+          <div style={{fontWeight:800,fontSize:15,color:C.text,marginBottom:16}}>🏙️ Bezetting per stad</div>
+          <div style={{display:"grid",gap:10}}>
+            {steden.map(stad => {
+              const stadKamers = houses.filter(h=>h.stad===stad).flatMap(h=>h.kamers||[]);
+              const lopend = stadKamers.filter(k=>k.status==="Lopend").length;
+              const totaal = stadKamers.length;
+              const pct = totaal > 0 ? Math.round(lopend/totaal*100) : 0;
+              const controle = stadKamers.filter(k=>k.status==="Controle"||k.status==="Niet beschikbaar"||k.status==="Moet aan het werk").length;
+              return (
+                <div key={stad}>
+                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                    <span style={{fontSize:13,fontWeight:600,color:C.text}}>{stad}</span>
+                    <span style={{fontSize:12,color:C.muted}}>{lopend}/{totaal} {controle>0&&<span style={{color:"#ef4444",marginLeft:4}}>⚠️ {controle}</span>}</span>
+                  </div>
+                  <div style={{height:8,background:C.bg,borderRadius:4,overflow:"hidden"}}>
+                    <div style={{height:"100%",width:`${pct}%`,background:pct>90?C.groen:pct>70?C.blauw:"#f59e0b",borderRadius:4,transition:"width .4s"}}/>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>)}
+
+        {/* Aankomsten & vertrekken deze week */}
+        {card(<>
+          <div style={{fontWeight:800,fontSize:15,color:C.text,marginBottom:16}}>📅 Deze week</div>
+          {aankomsten.length === 0 && vertrekken.length === 0 && (
+            <div style={{color:C.muted,fontSize:13,textAlign:"center",padding:"20px 0"}}>Geen aankomsten of vertrekken gepland</div>
+          )}
+          <div style={{display:"grid",gap:8}}>
+            {[...aankomsten.map(m=>({...m,_soort:"aankomst"})),...vertrekken.map(m=>({...m,_soort:"vertrek"}))].sort((a,b)=>a.datum.localeCompare(b.datum)).slice(0,6).map(m=>(
+              <div key={m.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 12px",borderRadius:8,background:m._soort==="aankomst"?"#f0fdf4":"#fff7ed",border:`1px solid ${m._soort==="aankomst"?"#bbf7d0":"#fed7aa"}`}}>
+                <span style={{fontSize:16}}>{m._soort==="aankomst"?"🚗":"🧳"}</span>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:13,fontWeight:600,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.medewerker}</div>
+                  <div style={{fontSize:11,color:C.muted}}>{m.datum} {m.kamer?"· K"+m.kamer:""}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>)}
+      </div>
+
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+        {/* Urgente taken */}
+        {card(<>
+          <div style={{fontWeight:800,fontSize:15,color:C.text,marginBottom:16}}>⚡ Urgente taken <span style={{fontSize:12,fontWeight:400,color:C.muted}}>({hoogTaken.length})</span></div>
+          {hoogTaken.length === 0 && <div style={{color:C.muted,fontSize:13,textAlign:"center",padding:"20px 0"}}>✅ Geen urgente taken</div>}
+          <div style={{display:"grid",gap:8}}>
+            {hoogTaken.slice(0,5).map(t=>(
+              <div key={t.id} style={{padding:"8px 12px",borderRadius:8,background:"#fff1f2",border:"1px solid #fecdd3"}}>
+                <div style={{fontSize:13,fontWeight:600,color:"#9f1239",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.titel}</div>
+                <div style={{fontSize:11,color:C.muted,marginTop:2}}>{t.voor_rol||"iedereen"} · {t.created_at?.slice(0,10)}</div>
+              </div>
+            ))}
+            {hoogTaken.length > 5 && <div style={{fontSize:12,color:C.muted,textAlign:"center"}}>+{hoogTaken.length-5} meer</div>}
+          </div>
+        </>)}
+
+        {/* Recente meldingen */}
+        {card(<>
+          <div style={{fontWeight:800,fontSize:15,color:C.text,marginBottom:16}}>🔔 Recente meldingen</div>
+          <div style={{display:"grid",gap:8}}>
+            {recentMeldingen.map(m=>{
+              const typeKleur = {aankomst:"#16a34a",vertrek:"#9333ea",reservering:"#2563eb",verhuizing:"#d97706",overig:"#6b7280"};
+              const typeLabel = {aankomst:"Aankomst",vertrek:"Vertrek",reservering:"Reservering",verhuizing:"Verhuizing",vertrek_aankondiging:"Vertrek aankondiging",overig:"Overig"};
+              const kleur = typeKleur[m.type]||"#6b7280";
+              return (
+                <div key={m.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 12px",borderRadius:8,background:C.bg}}>
+                  <div style={{width:8,height:8,borderRadius:"50%",background:kleur,flexShrink:0}}/>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:13,fontWeight:600,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.medewerker}</div>
+                    <div style={{fontSize:11,color:C.muted}}>{typeLabel[m.type]||m.type} · {m.created_at?.slice(0,10)}</div>
+                  </div>
+                  <span style={{fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:10,background:m.status==="open"?"#fef3c7":m.status==="afgehandeld"?"#dcfce7":"#dbeafe",color:m.status==="open"?"#92400e":m.status==="afgehandeld"?"#166534":"#1e40af"}}>{m.status}</span>
+                </div>
+              );
+            })}
+          </div>
+        </>)}
+      </div>
+    </div>
+  );
+}
+
 
 function BeheerView({houses,onAdd,onUpdate,onDelete,showToast,gebruikers,onAddGebruiker,onUpdateGebruiker,onDeleteGebruiker,checklistItems,dagplanningDB}) {
   const [subTab,setSubTab]=useState("woningen");
