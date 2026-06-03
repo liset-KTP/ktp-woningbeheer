@@ -411,7 +411,7 @@ function HistorieView({ transacties, isBackoffice }) {
         {["alle","uitgifte","bijvulling","correctie"].map(a=>(
           <button key={a} onClick={()=>setActie(a)}
             style={{padding:"6px 14px",borderRadius:20,border:`1.5px solid ${actie===a?(actiKleur[a]||C.blauw):C.border}`,
-              background:actie===a?(actiKleur[a]+"18"||C.blauw+"18"):"white",color:actie===a:(actiKleur[a]||C.blauw):C.muted,
+              background:actie===a?(actiKleur[a]+"18"||C.blauw+"18"):"white",color:actie===a?(actiKleur[a]||C.blauw):C.muted,
               fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
             {a==="alle"?"Alle acties":actiLabel[a]||a}
           </button>
