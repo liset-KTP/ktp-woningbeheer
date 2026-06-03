@@ -26,7 +26,7 @@ import { BijlageUploader, BijlageWeergave, uploadBijlages } from "./BijlageUploa
 import { BerichtenModule } from "./BerichtenModule";
 import { BorgModule } from "./BorgModule";
 import { HandleidingModule } from "./HandleidingModule";
-import { KledingModule } from "./KledingModule";
+import { KledingModule, KledingUitgifteInline } from "./KledingModule";
 
 // ─── EMAILJS ──────────────────────────────────────────────────────────────────
 const EMAILJS_SERVICE  = process.env.REACT_APP_EMAILJS_SERVICE  || "";
@@ -1059,7 +1059,7 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
     setGekozen(naam); setLaden(true); setData(null);
     setShowTaakForm(false); setShowHuurForm(false); setShowBorgForm(false);
     try {
-      const [autoRes, fietsRes, borgRes, huurRes, autoMeldRes, notitieRes, autoHistRes, meldHistRes] = await Promise.all([
+      const [autoRes, fietsRes, borgRes, huurRes, autoMeldRes, notitieRes, autoHistRes, meldHistRes, kledingRes] = await Promise.all([
         supabase.from("autos").select("*").eq("naam_medewerker", naam),
         supabase.from("fietsen").select("*").eq("naam_medewerker", naam).order("created_at",{ascending:false}),
         supabase.from("borg_plannen").select("*").eq("naam_medewerker", naam).order("created_at",{ascending:false}),
@@ -1068,6 +1068,7 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
         supabase.from("activiteiten").select("*").eq("type","medewerker_notitie").filter("omschrijving","like",`%[${naam}]%`).order("created_at",{ascending:false}).limit(20),
         supabase.from("auto_meldingen").select("*").eq("naam_medewerker", naam).in("actie",["uitgifte","inname"]).order("datum_tijd",{ascending:false}).limit(30),
         supabase.from("meldingen").select("*").eq("medewerker", naam).in("type",["aankomst","vertrek"]).order("datum",{ascending:false}).limit(10),
+        supabase.from("kleding_transacties").select("*").eq("medewerker", naam).order("created_at",{ascending:false}),
       ]);
       const kamers = [];
       houses.forEach(h => (h.kamers||[]).forEach(k => { if (k.naam === naam) kamers.push({huis:h, kamer:k}); }));
@@ -1091,7 +1092,7 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
         if (m.actie === "inname" && !autoGeschiedenis[m.kenteken].inname) autoGeschiedenis[m.kenteken].inname = m.datum_tijd || m.created_at;
       });
       const autoGeschList = Object.values(autoGeschiedenis).sort((a,b) => (b.uitgifte||"") > (a.uitgifte||"") ? 1 : -1);
-      setData({ kamers, autos: autoRes.data||[], fietsen: fietsRes.data||[], borgPlannen: borgRes.data||[], huurschulden: huurdata, autoMeldingen: autoMeldRes.data||[], vertrekControle, autoGeschiedenis: autoGeschList, meldHistorie: meldHistRes?.data||[] });
+      setData({ kamers, autos: autoRes.data||[], fietsen: fietsRes.data||[], borgPlannen: borgRes.data||[], huurschulden: huurdata, autoMeldingen: autoMeldRes.data||[], vertrekControle, autoGeschiedenis: autoGeschList, meldHistorie: meldHistRes?.data||[], kledingHistorie: kledingRes?.data||[] });
       setNotities(notitieRes.data||[]);
     } catch(e) { console.error(e); }
     setLaden(false);
@@ -1362,6 +1363,44 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
                   {f.datum_inname&&<div style={S.rij}><span style={S.lbl}>🔑 Inname</span><span style={{...S.val,color:C.text}}>{fmtDate(f.datum_inname)}</span></div>}
                 </div>
               ))}
+            </div>
+
+            {/* 👕 Kleding */}
+            <div style={S.card("#0891b2")}>
+              <div style={S.titel("#0891b2")}>👕 Kleding ontvangen</div>
+              {(!data.kledingHistorie || data.kledingHistorie.length === 0)
+                ? <div style={{fontSize:13,color:C.muted,fontStyle:"italic"}}>Geen kleding geregistreerd</div>
+                : (() => {
+                  // Groepeer per type+maat - toon totaal ontvangen
+                  const totalen = {};
+                  data.kledingHistorie.filter(t=>t.actie==="uitgifte").forEach(t => {
+                    const key = `${t.type}||${t.maat}||${t.vestiging}`;
+                    totalen[key] = (totalen[key]||0) + t.aantal;
+                  });
+                  const items = Object.entries(totalen).map(([k,n])=>{const [type,maat,vest]=k.split("||");return{type,maat,vest,aantal:n};}).sort((a,b)=>a.type.localeCompare(b.type));
+                  return (
+                    <div>
+                      <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+                        <thead><tr style={{borderBottom:`1px solid ${C.border}`}}>
+                          <th style={{textAlign:"left",padding:"4px 0",color:C.muted,fontWeight:600}}>Type</th>
+                          <th style={{textAlign:"left",padding:"4px 4px",color:C.muted,fontWeight:600}}>Maat</th>
+                          <th style={{textAlign:"center",padding:"4px 4px",color:C.muted,fontWeight:600}}>Stuks</th>
+                          <th style={{textAlign:"left",padding:"4px 4px",color:C.muted,fontWeight:600}}>Vestiging</th>
+                        </tr></thead>
+                        <tbody>{items.map((item,i)=>(
+                          <tr key={i} style={{borderBottom:`1px solid ${C.border}`}}>
+                            <td style={{padding:"5px 0",fontWeight:600}}>{item.type}</td>
+                            <td style={{padding:"5px 4px",color:C.muted}}>{item.maat}</td>
+                            <td style={{padding:"5px 4px",textAlign:"center",fontWeight:800,color:"#0891b2"}}>{item.aantal}x</td>
+                            <td style={{padding:"5px 4px",fontSize:11,color:C.muted}}>{item.vest}</td>
+                          </tr>
+                        ))}</tbody>
+                      </table>
+                      <div style={{fontSize:11,color:C.muted,marginTop:8}}>Laatste uitgifte: {fmtDate(data.kledingHistorie[0]?.created_at)}</div>
+                    </div>
+                  );
+                })()
+              }
             </div>
 
             {/* 📋 Borg */}
@@ -2385,6 +2424,39 @@ function WoningKaartDag({ huis, kleur, hTaken, hMeldingen, checklistItems, check
 }
 
 // ─── GECOMBINEERDE TAKEN & MELDINGEN VIEW ────────────────────────────────────
+
+// ─── KLEDING UITGIFTE IN TAKEN & MELDINGEN ────────────────────────────────────
+function KledingUitgifteTabInTaken({ gebruiker, showToast }) {
+  const [voorraad, setVoorraad] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    supabase.from("kleding_voorraad").select("*").order("type").order("maat")
+      .then(({data}) => { setVoorraad(data||[]); setLoading(false); });
+  }, []);
+
+  async function registreerUitgifte(vestiging, type, maat, aantal, opmerking, medewerkerNaam) {
+    const item = voorraad.find(v=>v.vestiging===vestiging&&v.type===type&&v.maat===maat);
+    if (!item) { showToast("Artikel niet gevonden","err"); return false; }
+    if (item.aantal < aantal) { showToast(`Onvoldoende voorraad — nog ${item.aantal} beschikbaar`,"err"); return false; }
+    const { error } = await supabase.from("kleding_voorraad")
+      .update({ aantal: item.aantal - aantal, updated_at: new Date().toISOString() }).eq("id", item.id);
+    if (error) { showToast("Fout bij opslaan","err"); return false; }
+    await supabase.from("kleding_transacties").insert([{
+      vestiging, type, maat, aantal, actie:"uitgifte",
+      medewerker: medewerkerNaam || gebruiker.naam,
+      opmerking: opmerking ? `${opmerking} (door: ${gebruiker.naam})` : `Ingevoerd door: ${gebruiker.naam}`
+    }]);
+    setVoorraad(prev => prev.map(v => v.id===item.id ? {...v, aantal: v.aantal-aantal} : v));
+    showToast(`✓ ${aantal}x ${type} ${maat} uitgeschreven aan ${medewerkerNaam||gebruiker.naam}`);
+    return true;
+  }
+
+  if (loading) return <div style={{padding:40,textAlign:"center",color:"#6b7a8d"}}>Voorraad laden...</div>;
+
+  return <KledingUitgifteInline voorraad={voorraad} gebruiker={gebruiker} onSubmit={registreerUitgifte} showToast={showToast}/>;
+}
+
 function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, onUpdateTaak, onAddMelding, onUpdateMelding, showToast, taal="nl" }) {
   const rol = gebruiker?.rol;
   const isBackoffice = rol === "backoffice";
@@ -2462,6 +2534,7 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
     { id:"overzicht", label:`📋 Overzicht (${openCount})` },
     ...(isCollega ? [{ id:"nieuw", label:"+ Nieuwe melding/taak" }] : []),
     ...(isBackoffice || isHuismeester ? [{ id:"nieuw_taak", label:"+ Taak toevoegen" }] : []),
+    { id:"kleding", label:"👕 Kleding uitgifte" },
   ];
 
   return (
@@ -2551,6 +2624,7 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
       )}
 
       {/* Nieuwe taak (backoffice/huismeester) */}
+      {subTab === "kleding" && <KledingUitgifteTabInTaken gebruiker={gebruiker} showToast={showToast}/>}
       {subTab === "nieuw_taak" && (isBackoffice || isHuismeester) && (
         <NieuwesTaakForm houses={houses} gebruiker={gebruiker} onAdd={async(d)=>{ await onAddTaak(d); setSubTab("overzicht"); showToast("✓ Taak toegevoegd"); }} showToast={showToast}/>
       )}

@@ -51,7 +51,7 @@ export function KledingModule({ gebruiker, showToast }) {
     return () => { supabase.removeChannel(s1); supabase.removeChannel(s2); };
   }, [loadVoorraad, loadTransacties]);
 
-  async function registreerUitgifte(vestiging, type, maat, aantal, opmerking) {
+  async function registreerUitgifte(vestiging, type, maat, aantal, opmerking, medewerkerNaam) {
     const item = voorraad.find(v=>v.vestiging===vestiging&&v.type===type&&v.maat===maat);
     if (!item) { showToast("Artikel niet gevonden","err"); return false; }
     if (item.aantal < aantal) { showToast(`Onvoldoende voorraad — nog ${item.aantal} beschikbaar`,"err"); return false; }
@@ -61,9 +61,10 @@ export function KledingModule({ gebruiker, showToast }) {
     if (e1) { showToast("Fout bij opslaan","err"); return false; }
     await supabase.from("kleding_transacties").insert([{
       vestiging, type, maat, aantal, actie:"uitgifte",
-      medewerker: gebruiker.naam, opmerking: opmerking||null
+      medewerker: medewerkerNaam || gebruiker.naam,
+      opmerking: opmerking ? `${opmerking} (ingevoerd door: ${gebruiker.naam})` : `Ingevoerd door: ${gebruiker.naam}`
     }]);
-    showToast(`✓ ${aantal}x ${type} ${maat} uitgeschreven`);
+    showToast(`✓ ${aantal}x ${type} ${maat} uitgeschreven aan ${medewerkerNaam||gebruiker.naam}`);
     return true;
   }
 
@@ -138,65 +139,84 @@ function VoorraadOverzicht({ voorraad }) {
   const items = voorraad.filter(v=>v.vestiging===vestiging && (
     !zoek || v.type.toLowerCase().includes(zoek.toLowerCase()) || v.maat.toLowerCase().includes(zoek.toLowerCase())
   ));
-
   const types = [...new Set(items.map(v=>v.type))].sort();
   const totaalLaag = voorraad.filter(v=>v.vestiging===vestiging&&v.aantal<v.min_voorraad).length;
   const totaalOp   = voorraad.filter(v=>v.vestiging===vestiging&&v.aantal===0).length;
 
   function statusKleur(item) {
-    if (item.aantal === 0) return { bg:"#fef2f2", border:"#fecaca", dot:"#ef4444", label:"Op" };
-    if (item.aantal < item.min_voorraad) return { bg:"#fffbeb", border:"#fde68a", dot:"#f59e0b", label:"Laag" };
-    return { bg:"#f0fdf4", border:"#bbf7d0", dot:"#16a34a", label:"OK" };
+    if (item.aantal === 0) return { kleur:"#ef4444", label:"OP", bg:"#fef2f2" };
+    if (item.aantal < item.min_voorraad) return { kleur:"#f59e0b", label:"LAAG", bg:"#fffbeb" };
+    return { kleur:"#16a34a", label:"OK", bg:"white" };
   }
 
   return (
     <div>
       {/* Vestiging tabs */}
-      <div style={{display:"flex",gap:8,marginBottom:16}}>
+      <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
         {VESTIGINGEN.map(v=>{
           const laag = voorraad.filter(i=>i.vestiging===v&&i.aantal<i.min_voorraad).length;
           return (
             <button key={v} onClick={()=>setVestiging(v)}
               style={{padding:"8px 20px",borderRadius:20,border:`2px solid ${vestiging===v?C.blauw:C.border}`,
                 background:vestiging===v?C.blauw:"white",color:vestiging===v?"white":C.text,
-                fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit",position:"relative"}}>
-              {v} {laag>0&&<span style={{marginLeft:6,background:"#ef4444",color:"white",borderRadius:10,padding:"1px 6px",fontSize:10}}>{laag}</span>}
+                fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
+              {v} {laag>0&&<span style={{marginLeft:6,background:"#ef4444",color:"white",borderRadius:10,padding:"1px 7px",fontSize:10,fontWeight:800}}>{laag}</span>}
             </button>
           );
         })}
       </div>
 
-      {/* Stats */}
-      <div style={{display:"flex",gap:12,marginBottom:16}}>
-        {totaalOp>0&&<div style={{padding:"6px 14px",borderRadius:20,background:"#fef2f2",border:"1px solid #fecaca",fontSize:12,fontWeight:700,color:"#b91c1c"}}>🔴 {totaalOp} artikelen op</div>}
-        {totaalLaag>0&&<div style={{padding:"6px 14px",borderRadius:20,background:"#fffbeb",border:"1px solid #fde68a",fontSize:12,fontWeight:700,color:"#92400e"}}>🟡 {totaalLaag} onder minimum</div>}
-        {totaalLaag===0&&<div style={{padding:"6px 14px",borderRadius:20,background:"#f0fdf4",border:"1px solid #bbf7d0",fontSize:12,fontWeight:700,color:"#166534"}}>✅ Alles op peil</div>}
+      {/* Stats + zoek */}
+      <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}>
+        {totaalOp>0&&<div style={{padding:"5px 12px",borderRadius:20,background:"#fef2f2",border:"1px solid #fecaca",fontSize:12,fontWeight:700,color:"#b91c1c"}}>🔴 {totaalOp} op</div>}
+        {totaalLaag>totaalOp&&<div style={{padding:"5px 12px",borderRadius:20,background:"#fffbeb",border:"1px solid #fde68a",fontSize:12,fontWeight:700,color:"#92400e"}}>🟡 {totaalLaag-totaalOp} laag</div>}
+        {totaalLaag===0&&<div style={{padding:"5px 12px",borderRadius:20,background:"#f0fdf4",border:"1px solid #bbf7d0",fontSize:12,fontWeight:700,color:"#166534"}}>✅ Alles op peil</div>}
+        <input value={zoek} onChange={e=>setZoek(e.target.value)} placeholder="🔍 Zoek type of maat..."
+          style={{marginLeft:"auto",border:`1.5px solid ${C.border}`,borderRadius:8,padding:"7px 12px",fontSize:13,fontFamily:"inherit",outline:"none",minWidth:200}}/>
       </div>
 
-      <input value={zoek} onChange={e=>setZoek(e.target.value)} placeholder="🔍 Zoek type of maat..."
-        style={{width:"100%",maxWidth:300,border:`1.5px solid ${C.border}`,borderRadius:8,padding:"8px 12px",fontSize:13,marginBottom:16,fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}/>
-
-      {/* Per type */}
+      {/* Tabel per type */}
       {types.map(type=>{
         const typeItems = items.filter(v=>v.type===type);
         const heeftProbleem = typeItems.some(i=>i.aantal<i.min_voorraad);
         return (
-          <div key={type} style={{background:"white",border:`1px solid ${C.border}`,borderRadius:12,padding:16,marginBottom:12,
-            borderLeft:`4px solid ${heeftProbleem?"#f59e0b":C.groen}`}}>
-            <div style={{fontWeight:800,fontSize:14,color:C.text,marginBottom:12}}>{type}</div>
-            <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
-              {typeItems.map(item=>{
-                const s = statusKleur(item);
-                return (
-                  <div key={item.id} style={{padding:"8px 14px",borderRadius:8,background:s.bg,border:`1.5px solid ${s.border}`,minWidth:90,textAlign:"center"}}>
-                    <div style={{fontSize:11,color:C.muted,marginBottom:2}}>{item.maat}</div>
-                    <div style={{fontSize:20,fontWeight:800,color:s.dot}}>{item.aantal}</div>
-                    <div style={{fontSize:10,color:s.dot,fontWeight:600}}>{s.label}</div>
-                    <div style={{fontSize:10,color:C.muted}}>min: {item.min_voorraad}</div>
-                  </div>
-                );
-              })}
+          <div key={type} style={{background:"white",border:`1px solid ${C.border}`,borderRadius:10,marginBottom:10,overflow:"hidden"}}>
+            <div style={{padding:"10px 16px",background:heeftProbleem?"#fffbeb":C.blauw+"08",borderBottom:`1px solid ${C.border}`,
+              display:"flex",alignItems:"center",gap:10}}>
+              <div style={{width:4,height:18,borderRadius:2,background:heeftProbleem?"#f59e0b":C.groen}}/>
+              <span style={{fontWeight:800,fontSize:14,color:C.text}}>{type}</span>
+              {heeftProbleem&&<span style={{fontSize:11,color:"#92400e",background:"#fde68a",padding:"1px 8px",borderRadius:10,fontWeight:700}}>bijbestellen</span>}
             </div>
+            <table style={{width:"100%",borderCollapse:"collapse"}}>
+              <thead>
+                <tr style={{background:C.bg}}>
+                  <th style={{padding:"6px 16px",textAlign:"left",fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".5px",textTransform:"uppercase"}}>Maat</th>
+                  <th style={{padding:"6px 8px",textAlign:"center",fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".5px",textTransform:"uppercase"}}>Voorraad</th>
+                  <th style={{padding:"6px 8px",textAlign:"center",fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".5px",textTransform:"uppercase"}}>Minimum</th>
+                  <th style={{padding:"6px 8px",textAlign:"center",fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".5px",textTransform:"uppercase"}}>Status</th>
+                  <th style={{padding:"6px 16px",textAlign:"right",fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".5px",textTransform:"uppercase"}}>Tekort</th>
+                </tr>
+              </thead>
+              <tbody>
+                {typeItems.map((item,i)=>{
+                  const s = statusKleur(item);
+                  const tekort = item.min_voorraad - item.aantal;
+                  return (
+                    <tr key={item.id} style={{borderTop:`1px solid ${C.border}`,background:s.bg}}>
+                      <td style={{padding:"9px 16px",fontSize:13,fontWeight:600,color:C.text}}>{item.maat}</td>
+                      <td style={{padding:"9px 8px",textAlign:"center",fontSize:15,fontWeight:800,color:s.kleur}}>{item.aantal}</td>
+                      <td style={{padding:"9px 8px",textAlign:"center",fontSize:13,color:C.muted}}>{item.min_voorraad}</td>
+                      <td style={{padding:"9px 8px",textAlign:"center"}}>
+                        <span style={{fontSize:10,fontWeight:800,padding:"2px 8px",borderRadius:10,
+                          background:s.kleur+"20",color:s.kleur}}>{s.label}</span>
+                      </td>
+                      <td style={{padding:"9px 16px",textAlign:"right",fontSize:13,fontWeight:700,
+                        color:tekort>0?C.blauw:"transparent"}}>{tekort>0?`+${tekort}`:""}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         );
       })}
@@ -206,11 +226,14 @@ function VoorraadOverzicht({ voorraad }) {
 }
 
 // ─── UITGIFTE FORM ────────────────────────────────────────────────────────────
+export function KledingUitgifteInline({ voorraad, gebruiker, onSubmit, showToast }) { return <UitgifteForm voorraad={voorraad} gebruiker={gebruiker} onSubmit={onSubmit} showToast={showToast}/>; }
+
 function UitgifteForm({ voorraad, gebruiker, onSubmit, showToast }) {
   const [vestiging, setVestiging] = useState(gebruiker?.vestiging||"Enschede");
   const [type, setType] = useState("");
   const [maat, setMaat] = useState("");
   const [aantal, setAantal] = useState(1);
+  const [medewerkerNaam, setMedewerkerNaam] = useState("");
   const [opmerking, setOpmerking] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -220,10 +243,11 @@ function UitgifteForm({ voorraad, gebruiker, onSubmit, showToast }) {
 
   async function submit() {
     if (!type||!maat||aantal<1) { showToast("Vul alle velden in","err"); return; }
+    if (!medewerkerNaam.trim()) { showToast("Vul de naam van de medewerker in","err"); return; }
     setSaving(true);
-    const ok = await onSubmit(vestiging, type, maat, aantal, opmerking);
+    const ok = await onSubmit(vestiging, type, maat, aantal, opmerking, medewerkerNaam.trim());
     setSaving(false);
-    if (ok) { setType(""); setMaat(""); setAantal(1); setOpmerking(""); }
+    if (ok) { setType(""); setMaat(""); setAantal(1); setOpmerking(""); setMedewerkerNaam(""); }
   }
 
   const inp = { width:"100%", border:`1.5px solid ${C.border}`, borderRadius:8, padding:"10px 14px", fontSize:14, fontFamily:"inherit", color:C.text, background:"white", outline:"none", boxSizing:"border-box" };
@@ -292,6 +316,10 @@ function UitgifteForm({ voorraad, gebruiker, onSubmit, showToast }) {
                   style={{...inp,width:80,textAlign:"center"}}/>
                 <button onClick={()=>setAantal(Math.min(geselecteerd.aantal,aantal+1))} style={{width:36,height:36,borderRadius:8,border:`1.5px solid ${C.border}`,background:"white",fontSize:18,cursor:"pointer",fontFamily:"inherit"}}>+</button>
               </div>
+            </div>
+            <div style={{marginBottom:14}}>
+              <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Naam medewerker *</label>
+              <input value={medewerkerNaam} onChange={e=>setMedewerkerNaam(e.target.value)} placeholder="Voor- en achternaam medewerker" style={inp}/>
             </div>
             <div style={{marginBottom:20}}>
               <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Opmerking (optioneel)</label>
