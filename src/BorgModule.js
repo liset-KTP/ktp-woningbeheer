@@ -665,6 +665,19 @@ function WeekOverzicht({ dezeWeek, volgendeWeek, plannen, huidigeWeek, huidigJaa
 
 // ─── PLANNEN OVERZICHT ────────────────────────────────────────────────────────
 function PlannenOverzicht({ plannen, termijnen, extras, houses, isBackoffice, onVoegExtraToe, onSluitAf, onVerwerkExtra, onVerwerk, onOpmerking, onSchuifWeekOp, onArchiveer, onZetTerug, onZetExtraTerug, onWijzig, readonly, showToast }) {
+  // Groepeer plannen per medewerker
+  const groepen = [];
+  const gezien = new Set();
+  plannen.forEach(plan => {
+    const naam = plan.naam_medewerker;
+    if (!gezien.has(naam)) {
+      gezien.add(naam);
+      groepen.push({ naam, plannen: plannen.filter(p=>p.naam_medewerker===naam) });
+    }
+  });
+
+  const planProps = { houses, isBackoffice, onVoegExtraToe, onSluitAf, onVerwerkExtra, onVerwerk, onOpmerking, onSchuifWeekOp, onArchiveer, onZetTerug, onZetExtraTerug, onWijzig, readonly };
+
   return (
     <div style={{display:"grid",gap:16}}>
       {plannen.length === 0 && (
@@ -673,32 +686,56 @@ function PlannenOverzicht({ plannen, termijnen, extras, houses, isBackoffice, on
           <div>Geen actieve borgplannen</div>
         </div>
       )}
-      {plannen.map(plan => (
-        <PlanKaart
-          key={plan.id}
-          plan={plan}
-          termijnen={termijnen.filter(t=>t.plan_id===plan.id)}
-          extras={extras.filter(e=>e.plan_id===plan.id)}
-          houses={houses}
-          isBackoffice={isBackoffice}
-          onVoegExtraToe={onVoegExtraToe}
-          onSluitAf={onSluitAf}
-          onVerwerkExtra={onVerwerkExtra}
-          onVerwerk={onVerwerk}
-          onOpmerking={onOpmerking}
-          onSchuifWeekOp={onSchuifWeekOp}
-          onArchiveer={onArchiveer}
-          onZetTerug={onZetTerug}
-          onZetExtraTerug={onZetExtraTerug}
-          onWijzig={onWijzig}
-          readonly={readonly}
-        />
-      ))}
+      {groepen.map(({naam, plannen: groepPlannen}) => {
+        const totaalBorg = groepPlannen.reduce((s,p)=>s+Number(p.totaal_borg||0),0);
+        const totaalIngehouden = groepPlannen.reduce((s,p)=>s+Number(p.ingehouden||0),0);
+        const nogTeGaan = totaalBorg - totaalIngehouden;
+
+        if (groepPlannen.length === 1) {
+          // Eén plan: toon gewoon de kaart
+          const plan = groepPlannen[0];
+          return (
+            <PlanKaart key={plan.id} plan={plan}
+              termijnen={termijnen.filter(t=>t.plan_id===plan.id)}
+              extras={extras.filter(e=>e.plan_id===plan.id)}
+              {...planProps}/>
+          );
+        }
+
+        // Meerdere plannen: groepeer in één blok
+        return (
+          <div key={naam} style={{border:`1.5px solid ${C.border}`,borderRadius:14,overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,.05)"}}>
+            {/* Header medewerker */}
+            <div style={{background:C.blauw,padding:"12px 20px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+              <div>
+                <div style={{fontWeight:800,fontSize:15,color:"white"}}>{naam}</div>
+                <div style={{fontSize:12,color:"rgba(255,255,255,.75)",marginTop:2}}>
+                  {groepPlannen.length} borgplannen · €{totaalBorg.toFixed(2)} totaal
+                </div>
+              </div>
+              <div style={{textAlign:"right"}}>
+                <div style={{fontWeight:800,fontSize:16,color:"white"}}>€{nogTeGaan.toFixed(2)}</div>
+                <div style={{fontSize:11,color:"rgba(255,255,255,.75)"}}>nog in te houden</div>
+              </div>
+            </div>
+            {/* Plannen per type */}
+            {groepPlannen.map((plan, idx) => (
+              <div key={plan.id} style={{borderTop: idx>0?`1px solid ${C.border}`:"none"}}>
+                <PlanKaart plan={plan}
+                  termijnen={termijnen.filter(t=>t.plan_id===plan.id)}
+                  extras={extras.filter(e=>e.plan_id===plan.id)}
+                  gegroepeerd={true}
+                  {...planProps}/>
+              </div>
+            ))}
+          </div>
+        );
+      })}
     </div>
   );
 }
 
-function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraToe, onSluitAf, onVerwerkExtra, onVerwerk, onOpmerking, onSchuifWeekOp, onArchiveer, onZetTerug, onZetExtraTerug, onWijzig, readonly }) {
+function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraToe, onSluitAf, onVerwerkExtra, onVerwerk, onOpmerking, onSchuifWeekOp, onArchiveer, onZetTerug, onZetExtraTerug, onWijzig, readonly, gegroepeerd=false }) {
   const [toonDetails, setToonDetails] = useState(false);
   const [toonExtra, setToonExtra] = useState(false);
   const [toonOpmerkingForm, setToonOpmerkingForm] = useState(false);
@@ -730,20 +767,25 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
   const pct = totaalSchuld > 0 ? Math.min(100, (totaalIngehouden/totaalSchuld)*100) : 0;
 
   return (
-    <div style={{background:"white",border:`1px solid ${C.border}`,borderLeft:`4px solid ${C.blauw}`,borderRadius:12,padding:20}}>
+    <div style={{background:"white",border:gegroepeerd?"none":`1px solid ${C.border}`,borderLeft:`4px solid ${C.blauw}`,borderRadius:gegroepeerd?0:12,padding:gegroepeerd?"14px 20px":20}}>
       {/* Header */}
       <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",flexWrap:"wrap",gap:12,marginBottom:16}}>
         <div>
-          <div style={{fontWeight:800,fontSize:16,color:C.text}}>{plan.naam_medewerker}</div>
-          <div style={{fontSize:12,color:C.muted,marginTop:3}}>
+          {!gegroepeerd && <div style={{fontWeight:800,fontSize:16,color:C.text}}>{plan.naam_medewerker}</div>}
+          {gegroepeerd && (
+            <div style={{fontWeight:700,fontSize:13,color:C.blauw,marginBottom:2}}>
+              {plan.heeft_fiets && !plan.sleutels ? "🚲 Fietsborg" : plan.sleutels && !plan.heeft_fiets ? "🔑 Sleutelborg" : `🔑 ${plan.sleutels} sleutel${plan.sleutels>1?"s":""}${plan.heeft_fiets?" + 🚲 fiets":""}`}
+            </div>
+          )}
+          <div style={{fontSize:12,color:C.muted,marginTop:gegroepeerd?0:3}}>
             {huis ? `📍 ${huis.adres}, ${huis.stad}` : ""}
             {plan.kamer ? ` · Kamer ${plan.kamer}` : ""}
             {plan.aankomst_datum ? ` · Aankomst ${fmtDate(plan.aankomst_datum)}` : ""}
           </div>
-          <div style={{fontSize:12,color:C.muted,marginTop:2}}>
+          {!gegroepeerd && <div style={{fontSize:12,color:C.muted,marginTop:2}}>
             🔑 {plan.sleutels} sleutel{plan.sleutels>1?"s":""}
             {plan.heeft_fiets ? " · 🚲 Fiets" : ""}
-          </div>
+          </div>}
         </div>
         <div style={{textAlign:"right"}}>
           <div style={{fontSize:22,fontWeight:800,color:C.blauw}}>€{totaalSchuld.toFixed(2)}</div>
