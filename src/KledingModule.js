@@ -262,8 +262,8 @@ function UitgifteForm({ voorraad, gebruiker, onSubmit, showToast }) {
   return (
     <div style={{maxWidth:520}}>
       <div style={{background:"white",border:`1px solid ${C.border}`,borderRadius:14,padding:28}}>
-        <h3 style={{fontSize:16,fontWeight:800,color:C.blauw,marginBottom:4}}>📤 Kleding uitschrijven</h3>
-        <p style={{fontSize:13,color:C.muted,marginBottom:20}}>Geef door welke kleding je hebt meegenomen.</p>
+        <h3 style={{fontSize:16,fontWeight:800,color:C.blauw,marginBottom:4}}>👕 Kleding registreren</h3>
+        <p style={{fontSize:13,color:C.muted,marginBottom:20}}>Registreer een uitgifte of inname van kleding.</p>
 
         {/* Uitgifte / Inname toggle */}
         <div style={{marginBottom:20}}>
@@ -282,6 +282,15 @@ function UitgifteForm({ voorraad, gebruiker, onSubmit, showToast }) {
               📥 Inname<br/><span style={{fontSize:11,fontWeight:400}}>Kleding terugkrijgen</span>
             </button>
           </div>
+        </div>
+
+        <div style={{marginBottom:14}}>
+          <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>
+            Naam medewerker * <span style={{fontSize:10,fontWeight:400,color:C.muted}}>(wie {actie==="uitgifte"?"de kleding krijgt":"de kleding teruggeeft"})</span>
+          </label>
+          <input value={medewerkerNaam} onChange={e=>setMedewerkerNaam(e.target.value)}
+            placeholder="Voor- en achternaam medewerker"
+            style={{...inp, borderColor: medewerkerNaam ? C.groen : C.border}}/>
         </div>
 
         <div style={{marginBottom:14}}>
@@ -342,10 +351,6 @@ function UitgifteForm({ voorraad, gebruiker, onSubmit, showToast }) {
                   style={{...inp,width:80,textAlign:"center"}}/>
                 <button onClick={()=>setAantal(Math.min(geselecteerd.aantal,aantal+1))} style={{width:36,height:36,borderRadius:8,border:`1.5px solid ${C.border}`,background:"white",fontSize:18,cursor:"pointer",fontFamily:"inherit"}}>+</button>
               </div>
-            </div>
-            <div style={{marginBottom:14}}>
-              <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Naam medewerker *</label>
-              <input value={medewerkerNaam} onChange={e=>setMedewerkerNaam(e.target.value)} placeholder="Voor- en achternaam medewerker" style={inp}/>
             </div>
             <div style={{marginBottom:20}}>
               <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Opmerking (optioneel)</label>
