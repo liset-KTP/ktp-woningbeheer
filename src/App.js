@@ -2598,66 +2598,79 @@ function AutoTabInTaken({ gebruiker, showToast }) {
 }
 
 // ─── FIETS TAB INLINE (in Taken & Meldingen) ──────────────────────────────────
-function FietsTabInTaken({ gebruiker, houses, showToast, onAddMelding }) {
-  const [actie, setActie] = useState("melding");
-  const [omschrijving, setOmschrijving] = useState("");
-  const [huisId, setHuisId] = useState("");
-  const [kamer, setKamer] = useState("");
+function FietsTabInTaken({ gebruiker, showToast, onAddTaak }) {
+  const [locatie, setLocatie] = useState("");
+  const [naam, setNaam] = useState("");
+  const [datum, setDatum] = useState(new Date().toISOString().slice(0,10));
+  const [opmerking, setOpmerking] = useState("");
   const [saving, setSaving] = useState(false);
 
   async function submit() {
-    if (!omschrijving.trim()) { showToast("Vul een omschrijving in","err"); return; }
+    if (!locatie) { showToast("Selecteer een locatie","err"); return; }
+    if (!naam.trim()) { showToast("Vul de naam van de medewerker in","err"); return; }
+    if (!datum) { showToast("Vul een datum in","err"); return; }
     setSaving(true);
-    await onAddMelding({
-      type: "overig",
-      medewerker: gebruiker.naam,
-      opmerkingen: "🚲 Fiets: " + omschrijving.trim(),
+    await onAddTaak({
+      titel: `Fiets aanvragen — ${naam.trim()} (${locatie})`,
+      omschrijving: `Fiets nodig voor ${naam.trim()} in ${locatie} vanaf ${datum}.${opmerking ? " Opmerking: " + opmerking : ""}`,
+      prioriteit: "middel",
       voor_rol: "backoffice",
-      huisId: huisId || null,
-      kamer: kamer || null,
-      datum: new Date().toISOString().slice(0,10),
+      status: "open",
+      aangemaakt_door: gebruiker.naam,
     });
-    showToast("✓ Fietsmelding ingediend");
+    showToast(`✓ Fietsaanvraag ingediend voor ${naam.trim()}`);
     setSaving(false);
-    setOmschrijving(""); setHuisId(""); setKamer("");
+    setLocatie(""); setNaam(""); setDatum(new Date().toISOString().slice(0,10)); setOpmerking("");
   }
 
   const inp = {width:"100%",border:`1.5px solid ${C.border}`,borderRadius:8,padding:"10px 14px",fontSize:14,fontFamily:"inherit",color:C.text,background:"white",outline:"none",boxSizing:"border-box"};
-  const kamers = houses.find(h=>h.id===+huisId)?.kamers||[];
 
   return (
     <div style={{maxWidth:520}}>
       <div style={{background:"white",border:`1px solid ${C.border}`,borderRadius:14,padding:24}}>
-        <h3 style={{fontSize:15,fontWeight:800,color:C.blauw,marginBottom:4}}>🚲 Fietsmelding indienen</h3>
-        <p style={{fontSize:13,color:C.muted,marginBottom:16}}>Meld een probleem, schade of vraag over een fiets.</p>
+        <h3 style={{fontSize:15,fontWeight:800,color:C.blauw,marginBottom:4}}>🚲 Fiets aanvragen</h3>
+        <p style={{fontSize:13,color:C.muted,marginBottom:20}}>Vraag een fiets aan voor een medewerker.</p>
 
+        {/* Locatie */}
         <div style={{marginBottom:14}}>
-          <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Omschrijving *</label>
-          <input value={omschrijving} onChange={e=>setOmschrijving(e.target.value)}
-            placeholder="Bijv. band lek, fiets kwijt, slot defect..." style={inp}/>
-        </div>
-
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:18}}>
-          <div>
-            <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Woning (optioneel)</label>
-            <select value={huisId} onChange={e=>{setHuisId(e.target.value);setKamer("");}} style={inp}>
-              <option value="">— Selecteer woning —</option>
-              {houses.map(h=><option key={h.id} value={h.id}>{h.adres}, {h.stad}</option>)}
-            </select>
-          </div>
-          <div>
-            <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Kamer (optioneel)</label>
-            <select value={kamer} onChange={e=>setKamer(e.target.value)} style={inp} disabled={!huisId}>
-              <option value="">— Kamer —</option>
-              {kamers.map(k=><option key={k.k} value={k.k}>K{k.k}{k.naam?" — "+k.naam:""}</option>)}
-            </select>
+          <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:8,display:"block"}}>Locatie *</label>
+          <div style={{display:"flex",gap:8}}>
+            {["Enschede","Ommen","Lichtenvoorde"].map(l=>(
+              <button key={l} onClick={()=>setLocatie(l)}
+                style={{flex:1,padding:"10px 6px",border:`2px solid ${locatie===l?C.blauw:C.border}`,borderRadius:8,
+                  background:locatie===l?C.blauw+"12":"white",color:locatie===l?C.blauw:C.muted,
+                  fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>
+                {l}
+              </button>
+            ))}
           </div>
         </div>
 
-        <button onClick={submit} disabled={saving||!omschrijving.trim()}
-          style={{background:omschrijving.trim()?C.blauw:"#d1dbe8",color:"white",border:"none",
-            borderRadius:8,padding:"12px",fontSize:14,fontWeight:700,cursor:omschrijving.trim()&&!saving?"pointer":"not-allowed",fontFamily:"inherit",width:"100%"}}>
-          {saving?"⏳ Bezig...":"🚲 Fietsmelding indienen"}
+        {/* Naam medewerker */}
+        <div style={{marginBottom:14}}>
+          <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Naam medewerker *</label>
+          <input value={naam} onChange={e=>setNaam(e.target.value)}
+            placeholder="Voor- en achternaam"
+            style={{...inp, borderColor: naam ? C.groen : C.border}}/>
+        </div>
+
+        {/* Datum */}
+        <div style={{marginBottom:14}}>
+          <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Datum nodig *</label>
+          <input type="date" value={datum} onChange={e=>setDatum(e.target.value)} style={inp}/>
+        </div>
+
+        {/* Opmerking */}
+        <div style={{marginBottom:20}}>
+          <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Opmerking (optioneel)</label>
+          <input value={opmerking} onChange={e=>setOpmerking(e.target.value)} placeholder="Bijv. voorkeur voor bepaald type fiets" style={inp}/>
+        </div>
+
+        <button onClick={submit} disabled={saving||!locatie||!naam.trim()||!datum}
+          style={{background:(locatie&&naam.trim()&&datum)?C.blauw:"#d1dbe8",color:"white",border:"none",
+            borderRadius:8,padding:"12px",fontSize:14,fontWeight:700,
+            cursor:(locatie&&naam.trim()&&datum)&&!saving?"pointer":"not-allowed",fontFamily:"inherit",width:"100%"}}>
+          {saving?"⏳ Bezig...":"🚲 Fietsaanvraag indienen"}
         </button>
       </div>
     </div>
@@ -2967,7 +2980,7 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
       {/* 🚲 FIETSEN */}
       {subTab === "fietsen" && (
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20,alignItems:"start"}}>
-          <FietsTabInTaken gebruiker={gebruiker} houses={houses} showToast={showToast} onAddMelding={onAddMelding}/>
+          <FietsTabInTaken gebruiker={gebruiker} showToast={showToast} onAddTaak={onAddTaak}/>
           <div>
             {takenFietsen.length > 0 && (
               <>
