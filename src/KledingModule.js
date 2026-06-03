@@ -641,63 +641,161 @@ function HistorieView({ transacties, isBackoffice }) {
 function BeheerVoorraad({ voorraad, onBijvullen, onCorrectie, showToast }) {
   const [vestiging, setVestiging] = useState("Enschede");
   const [bewerkId, setBewerkId] = useState(null);
-  const [bewerkWaarde, setBewerkWaarde] = useState(0);
+  const [bewerkVoorraad, setBewerkVoorraad] = useState(0);
+  const [bewerkMin, setBewerkMin] = useState(1);
   const [bijvullenId, setBijvullenId] = useState(null);
   const [bijvullenAantal, setBijvullenAantal] = useState(1);
   const [saving, setSaving] = useState(false);
+  const [toonNieuw, setToonNieuw] = useState(false);
+  const [nieuw, setNieuw] = useState({type:"",typeNieuw:"",maat:"",aantal:0,min_voorraad:1});
 
   const items = voorraad.filter(v=>v.vestiging===vestiging);
+  const alleTypes = [...new Set(voorraad.map(v=>v.type))].sort();
   const types = [...new Set(items.map(v=>v.type))].sort();
+  const inp = (extra={}) => ({border:`1.5px solid ${C.border}`,borderRadius:6,padding:"5px 10px",fontSize:13,fontFamily:"inherit",outline:"none",...extra});
+
+  async function voegArtikeltoe() {
+    const type = nieuw.typeNieuw.trim() || nieuw.type;
+    if (!type || !nieuw.maat.trim()) { showToast("Vul type en maat in","err"); return; }
+    const bestaatAl = voorraad.find(v=>v.vestiging===vestiging&&v.type===type&&v.maat===nieuw.maat.trim());
+    if (bestaatAl) { showToast("Dit artikel bestaat al voor deze vestiging","err"); return; }
+    setSaving(true);
+    const { error } = await supabase.from("kleding_voorraad").insert([{
+      vestiging, type, maat: nieuw.maat.trim(),
+      aantal: nieuw.aantal, min_voorraad: nieuw.min_voorraad
+    }]);
+    setSaving(false);
+    if (error) { showToast("Fout bij toevoegen","err"); return; }
+    showToast(`✓ ${type} ${nieuw.maat} toegevoegd aan ${vestiging}`);
+    setNieuw({type:"",typeNieuw:"",maat:"",aantal:0,min_voorraad:1});
+    setToonNieuw(false);
+  }
+
+  async function verwijderArtikel(item) {
+    if (!window.confirm(`${item.type} ${item.maat} verwijderen uit ${item.vestiging}?`)) return;
+    const { error } = await supabase.from("kleding_voorraad").delete().eq("id", item.id);
+    if (error) { showToast("Fout bij verwijderen","err"); return; }
+    showToast(`✓ ${item.type} ${item.maat} verwijderd`);
+  }
+
+  async function slaCorrectieOp(item) {
+    setSaving(true);
+    const { error } = await supabase.from("kleding_voorraad")
+      .update({ aantal: bewerkVoorraad, min_voorraad: bewerkMin, updated_at: new Date().toISOString() })
+      .eq("id", item.id);
+    setSaving(false);
+    if (!error) { showToast("✓ Opgeslagen"); setBewerkId(null); }
+    else showToast("Fout bij opslaan","err");
+  }
 
   return (
     <div>
-      <div style={{display:"flex",gap:8,marginBottom:20}}>
+      {/* Vestiging + Nieuw artikel knop */}
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:20,flexWrap:"wrap"}}>
         {VESTIGINGEN.map(v=>(
-          <button key={v} onClick={()=>setVestiging(v)}
+          <button key={v} onClick={()=>{setVestiging(v);setToonNieuw(false);setBewerkId(null);}}
             style={{padding:"8px 20px",borderRadius:20,border:`2px solid ${vestiging===v?C.blauw:C.border}`,
               background:vestiging===v?C.blauw:"white",color:vestiging===v?"white":C.text,
               fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
             {v}
           </button>
         ))}
+        <button onClick={()=>setToonNieuw(!toonNieuw)}
+          style={{marginLeft:"auto",padding:"8px 18px",borderRadius:20,
+            border:`2px solid ${toonNieuw?C.rood:C.groen}`,
+            background:toonNieuw?"#fef2f2":"#f0fdf4",
+            color:toonNieuw?C.rood:C.groen,
+            fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
+          {toonNieuw?"✕ Annuleren":"+ Artikel toevoegen"}
+        </button>
       </div>
+
+      {/* Nieuw artikel formulier */}
+      {toonNieuw && (
+        <div style={{background:"white",border:`2px solid ${C.groen}`,borderRadius:12,padding:20,marginBottom:20}}>
+          <div style={{fontWeight:800,fontSize:14,color:C.groen,marginBottom:16}}>➕ Nieuw artikel — {vestiging}</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginBottom:14}}>
+            <div>
+              <label style={{fontSize:11,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:".7px",display:"block",marginBottom:5}}>Type *</label>
+              <select value={nieuw.type} onChange={e=>setNieuw(p=>({...p,type:e.target.value,typeNieuw:""}))} style={{...inp(),width:"100%",marginBottom:6}}>
+                <option value="">— Bestaand type —</option>
+                {alleTypes.map(t=><option key={t} value={t}>{t}</option>)}
+              </select>
+              <input value={nieuw.typeNieuw} onChange={e=>setNieuw(p=>({...p,typeNieuw:e.target.value,type:""}))}
+                placeholder="Of nieuw type invullen..." style={{...inp(),width:"100%",boxSizing:"border-box"}}/>
+            </div>
+            <div>
+              <label style={{fontSize:11,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:".7px",display:"block",marginBottom:5}}>Maat / omschrijving *</label>
+              <input value={nieuw.maat} onChange={e=>setNieuw(p=>({...p,maat:e.target.value}))}
+                placeholder="Bijv. 42 of XL of Maat 44" style={{...inp(),width:"100%",boxSizing:"border-box"}}/>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+              <div>
+                <label style={{fontSize:11,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:".7px",display:"block",marginBottom:5}}>Begin voorraad</label>
+                <input type="number" min={0} value={nieuw.aantal} onChange={e=>setNieuw(p=>({...p,aantal:+e.target.value}))} style={{...inp(),width:"100%",boxSizing:"border-box"}}/>
+              </div>
+              <div>
+                <label style={{fontSize:11,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:".7px",display:"block",marginBottom:5}}>Minimum</label>
+                <input type="number" min={0} value={nieuw.min_voorraad} onChange={e=>setNieuw(p=>({...p,min_voorraad:+e.target.value}))} style={{...inp(),width:"100%",boxSizing:"border-box"}}/>
+              </div>
+            </div>
+          </div>
+          <button onClick={voegArtikeltoe} disabled={saving}
+            style={{background:C.groen,color:"white",border:"none",borderRadius:8,padding:"10px 24px",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+            {saving?"⏳ Opslaan...":"✓ Artikel toevoegen"}
+          </button>
+        </div>
+      )}
+
+      {/* Bestaande artikelen */}
       {types.map(type=>{
         const typeItems = items.filter(v=>v.type===type);
         return (
           <div key={type} style={{background:"white",border:`1px solid ${C.border}`,borderRadius:12,padding:16,marginBottom:12}}>
             <div style={{fontWeight:800,fontSize:14,color:C.text,marginBottom:12}}>{type}</div>
-            <div style={{display:"grid",gap:8}}>
+            <div style={{display:"grid",gap:6}}>
               {typeItems.map(item=>(
-                <div key={item.id} style={{display:"flex",alignItems:"center",gap:12,padding:"8px 0",borderBottom:`1px solid ${C.border}`}}>
-                  <span style={{minWidth:80,fontSize:13,color:C.muted}}>{item.maat}</span>
+                <div key={item.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:`1px solid ${C.border}`,flexWrap:"wrap"}}>
+                  <span style={{minWidth:90,fontSize:13,fontWeight:600,color:C.text}}>{item.maat}</span>
+
                   {bewerkId===item.id ? (
-                    <>
-                      <input type="number" min={0} value={bewerkWaarde} onChange={e=>setBewerkWaarde(+e.target.value)}
-                        style={{width:70,border:`1.5px solid ${C.blauw}`,borderRadius:6,padding:"4px 8px",fontSize:13,fontFamily:"inherit"}}/>
-                      <button onClick={async()=>{setSaving(true);await onCorrectie(item.id,bewerkWaarde,item.vestiging,item.type,item.maat);setSaving(false);setBewerkId(null);}}
+                    <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",flex:1}}>
+                      <div style={{display:"flex",alignItems:"center",gap:6}}>
+                        <label style={{fontSize:11,color:C.muted}}>Voorraad:</label>
+                        <input type="number" min={0} value={bewerkVoorraad} onChange={e=>setBewerkVoorraad(+e.target.value)}
+                          style={{...inp(),width:65}}/>
+                      </div>
+                      <div style={{display:"flex",alignItems:"center",gap:6}}>
+                        <label style={{fontSize:11,color:C.muted}}>Minimum:</label>
+                        <input type="number" min={0} value={bewerkMin} onChange={e=>setBewerkMin(+e.target.value)}
+                          style={{...inp(),width:65}}/>
+                      </div>
+                      <button onClick={()=>slaCorrectieOp(item)} disabled={saving}
                         style={{background:C.groen,color:"white",border:"none",borderRadius:6,padding:"5px 12px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>✓ Opslaan</button>
                       <button onClick={()=>setBewerkId(null)}
-                        style={{background:"white",border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 12px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>Annuleren</button>
-                    </>
+                        style={{background:"white",border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 10px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>Annuleren</button>
+                    </div>
                   ) : bijvullenId===item.id ? (
-                    <>
-                      <span style={{fontSize:13,fontWeight:700}}>+</span>
+                    <div style={{display:"flex",gap:8,alignItems:"center",flex:1}}>
+                      <span style={{fontSize:13,fontWeight:700,color:C.groen}}>+</span>
                       <input type="number" min={1} value={bijvullenAantal} onChange={e=>setBijvullenAantal(+e.target.value)}
-                        style={{width:70,border:`1.5px solid ${C.groen}`,borderRadius:6,padding:"4px 8px",fontSize:13,fontFamily:"inherit"}}/>
+                        style={{...inp(),width:70}}/>
                       <button onClick={async()=>{setSaving(true);await onBijvullen(item.vestiging,item.type,item.maat,bijvullenAantal,"");setSaving(false);setBijvullenId(null);setBijvullenAantal(1);}}
                         style={{background:C.groen,color:"white",border:"none",borderRadius:6,padding:"5px 12px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>✓ Bijvullen</button>
                       <button onClick={()=>setBijvullenId(null)}
-                        style={{background:"white",border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 12px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>Annuleren</button>
-                    </>
+                        style={{background:"white",border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 10px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>Annuleren</button>
+                    </div>
                   ) : (
                     <>
-                      <span style={{fontWeight:800,fontSize:16,color:item.aantal===0?C.rood:item.aantal<item.min_voorraad?C.oranje:C.groen,minWidth:40}}>{item.aantal}</span>
-                      <span style={{fontSize:11,color:C.muted}}>min:{item.min_voorraad}</span>
+                      <span style={{fontWeight:800,fontSize:15,color:item.aantal===0?C.rood:item.aantal<item.min_voorraad?C.oranje:C.groen,minWidth:35}}>{item.aantal}</span>
+                      <span style={{fontSize:11,color:C.muted,background:C.bg,padding:"2px 8px",borderRadius:8}}>min: {item.min_voorraad}</span>
                       <div style={{marginLeft:"auto",display:"flex",gap:6}}>
-                        <button onClick={()=>{setBijvullenId(item.id);setBijvullenAantal(item.min_voorraad-item.aantal>0?item.min_voorraad-item.aantal:1);setBewerkId(null);}}
+                        <button onClick={()=>{setBijvullenId(item.id);setBijvullenAantal(Math.max(1,item.min_voorraad-item.aantal));setBewerkId(null);}}
                           style={{background:"#f0fdf4",border:"1px solid #bbf7d0",color:"#166534",borderRadius:6,padding:"4px 10px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>📥 Bijvullen</button>
-                        <button onClick={()=>{setBewerkId(item.id);setBewerkWaarde(item.aantal);setBijvullenId(null);}}
-                          style={{background:C.bg,border:`1px solid ${C.border}`,color:C.muted,borderRadius:6,padding:"4px 10px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>✏️ Corrigeren</button>
+                        <button onClick={()=>{setBewerkId(item.id);setBewerkVoorraad(item.aantal);setBewerkMin(item.min_voorraad);setBijvullenId(null);}}
+                          style={{background:C.bg,border:`1px solid ${C.border}`,color:C.muted,borderRadius:6,padding:"4px 10px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>✏️ Bewerken</button>
+                        <button onClick={()=>verwijderArtikel(item)}
+                          style={{background:"#fef2f2",border:"1px solid #fecaca",color:"#b91c1c",borderRadius:6,padding:"4px 8px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>🗑</button>
                       </div>
                     </>
                   )}
@@ -707,6 +805,7 @@ function BeheerVoorraad({ voorraad, onBijvullen, onCorrectie, showToast }) {
           </div>
         );
       })}
+      {types.length===0&&<div style={{textAlign:"center",padding:40,color:C.muted}}>Geen artikelen voor {vestiging}</div>}
     </div>
   );
 }
