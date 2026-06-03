@@ -262,131 +262,173 @@ export function KledingUitgifteInline({ voorraad, gebruiker, onSubmit, showToast
 function UitgifteForm({ voorraad, gebruiker, onSubmit, showToast }) {
   const [vestiging, setVestiging] = useState(gebruiker?.vestiging||"Enschede");
   const [actie, setActie] = useState("uitgifte");
+  const [medewerkerNaam, setMedewerkerNaam] = useState("");
+  // Huidig te selecteren artikel
   const [type, setType] = useState("");
   const [maat, setMaat] = useState("");
   const [aantal, setAantal] = useState(1);
-  const [medewerkerNaam, setMedewerkerNaam] = useState("");
-  const [opmerking, setOpmerking] = useState("");
+  // Mandje: lijst van artikelen voor deze registratie
+  const [mandje, setMandje] = useState([]);
   const [saving, setSaving] = useState(false);
 
   const types = [...new Set(voorraad.filter(v=>v.vestiging===vestiging).map(v=>v.type))].sort();
   const maten = voorraad.filter(v=>v.vestiging===vestiging&&v.type===type).sort((a,b)=>a.maat.localeCompare(b.maat));
   const geselecteerd = voorraad.find(v=>v.vestiging===vestiging&&v.type===type&&v.maat===maat);
 
-  async function submit() {
-    if (!type||!maat||aantal<1) { showToast("Vul alle velden in","err"); return; }
+  // Bereken effectieve beschikbare voorraad (rekening houdend met wat al in mandje zit)
+  function beschikbaar(item) {
+    const inMandje = mandje.filter(m=>m.vestiging===item.vestiging&&m.type===item.type&&m.maat===item.maat).reduce((s,m)=>s+m.aantal,0);
+    return item.aantal - inMandje;
+  }
+
+  function voegToeAanMandje() {
+    if (!type||!maat||aantal<1) { showToast("Selecteer type en maat","err"); return; }
+    const item = voorraad.find(v=>v.vestiging===vestiging&&v.type===type&&v.maat===maat);
+    if (!item) return;
+    if (actie==="uitgifte" && beschikbaar(item) < aantal) { showToast(`Onvoldoende voorraad — nog ${beschikbaar(item)} beschikbaar`,"err"); return; }
+    setMandje(prev=>[...prev, {vestiging, type, maat, aantal, item}]);
+    setType(""); setMaat(""); setAantal(1);
+    showToast(`✓ ${type} ${maat} toegevoegd aan lijst`);
+  }
+
+  function verwijderUitMandje(idx) { setMandje(prev=>prev.filter((_,i)=>i!==idx)); }
+
+  async function submitAlles() {
+    if (mandje.length===0) { showToast("Voeg eerst artikelen toe","err"); return; }
     if (!medewerkerNaam.trim()) { showToast("Vul de naam van de medewerker in","err"); return; }
     setSaving(true);
-    const ok = await onSubmit(vestiging, type, maat, aantal, opmerking, medewerkerNaam.trim(), actie);
+    let allOk = true;
+    for (const regel of mandje) {
+      const ok = await onSubmit(regel.vestiging, regel.type, regel.maat, regel.aantal, "", medewerkerNaam.trim(), actie);
+      if (!ok) { allOk = false; break; }
+    }
     setSaving(false);
-    if (ok) { setType(""); setMaat(""); setAantal(1); setOpmerking(""); setMedewerkerNaam(""); }
+    if (allOk) {
+      showToast(`✓ ${mandje.length} artikel${mandje.length>1?"en":""} geregistreerd voor ${medewerkerNaam}`);
+      setMandje([]); setMedewerkerNaam(""); setType(""); setMaat(""); setAantal(1);
+    }
   }
 
   const inp = { width:"100%", border:`1.5px solid ${C.border}`, borderRadius:8, padding:"10px 14px", fontSize:14, fontFamily:"inherit", color:C.text, background:"white", outline:"none", boxSizing:"border-box" };
+  const actiekleur = actie==="uitgifte" ? C.groen : "#6366f1";
 
   return (
-    <div style={{maxWidth:520}}>
+    <div style={{maxWidth:580}}>
       <div style={{background:"white",border:`1px solid ${C.border}`,borderRadius:14,padding:28}}>
         <h3 style={{fontSize:16,fontWeight:800,color:C.blauw,marginBottom:4}}>👕 Kleding registreren</h3>
-        <p style={{fontSize:13,color:C.muted,marginBottom:20}}>Registreer een uitgifte of inname van kleding.</p>
+        <p style={{fontSize:13,color:C.muted,marginBottom:20}}>Voeg meerdere artikelen toe voor dezelfde medewerker.</p>
 
-        {/* Uitgifte / Inname toggle */}
-        <div style={{marginBottom:20}}>
+        {/* Uitgifte / Inname */}
+        <div style={{marginBottom:16}}>
           <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:8,display:"block"}}>Actie *</label>
           <div style={{display:"flex",gap:8}}>
-            <button onClick={()=>setActie("uitgifte")}
-              style={{flex:1,padding:"12px",border:`2px solid ${actie==="uitgifte"?C.groen:C.border}`,borderRadius:10,
-                background:actie==="uitgifte"?"#f0fdf4":"white",cursor:"pointer",fontFamily:"inherit",
-                color:actie==="uitgifte"?C.groen:C.muted,fontWeight:700,fontSize:13}}>
-              📤 Uitgifte<br/><span style={{fontSize:11,fontWeight:400}}>Kleding meegeven</span>
-            </button>
-            <button onClick={()=>setActie("inname")}
-              style={{flex:1,padding:"12px",border:`2px solid ${actie==="inname"?"#6366f1":C.border}`,borderRadius:10,
-                background:actie==="inname"?"#eef2ff":"white",cursor:"pointer",fontFamily:"inherit",
-                color:actie==="inname"?"#6366f1":C.muted,fontWeight:700,fontSize:13}}>
-              📥 Inname<br/><span style={{fontSize:11,fontWeight:400}}>Kleding terugkrijgen</span>
-            </button>
+            {[["uitgifte","📤 Uitgifte","Kleding meegeven",C.groen],["inname","📥 Inname","Kleding terugkrijgen","#6366f1"]].map(([v,label,sub,kleur])=>(
+              <button key={v} onClick={()=>{setActie(v);setMandje([]);}}
+                style={{flex:1,padding:"10px",border:`2px solid ${actie===v?kleur:C.border}`,borderRadius:10,
+                  background:actie===v?kleur+"18":"white",cursor:"pointer",fontFamily:"inherit",color:actie===v?kleur:C.muted,fontWeight:700,fontSize:13}}>
+                {label}<br/><span style={{fontSize:11,fontWeight:400}}>{sub}</span>
+              </button>
+            ))}
           </div>
         </div>
 
-        <div style={{marginBottom:14}}>
+        {/* Naam medewerker */}
+        <div style={{marginBottom:16}}>
           <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>
-            Naam medewerker * <span style={{fontSize:10,fontWeight:400,color:C.muted}}>(wie {actie==="uitgifte"?"de kleding krijgt":"de kleding teruggeeft"})</span>
+            Naam medewerker * <span style={{fontSize:10,fontWeight:400}}>(wie {actie==="uitgifte"?"de kleding krijgt":"de kleding teruggeeft"})</span>
           </label>
           <input value={medewerkerNaam} onChange={e=>setMedewerkerNaam(e.target.value)}
             placeholder="Voor- en achternaam medewerker"
             style={{...inp, borderColor: medewerkerNaam ? C.groen : C.border}}/>
         </div>
 
-        <div style={{marginBottom:14}}>
+        {/* Vestiging */}
+        <div style={{marginBottom:16}}>
           <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Vestiging</label>
           <div style={{display:"flex",gap:8}}>
             {VESTIGINGEN.map(v=>(
               <button key={v} onClick={()=>{setVestiging(v);setType("");setMaat("");}}
-                style={{flex:1,padding:"10px",border:`2px solid ${vestiging===v?C.blauw:C.border}`,borderRadius:8,
+                style={{flex:1,padding:"9px",border:`2px solid ${vestiging===v?C.blauw:C.border}`,borderRadius:8,
                   background:vestiging===v?C.blauw+"12":"white",color:vestiging===v?C.blauw:C.muted,
-                  fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>
-                {v}
-              </button>
+                  fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>{v}</button>
             ))}
           </div>
         </div>
 
-        <div style={{marginBottom:14}}>
-          <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Type kleding *</label>
-          <select value={type} onChange={e=>{setType(e.target.value);setMaat("");}} style={inp}>
-            <option value="">— Selecteer type —</option>
-            {types.map(t=><option key={t} value={t}>{t}</option>)}
-          </select>
+        {/* Artikel selectie */}
+        <div style={{background:C.bg,borderRadius:10,padding:16,marginBottom:16}}>
+          <div style={{fontSize:12,fontWeight:700,color:C.muted,marginBottom:12,textTransform:"uppercase",letterSpacing:".7px"}}>Artikel selecteren</div>
+          <div style={{marginBottom:12}}>
+            <select value={type} onChange={e=>{setType(e.target.value);setMaat("");}} style={{...inp,marginBottom:0}}>
+              <option value="">— Selecteer type —</option>
+              {types.map(t=><option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
+          {type && (
+            <div style={{marginBottom:12}}>
+              <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                {maten.map(item=>{
+                  const beschik = beschikbaar(item);
+                  const isOp = actie==="uitgifte" && beschik<=0;
+                  const sel = maat===item.maat;
+                  return (
+                    <button key={item.id} onClick={()=>!isOp&&setMaat(item.maat)} disabled={isOp}
+                      style={{padding:"7px 12px",borderRadius:8,cursor:isOp?"not-allowed":"pointer",fontFamily:"inherit",fontWeight:700,fontSize:13,
+                        border:`2px solid ${sel?actiekleur:isOp?"#fecaca":C.border}`,
+                        background:sel?actiekleur:isOp?"#fef2f2":"white",
+                        color:sel?"white":isOp?"#b91c1c":C.text,opacity:isOp?.5:1}}>
+                      {item.maat} <span style={{fontSize:11,opacity:.7}}>({beschik})</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          {maat && geselecteerd && (
+            <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+              <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                <button onClick={()=>setAantal(Math.max(1,aantal-1))} style={{width:32,height:32,borderRadius:6,border:`1.5px solid ${C.border}`,background:"white",fontSize:16,cursor:"pointer",fontFamily:"inherit"}}>−</button>
+                <input type="number" min={1} value={aantal} onChange={e=>setAantal(Math.max(1,+e.target.value))}
+                  style={{width:60,border:`1.5px solid ${C.border}`,borderRadius:6,padding:"5px",fontSize:14,textAlign:"center",fontFamily:"inherit",outline:"none"}}/>
+                <button onClick={()=>setAantal(aantal+1)} style={{width:32,height:32,borderRadius:6,border:`1.5px solid ${C.border}`,background:"white",fontSize:16,cursor:"pointer",fontFamily:"inherit"}}>+</button>
+              </div>
+              <button onClick={voegToeAanMandje}
+                style={{background:actiekleur,color:"white",border:"none",borderRadius:8,padding:"8px 20px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit",marginLeft:"auto"}}>
+                + Toevoegen aan lijst
+              </button>
+            </div>
+          )}
         </div>
 
-        {type && (
-          <div style={{marginBottom:14}}>
-            <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Maat *</label>
-            <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
-              {maten.map(item=>{
-                const isOp = item.aantal===0;
-                const isLaag = item.aantal>0&&item.aantal<item.min_voorraad;
-                const geselecteerdItem = maat===item.maat;
-                return (
-                  <button key={item.id} onClick={()=>!isOp&&setMaat(item.maat)} disabled={isOp}
-                    style={{padding:"8px 14px",borderRadius:8,cursor:isOp?"not-allowed":"pointer",fontFamily:"inherit",fontWeight:700,fontSize:13,
-                      border:`2px solid ${geselecteerdItem?C.blauw:isOp?"#fecaca":isLaag?"#fde68a":C.border}`,
-                      background:geselecteerdItem?C.blauw:isOp?"#fef2f2":isLaag?"#fffbeb":"white",
-                      color:geselecteerdItem?"white":isOp?"#b91c1c":isLaag?"#92400e":C.text,
-                      opacity:isOp?.5:1}}>
-                    {item.maat} <span style={{fontSize:11,opacity:.7}}>({item.aantal})</span>
-                  </button>
-                );
-              })}
+        {/* Mandje */}
+        {mandje.length > 0 && (
+          <div style={{marginBottom:16}}>
+            <div style={{fontSize:12,fontWeight:700,color:C.muted,marginBottom:10,textTransform:"uppercase",letterSpacing:".7px"}}>
+              Lijst ({mandje.length} artikel{mandje.length>1?"en":""})
+            </div>
+            <div style={{display:"grid",gap:6}}>
+              {mandje.map((r,i)=>(
+                <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 12px",borderRadius:8,
+                  background:actiekleur+"10",border:`1px solid ${actiekleur}30`}}>
+                  <span style={{fontSize:18}}>{actie==="uitgifte"?"📤":"📥"}</span>
+                  <div style={{flex:1}}>
+                    <span style={{fontWeight:700,fontSize:13}}>{r.aantal}x {r.type}</span>
+                    <span style={{fontSize:12,color:C.muted}}> — {r.maat} ({r.vestiging})</span>
+                  </div>
+                  <button onClick={()=>verwijderUitMandje(i)}
+                    style={{background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:16,padding:"2px 6px"}}>✕</button>
+                </div>
+              ))}
             </div>
           </div>
         )}
 
-        {maat && geselecteerd && (
-          <>
-            <div style={{marginBottom:14,padding:"10px 14px",borderRadius:8,background:geselecteerd.aantal<geselecteerd.min_voorraad?"#fffbeb":"#f0fdf4",border:`1px solid ${geselecteerd.aantal<geselecteerd.min_voorraad?"#fde68a":"#bbf7d0"}`}}>
-              <span style={{fontSize:13,fontWeight:600}}>Beschikbaar: <strong>{geselecteerd.aantal}</strong> stuks · Minimum: {geselecteerd.min_voorraad}</span>
-            </div>
-            <div style={{marginBottom:14}}>
-              <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Aantal *</label>
-              <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                <button onClick={()=>setAantal(Math.max(1,aantal-1))} style={{width:36,height:36,borderRadius:8,border:`1.5px solid ${C.border}`,background:"white",fontSize:18,cursor:"pointer",fontFamily:"inherit"}}>−</button>
-                <input type="number" min={1} max={geselecteerd.aantal} value={aantal} onChange={e=>setAantal(Math.max(1,Math.min(geselecteerd.aantal,+e.target.value)))}
-                  style={{...inp,width:80,textAlign:"center"}}/>
-                <button onClick={()=>setAantal(Math.min(geselecteerd.aantal,aantal+1))} style={{width:36,height:36,borderRadius:8,border:`1.5px solid ${C.border}`,background:"white",fontSize:18,cursor:"pointer",fontFamily:"inherit"}}>+</button>
-              </div>
-            </div>
-            <div style={{marginBottom:20}}>
-              <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Opmerking (optioneel)</label>
-              <input value={opmerking} onChange={e=>setOpmerking(e.target.value)} placeholder="Bijv. voor nieuwe medewerker" style={inp}/>
-            </div>
-            <button onClick={submit} disabled={saving}
-              style={{background:actie==="uitgifte"?C.groen:"#6366f1",color:"white",border:"none",borderRadius:8,padding:"12px 28px",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit",width:"100%"}}>
-              {saving?"⏳ Opslaan...":actie==="uitgifte"?"📤 Uitgifte registreren":"📥 Inname registreren"}
-            </button>
-          </>
-        )}
+        {/* Opslaan knop */}
+        <button onClick={submitAlles} disabled={saving||mandje.length===0||!medewerkerNaam.trim()}
+          style={{background:mandje.length>0&&medewerkerNaam.trim()?actiekleur:"#d1dbe8",color:"white",border:"none",borderRadius:8,
+            padding:"12px 28px",fontSize:14,fontWeight:700,cursor:mandje.length>0&&medewerkerNaam.trim()?"pointer":"not-allowed",fontFamily:"inherit",width:"100%"}}>
+          {saving?"⏳ Bezig...":`${actie==="uitgifte"?"📤":"📥"} ${mandje.length} artikel${mandje.length!==1?"en":""} registreren voor ${medewerkerNaam||"..."}`}
+        </button>
       </div>
     </div>
   );
