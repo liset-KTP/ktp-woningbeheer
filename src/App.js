@@ -2663,14 +2663,6 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
       {/* 🚗 AUTO'S */}
       {subTab === "autos" && (
         <div>
-          {(isBackoffice||isHuismeester) && (
-            <div style={{marginBottom:16}}>
-              <button onClick={()=>setSubTab("nieuw_taak")}
-                style={{background:C.blauw,color:"white",border:"none",borderRadius:8,padding:"10px 20px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
-                + Auto-taak toevoegen
-              </button>
-            </div>
-          )}
           {takenAutos.length > 0
             ? <TakenView taken={takenAutos} houses={houses} gebruiker={gebruiker} onAdd={onAddTaak} onUpdate={onUpdateTaak} showToast={showToast} inlineMode/>
             : <div style={{textAlign:"center",padding:"40px",color:C.muted}}><div style={{fontSize:40,marginBottom:10}}>🚗</div><div>Geen auto-taken openstaand</div></div>
@@ -2681,14 +2673,6 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
       {/* 🚲 FIETSEN */}
       {subTab === "fietsen" && (
         <div>
-          {(isBackoffice||isHuismeester) && (
-            <div style={{marginBottom:16}}>
-              <button onClick={()=>setSubTab("nieuw_taak")}
-                style={{background:C.blauw,color:"white",border:"none",borderRadius:8,padding:"10px 20px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
-                + Fiets-taak toevoegen
-              </button>
-            </div>
-          )}
           {takenFietsen.length > 0
             ? <TakenView taken={takenFietsen} houses={houses} gebruiker={gebruiker} onAdd={onAddTaak} onUpdate={onUpdateTaak} showToast={showToast} inlineMode/>
             : <div style={{textAlign:"center",padding:"40px",color:C.muted}}><div style={{fontSize:40,marginBottom:10}}>🚲</div><div>Geen fiets-taken openstaand</div></div>
