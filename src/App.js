@@ -26,6 +26,7 @@ import { BijlageUploader, BijlageWeergave, uploadBijlages } from "./BijlageUploa
 import { BerichtenModule } from "./BerichtenModule";
 import { BorgModule } from "./BorgModule";
 import { HandleidingModule } from "./HandleidingModule";
+import { KledingModule } from "./KledingModule";
 
 // ─── EMAILJS ──────────────────────────────────────────────────────────────────
 const EMAILJS_SERVICE  = process.env.REACT_APP_EMAILJS_SERVICE  || "";
@@ -858,6 +859,7 @@ function App() {
               <button className={`tp ${tab==="medewerker360"?"act":""}`} onClick={()=>setTab("medewerker360")}>👤 Medewerker</button>
               <button className={`tp ${tab==="berichten"?"act":""}`} onClick={()=>setTab("berichten")}>💬 Berichten {ongelzenBerichten>0&&<Notif n={ongelzenBerichten}/>}</button>
               <button className={`tp ${tab==="handleiding"?"act":""}`} onClick={()=>setTab("handleiding")}>📖 Handleiding</button>
+              <button className={`tp ${tab==="kleding"?"act":""}`} onClick={()=>setTab("kleding")}>👕 Kleding</button>
             </>)}
             {rol==="huismeester" && (<>
               <button className={`tp ${tab==="dagplanning"?"act":""}`} onClick={()=>setTab("dagplanning")}>📅 Mijn dag {totalNotifs>0&&<Notif n={totalNotifs}/>}</button>
@@ -870,6 +872,7 @@ function App() {
               <button className={`tp ${tab==="medewerker360"?"act":""}`} onClick={()=>setTab("medewerker360")}>👤 Medewerker</button>
               <button className={`tp ${tab==="berichten"?"act":""}`} onClick={()=>setTab("berichten")}>💬 Berichten {ongelzenBerichten>0&&<Notif n={ongelzenBerichten}/>}</button>
               <button className={`tp ${tab==="handleiding"?"act":""}`} onClick={()=>setTab("handleiding")}>📖 Handleiding</button>
+              <button className={`tp ${tab==="kleding"?"act":""}`} onClick={()=>setTab("kleding")}>👕 Kleding</button>
             </>)}
             {rol==="financieel" && (<>
               <button className={`tp ${tab==="taken"?"act":""}`} onClick={()=>setTab("taken")}>📋 Taken & Meldingen {(openTaken.length+mijnMeldingen.length)>0&&<Notif n={openTaken.length+mijnMeldingen.length}/>}</button>
@@ -882,6 +885,7 @@ function App() {
               <button className={`tp ${tab==="medewerker360"?"act":""}`} onClick={()=>setTab("medewerker360")}>👤 Medewerker</button>
               <button className={`tp ${tab==="berichten"?"act":""}`} onClick={()=>setTab("berichten")}>💬 Berichten {ongelzenBerichten>0&&<Notif n={ongelzenBerichten}/>}</button>
               <button className={`tp ${tab==="handleiding"?"act":""}`} onClick={()=>setTab("handleiding")}>📖 Handleiding</button>
+              <button className={`tp ${tab==="kleding"?"act":""}`} onClick={()=>setTab("kleding")}>👕 Kleding</button>
             </>)}
             {rol==="backoffice" && (<>
               <button className={`tp ${tab==="dashboard"?"act":""}`} onClick={()=>setTab("dashboard")}>📊 Dashboard</button>
@@ -897,6 +901,7 @@ function App() {
               <button className={`tp ${tab==="medewerker360"?"act":""}`} onClick={()=>setTab("medewerker360")}>👤 Medewerker</button>
               <button className={`tp ${tab==="berichten"?"act":""}`} onClick={()=>setTab("berichten")}>💬 Berichten {ongelzenBerichten>0&&<Notif n={ongelzenBerichten}/>}</button>
               <button className={`tp ${tab==="handleiding"?"act":""}`} onClick={()=>setTab("handleiding")}>📖 Handleiding</button>
+              <button className={`tp ${tab==="kleding"?"act":""}`} onClick={()=>setTab("kleding")}>👕 Kleding</button>
             </>)}
           </div>
         </div>
@@ -915,6 +920,7 @@ function App() {
         {tab==="berichten"&&<BerichtenModule gebruiker={gebruiker} houses={houses} taken={taken} meldingen={meldingen} autos={[]}/>}
         {tab==="borg"&&<BorgModule gebruiker={gebruiker} houses={houses} showToast={showToast} readonly={rol!=="backoffice"}/>}
         {tab==="handleiding"&&<HandleidingModule gebruiker={gebruiker}/>}
+        {tab==="kleding"&&<KledingModule gebruiker={gebruiker} showToast={showToast}/>}
         {tab==="medewerker360"&&<Medewerker360View houses={houses} gebruiker={gebruiker} showToast={showToast} onAddTaak={addTaak}/>}
         {tab==="huismeesterplanning"&&<HuismeesterPlanningView dagplanningDB={dagplanningDB} houses={houses} taken={taken} meldingen={meldingen} checklists={checklists} checklistItems={checklistItems}/>}
         {rol==="backoffice"&&isLiset&&tab==="beheer"&&<BeheerView houses={houses} onAdd={addWoning} onUpdate={updateWoning} onDelete={deleteWoning} showToast={showToast} gebruikers={gebruikers} onAddGebruiker={voegGebruikerToe} onUpdateGebruiker={updateGebruiker} onDeleteGebruiker={verwijderGebruiker} checklistItems={checklistItems} dagplanningDB={dagplanningDB}/>}
