@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { supabase } from "./supabaseClient";
 
 const C = {
@@ -89,6 +89,31 @@ export function KledingModule({ gebruiker, showToast }) {
     return true;
   }
 
+  async function markeerBesteld(id, besteld_aantal, besteld_datum) {
+    const { error } = await supabase.from("kleding_voorraad")
+      .update({ besteld_aantal, besteld_datum, besteld_door: gebruiker.naam, updated_at: new Date().toISOString() })
+      .eq("id", id);
+    if (error) { showToast("Fout bij opslaan","err"); return false; }
+    showToast(`✓ Bestelling geregistreerd (${besteld_aantal} stuks)`);
+    await loadVoorraad(); return true;
+  }
+
+  async function markeerOntvangen(id, ontvangen_aantal, vestiging, type, maat) {
+    const item = voorraad.find(v=>v.id===id);
+    if (!item) return false;
+    const nieuwAantal = item.aantal + ontvangen_aantal;
+    const { error } = await supabase.from("kleding_voorraad")
+      .update({ aantal: nieuwAantal, besteld_aantal: 0, besteld_datum: null, besteld_door: null, updated_at: new Date().toISOString() })
+      .eq("id", id);
+    if (error) { showToast("Fout bij opslaan","err"); return false; }
+    await supabase.from("kleding_transacties").insert([{
+      vestiging, type, maat, aantal: ontvangen_aantal, actie:"bijvulling",
+      medewerker: gebruiker.naam, opmerking: "Bestelling ontvangen"
+    }]);
+    showToast(`✓ Ontvangst verwerkt — voorraad bijgewerkt naar ${nieuwAantal}`);
+    await loadVoorraad(); return true;
+  }
+
   async function correctieVoorraad(id, nieuwAantal, vestiging, type, maat) {
     const { error } = await supabase.from("kleding_voorraad")
       .update({ aantal: nieuwAantal, updated_at: new Date().toISOString() }).eq("id", id);
@@ -130,7 +155,7 @@ export function KledingModule({ gebruiker, showToast }) {
       </div>
       {subTab==="overzicht"    && <VoorraadOverzicht voorraad={voorraad}/>}
       {subTab==="uitgifte"     && <UitgifteForm voorraad={voorraad} gebruiker={gebruiker} onSubmit={registreerUitgifte} showToast={showToast}/>}
-      {subTab==="bijbestellen" && <BijbestellenView voorraad={voorraad} transacties={transacties}/>}
+      {subTab==="bijbestellen" && <BijbestellenView voorraad={voorraad} transacties={transacties} isBackoffice={isBackoffice} onBesteld={markeerBesteld} onOntvangen={markeerOntvangen}/>}
       {subTab==="historie"     && <HistorieView transacties={transacties} isBackoffice={isBackoffice}/>}
       {subTab==="beheer"&&isBackoffice && <BeheerVoorraad voorraad={voorraad} onBijvullen={registreerBijvulling} onCorrectie={correctieVoorraad} showToast={showToast}/>}
     </div>
@@ -368,20 +393,44 @@ function UitgifteForm({ voorraad, gebruiker, onSubmit, showToast }) {
 }
 
 // ─── BIJBESTELLEN VIEW ────────────────────────────────────────────────────────
-function BijbestellenView({ voorraad }) {
+function BijbestellenView({ voorraad, isBackoffice, onBesteld, onOntvangen }) {
   const [vestiging, setVestiging] = useState("alle");
+  const [bestellenId, setBestellenId] = useState(null);
+  const [bestellenAantal, setBestellenAantal] = useState(1);
+  const [bestellenDatum, setBestellenDatum] = useState(new Date().toISOString().slice(0,10));
+  const [ontvangenId, setOntvangenId] = useState(null);
+  const [ontvangenAantal, setOntvangenAantal] = useState(1);
+  const [saving, setSaving] = useState(false);
 
   const teBestellenItems = voorraad
     .filter(v => v.aantal < v.min_voorraad && (vestiging==="alle" || v.vestiging===vestiging))
     .sort((a,b)=>a.vestiging.localeCompare(b.vestiging)||a.type.localeCompare(b.type));
 
-  const perVestiging = VESTIGINGEN.map(v=>({
-    naam:v,
-    items: teBestellenItems.filter(i=>i.vestiging===v)
-  }));
+  const alBesteldItems = voorraad
+    .filter(v => v.besteld_aantal > 0 && (vestiging==="alle" || v.vestiging===vestiging))
+    .sort((a,b)=>a.vestiging.localeCompare(b.vestiging)||a.type.localeCompare(b.type));
+
+  const perVestiging = VESTIGINGEN.map(v=>({naam:v, items:teBestellenItems.filter(i=>i.vestiging===v)}));
+
+  async function slaBestellingOp(item) {
+    if (!bestellenAantal||!bestellenDatum) return;
+    setSaving(true);
+    await onBesteld(item.id, bestellenAantal, bestellenDatum);
+    setSaving(false); setBestellenId(null);
+  }
+
+  async function slaOntvangenOp(item) {
+    if (!ontvangenAantal) return;
+    setSaving(true);
+    await onOntvangen(item.id, ontvangenAantal, item.vestiging, item.type, item.maat);
+    setSaving(false); setOntvangenId(null);
+  }
+
+  const inp = {border:`1.5px solid ${C.border}`,borderRadius:6,padding:"6px 10px",fontSize:13,fontFamily:"inherit",outline:"none"};
 
   return (
     <div>
+      {/* Vestiging filter */}
       <div style={{display:"flex",gap:8,marginBottom:20,flexWrap:"wrap"}}>
         {[["alle","Alle vestigingen"],...VESTIGINGEN.map(v=>[v,v])].map(([v,l])=>(
           <button key={v} onClick={()=>setVestiging(v)}
@@ -393,6 +442,52 @@ function BijbestellenView({ voorraad }) {
         ))}
       </div>
 
+      {/* Al besteld sectie */}
+      {alBesteldItems.length > 0 && (
+        <div style={{background:"#f0fdf4",border:"1.5px solid #86efac",borderRadius:12,padding:20,marginBottom:20}}>
+          <div style={{fontWeight:800,fontSize:14,color:"#166534",marginBottom:12}}>📦 Onderweg / besteld</div>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+            <thead><tr style={{borderBottom:`1px solid #bbf7d0`}}>
+              {["Vestiging","Type","Maat","Besteld","Datum","Door",isBackoffice?"Actie":""].map(h=>(
+                <th key={h} style={{textAlign:"left",padding:"5px 8px",fontSize:11,fontWeight:700,color:"#166534",textTransform:"uppercase"}}>{h}</th>
+              ))}
+            </tr></thead>
+            <tbody>
+              {alBesteldItems.map(item=>(
+                <tr key={item.id} style={{borderBottom:"1px solid #dcfce7"}}>
+                  <td style={{padding:"8px"}}>{item.vestiging}</td>
+                  <td style={{padding:"8px",fontWeight:600}}>{item.type}</td>
+                  <td style={{padding:"8px"}}>{item.maat}</td>
+                  <td style={{padding:"8px",fontWeight:800,color:"#166534"}}>{item.besteld_aantal}x</td>
+                  <td style={{padding:"8px",color:C.muted}}>{item.besteld_datum ? new Date(item.besteld_datum).toLocaleDateString("nl-NL") : "—"}</td>
+                  <td style={{padding:"8px",color:C.muted,fontSize:12}}>{item.besteld_door||"—"}</td>
+                  {isBackoffice && <td style={{padding:"8px"}}>
+                    {ontvangenId===item.id ? (
+                      <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                        <input type="number" min={1} value={ontvangenAantal} onChange={e=>setOntvangenAantal(+e.target.value)}
+                          style={{...inp,width:60}} placeholder="Stuks"/>
+                        <button onClick={()=>slaOntvangenOp(item)} disabled={saving}
+                          style={{background:C.groen,color:"white",border:"none",borderRadius:6,padding:"5px 12px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>
+                          ✓ Verwerken
+                        </button>
+                        <button onClick={()=>setOntvangenId(null)}
+                          style={{background:"white",border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 8px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>✕</button>
+                      </div>
+                    ) : (
+                      <button onClick={()=>{setOntvangenId(item.id);setOntvangenAantal(item.besteld_aantal||1);setBestellenId(null);}}
+                        style={{background:C.blauw,color:"white",border:"none",borderRadius:6,padding:"5px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                        📥 Ontvangen
+                      </button>
+                    )}
+                  </td>}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Nog te bestellen */}
       {teBestellenItems.length===0 ? (
         <div style={{textAlign:"center",padding:60,color:C.muted}}>
           <div style={{fontSize:40,marginBottom:12}}>✅</div>
@@ -400,45 +495,88 @@ function BijbestellenView({ voorraad }) {
           <div style={{fontSize:13,marginTop:6}}>Geen artikelen hoeven bijbesteld te worden.</div>
         </div>
       ) : (
-        (vestiging==="alle" ? perVestiging : [{naam:vestiging,items:teBestellenItems}]).map(({naam,items})=>{
-          if (items.length===0) return null;
-          return (
-            <div key={naam} style={{background:"white",border:`1px solid ${C.border}`,borderRadius:12,padding:20,marginBottom:16}}>
-              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
-                <h3 style={{fontWeight:800,fontSize:15,color:C.blauw}}>📍 {naam}</h3>
-                <span style={{fontSize:12,color:C.muted,background:C.bg,padding:"3px 10px",borderRadius:10}}>{items.length} artikelen</span>
+        <>
+          <div style={{fontWeight:800,fontSize:14,color:C.text,marginBottom:12}}>🛒 Nog te bestellen</div>
+          {(vestiging==="alle" ? perVestiging : [{naam:vestiging,items:teBestellenItems}]).map(({naam,items})=>{
+            if (items.length===0) return null;
+            return (
+              <div key={naam} style={{background:"white",border:`1px solid ${C.border}`,borderRadius:12,padding:20,marginBottom:16}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
+                  <h3 style={{fontWeight:800,fontSize:15,color:C.blauw}}>📍 {naam}</h3>
+                  <span style={{fontSize:12,color:C.muted,background:C.bg,padding:"3px 10px",borderRadius:10}}>{items.length} artikelen</span>
+                </div>
+                <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+                  <thead>
+                    <tr style={{borderBottom:`2px solid ${C.border}`}}>
+                      {["Type","Maat","Huidig","Min","Tekort","Status",isBackoffice?"Actie":""].map(h=>(
+                        <th key={h} style={{textAlign:"left",padding:"6px 8px",fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase"}}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.map(item=>{
+                      const tekort = item.min_voorraad - item.aantal;
+                      const isBesteld = item.besteld_aantal > 0;
+                      return (
+                        <React.Fragment key={item.id}>
+                          <tr style={{borderBottom: bestellenId===item.id ? "none" : `1px solid ${C.border}`,background:item.aantal===0?"#fef2f2":"#fffbeb"}}>
+                            <td style={{padding:"8px",fontWeight:600}}>{item.type}</td>
+                            <td style={{padding:"8px"}}>{item.maat}</td>
+                            <td style={{padding:"8px",fontWeight:800,color:item.aantal===0?C.rood:C.oranje}}>{item.aantal}</td>
+                            <td style={{padding:"8px",color:C.muted}}>{item.min_voorraad}</td>
+                            <td style={{padding:"8px"}}><span style={{fontWeight:800,color:C.blauw,background:C.blauw+"12",padding:"2px 8px",borderRadius:8}}>+{tekort}</span></td>
+                            <td style={{padding:"8px"}}>
+                              {isBesteld
+                                ? <span style={{fontSize:11,fontWeight:700,color:"#166534",background:"#dcfce7",padding:"2px 8px",borderRadius:8}}>
+                                    ✓ Besteld: {item.besteld_aantal}x ({item.besteld_datum ? new Date(item.besteld_datum).toLocaleDateString("nl-NL") : "—"})
+                                  </span>
+                                : <span style={{fontSize:11,color:C.muted}}>Nog niet besteld</span>
+                              }
+                            </td>
+                            {isBackoffice && <td style={{padding:"8px"}}>
+                              {!isBesteld && (
+                                bestellenId===item.id ? null :
+                                <button onClick={()=>{setBestellenId(item.id);setBestellenAantal(tekort);setBestellenDatum(new Date().toISOString().slice(0,10));setOntvangenId(null);}}
+                                  style={{background:"#fef9c3",border:"1px solid #fde047",color:"#854d0e",borderRadius:6,padding:"5px 12px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                                  🛒 Markeer besteld
+                                </button>
+                              )}
+                            </td>}
+                          </tr>
+                          {isBackoffice && bestellenId===item.id && (
+                            <tr style={{borderBottom:`1px solid ${C.border}`,background:"#fefce8"}}>
+                              <td colSpan={7} style={{padding:"12px 8px"}}>
+                                <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
+                                  <div>
+                                    <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:3}}>Aantal besteld</label>
+                                    <input type="number" min={1} value={bestellenAantal} onChange={e=>setBestellenAantal(+e.target.value)}
+                                      style={{...inp,width:80}}/>
+                                  </div>
+                                  <div>
+                                    <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:3}}>Besteldatum</label>
+                                    <input type="date" value={bestellenDatum} onChange={e=>setBestellenDatum(e.target.value)} style={{...inp}}/>
+                                  </div>
+                                  <div style={{marginTop:16,display:"flex",gap:6}}>
+                                    <button onClick={()=>slaBestellingOp(item)} disabled={saving}
+                                      style={{background:"#ca8a04",color:"white",border:"none",borderRadius:6,padding:"7px 16px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+                                      {saving?"⏳...":"✓ Opslaan"}
+                                    </button>
+                                    <button onClick={()=>setBestellenId(null)}
+                                      style={{background:"white",border:`1px solid ${C.border}`,borderRadius:6,padding:"7px 12px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>Annuleren</button>
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
-              <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
-                <thead>
-                  <tr style={{borderBottom:`2px solid ${C.border}`}}>
-                    {["Type","Maat","Op dit moment","Minimum","Bestellen"].map(h=>(
-                      <th key={h} style={{textAlign:"left",padding:"6px 10px",fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:".5px"}}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map(item=>{
-                    const tekort = item.min_voorraad - item.aantal;
-                    return (
-                      <tr key={item.id} style={{borderBottom:`1px solid ${C.border}`,background:item.aantal===0?"#fef2f2":"#fffbeb"}}>
-                        <td style={{padding:"8px 10px",fontWeight:600}}>{item.type}</td>
-                        <td style={{padding:"8px 10px"}}>{item.maat}</td>
-                        <td style={{padding:"8px 10px"}}>
-                          <span style={{fontWeight:800,color:item.aantal===0?C.rood:C.oranje}}>{item.aantal}</span>
-                          {item.aantal===0&&<span style={{marginLeft:6,fontSize:10,background:"#fef2f2",border:"1px solid #fecaca",borderRadius:8,padding:"1px 6px",color:"#b91c1c",fontWeight:700}}>OP</span>}
-                        </td>
-                        <td style={{padding:"8px 10px",color:C.muted}}>{item.min_voorraad}</td>
-                        <td style={{padding:"8px 10px"}}>
-                          <span style={{fontWeight:800,color:C.blauw,background:C.blauw+"12",padding:"2px 10px",borderRadius:10}}>+{tekort}</span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          );
-        })
+            );
+          })}
+        </>
       )}
     </div>
   );
