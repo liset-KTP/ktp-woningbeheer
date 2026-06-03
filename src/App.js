@@ -2483,7 +2483,7 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
   const isHuismeester = rol === "huismeester";
   const isCollega = rol === "collega" || rol === "financieel";
 
-  const [subTab, setSubTab] = useState("overzicht");
+  const [subTab, setSubTab] = useState("woningen");
   const [filter, setFilter] = useState("open");
   const [zoek, setZoek] = useState("");
   const [sorteer, setSorteer] = useState("datum_nieuw"); // datum_nieuw | datum_oud | prioriteit | naam
@@ -2550,11 +2550,30 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
   const gefilterdeMeldingen = sorteerItems(relevanteMeldingen.filter(m => zoekFilter(m, true)), true);
   const gefilterdetaken = sorteerItems(relevanteTaken.filter(t => zoekFilter(t, false)), false);
 
+  // Categoriseer taken per type
+  function catTaak(t) {
+    const txt = ((t.titel||"")+" "+(t.omschrijving||"")).toLowerCase();
+    if (txt.includes("auto") || txt.includes("kenteken")) return "autos";
+    if (txt.includes("fiets")) return "fietsen";
+    if (txt.includes("kleding") || txt.includes("shirt") || txt.includes("broek") || txt.includes("trui") || txt.includes("schoen")) return "kleding";
+    return "woningen"; // meldingen + kamer/woning taken → woningen
+  }
+
+  const takenWoningen  = gefilterdetaken.filter(t=>catTaak(t)==="woningen");
+  const takenAutos     = gefilterdetaken.filter(t=>catTaak(t)==="autos");
+  const takenFietsen   = gefilterdetaken.filter(t=>catTaak(t)==="fietsen");
+
+  const nWoningen = gefilterdeMeldingen.length + takenWoningen.length;
+  const nAutos    = takenAutos.length;
+  const nFietsen  = takenFietsen.length;
+
   const subTabs = [
-    { id:"overzicht", label:`📋 Overzicht (${openCount})` },
-    ...(isCollega ? [{ id:"nieuw", label:"+ Nieuwe melding/taak" }] : []),
+    { id:"woningen",  label:`🏠 Woningen${nWoningen>0?` (${nWoningen})`:""}` },
+    { id:"autos",     label:`🚗 Auto's${nAutos>0?` (${nAutos})`:""}` },
+    { id:"fietsen",   label:`🚲 Fietsen${nFietsen>0?` (${nFietsen})`:""}` },
+    { id:"kleding",   label:"👕 Kleding" },
+    ...(isCollega ? [{ id:"nieuw", label:"+ Nieuwe melding" }] : []),
     ...(isBackoffice || isHuismeester ? [{ id:"nieuw_taak", label:"+ Taak toevoegen" }] : []),
-    { id:"kleding", label:"👕 Kleding uitgifte" },
   ];
 
   return (
@@ -2577,7 +2596,8 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
       </div>
 
       {/* Filters + zoek + sorteer */}
-      {subTab === "overzicht" && (
+      {/* Filter + zoek (gedeeld voor categorietabs) */}
+      {["woningen","autos","fietsen"].includes(subTab) && (
         <div style={{marginBottom:16}}>
           <div style={{display:"flex",gap:6,marginBottom:10,flexWrap:"wrap",alignItems:"center"}}>
             {[["open",vertaal("open",taal)],["gedaan",vertaal("afgehandeld",taal)],["alle",vertaal("alle",taal)]].map(([v,l])=>(
@@ -2586,30 +2606,20 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
                 {l}
               </button>
             ))}
-          </div>
-          <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
             <input value={zoek} onChange={e=>setZoek(e.target.value)}
               placeholder={`🔍 ${vertaal("zoek_placeholder",taal)}`}
-              style={{flex:1,minWidth:200,background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"8px 14px",fontSize:13,outline:"none",fontFamily:"inherit"}}/>
-            <select value={sorteer} onChange={e=>setSorteer(e.target.value)}
-              style={{background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"8px 14px",fontSize:13,outline:"none",fontFamily:"inherit",cursor:"pointer"}}>
-              <option value="datum_nieuw">{`📅 ${vertaal("nieuwste_eerst",taal)}`}</option>
-              <option value="datum_oud">{`📅 ${vertaal("oudste_eerst",taal)}`}</option>
-              <option value="naam">{`🔤 ${vertaal("op_naam",taal)}`}</option>
-              <option value="prioriteit">{`🔴 ${vertaal("op_prioriteit",taal)}`}</option>
-            </select>
+              style={{marginLeft:"auto",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"7px 14px",fontSize:13,outline:"none",fontFamily:"inherit",minWidth:200}}/>
           </div>
         </div>
       )}
 
-      {/* Overzicht */}
-      {subTab === "overzicht" && (
+      {/* 🏠 WONINGEN */}
+      {subTab === "woningen" && (
         <div>
-          {/* Meldingen sectie */}
           {gefilterdeMeldingen.length > 0 && (
             <div style={{marginBottom:24}}>
               <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:10}}>
-                📬 Meldingen ({gefilterdeMeldingen.length}){zoek&&relevanteMeldingen.length!==gefilterdeMeldingen.length&&<span style={{color:C.muted,fontWeight:400}}> — {relevanteMeldingen.length} totaal</span>}
+                📬 Meldingen ({gefilterdeMeldingen.length})
               </div>
               {gefilterdeMeldingen.map(m => (
                 <MeldingKaartCombined key={m.id} melding={m} houses={houses} gebruiker={gebruiker}
@@ -2618,35 +2628,51 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
               ))}
             </div>
           )}
-
-          {/* Taken sectie */}
-          {gefilterdetaken.length > 0 && (
+          {takenWoningen.length > 0 && (
             <div>
               <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:10}}>
-                🔧 Taken ({gefilterdetaken.length}){zoek&&relevanteTaken.length!==gefilterdetaken.length&&<span style={{color:C.muted,fontWeight:400}}> — {relevanteTaken.length} totaal</span>}
+                🔧 Taken ({takenWoningen.length})
               </div>
-              <TakenView taken={gefilterdetaken} houses={houses} gebruiker={gebruiker} onAdd={onAddTaak} onUpdate={onUpdateTaak} showToast={showToast} inlineMode/>
+              <TakenView taken={takenWoningen} houses={houses} gebruiker={gebruiker} onAdd={onAddTaak} onUpdate={onUpdateTaak} showToast={showToast} inlineMode/>
             </div>
           )}
-
-          {gefilterdeMeldingen.length === 0 && gefilterdetaken.length === 0 && (
-            <div style={{textAlign:"center",padding:"60px",color:C.muted}}>
-              <div style={{fontSize:40,marginBottom:10}}>🎉</div>
-              <div>Alles afgehandeld!</div>
-            </div>
+          {gefilterdeMeldingen.length===0 && takenWoningen.length===0 && (
+            <div style={{textAlign:"center",padding:"60px",color:C.muted}}><div style={{fontSize:40,marginBottom:10}}>🎉</div><div>Niets openstaand!</div></div>
           )}
         </div>
       )}
 
+      {/* 🚗 AUTO'S */}
+      {subTab === "autos" && (
+        <div>
+          {takenAutos.length > 0
+            ? <TakenView taken={takenAutos} houses={houses} gebruiker={gebruiker} onAdd={onAddTaak} onUpdate={onUpdateTaak} showToast={showToast} inlineMode/>
+            : <div style={{textAlign:"center",padding:"60px",color:C.muted}}><div style={{fontSize:40,marginBottom:10}}>🚗</div><div>Geen auto-taken openstaand</div></div>
+          }
+        </div>
+      )}
+
+      {/* 🚲 FIETSEN */}
+      {subTab === "fietsen" && (
+        <div>
+          {takenFietsen.length > 0
+            ? <TakenView taken={takenFietsen} houses={houses} gebruiker={gebruiker} onAdd={onAddTaak} onUpdate={onUpdateTaak} showToast={showToast} inlineMode/>
+            : <div style={{textAlign:"center",padding:"60px",color:C.muted}}><div style={{fontSize:40,marginBottom:10}}>🚲</div><div>Geen fiets-taken openstaand</div></div>
+          }
+        </div>
+      )}
+
+      {/* 👕 KLEDING */}
+      {subTab === "kleding" && <KledingUitgifteTabInTaken gebruiker={gebruiker} showToast={showToast}/>}
+
       {/* Nieuwe melding (collega) */}
       {subTab === "nieuw" && isCollega && (
-        <MeldingForm houses={houses} onSubmit={async(d)=>{ await onAddMelding(d); setSubTab("overzicht"); }} showToast={showToast} taal={taal}/>
+        <MeldingForm houses={houses} onSubmit={async(d)=>{ await onAddMelding(d); setSubTab("woningen"); }} showToast={showToast} taal={taal}/>
       )}
 
       {/* Nieuwe taak (backoffice/huismeester) */}
-      {subTab === "kleding" && <KledingUitgifteTabInTaken gebruiker={gebruiker} showToast={showToast}/>}
       {subTab === "nieuw_taak" && (isBackoffice || isHuismeester) && (
-        <NieuwesTaakForm houses={houses} gebruiker={gebruiker} onAdd={async(d)=>{ await onAddTaak(d); setSubTab("overzicht"); showToast("✓ Taak toegevoegd"); }} showToast={showToast}/>
+        <NieuwesTaakForm houses={houses} gebruiker={gebruiker} onAdd={async(d)=>{ await onAddTaak(d); setSubTab("woningen"); showToast("✓ Taak toegevoegd"); }} showToast={showToast}/>
       )}
     </div>
   );
