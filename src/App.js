@@ -1372,31 +1372,45 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
                 ? <div style={{fontSize:13,color:C.muted,fontStyle:"italic"}}>Geen kleding geregistreerd</div>
                 : (() => {
                   // Groepeer per type+maat - toon totaal ontvangen
-                  const totalen = {};
-                  data.kledingHistorie.filter(t=>t.actie==="uitgifte").forEach(t => {
+                  // Bereken nettosaldo per artikel (uitgifte - inname)
+                  const netto = {};
+                  data.kledingHistorie.forEach(t => {
                     const key = `${t.type}||${t.maat}||${t.vestiging}`;
-                    totalen[key] = (totalen[key]||0) + t.aantal;
+                    if (!netto[key]) netto[key] = { type:t.type, maat:t.maat, vest:t.vestiging, uitgifte:0, inname:0 };
+                    if (t.actie==="uitgifte") netto[key].uitgifte += t.aantal;
+                    if (t.actie==="inname")   netto[key].inname  += t.aantal;
                   });
-                  const items = Object.entries(totalen).map(([k,n])=>{const [type,maat,vest]=k.split("||");return{type,maat,vest,aantal:n};}).sort((a,b)=>a.type.localeCompare(b.type));
+                  const items = Object.values(netto).filter(i=>i.uitgifte>0||i.inname>0).sort((a,b)=>a.type.localeCompare(b.type));
+                  const heeftNog = items.filter(i=>(i.uitgifte-i.inname)>0);
                   return (
                     <div>
+                      {heeftNog.length>0&&<div style={{fontSize:11,fontWeight:700,color:"#0891b2",marginBottom:8}}>
+                        In bezit: {heeftNog.map(i=>`${i.uitgifte-i.inname}x ${i.type} ${i.maat}`).join(", ")}
+                      </div>}
                       <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
                         <thead><tr style={{borderBottom:`1px solid ${C.border}`}}>
                           <th style={{textAlign:"left",padding:"4px 0",color:C.muted,fontWeight:600}}>Type</th>
                           <th style={{textAlign:"left",padding:"4px 4px",color:C.muted,fontWeight:600}}>Maat</th>
-                          <th style={{textAlign:"center",padding:"4px 4px",color:C.muted,fontWeight:600}}>Stuks</th>
-                          <th style={{textAlign:"left",padding:"4px 4px",color:C.muted,fontWeight:600}}>Vestiging</th>
+                          <th style={{textAlign:"center",padding:"4px 4px",color:C.muted,fontWeight:600}}>Uit</th>
+                          <th style={{textAlign:"center",padding:"4px 4px",color:C.muted,fontWeight:600}}>In</th>
+                          <th style={{textAlign:"center",padding:"4px 4px",color:C.muted,fontWeight:600}}>Saldo</th>
+                          <th style={{textAlign:"left",padding:"4px 4px",color:C.muted,fontWeight:600}}>Vest.</th>
                         </tr></thead>
-                        <tbody>{items.map((item,i)=>(
-                          <tr key={i} style={{borderBottom:`1px solid ${C.border}`}}>
+                        <tbody>{items.map((item,i)=>{
+                          const saldo = item.uitgifte - item.inname;
+                          return (
+                          <tr key={i} style={{borderBottom:`1px solid ${C.border}`,background:saldo>0?"white":"#f0fdf4"}}>
                             <td style={{padding:"5px 0",fontWeight:600}}>{item.type}</td>
                             <td style={{padding:"5px 4px",color:C.muted}}>{item.maat}</td>
-                            <td style={{padding:"5px 4px",textAlign:"center",fontWeight:800,color:"#0891b2"}}>{item.aantal}x</td>
+                            <td style={{padding:"5px 4px",textAlign:"center",color:"#0891b2",fontWeight:700}}>{item.uitgifte>0?`${item.uitgifte}x`:"-"}</td>
+                            <td style={{padding:"5px 4px",textAlign:"center",color:"#16a34a",fontWeight:700}}>{item.inname>0?`${item.inname}x`:"-"}</td>
+                            <td style={{padding:"5px 4px",textAlign:"center",fontWeight:800,color:saldo>0?"#0891b2":C.groen}}>{saldo}x</td>
                             <td style={{padding:"5px 4px",fontSize:11,color:C.muted}}>{item.vest}</td>
                           </tr>
-                        ))}</tbody>
+                          );
+                        })}</tbody>
                       </table>
-                      <div style={{fontSize:11,color:C.muted,marginTop:8}}>Laatste uitgifte: {fmtDate(data.kledingHistorie[0]?.created_at)}</div>
+                      <div style={{fontSize:11,color:C.muted,marginTop:6}}>Laatste registratie: {fmtDate(data.kledingHistorie[0]?.created_at)}</div>
                     </div>
                   );
                 })()
@@ -2435,20 +2449,26 @@ function KledingUitgifteTabInTaken({ gebruiker, showToast }) {
       .then(({data}) => { setVoorraad(data||[]); setLoading(false); });
   }, []);
 
-  async function registreerUitgifte(vestiging, type, maat, aantal, opmerking, medewerkerNaam) {
+  async function registreerUitgifte(vestiging, type, maat, aantal, opmerking, medewerkerNaam, actie="uitgifte") {
     const item = voorraad.find(v=>v.vestiging===vestiging&&v.type===type&&v.maat===maat);
     if (!item) { showToast("Artikel niet gevonden","err"); return false; }
-    if (item.aantal < aantal) { showToast(`Onvoldoende voorraad — nog ${item.aantal} beschikbaar`,"err"); return false; }
+    if (actie==="uitgifte" && item.aantal < aantal) {
+      showToast(`Onvoldoende voorraad — nog ${item.aantal} beschikbaar`,"err"); return false;
+    }
+    const nieuwAantal = actie==="uitgifte" ? item.aantal - aantal : item.aantal + aantal;
     const { error } = await supabase.from("kleding_voorraad")
-      .update({ aantal: item.aantal - aantal, updated_at: new Date().toISOString() }).eq("id", item.id);
+      .update({ aantal: nieuwAantal, updated_at: new Date().toISOString() }).eq("id", item.id);
     if (error) { showToast("Fout bij opslaan","err"); return false; }
     await supabase.from("kleding_transacties").insert([{
-      vestiging, type, maat, aantal, actie:"uitgifte",
+      vestiging, type, maat, aantal, actie,
       medewerker: medewerkerNaam || gebruiker.naam,
       opmerking: opmerking ? `${opmerking} (door: ${gebruiker.naam})` : `Ingevoerd door: ${gebruiker.naam}`
     }]);
-    setVoorraad(prev => prev.map(v => v.id===item.id ? {...v, aantal: v.aantal-aantal} : v));
-    showToast(`✓ ${aantal}x ${type} ${maat} uitgeschreven aan ${medewerkerNaam||gebruiker.naam}`);
+    setVoorraad(prev => prev.map(v => v.id===item.id ? {...v, aantal: nieuwAantal} : v));
+    const msg = actie==="uitgifte"
+      ? `✓ ${aantal}x ${type} ${maat} uitgegeven aan ${medewerkerNaam||gebruiker.naam}`
+      : `✓ ${aantal}x ${type} ${maat} ingenomen van ${medewerkerNaam||gebruiker.naam}`;
+    showToast(msg);
     return true;
   }
 

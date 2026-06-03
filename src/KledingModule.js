@@ -51,20 +51,26 @@ export function KledingModule({ gebruiker, showToast }) {
     return () => { supabase.removeChannel(s1); supabase.removeChannel(s2); };
   }, [loadVoorraad, loadTransacties]);
 
-  async function registreerUitgifte(vestiging, type, maat, aantal, opmerking, medewerkerNaam) {
+  async function registreerUitgifte(vestiging, type, maat, aantal, opmerking, medewerkerNaam, actie="uitgifte") {
     const item = voorraad.find(v=>v.vestiging===vestiging&&v.type===type&&v.maat===maat);
     if (!item) { showToast("Artikel niet gevonden","err"); return false; }
-    if (item.aantal < aantal) { showToast(`Onvoldoende voorraad — nog ${item.aantal} beschikbaar`,"err"); return false; }
+    if (actie==="uitgifte" && item.aantal < aantal) {
+      showToast(`Onvoldoende voorraad — nog ${item.aantal} beschikbaar`,"err"); return false;
+    }
+    const nieuwAantal = actie==="uitgifte" ? item.aantal - aantal : item.aantal + aantal;
     const { error: e1 } = await supabase.from("kleding_voorraad")
-      .update({ aantal: item.aantal - aantal, updated_at: new Date().toISOString() })
+      .update({ aantal: nieuwAantal, updated_at: new Date().toISOString() })
       .eq("id", item.id);
     if (e1) { showToast("Fout bij opslaan","err"); return false; }
     await supabase.from("kleding_transacties").insert([{
-      vestiging, type, maat, aantal, actie:"uitgifte",
+      vestiging, type, maat, aantal, actie,
       medewerker: medewerkerNaam || gebruiker.naam,
-      opmerking: opmerking ? `${opmerking} (ingevoerd door: ${gebruiker.naam})` : `Ingevoerd door: ${gebruiker.naam}`
+      opmerking: opmerking ? `${opmerking} (door: ${gebruiker.naam})` : `Ingevoerd door: ${gebruiker.naam}`
     }]);
-    showToast(`✓ ${aantal}x ${type} ${maat} uitgeschreven aan ${medewerkerNaam||gebruiker.naam}`);
+    const msg = actie==="uitgifte"
+      ? `✓ ${aantal}x ${type} ${maat} uitgegeven aan ${medewerkerNaam||gebruiker.naam}`
+      : `✓ ${aantal}x ${type} ${maat} ingenomen van ${medewerkerNaam||gebruiker.naam}`;
+    showToast(msg);
     return true;
   }
 
@@ -230,6 +236,7 @@ export function KledingUitgifteInline({ voorraad, gebruiker, onSubmit, showToast
 
 function UitgifteForm({ voorraad, gebruiker, onSubmit, showToast }) {
   const [vestiging, setVestiging] = useState(gebruiker?.vestiging||"Enschede");
+  const [actie, setActie] = useState("uitgifte");
   const [type, setType] = useState("");
   const [maat, setMaat] = useState("");
   const [aantal, setAantal] = useState(1);
@@ -245,7 +252,7 @@ function UitgifteForm({ voorraad, gebruiker, onSubmit, showToast }) {
     if (!type||!maat||aantal<1) { showToast("Vul alle velden in","err"); return; }
     if (!medewerkerNaam.trim()) { showToast("Vul de naam van de medewerker in","err"); return; }
     setSaving(true);
-    const ok = await onSubmit(vestiging, type, maat, aantal, opmerking, medewerkerNaam.trim());
+    const ok = await onSubmit(vestiging, type, maat, aantal, opmerking, medewerkerNaam.trim(), actie);
     setSaving(false);
     if (ok) { setType(""); setMaat(""); setAantal(1); setOpmerking(""); setMedewerkerNaam(""); }
   }
@@ -257,6 +264,25 @@ function UitgifteForm({ voorraad, gebruiker, onSubmit, showToast }) {
       <div style={{background:"white",border:`1px solid ${C.border}`,borderRadius:14,padding:28}}>
         <h3 style={{fontSize:16,fontWeight:800,color:C.blauw,marginBottom:4}}>📤 Kleding uitschrijven</h3>
         <p style={{fontSize:13,color:C.muted,marginBottom:20}}>Geef door welke kleding je hebt meegenomen.</p>
+
+        {/* Uitgifte / Inname toggle */}
+        <div style={{marginBottom:20}}>
+          <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:8,display:"block"}}>Actie *</label>
+          <div style={{display:"flex",gap:8}}>
+            <button onClick={()=>setActie("uitgifte")}
+              style={{flex:1,padding:"12px",border:`2px solid ${actie==="uitgifte"?C.groen:C.border}`,borderRadius:10,
+                background:actie==="uitgifte"?"#f0fdf4":"white",cursor:"pointer",fontFamily:"inherit",
+                color:actie==="uitgifte"?C.groen:C.muted,fontWeight:700,fontSize:13}}>
+              📤 Uitgifte<br/><span style={{fontSize:11,fontWeight:400}}>Kleding meegeven</span>
+            </button>
+            <button onClick={()=>setActie("inname")}
+              style={{flex:1,padding:"12px",border:`2px solid ${actie==="inname"?"#6366f1":C.border}`,borderRadius:10,
+                background:actie==="inname"?"#eef2ff":"white",cursor:"pointer",fontFamily:"inherit",
+                color:actie==="inname"?"#6366f1":C.muted,fontWeight:700,fontSize:13}}>
+              📥 Inname<br/><span style={{fontSize:11,fontWeight:400}}>Kleding terugkrijgen</span>
+            </button>
+          </div>
+        </div>
 
         <div style={{marginBottom:14}}>
           <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Vestiging</label>
@@ -326,8 +352,8 @@ function UitgifteForm({ voorraad, gebruiker, onSubmit, showToast }) {
               <input value={opmerking} onChange={e=>setOpmerking(e.target.value)} placeholder="Bijv. voor nieuwe medewerker" style={inp}/>
             </div>
             <button onClick={submit} disabled={saving}
-              style={{background:C.groen,color:"white",border:"none",borderRadius:8,padding:"12px 28px",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit",width:"100%"}}>
-              {saving?"⏳ Opslaan...":"📤 Uitschrijven"}
+              style={{background:actie==="uitgifte"?C.groen:"#6366f1",color:"white",border:"none",borderRadius:8,padding:"12px 28px",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit",width:"100%"}}>
+              {saving?"⏳ Opslaan...":actie==="uitgifte"?"📤 Uitgifte registreren":"📥 Inname registreren"}
             </button>
           </>
         )}
