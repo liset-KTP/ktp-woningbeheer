@@ -2478,6 +2478,192 @@ function KledingUitgifteTabInTaken({ gebruiker, showToast }) {
 }
 
 
+
+// ─── AUTO TAB INLINE (in Taken & Meldingen) ───────────────────────────────────
+function AutoTabInTaken({ gebruiker, showToast }) {
+  const [autos, setAutos] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [actie, setActie] = useState("uitgifte");
+  const [kenteken, setKenteken] = useState("");
+  const [naam, setNaam] = useState("");
+  const [omschrijving, setOmschrijving] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(()=>{
+    supabase.from("autos").select("*").order("status").order("kenteken")
+      .then(({data})=>{ setAutos(data||[]); setLoading(false); });
+  },[]);
+
+  const acties = [
+    {id:"uitgifte", icon:"🚗", label:"Uitgifte", kleur:C.groen},
+    {id:"inname",   icon:"🔑", label:"Inname",   kleur:C.blauw},
+    {id:"storing",  icon:"🔧", label:"Storing",  kleur:"#f59e0b"},
+  ];
+
+  async function submit() {
+    if (!kenteken) { showToast("Selecteer een auto","err"); return; }
+    if (actie !== "storing" && !naam.trim()) { showToast("Vul de naam van de medewerker in","err"); return; }
+    setSaving(true);
+    const auto = autos.find(a=>a.kenteken===kenteken);
+    const nieuweStatus = actie==="uitgifte"?"Lopend":actie==="inname"?"Beschikbaar":auto?.status||"Lopend";
+    const updates = { status: nieuweStatus };
+    if (actie==="uitgifte") { updates.naam_medewerker = naam.trim(); updates.datum_uitgifte = new Date().toISOString().slice(0,10); }
+    if (actie==="inname")   { updates.naam_medewerker = null; }
+
+    // Update auto
+    if (actie !== "storing") {
+      await supabase.from("autos").update(updates).eq("kenteken", kenteken);
+    }
+    // Log melding
+    await supabase.from("auto_meldingen").insert([{
+      kenteken, actie,
+      naam_medewerker: naam.trim() || auto?.naam_medewerker || "",
+      omschrijving: omschrijving || null,
+      ingediend_door: gebruiker.naam,
+      status: actie==="storing" ? "open" : "afgehandeld",
+    }]);
+
+    showToast(`✓ ${acties.find(a=>a.id===actie)?.label} geregistreerd — ${kenteken}`);
+    setSaving(false);
+    setKenteken(""); setNaam(""); setOmschrijving("");
+  }
+
+  if (loading) return <div style={{padding:40,textAlign:"center",color:C.muted}}>Auto's laden...</div>;
+
+  const inp = {width:"100%",border:`1.5px solid ${C.border}`,borderRadius:8,padding:"10px 14px",fontSize:14,fontFamily:"inherit",color:C.text,background:"white",outline:"none",boxSizing:"border-box"};
+  const geselecteerd = autos.find(a=>a.kenteken===kenteken);
+
+  return (
+    <div style={{maxWidth:520}}>
+      <div style={{background:"white",border:`1px solid ${C.border}`,borderRadius:14,padding:24}}>
+        <h3 style={{fontSize:15,fontWeight:800,color:C.blauw,marginBottom:16}}>🚗 Auto melding indienen</h3>
+
+        {/* Actie */}
+        <div style={{display:"flex",gap:8,marginBottom:16}}>
+          {acties.map(a=>(
+            <button key={a.id} onClick={()=>setActie(a.id)}
+              style={{flex:1,padding:"10px 6px",border:`2px solid ${actie===a.id?a.kleur:C.border}`,borderRadius:8,
+                background:actie===a.id?a.kleur+"18":"white",color:actie===a.id?a.kleur:C.muted,
+                fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>
+              {a.icon}<br/>{a.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Kenteken */}
+        <div style={{marginBottom:14}}>
+          <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Auto *</label>
+          <select value={kenteken} onChange={e=>setKenteken(e.target.value)} style={inp}>
+            <option value="">— Selecteer auto —</option>
+            {autos.map(a=>(
+              <option key={a.kenteken} value={a.kenteken}>
+                {a.kenteken} — {a.merk_model||""} [{a.status}]{a.naam_medewerker?" ("+a.naam_medewerker+")":""}
+              </option>
+            ))}
+          </select>
+          {geselecteerd && (
+            <div style={{fontSize:12,color:C.muted,marginTop:4,padding:"4px 8px",background:C.bg,borderRadius:6}}>
+              Huidig: <strong>{geselecteerd.status}</strong>{geselecteerd.naam_medewerker?" · "+geselecteerd.naam_medewerker:""}
+            </div>
+          )}
+        </div>
+
+        {/* Naam (niet bij storing) */}
+        {actie !== "storing" && (
+          <div style={{marginBottom:14}}>
+            <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>
+              {actie==="uitgifte"?"Naam medewerker (krijgt auto) *":"Naam medewerker (geeft auto terug) *"}
+            </label>
+            <input value={naam} onChange={e=>setNaam(e.target.value)} placeholder="Voor- en achternaam" style={inp}/>
+          </div>
+        )}
+
+        {/* Omschrijving */}
+        <div style={{marginBottom:18}}>
+          <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>
+            {actie==="storing"?"Omschrijving storing *":"Opmerking (optioneel)"}
+          </label>
+          <input value={omschrijving} onChange={e=>setOmschrijving(e.target.value)}
+            placeholder={actie==="storing"?"Beschrijf het probleem...":"Optioneel"} style={inp}/>
+        </div>
+
+        <button onClick={submit} disabled={saving||!kenteken}
+          style={{background:kenteken?(acties.find(a=>a.id===actie)?.kleur||C.blauw):"#d1dbe8",color:"white",border:"none",
+            borderRadius:8,padding:"12px",fontSize:14,fontWeight:700,cursor:kenteken&&!saving?"pointer":"not-allowed",fontFamily:"inherit",width:"100%"}}>
+          {saving?"⏳ Bezig...":acties.find(a=>a.id===actie)?.icon+" "+acties.find(a=>a.id===actie)?.label+" registreren"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── FIETS TAB INLINE (in Taken & Meldingen) ──────────────────────────────────
+function FietsTabInTaken({ gebruiker, houses, showToast, onAddMelding }) {
+  const [actie, setActie] = useState("melding");
+  const [omschrijving, setOmschrijving] = useState("");
+  const [huisId, setHuisId] = useState("");
+  const [kamer, setKamer] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  async function submit() {
+    if (!omschrijving.trim()) { showToast("Vul een omschrijving in","err"); return; }
+    setSaving(true);
+    await onAddMelding({
+      type: "overig",
+      medewerker: gebruiker.naam,
+      opmerkingen: "🚲 Fiets: " + omschrijving.trim(),
+      voor_rol: "backoffice",
+      huisId: huisId || null,
+      kamer: kamer || null,
+      datum: new Date().toISOString().slice(0,10),
+    });
+    showToast("✓ Fietsmelding ingediend");
+    setSaving(false);
+    setOmschrijving(""); setHuisId(""); setKamer("");
+  }
+
+  const inp = {width:"100%",border:`1.5px solid ${C.border}`,borderRadius:8,padding:"10px 14px",fontSize:14,fontFamily:"inherit",color:C.text,background:"white",outline:"none",boxSizing:"border-box"};
+  const kamers = houses.find(h=>h.id===+huisId)?.kamers||[];
+
+  return (
+    <div style={{maxWidth:520}}>
+      <div style={{background:"white",border:`1px solid ${C.border}`,borderRadius:14,padding:24}}>
+        <h3 style={{fontSize:15,fontWeight:800,color:C.blauw,marginBottom:4}}>🚲 Fietsmelding indienen</h3>
+        <p style={{fontSize:13,color:C.muted,marginBottom:16}}>Meld een probleem, schade of vraag over een fiets.</p>
+
+        <div style={{marginBottom:14}}>
+          <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Omschrijving *</label>
+          <input value={omschrijving} onChange={e=>setOmschrijving(e.target.value)}
+            placeholder="Bijv. band lek, fiets kwijt, slot defect..." style={inp}/>
+        </div>
+
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:18}}>
+          <div>
+            <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Woning (optioneel)</label>
+            <select value={huisId} onChange={e=>{setHuisId(e.target.value);setKamer("");}} style={inp}>
+              <option value="">— Selecteer woning —</option>
+              {houses.map(h=><option key={h.id} value={h.id}>{h.adres}, {h.stad}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Kamer (optioneel)</label>
+            <select value={kamer} onChange={e=>setKamer(e.target.value)} style={inp} disabled={!huisId}>
+              <option value="">— Kamer —</option>
+              {kamers.map(k=><option key={k.k} value={k.k}>K{k.k}{k.naam?" — "+k.naam:""}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <button onClick={submit} disabled={saving||!omschrijving.trim()}
+          style={{background:omschrijving.trim()?C.blauw:"#d1dbe8",color:"white",border:"none",
+            borderRadius:8,padding:"12px",fontSize:14,fontWeight:700,cursor:omschrijving.trim()&&!saving?"pointer":"not-allowed",fontFamily:"inherit",width:"100%"}}>
+          {saving?"⏳ Bezig...":"🚲 Fietsmelding indienen"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── RESERVERING ANNULEREN ────────────────────────────────────────────────────
 function ReserveringAnnuleren({ houses, meldingen, gebruiker, onUpdateWoning, onUpdateMelding, showToast, onTerug }) {
   const [bezig, setBezig] = useState(null);
@@ -2764,21 +2950,33 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
 
       {/* 🚗 AUTO'S */}
       {subTab === "autos" && (
-        <div>
-          {takenAutos.length > 0
-            ? <TakenView taken={takenAutos} houses={houses} gebruiker={gebruiker} onAdd={onAddTaak} onUpdate={onUpdateTaak} showToast={showToast} inlineMode/>
-            : <div style={{textAlign:"center",padding:"40px",color:C.muted}}><div style={{fontSize:40,marginBottom:10}}>🚗</div><div>Geen auto-taken openstaand</div></div>
-          }
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20,alignItems:"start"}}>
+          <AutoTabInTaken gebruiker={gebruiker} showToast={showToast}/>
+          <div>
+            {takenAutos.length > 0 && (
+              <>
+                <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:10}}>Openstaande taken ({takenAutos.length})</div>
+                <TakenView taken={takenAutos} houses={houses} gebruiker={gebruiker} onAdd={onAddTaak} onUpdate={onUpdateTaak} showToast={showToast} inlineMode/>
+              </>
+            )}
+            {takenAutos.length===0&&<div style={{textAlign:"center",padding:"40px",color:C.muted}}><div style={{fontSize:36,marginBottom:8}}>🚗</div><div>Geen openstaande auto-taken</div></div>}
+          </div>
         </div>
       )}
 
       {/* 🚲 FIETSEN */}
       {subTab === "fietsen" && (
-        <div>
-          {takenFietsen.length > 0
-            ? <TakenView taken={takenFietsen} houses={houses} gebruiker={gebruiker} onAdd={onAddTaak} onUpdate={onUpdateTaak} showToast={showToast} inlineMode/>
-            : <div style={{textAlign:"center",padding:"40px",color:C.muted}}><div style={{fontSize:40,marginBottom:10}}>🚲</div><div>Geen fiets-taken openstaand</div></div>
-          }
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20,alignItems:"start"}}>
+          <FietsTabInTaken gebruiker={gebruiker} houses={houses} showToast={showToast} onAddMelding={onAddMelding}/>
+          <div>
+            {takenFietsen.length > 0 && (
+              <>
+                <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:10}}>Openstaande taken ({takenFietsen.length})</div>
+                <TakenView taken={takenFietsen} houses={houses} gebruiker={gebruiker} onAdd={onAddTaak} onUpdate={onUpdateTaak} showToast={showToast} inlineMode/>
+              </>
+            )}
+            {takenFietsen.length===0&&<div style={{textAlign:"center",padding:"40px",color:C.muted}}><div style={{fontSize:36,marginBottom:8}}>🚲</div><div>Geen openstaande fiets-taken</div></div>}
+          </div>
         </div>
       )}
 
