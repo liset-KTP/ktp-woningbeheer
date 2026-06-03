@@ -910,7 +910,7 @@ function App() {
       {/* CONTENT */}
       <div style={{maxWidth:1400,margin:"0 auto",padding:"20px 12px"}}>
         {rol==="backoffice"&&tab==="dashboard"&&<DashboardView houses={houses} meldingen={meldingen} taken={taken} gebruikers={gebruikers} activiteiten={activiteiten}/>}
-        {tab==="taken"&&<TakenMeldingenView taken={taken} meldingen={meldingen} houses={houses} gebruiker={gebruiker} onAddTaak={addTaak} onUpdateTaak={updateTaak} onAddMelding={addMelding} onUpdateMelding={updateMeldingStatus} showToast={showToast} taal={taal}/>}
+        {tab==="taken"&&<TakenMeldingenView taken={taken} meldingen={meldingen} houses={houses} gebruiker={gebruiker} onAddTaak={addTaak} onUpdateTaak={updateTaak} onAddMelding={addMelding} onUpdateMelding={updateMeldingStatus} onUpdateWoning={updateWoning} showToast={showToast} taal={taal}/>}
         {tab==="woningen"&&<WoningenDetail houses={houses} onUpdateWoning={rol==="backoffice"||rol==="huismeester"?updateWoning:null}/>}
         {tab==="autos"&&<AutoModule gebruiker={gebruiker} showToast={showToast}/>}
         {tab==="fietsen"&&<FietsModule gebruiker={gebruiker} showToast={showToast} houses={houses} onMeldingIndienen={addMelding}/>}
@@ -2477,7 +2477,101 @@ function KledingUitgifteTabInTaken({ gebruiker, showToast }) {
   return <KledingUitgifteInline voorraad={voorraad} gebruiker={gebruiker} onSubmit={registreerUitgifte} showToast={showToast}/>;
 }
 
-function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, onUpdateTaak, onAddMelding, onUpdateMelding, showToast, taal="nl" }) {
+
+// ─── RESERVERING ANNULEREN ────────────────────────────────────────────────────
+function ReserveringAnnuleren({ houses, meldingen, gebruiker, onUpdateWoning, onUpdateMelding, showToast, onTerug }) {
+  const [bezig, setBezig] = useState(null);
+
+  // Verzamel alle gereserveerde kamers
+  const reserveringen = [];
+  houses.forEach(huis => {
+    (huis.kamers||[]).forEach(kamer => {
+      if (kamer.status === "Gereserveerd") {
+        // Zoek bijbehorende open reservering-melding
+        const melding = meldingen.find(m =>
+          m.type === "reservering" &&
+          m.woning_id === huis.id &&
+          m.kamer === kamer.k &&
+          (m.status === "open" || m.status === "in_behandeling")
+        );
+        reserveringen.push({ huis, kamer, melding });
+      }
+    });
+  });
+
+  async function annuleer({ huis, kamer, melding }) {
+    setBezig(huis.id + "-" + kamer.k);
+    // 1. Zet kamerstatus terug naar Beschikbaar
+    const nieuweKamers = huis.kamers.map(k =>
+      k.k === kamer.k ? { ...k, status: "Beschikbaar", naam: "", bedrijf: "" } : k
+    );
+    const ok = await onUpdateWoning(huis.id, { kamers: nieuweKamers });
+    if (!ok) { setBezig(null); return; }
+
+    // 2. Sluit bijbehorende melding af indien aanwezig
+    if (melding) {
+      await onUpdateMelding(melding.id, "geannuleerd", gebruiker.naam, "Reservering geannuleerd");
+    }
+
+    showToast(`✓ Reservering van ${kamer.naam||"?"} in K${kamer.k} geannuleerd`);
+    setBezig(null);
+  }
+
+  return (
+    <div style={{maxWidth:680}}>
+      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
+        <button onClick={onTerug}
+          style={{background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,padding:"7px 14px",fontSize:13,cursor:"pointer",fontFamily:"inherit",color:C.muted}}>
+          ← Terug
+        </button>
+        <h3 style={{fontSize:16,fontWeight:800,color:C.blauw,margin:0}}>📅 Reservering annuleren</h3>
+      </div>
+
+      {reserveringen.length === 0 ? (
+        <div style={{textAlign:"center",padding:60,color:C.muted}}>
+          <div style={{fontSize:40,marginBottom:12}}>📅</div>
+          <div style={{fontWeight:700,fontSize:15}}>Geen reserveringen gevonden</div>
+          <div style={{fontSize:13,marginTop:6}}>Er zijn momenteel geen gereserveerde kamers.</div>
+        </div>
+      ) : (
+        <div style={{display:"grid",gap:12}}>
+          {reserveringen.map(({huis, kamer, melding}) => {
+            const key = huis.id + "-" + kamer.k;
+            const isBezig = bezig === key;
+            return (
+              <div key={key} style={{background:"white",border:"1.5px solid #fde68a",borderLeft:"4px solid #f59e0b",borderRadius:12,padding:20,display:"flex",alignItems:"center",gap:16,flexWrap:"wrap"}}>
+                <div style={{flex:1,minWidth:200}}>
+                  <div style={{fontWeight:800,fontSize:14,color:C.text,marginBottom:4}}>
+                    {huis.adres}, {huis.stad} — Kamer {kamer.k}
+                  </div>
+                  <div style={{fontSize:13,color:C.muted}}>
+                    👤 {kamer.naam || "Naam onbekend"}
+                    {kamer.bedrijf && <span> · {kamer.bedrijf}</span>}
+                  </div>
+                  {melding?.datum && (
+                    <div style={{fontSize:12,color:"#b45309",marginTop:4}}>
+                      📅 Geplande aankomst: {new Date(melding.datum).toLocaleDateString("nl-NL")}
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={()=>annuleer({huis,kamer,melding})}
+                  disabled={!!bezig}
+                  style={{background:isBezig?"#fde68a":"#fef3c7",color:"#92400e",border:"2px solid #f59e0b",
+                    borderRadius:8,padding:"10px 20px",fontSize:13,fontWeight:700,
+                    cursor:bezig?"not-allowed":"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
+                  {isBezig ? "⏳ Bezig..." : "✕ Annuleer reservering"}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, onUpdateTaak, onAddMelding, onUpdateMelding, onUpdateWoning, showToast, taal="nl" }) {
   const rol = gebruiker?.rol;
   const isBackoffice = rol === "backoffice";
   const isHuismeester = rol === "huismeester";
@@ -2616,18 +2710,26 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
         <div>
           {/* Actieknop voor collega */}
           {isCollega && (
-            <div style={{marginBottom:16}}>
+            <div style={{marginBottom:16,display:"flex",gap:8,flexWrap:"wrap"}}>
               <button onClick={()=>setSubTab("nieuw")}
                 style={{background:C.blauw,color:"white",border:"none",borderRadius:8,padding:"10px 20px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
                 + Nieuwe melding indienen
               </button>
+              <button onClick={()=>setSubTab("annuleer")}
+                style={{background:"white",color:"#b45309",border:"2px solid #f59e0b",borderRadius:8,padding:"10px 20px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+                📅 Reservering annuleren
+              </button>
             </div>
           )}
           {(isBackoffice||isHuismeester) && (
-            <div style={{marginBottom:16}}>
+            <div style={{marginBottom:16,display:"flex",gap:8,flexWrap:"wrap"}}>
               <button onClick={()=>setSubTab("nieuw_taak")}
                 style={{background:C.blauw,color:"white",border:"none",borderRadius:8,padding:"10px 20px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
                 + Taak toevoegen
+              </button>
+              <button onClick={()=>setSubTab("annuleer")}
+                style={{background:"white",color:"#b45309",border:"2px solid #f59e0b",borderRadius:8,padding:"10px 20px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+                📅 Reservering annuleren
               </button>
             </div>
           )}
@@ -2691,6 +2793,19 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
       {/* Nieuwe taak (backoffice/huismeester) */}
       {subTab === "nieuw_taak" && (isBackoffice || isHuismeester) && (
         <NieuwesTaakForm houses={houses} gebruiker={gebruiker} onAdd={async(d)=>{ await onAddTaak(d); setSubTab("woningen"); showToast("✓ Taak toegevoegd"); }} showToast={showToast}/>
+      )}
+
+      {/* Reservering annuleren */}
+      {subTab === "annuleer" && (
+        <ReserveringAnnuleren
+          houses={houses}
+          meldingen={meldingen}
+          gebruiker={gebruiker}
+          onUpdateWoning={onUpdateWoning}
+          onUpdateMelding={onUpdateMelding}
+          showToast={showToast}
+          onTerug={()=>setSubTab("woningen")}
+        />
       )}
     </div>
   );
