@@ -22,6 +22,7 @@ const C = {
   groen:"#4A9B3C", groenDark:"#357a2b",
   bg:"#f0f4f8", card:"#ffffff", border:"#d1dbe8",
   text:"#1a2b47", muted:"#6b7a8d", rood:"#ef4444",
+  oranje:"#f97316", // ← toegevoegd
 };
 
 function fmtDate(d) {
@@ -473,7 +474,6 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerkin
         </div>
       )}
 
-      {/* Acties voor backoffice */}
       {/* Readonly: collega mag opmerking plaatsen */}
       {readonly && (
         <div style={{marginTop:12}}>
@@ -520,6 +520,7 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerkin
         </div>
       )}
 
+      {/* Acties voor backoffice */}
       {isBackoffice && !readonly && (
         <div>
           {toonExtraForm ? (
@@ -626,7 +627,7 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerkin
                       if(!stopDatum){showToast("Vul een einddatum in","err");return;}
                       await supabase.from("huurschulden").update({
                         einddatum: stopDatum,
-                        actief: true, // Blijft openstaand totdat alles betaald is
+                        actief: true,
                       }).eq("id",schuld.id);
                       showToast("✓ Einddatum ingesteld — huur stopt op "+fmtDate(new Date(stopDatum))+", schuld blijft open tot volledig betaald");
                       setToonStopzetten(false);
@@ -640,16 +641,19 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerkin
                   </div>
                 </div>
               ) : (
-                <button onClick={()=>{setToonStopzetten(true);setStopDatum(new Date().toISOString().slice(0,10));}}
-                  style={{background:"white",border:`1.5px solid ${C.oranje}`,color:C.oranje,borderRadius:8,padding:"9px 14px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                  🛑 Stopzetten
-                </button>
-                {openstaand === 0 && (
-                  <button onClick={()=>{ if(window.confirm(`Schuld van ${schuld.naam_medewerker} afsluiten? Alles is betaald.`)) onAfsluiten(schuld.id); }}
-                    style={{background:"#f0fdf4",border:`1.5px solid ${C.groen}`,color:C.groen,borderRadius:8,padding:"9px 14px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
-                    ✅ Afsluiten
+                // ─── FIX: fragment wrapper zodat twee buttons naast elkaar kunnen staan ───
+                <>
+                  <button onClick={()=>{setToonStopzetten(true);setStopDatum(new Date().toISOString().slice(0,10));}}
+                    style={{background:"white",border:`1.5px solid ${C.oranje}`,color:C.oranje,borderRadius:8,padding:"9px 14px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                    🛑 Stopzetten
                   </button>
-                )}
+                  {openstaand === 0 && (
+                    <button onClick={()=>{ if(window.confirm(`Schuld van ${schuld.naam_medewerker} afsluiten? Alles is betaald.`)) onAfsluiten(schuld.id); }}
+                      style={{background:"#f0fdf4",border:`1.5px solid ${C.groen}`,color:C.groen,borderRadius:8,padding:"9px 14px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+                      ✅ Afsluiten
+                    </button>
+                  )}
+                </>
               )}
             </div>
           )}
@@ -750,11 +754,11 @@ function BetalingsKalender({ betalingen, geselecteerdeDatum, onSelecteer }) {
               </div>
               {/* Tooltip */}
               {tooltip?.iso === iso && (
-                <div style={{position:"absolute",bottom:"110%",left:"50%",transform:"translateX(-50%)",background:C.dark,color:"white",borderRadius:8,padding:"6px 10px",fontSize:11,whiteSpace:"nowrap",zIndex:99,boxShadow:"0 4px 12px rgba(0,0,0,.2)",pointerEvents:"none"}}>
+                <div style={{position:"absolute",bottom:"110%",left:"50%",transform:"translateX(-50%)",background:C.blauwDark,color:"white",borderRadius:8,padding:"6px 10px",fontSize:11,whiteSpace:"nowrap",zIndex:99,boxShadow:"0 4px 12px rgba(0,0,0,.2)",pointerEvents:"none"}}>
                   {bets.map((b,bi) => (
                     <div key={bi}>💶 €{Number(b.bedrag).toFixed(2)} — {b.geregistreerd_door}</div>
                   ))}
-                  <div style={{position:"absolute",bottom:-5,left:"50%",transform:"translateX(-50%)",width:10,height:10,background:C.dark,borderRadius:2,transform:"translateX(-50%) rotate(45deg)"}}/>
+                  <div style={{position:"absolute",bottom:-5,left:"50%",width:10,height:10,background:C.blauwDark,borderRadius:2,transform:"translateX(-50%) rotate(45deg)"}}/>
                 </div>
               )}
             </div>
@@ -786,7 +790,6 @@ function NieuweSchuld({ onSubmit, showToast }) {
   const [beginsaldo, setBeginsaldo] = useState("");
   const [tariefType, setTariefType] = useState("standaard");
   const [tariefBedrag, setTariefBedrag] = useState("");
-  const [tariefDagen, setTariefDagen] = useState("7");
   const [saving, setSaving]       = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -863,4 +866,3 @@ function NieuweSchuld({ onSubmit, showToast }) {
     </div>
   );
 }
-
