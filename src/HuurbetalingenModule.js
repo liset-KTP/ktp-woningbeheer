@@ -403,9 +403,14 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerkin
         <div>
           <div style={{fontWeight:800,fontSize:17,color:C.text,marginBottom:4}}>
             {schuld.naam_medewerker}
-            {schuld.einddatum && schuld.actief && (
+            {schuld.einddatum && schuld.actief && openstaand > 0 && (
               <span style={{marginLeft:8,fontSize:11,fontWeight:700,background:"#fef2f2",color:"#ef4444",padding:"2px 8px",borderRadius:8,border:"1px solid #fecaca"}}>
                 🛑 Gestopt — schuld loopt nog
+              </span>
+            )}
+            {schuld.actief && openstaand === 0 && (
+              <span style={{marginLeft:8,fontSize:11,fontWeight:700,background:"#f0fdf4",color:C.groen,padding:"2px 8px",borderRadius:8,border:"1px solid #bbf7d0"}}>
+                ✅ Volledig betaald — klaar om af te sluiten
               </span>
             )}
           </div>
@@ -639,6 +644,12 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerkin
                   style={{background:"white",border:`1.5px solid ${C.oranje}`,color:C.oranje,borderRadius:8,padding:"9px 14px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
                   🛑 Stopzetten
                 </button>
+                {openstaand === 0 && (
+                  <button onClick={()=>{ if(window.confirm(`Schuld van ${schuld.naam_medewerker} afsluiten? Alles is betaald.`)) onAfsluiten(schuld.id); }}
+                    style={{background:"#f0fdf4",border:`1.5px solid ${C.groen}`,color:C.groen,borderRadius:8,padding:"9px 14px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+                    ✅ Afsluiten
+                  </button>
+                )}
               )}
             </div>
           )}
