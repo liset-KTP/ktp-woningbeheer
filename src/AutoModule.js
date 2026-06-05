@@ -748,11 +748,11 @@ function BoeteOpzoeken({ meldingen, autos }) {
       .filter(m => (m.kenteken||"").toUpperCase().replace(/\s/g,"") === zoekKenteken)
       .sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
 
-    const vÃ³Ã³rDatum = autoMeld.filter(m => new Date(m.created_at) <= zoekDatum);
-    const uitgiftes = vÃ³Ã³rDatum.filter(m => m.actie === "uitgifte");
-    const innames   = vÃ³Ã³rDatum.filter(m => m.actie === "inname");
+    const vóórDatum = autoMeld.filter(m => new Date(m.created_at) <= zoekDatum);
+    const uitgiftes = vóórDatum.filter(m => m.actie === "uitgifte");
+    const innames   = vóórDatum.filter(m => m.actie === "inname");
 
-    // STAP 1: Uitgifte-log gevonden vÃ³Ã³r de boetedatum
+    // STAP 1: Uitgifte-log gevonden vóór de boetedatum
     if (uitgiftes.length > 0) {
       const laagsteUitgifte = uitgiftes[uitgiftes.length - 1];
       const innameNa = innames.find(i => new Date(i.created_at) > new Date(laagsteUitgifte.created_at));
