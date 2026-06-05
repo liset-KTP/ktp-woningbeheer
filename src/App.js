@@ -283,7 +283,7 @@ function App() {
       kamer:m.kamer, wie_regelt:m.wieRegelt||null, sleutel_terug:m.sleutelTerug||null,
       kamer_schoon:m.kamerSchoon||null, sleutel_aantal:m.sleutelAantal||null,
       opmerkingen:m.opmerkingen||null, ingediend_door:gebruiker.naam, status:"open",
-      voor_rol:m.voor_rol||"backoffice",
+      voor_rol:m.voor_rol||"backoffice", van_woning_id:m.vanHuisId||null, van_kamer:m.vanKamer||null,
     }]);
     if (error) { showToast("Fout bij opslaan","err"); return; }
 
@@ -397,9 +397,18 @@ function App() {
         if (m.type==="reservering") return {...k,naam:m.medewerker,status:"Gereserveerd"};
         if (m.type==="vertrek") { return {...k,status:"Controle"}; } // Altijd Controle tot huismeester heeft afgevinkt
         if (m.type==="vertrek_aankondiging") { return {...k,status:"Gereserveerd"}; } // Aankondiging = gereserveerd
+        if (m.type==="verhuizing") { return {...k,naam:m.medewerker,status:"Gereserveerd"}; } // Naar-kamer reserveren
         return k;
       });
       await supabase.from("woningen").update({kamers:nk}).eq("id",m.huisId);
+    }
+    // Bij verhuizing: zet ook de van-kamer op Controle
+    if (m.type==="verhuizing" && m.vanHuisId) {
+      const vanHuisObj = houses.find(h=>h.id===m.vanHuisId);
+      if (vanHuisObj) {
+        const nkVan = vanHuisObj.kamers.map(k=>k.k===m.vanKamer?{...k,status:"Controle",naam:""}:k);
+        await supabase.from("woningen").update({kamers:nkVan}).eq("id",vanHuisObj.id);
+      }
     }
 
     // ── E-mail sturen ──────────────────────────────────────────────────────
@@ -675,6 +684,24 @@ function App() {
           await supabase.from("woningen").update({kamers:nk}).eq("id",huis.id);
           await loadHouses();
         }
+      }
+
+      // Als verhuizing verwerkt wordt: zet naar-kamer op Bezet en van-kamer op Controle
+      if ((newStatus==="verwerkt"||newStatus==="afgehandeld") && m?.type==="verhuizing") {
+        // Naar-kamer: Bezet met naam medewerker
+        if (huis && m.kamer) {
+          const nkNaar = huis.kamers.map(k=>k.k===m.kamer?{...k,naam:m.medewerker,status:"Bezet"}:k);
+          await supabase.from("woningen").update({kamers:nkNaar}).eq("id",huis.id);
+        }
+        // Van-kamer: Controle (opgeslagen in van_woning_id / van_kamer)
+        if (m.van_woning_id && m.van_kamer) {
+          const vanHuisObj = houses.find(h=>h.id===m.van_woning_id);
+          if (vanHuisObj) {
+            const nkVan = vanHuisObj.kamers.map(k=>k.k===m.van_kamer?{...k,status:"Controle",naam:""}:k);
+            await supabase.from("woningen").update({kamers:nkVan}).eq("id",vanHuisObj.id);
+          }
+        }
+        await loadHouses();
       }
     }
   }
