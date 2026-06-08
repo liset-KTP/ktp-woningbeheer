@@ -4529,7 +4529,7 @@ function HuismeesterPlanningView({ dagplanningDB, houses, taken=[], meldingen=[]
                     </div>
                     <div style={{height:3,background:"#f1f5f9"}}><div style={{height:3,width:pct+"%",background:barClr}}/></div>
                     <div style={{padding:"6px 0 8px"}}>
-                      {notFilled?(
+                      {notFilled&&filterMode!=='niet_gedaan'?(
                         <div style={{padding:"14px",textAlign:"center",color:"#94a3b8",fontSize:12,fontStyle:"italic"}}>Nog niet ingevuld door Cristian</div>
                       ):isLegacy?(
                         <div>
