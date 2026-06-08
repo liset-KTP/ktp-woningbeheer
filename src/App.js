@@ -1094,7 +1094,7 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
         supabase.from("auto_meldingen").select("*").eq("naam_medewerker", naam).order("created_at",{ascending:false}).limit(5),
         supabase.from("activiteiten").select("*").eq("type","medewerker_notitie").filter("omschrijving","like",`%[${naam}]%`).order("created_at",{ascending:false}).limit(20),
         supabase.from("auto_meldingen").select("*").eq("naam_medewerker", naam).in("actie",["uitgifte","inname"]).order("datum_tijd",{ascending:false}).limit(30),
-        supabase.from("meldingen").select("*").eq("medewerker", naam).in("type",["aankomst","vertrek"]).order("datum",{ascending:false}).limit(10),
+        supabase.from("meldingen").select("*").eq("medewerker", naam).in("type",["aankomst","vertrek","verhuizing"]).order("datum",{ascending:false}),
         supabase.from("kleding_transacties").select("*").eq("medewerker", naam).order("created_at",{ascending:false}),
       ]);
       const kamers = [];
@@ -1336,6 +1336,56 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
                     </div>
                   );
                 } catch(e){return null;}
+              })()}
+              {/* 📋 Kamer Historie */}
+              {(()=>{
+                const meld = [...(data.meldHistorie||[])].sort((a,b)=>a.datum.localeCompare(b.datum));
+                const stays = [];
+                meld.forEach(m => {
+                  const huis = houses.find(h=>h.id===m.woning_id);
+                  const vanHuis = m.van_woning_id ? houses.find(h=>h.id===m.van_woning_id) : null;
+                  if (m.type==="aankomst") {
+                    stays.push({ woning_id:m.woning_id, kamer:m.kamer, adres:huis?.adres||"?", stad:huis?.stad||"", aankomst:m.datum, vertrek:null, sleutel_terug:null, kamer_schoon:null });
+                  } else if (m.type==="vertrek") {
+                    const stay = [...stays].reverse().find(s=>s.woning_id===m.woning_id && String(s.kamer)===String(m.kamer) && !s.vertrek);
+                    if (stay) { stay.vertrek=m.datum; stay.sleutel_terug=m.sleutel_terug; stay.kamer_schoon=m.kamer_schoon; }
+                    else stays.push({ woning_id:m.woning_id, kamer:m.kamer, adres:huis?.adres||"?", stad:huis?.stad||"", aankomst:null, vertrek:m.datum, sleutel_terug:m.sleutel_terug, kamer_schoon:m.kamer_schoon });
+                  } else if (m.type==="verhuizing") {
+                    if (m.van_kamer!=null && m.van_woning_id) {
+                      const stay = [...stays].reverse().find(s=>s.woning_id===m.van_woning_id && String(s.kamer)===String(m.van_kamer) && !s.vertrek);
+                      if (stay) { stay.vertrek=m.datum; stay.sleutel_terug=m.sleutel_terug; stay.kamer_schoon=m.kamer_schoon; }
+                      else stays.push({ woning_id:m.van_woning_id, kamer:m.van_kamer, adres:vanHuis?.adres||"?", stad:vanHuis?.stad||"", aankomst:null, vertrek:m.datum, sleutel_terug:m.sleutel_terug, kamer_schoon:m.kamer_schoon });
+                    }
+                    stays.push({ woning_id:m.woning_id, kamer:m.kamer, adres:huis?.adres||"?", stad:huis?.stad||"", aankomst:m.datum, vertrek:null, sleutel_terug:null, kamer_schoon:null });
+                  }
+                });
+                const historie = stays.filter(s=>s.vertrek).sort((a,b)=>(b.vertrek||"").localeCompare(a.vertrek||""));
+                if (!historie.length) return null;
+                return (
+                  <div style={{marginTop:12,paddingTop:12,borderTop:`1px solid ${C.border}`}}>
+                    <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".5px",textTransform:"uppercase",marginBottom:8}}>📋 Kamer historie</div>
+                    {historie.map((s,i)=>{
+                      const schoonOk = s.kamer_schoon==="ja";
+                      const sleutelOk = s.sleutel_terug==="ja";
+                      const heeftCheck = s.kamer_schoon!=null || s.sleutel_terug!=null;
+                      return (
+                        <div key={i} style={{fontSize:12,padding:"8px 10px",borderRadius:8,marginBottom:6,background:"#f9fafb",border:`1px solid ${C.border}`}}>
+                          <div style={{fontWeight:700,color:C.text,marginBottom:4}}>{s.adres}{s.stad?`, ${s.stad}`:""} — Kamer {s.kamer}</div>
+                          <div style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:heeftCheck?6:0}}>
+                            {s.aankomst&&<span style={{color:"#374151"}}>📅 <strong style={{color:C.blauw}}>{fmtDateJaar(s.aankomst)}</strong></span>}
+                            {s.vertrek&&<span style={{color:"#374151"}}>🚪 <strong style={{color:"#ef4444"}}>{fmtDateJaar(s.vertrek)}</strong></span>}
+                          </div>
+                          {heeftCheck&&(
+                            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                              {s.kamer_schoon!=null&&<span style={{padding:"2px 8px",borderRadius:6,fontSize:11,fontWeight:600,background:schoonOk?"#dcfce7":"#fee2e2",color:schoonOk?"#16a34a":"#b91c1c"}}>🧹 {schoonOk?"Schoon":"Niet schoon"}</span>}
+                              {s.sleutel_terug!=null&&<span style={{padding:"2px 8px",borderRadius:6,fontSize:11,fontWeight:600,background:sleutelOk?"#dcfce7":"#fee2e2",color:sleutelOk?"#16a34a":"#b91c1c"}}>🔑 {sleutelOk?"Sleutel retour":"Sleutel niet retour"}</span>}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
               })()}
             </div>
 
