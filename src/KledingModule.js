@@ -685,6 +685,7 @@ function BeheerVoorraad({ voorraad, onBijvullen, onCorrectie, showToast }) {
   const [bewerkId, setBewerkId] = useState(null);
   const [bewerkVoorraad, setBewerkVoorraad] = useState(0);
   const [bewerkMin, setBewerkMin] = useState(1);
+  const [bewerkMaat, setBewerkMaat] = useState("");
   const [bijvullenId, setBijvullenId] = useState(null);
   const [bijvullenAantal, setBijvullenAantal] = useState(1);
   const [saving, setSaving] = useState(false);
@@ -723,7 +724,7 @@ function BeheerVoorraad({ voorraad, onBijvullen, onCorrectie, showToast }) {
   async function slaCorrectieOp(item) {
     setSaving(true);
     const { error } = await supabase.from("kleding_voorraad")
-      .update({ aantal: bewerkVoorraad, min_voorraad: bewerkMin, updated_at: new Date().toISOString() })
+      .update({ aantal: bewerkVoorraad, min_voorraad: bewerkMin, maat: bewerkMaat.trim() || item.maat, updated_at: new Date().toISOString() })
       .eq("id", item.id);
     setSaving(false);
     if (!error) { showToast("✓ Opgeslagen"); setBewerkId(null); }
@@ -803,6 +804,11 @@ function BeheerVoorraad({ voorraad, onBijvullen, onCorrectie, showToast }) {
                   {bewerkId===item.id ? (
                     <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",flex:1}}>
                       <div style={{display:"flex",alignItems:"center",gap:6}}>
+                        <label style={{fontSize:11,color:C.muted}}>Maat:</label>
+                        <input type="text" value={bewerkMaat} onChange={e=>setBewerkMaat(e.target.value)}
+                          style={{...inp(),width:80}}/>
+                      </div>
+                      <div style={{display:"flex",alignItems:"center",gap:6}}>
                         <label style={{fontSize:11,color:C.muted}}>Voorraad:</label>
                         <input type="number" min={0} value={bewerkVoorraad} onChange={e=>setBewerkVoorraad(+e.target.value)}
                           style={{...inp(),width:65}}/>
@@ -834,7 +840,7 @@ function BeheerVoorraad({ voorraad, onBijvullen, onCorrectie, showToast }) {
                       <div style={{marginLeft:"auto",display:"flex",gap:6}}>
                         <button onClick={()=>{setBijvullenId(item.id);setBijvullenAantal(Math.max(1,item.min_voorraad-item.aantal));setBewerkId(null);}}
                           style={{background:"#f0fdf4",border:"1px solid #bbf7d0",color:"#166534",borderRadius:6,padding:"4px 10px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>📥 Bijvullen</button>
-                        <button onClick={()=>{setBewerkId(item.id);setBewerkVoorraad(item.aantal);setBewerkMin(item.min_voorraad);setBijvullenId(null);}}
+                        <button onClick={()=>{setBewerkId(item.id);setBewerkVoorraad(item.aantal);setBewerkMin(item.min_voorraad);setBewerkMaat(item.maat);setBijvullenId(null);}}
                           style={{background:C.bg,border:`1px solid ${C.border}`,color:C.muted,borderRadius:6,padding:"4px 10px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>✏️ Bewerken</button>
                         <button onClick={()=>verwijderArtikel(item)}
                           style={{background:"#fef2f2",border:"1px solid #fecaca",color:"#b91c1c",borderRadius:6,padding:"4px 8px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>🗑</button>
