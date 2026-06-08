@@ -28,7 +28,7 @@ import { BorgModule } from "./BorgModule";
 import { HandleidingModule } from "./HandleidingModule";
 import { KledingModule, KledingUitgifteInline } from "./KledingModule";
 
-// âââ EMAILJS ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─── EMAILJS ──────────────────────────────────────────────────────────────────
 const EMAILJS_SERVICE  = process.env.REACT_APP_EMAILJS_SERVICE  || "";
 const EMAILJS_TEMPLATE = process.env.REACT_APP_EMAILJS_TEMPLATE || "";
 const EMAILJS_PUBLIC   = process.env.REACT_APP_EMAILJS_PUBLIC   || "";
@@ -51,7 +51,7 @@ async function stuurMail(params) {
   }
 }
 
-// âââ KLEUREN HUISSTIJL ââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─── KLEUREN HUISSTIJL ────────────────────────────────────────────────────────
 const C = {
   blauw:     "#1B3A6B", blauwDark: "#132b52", blauwLight:"#2a52a0",
   groen:     "#4A9B3C", groenDark: "#357a2b", groenLight:"#5cb84d",
@@ -59,9 +59,9 @@ const C = {
   text:      "#1a2b47", muted: "#6b7a8d", dark: "#0d1f3c",
 };
 
-// Gebruikers komen uit Supabase â geen localStorage meer
+// Gebruikers komen uit Supabase — geen localStorage meer
 
-// âââ STATUS KLEUREN âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─── STATUS KLEUREN ───────────────────────────────────────────────────────────
 const STATUS_MAP = {
   "Lopend":            { bg:"#4A9B3C18", text:"#357a2b", dot:"#4A9B3C" },
   "Beschikbaar":       { bg:"#1B3A6B18", text:"#1B3A6B", dot:"#2a52a0" },
@@ -73,30 +73,30 @@ const STATUS_MAP = {
 };
 const STATUSSEN = Object.keys(STATUS_MAP);
 
-// âââ CHECKLIST FALLBACK (worden geladen uit Supabase) ââââââââââââââââââââââââ
-// Items worden dynamisch geladen â hier alleen lege arrays als fallback
+// ─── CHECKLIST FALLBACK (worden geladen uit Supabase) ────────────────────────
+// Items worden dynamisch geladen — hier alleen lege arrays als fallback
 const CHECKLIST_WEKELIJKS_FB = [];
 const CHECKLIST_4WEKELIJKS_FB = [];
 const CHECKLIST_KWARTAAL_FB = [];
 
-// âââ DAGINDELING HUISMEESTER ââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─── DAGINDELING HUISMEESTER ──────────────────────────────────────────────────
 const DAGPLANNING = {
-  ma: { label: "Maandag", kleur: C.blauw,    icon: "ð", focus: "Kamers controleren & meldingen verwerken", taken: ["Openstaande meldingen doornemen in de app", "Vertrokken kamers controleren en vrijgeven", "Schade of problemen documenteren via de app", "Planning week doornemen"] },
-  di: { label: "Dinsdag", kleur: "#7c3aed",  icon: "ð§", focus: "Kleine klusjes â Noord omgeving", taken: ["Lamp vervangen indien gemeld", "Rookmelders controleren", "Kleine reparaties afhandelen", "Woningen: Coevorden, De Krim, Rijssen"] },
-  wo: { label: "Woensdag", kleur: C.groen,   icon: "ð§", focus: "Kleine klusjes â Midden omgeving", taken: ["Lamp vervangen indien gemeld", "Lekkages/vocht controleren", "Kleine reparaties afhandelen", "Woningen: Goor, Rijssen"] },
-  do: { label: "Donderdag", kleur: "#f59e0b", icon: "ð§", focus: "Kleine klusjes â Zuid omgeving", taken: ["Lamp vervangen indien gemeld", "Sloten en deuren controleren", "Kleine reparaties afhandelen", "Woningen: Almelo, Enschede"] },
-  vr: { label: "Vrijdag", kleur: "#ef4444",  icon: "â", focus: "Controles & administratie", taken: ["Wekelijkse checklist afvinken", "Meldingen afsluiten in de app", "Weekrapportage bijwerken", "Nieuwe aankomsten voorbereiden voor volgende week"] },
+  ma: { label: "Maandag", kleur: C.blauw,    icon: "🔍", focus: "Kamers controleren & meldingen verwerken", taken: ["Openstaande meldingen doornemen in de app", "Vertrokken kamers controleren en vrijgeven", "Schade of problemen documenteren via de app", "Planning week doornemen"] },
+  di: { label: "Dinsdag", kleur: "#7c3aed",  icon: "🔧", focus: "Kleine klusjes – Noord omgeving", taken: ["Lamp vervangen indien gemeld", "Rookmelders controleren", "Kleine reparaties afhandelen", "Woningen: Coevorden, De Krim, Rijssen"] },
+  wo: { label: "Woensdag", kleur: C.groen,   icon: "🔧", focus: "Kleine klusjes – Midden omgeving", taken: ["Lamp vervangen indien gemeld", "Lekkages/vocht controleren", "Kleine reparaties afhandelen", "Woningen: Goor, Rijssen"] },
+  do: { label: "Donderdag", kleur: "#f59e0b", icon: "🔧", focus: "Kleine klusjes – Zuid omgeving", taken: ["Lamp vervangen indien gemeld", "Sloten en deuren controleren", "Kleine reparaties afhandelen", "Woningen: Almelo, Enschede"] },
+  vr: { label: "Vrijdag", kleur: "#ef4444",  icon: "✅", focus: "Controles & administratie", taken: ["Wekelijkse checklist afvinken", "Meldingen afsluiten in de app", "Weekrapportage bijwerken", "Nieuwe aankomsten voorbereiden voor volgende week"] },
 };
 
-// âââ HELPERS âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
 function fmtDate(d) { const dt = typeof d==="string"?new Date(d):d; return dt.toLocaleDateString("nl-NL",{day:"2-digit",month:"2-digit"}); }
-function fmtDateJaar(d) { if(!d) return "â"; const dt = typeof d==="string"?new Date(d):d; return dt.toLocaleDateString("nl-NL",{day:"2-digit",month:"2-digit",year:"numeric"}); }
+function fmtDateJaar(d) { if(!d) return "—"; const dt = typeof d==="string"?new Date(d):d; return dt.toLocaleDateString("nl-NL",{day:"2-digit",month:"2-digit",year:"numeric"}); }
 function fmtTime(d) { const dt = typeof d==="string"?new Date(d):d; return dt.toLocaleTimeString("nl-NL",{hour:"2-digit",minute:"2-digit"}); }
 function fmtFull(d) { return `${fmtDate(d)} ${fmtTime(d)}`; }
 function todayISO() { return new Date().toISOString().slice(0,10); }
 function dagVanDeWeek() { return ["zo","ma","di","wo","do","vr","za"][new Date().getDay()]; }
 
-// âââ MAIN APP âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─── MAIN APP ─────────────────────────────────────────────────────────────────
 function App() {
   const [gebruiker, setGebruiker] = useState(() => {
     try { const g = localStorage.getItem("ktp_sessie"); return g ? JSON.parse(g) : null; } catch { return null; }
@@ -171,7 +171,7 @@ function App() {
     const keepAlive = async () => {
       try {
         await supabase.from("gebruikers").select("id").limit(1);
-        console.log("â Supabase keep-alive ping");
+        console.log("✓ Supabase keep-alive ping");
       } catch(e) { console.log("Keep-alive mislukt:", e); }
     };
     keepAlive(); // Direct bij opstarten
@@ -262,19 +262,19 @@ function App() {
   async function voegGebruikerToe(g) {
     const { error } = await supabase.from("gebruikers").insert([g]);
     if (error) { showToast("Fout bij toevoegen gebruiker", "err"); return false; }
-    showToast(`â ${g.naam} toegevoegd`); await loadGebruikers(); return true;
+    showToast(`✓ ${g.naam} toegevoegd`); await loadGebruikers(); return true;
   }
 
   async function updateGebruiker(id, updates) {
     const { error } = await supabase.from("gebruikers").update(updates).eq("id", id);
     if (error) { showToast("Fout bij opslaan", "err"); return false; }
-    showToast("â Opgeslagen"); await loadGebruikers(); return true;
+    showToast("✓ Opgeslagen"); await loadGebruikers(); return true;
   }
 
   async function verwijderGebruiker(id) {
     const { error } = await supabase.from("gebruikers").update({ actief: false }).eq("id", id);
     if (error) { showToast("Fout bij verwijderen", "err"); return false; }
-    showToast("â Gebruiker verwijderd"); await loadGebruikers(); return true;
+    showToast("✓ Gebruiker verwijderd"); await loadGebruikers(); return true;
   }
 
   async function addMelding(m) {
@@ -292,7 +292,7 @@ function App() {
       const sleutels = m.sleutelAantal || 1;
       await supabase.from("taken").insert([
         {
-          titel: `Aankomst begeleiden â ${m.medewerker}`,
+          titel: `Aankomst begeleiden — ${m.medewerker}`,
           omschrijving: `${m.medewerker} komt aan op ${m.datum}. Reik ${sleutels} sleutel${sleutels>1?"s":""} uit en begeleid de aankomst.`,
           woning_id: m.huisId || null,
           kamer: m.kamer || null,
@@ -302,7 +302,7 @@ function App() {
           aangemaakt_door: gebruiker.naam,
         },
         {
-          titel: `Aankomst verwerken in administratie â ${m.medewerker}`,
+          titel: `Aankomst verwerken in administratie — ${m.medewerker}`,
           omschrijving: `${m.medewerker} komt aan op ${m.datum}. Verwerk in systemen: huurcontract, borgplan, kamerstatus.`,
           woning_id: m.huisId || null,
           kamer: m.kamer || null,
@@ -376,9 +376,9 @@ function App() {
             });
             await supabase.from("borg_termijnen").insert(rows);
             await supabase.from("berichten").insert([{
-              tekst: `Borgplan aangemaakt voor ${m.medewerker}: â¬${totaalBorg} in ${termijnData.length} termijnen. Ingediend door: ${gebruiker.naam}.`,
+              tekst: `Borgplan aangemaakt voor ${m.medewerker}: €${totaalBorg} in ${termijnData.length} termijnen. Ingediend door: ${gebruiker.naam}.`,
               van: "Systeem", aan: null,
-              onderwerp: `ð Borgplan aangemaakt â ${m.medewerker}`,
+              onderwerp: `🔐 Borgplan aangemaakt — ${m.medewerker}`,
               koppeling_type: "melding",
               koppeling_label: `Aankomst ${m.medewerker}`,
               gelezen_door: [],
@@ -411,21 +411,21 @@ function App() {
       }
     }
 
-    // ââ E-mail sturen ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+    // ── E-mail sturen ──────────────────────────────────────────────────────
     const typeIcons = {
-      aankomst:"ð Aankomst", vertrek:"ð§³ Vertrek",
-      reservering:"ð Reservering", verhuizing:"ð¦ Verhuizing",
-      overig:"ð¬ Overig",
+      aankomst:"🚗 Aankomst", vertrek:"🧳 Vertrek",
+      reservering:"📅 Reservering", verhuizing:"📦 Verhuizing",
+      overig:"💬 Overig",
     };
     const huisNaam = huis ? `${huis.adres}, ${huis.stad}` : "Onbekend";
-    let opmerkingenTxt = m.opmerkingen || "â";
+    let opmerkingenTxt = m.opmerkingen || "—";
     if (m.type==="vertrek") {
       opmerkingenTxt += `\nSleutel terug: ${m.sleutelTerug||"?"}`;
       opmerkingenTxt += `\nKamer schoon: ${m.kamerSchoon||"?"}`;
     }
     stuurMail({
       type:         typeIcons[m.type] || m.type,
-      type_icon:    typeIcons[m.type]?.split(" ")[0] || "ð",
+      type_icon:    typeIcons[m.type]?.split(" ")[0] || "📋",
       medewerker:   m.medewerker,
       woning:       huisNaam,
       kamer:        `Kamer ${m.kamer}`,
@@ -434,17 +434,17 @@ function App() {
       opmerkingen:  opmerkingenTxt,
     });
 
-    // Bij verhuizing: automatisch TWee taken aanmaken â Ã©Ã©n voor huismeester, Ã©Ã©n voor backoffice
+    // Bij verhuizing: automatisch TWee taken aanmaken — één voor huismeester, één voor backoffice
     if (m.type === "verhuizing") {
       const vanHuis = houses.find(h => h.id === m.vanHuisId);
       const naarHuisVerh = houses.find(h => h.id === m.huisId);
       const sleutelAantal = m.sleutelAantal || 1;
-      const context = `${m.medewerker} | Van: ${vanHuis?.adres||"?"} K${m.vanKamer} â Naar: ${naarHuisVerh?.adres||"?"} K${m.kamer}`;
+      const context = `${m.medewerker} | Van: ${vanHuis?.adres||"?"} K${m.vanKamer} → Naar: ${naarHuisVerh?.adres||"?"} K${m.kamer}`;
 
       await supabase.from("taken").insert([
-        // Taak 1: Huismeester â fysieke controle kamer + sleutels
+        // Taak 1: Huismeester — fysieke controle kamer + sleutels
         {
-          titel: `Kamer controleren na verhuizing â ${m.medewerker}`,
+          titel: `Kamer controleren na verhuizing — ${m.medewerker}`,
           omschrijving: `${context}. Controleer: kamer schoon + ${sleutelAantal} sleutel${sleutelAantal>1?"s":""} ingeleverd.`,
           woning_id: m.vanHuisId || null,
           kamer: m.vanKamer || null,
@@ -454,9 +454,9 @@ function App() {
           aangemaakt_door: gebruiker.naam,
           huismeester_opmerking: `Verwacht: ${sleutelAantal} sleutel${sleutelAantal>1?"s":""}. Kamer schoon afvinken voor afronding.`,
         },
-        // Taak 2: Backoffice â administratieve verwerking
+        // Taak 2: Backoffice — administratieve verwerking
         {
-          titel: `Verhuizing verwerken in administratie â ${m.medewerker}`,
+          titel: `Verhuizing verwerken in administratie — ${m.medewerker}`,
           omschrijving: `${context}. Verwerk: huurcontract, borgplan, kamerstatus bijwerken in systemen. Check of extra borg of km-vergoeding aanpassing nodig is.`,
           woning_id: m.huisId || null,
           kamer: m.kamer || null,
@@ -465,9 +465,9 @@ function App() {
           status: "open",
           aangemaakt_door: gebruiker.naam,
         },
-        // Taak 3: Huismeester â sleutel uitreiken bij nieuwe kamer
+        // Taak 3: Huismeester — sleutel uitreiken bij nieuwe kamer
         {
-          titel: `Verhuizing voltooid â sleutel uitreiken ${m.medewerker}`,
+          titel: `Verhuizing voltooid — sleutel uitreiken ${m.medewerker}`,
           omschrijving: `${m.medewerker} trekt in bij ${naarHuisVerh?.adres||""} K${m.kamer}. Reik sleutel(s) uit en controleer of alles klaar is.`,
           woning_id: m.huisId || null,
           kamer: m.kamer || null,
@@ -483,7 +483,7 @@ function App() {
     // Bij vertrek aankondiging: taak voor huismeester om in te plannen
     if (m.type === "vertrek_aankondiging") {
       await supabase.from("taken").insert([{
-        titel: `Vertrek inplannen â ${m.medewerker}`,
+        titel: `Vertrek inplannen — ${m.medewerker}`,
         omschrijving: `${m.medewerker} gaat vertrekken op ${m.datum}. Plan de kamercontrole in en begeleid het vertrekproces.`,
         woning_id: m.huisId || null,
         kamer: m.kamer || null,
@@ -498,7 +498,7 @@ function App() {
     if (m.type === "vertrek") {
       const sleutels = m.sleutelAantal || 1;
       await supabase.from("taken").insert([{
-        titel: `Kamer controleren na vertrek â ${m.medewerker}`,
+        titel: `Kamer controleren na vertrek — ${m.medewerker}`,
         omschrijving: `${m.medewerker} is vertrokken uit K${m.kamer}. Controleer: kamer schoon + ${sleutels} sleutel${sleutels>1?"s":""} ingeleverd. Daarna kamer op Beschikbaar zetten.`,
         woning_id: m.huisId || null,
         kamer: m.kamer || null,
@@ -509,7 +509,7 @@ function App() {
       }]);
     }
 
-    showToast("â Melding verzonden");
+    showToast("✓ Melding verzonden");
   }
 
   async function logActiviteit(type, omschrijving, extra={}) {
@@ -523,12 +523,12 @@ function App() {
     const { error } = await supabase.from("meldingen").update({status:newStatus,afgehandeld_door:gebruiker.naam,afgehandeld_op:new Date().toISOString(),notitie:notitie||null}).eq("id",id);
     if (error) showToast("Fout bij updaten","err");
     else {
-      showToast("â Status bijgewerkt");
+      showToast("✓ Status bijgewerkt");
       await loadMeldingen();
-      const statusTekst = newStatus==="afgehandeld"?"â Afgehandeld":newStatus==="verwerkt"?"ð Verwerkt":newStatus==="in_behandeling"?"ð In behandeling":"ð Status gewijzigd";
-      logActiviteit("melding_status", `${statusTekst}: ${m?.medewerker||"?"} â ${m?.type||""} â ${huis?.adres||"?"} K${m?.kamer||"?"}${notitie?` (${notitie})`:""}`, {melding_id:id, status:newStatus});
+      const statusTekst = newStatus==="afgehandeld"?"✅ Afgehandeld":newStatus==="verwerkt"?"📋 Verwerkt":newStatus==="in_behandeling"?"🔄 In behandeling":"📝 Status gewijzigd";
+      logActiviteit("melding_status", `${statusTekst}: ${m?.medewerker||"?"} — ${m?.type||""} — ${huis?.adres||"?"} K${m?.kamer||"?"}${notitie?` (${notitie})`:""}`, {melding_id:id, status:newStatus});
 
-      // Als aankomst verwerkt wordt â ook openstaande reservering sluiten
+      // Als aankomst verwerkt wordt → ook openstaande reservering sluiten
       if ((newStatus==="verwerkt"||newStatus==="afgehandeld") && m?.type==="aankomst" && m?.woning_id && m?.kamer) {
         await supabase.from("meldingen").update({
           status: "verwerkt",
@@ -541,14 +541,14 @@ function App() {
           .eq("status", "open");
       }
 
-      // Als aankomst verwerkt wordt â automatisch borgplan aanmaken
+      // Als aankomst verwerkt wordt → automatisch borgplan aanmaken
       if ((newStatus==="verwerkt"||newStatus==="afgehandeld") && m?.type==="aankomst") {
         const sleutels = m.sleutel_aantal || 1;
         // Check of er al een borgplan bestaat voor deze persoon + kamer
         const { data: bestaand } = await supabase.from("borg_plannen")
           .select("id").eq("naam_medewerker", m.medewerker).eq("status","actief").limit(1);
         if (bestaand && bestaand.length > 0) {
-          // Al een borgplan (bijv. van fiets) â voeg sleutels toe als termijnen
+          // Al een borgplan (bijv. van fiets) — voeg sleutels toe als termijnen
           const bestaandPlanId = bestaand[0].id;
           const sleutelTermijnen = [];
           if (sleutels === 1) {
@@ -589,7 +589,7 @@ function App() {
             }
           }
         } else {
-          // Nog geen borgplan â maak nieuw aan
+          // Nog geen borgplan — maak nieuw aan
           // Check of persoon een fiets heeft
           const { data: fietsen } = await supabase.from("fietsen")
             .select("id").eq("naam_medewerker", m.medewerker).eq("status","In gebruik").limit(1);
@@ -637,13 +637,13 @@ function App() {
 
               // Stuur bericht naar backoffice dat borgplan aangemaakt is
               await supabase.from("berichten").insert([{
-                tekst: `Borgplan aangemaakt voor ${m.medewerker}: â¬${totaalBorg} in ${termijnData.length} termijnen. Aankomst ingediend door: ${m.ingediend_door || gebruiker.naam}.`,
+                tekst: `Borgplan aangemaakt voor ${m.medewerker}: €${totaalBorg} in ${termijnData.length} termijnen. Aankomst ingediend door: ${m.ingediend_door || gebruiker.naam}.`,
                 van: "Systeem",
                 aan: null,
-                onderwerp: `ð Borgplan aangemaakt â ${m.medewerker}`,
+                onderwerp: `🔐 Borgplan aangemaakt — ${m.medewerker}`,
                 koppeling_type: "melding",
                 koppeling_id: id,
-                koppeling_label: `Aankomst ${m.medewerker} â ${huis?.adres||""}${m.kamer?` K${m.kamer}`:""}`,
+                koppeling_label: `Aankomst ${m.medewerker} — ${huis?.adres||""}${m.kamer?` K${m.kamer}`:""}`,
                 gelezen_door: [],
               }]);
             }
@@ -651,25 +651,25 @@ function App() {
         } // end if bestaand else
       }
 
-      // Als er een notitie is â stuur bericht naar collega die de melding heeft ingediend
+      // Als er een notitie is → stuur bericht naar collega die de melding heeft ingediend
       if (notitie && notitie.trim() && m?.ingediend_door && m.ingediend_door !== gebruiker.naam) {
         const typeLabel = m.type==="aankomst"?"Aankomst":m.type==="vertrek"?"Vertrek":m.type==="reservering"?"Reservering":"Melding";
         await supabase.from("berichten").insert([{
           tekst: notitie.trim(),
           van: gebruiker.naam,
           aan: m.ingediend_door,
-          onderwerp: `${statusTekst} â ${typeLabel} ${m.medewerker}`,
+          onderwerp: `${statusTekst} — ${typeLabel} ${m.medewerker}`,
           koppeling_type: "melding",
           koppeling_id: id,
-          koppeling_label: `${typeLabel} â ${m.medewerker} â ${huis?.adres||""}${m.kamer?` K${m.kamer}`:""}`,
+          koppeling_label: `${typeLabel} — ${m.medewerker} — ${huis?.adres||""}${m.kamer?` K${m.kamer}`:""}`,
           gelezen_door: [gebruiker.naam],
         }]);
         stuurMail({
-          type: `ð¬ Reactie op ${typeLabel.toLowerCase()}melding`,
-          type_icon: "ð¬",
+          type: `💬 Reactie op ${typeLabel.toLowerCase()}melding`,
+          type_icon: "💬",
           medewerker: m.ingediend_door,
-          woning: huis ? `${huis.adres}, ${huis.stad}` : "â",
-          kamer: m.kamer ? `Kamer ${m.kamer}` : "â",
+          woning: huis ? `${huis.adres}, ${huis.stad}` : "—",
+          kamer: m.kamer ? `Kamer ${m.kamer}` : "—",
           datum: new Date().toISOString().slice(0,10),
           ingediend_door: gebruiker.naam,
           opmerkingen: notitie.trim(),
@@ -709,7 +709,7 @@ function App() {
   async function addTaak(taak) {
     const { error } = await supabase.from("taken").insert([{...taak, aangemaakt_door: gebruiker.naam, status:"open"}]);
     if (error) { showToast("Fout bij opslaan taak","err"); return false; }
-    showToast("â Taak toegevoegd"); await loadTaken(); return true;
+    showToast("✓ Taak toegevoegd"); await loadTaken(); return true;
   }
 
   async function updateTaak(id, updates) {
@@ -724,24 +724,24 @@ function App() {
       const { error: error2 } = await supabase.from("taken").update(updates2).eq("id",id);
       if (error2) { showToast("Fout","err"); return; }
     }
-    showToast("â Opgeslagen"); await loadTaken();
+    showToast("✓ Opgeslagen"); await loadTaken();
     if (updates.status==="gedaan") {
       let extraLog = "";
       if (updates.extra_info) {
         try {
           const ei = JSON.parse(updates.extra_info);
-          if (ei.woning_schoon) extraLog += ` | ð§¹ Schoon: ${ei.woning_schoon}`;
-          if (ei.sleutel_terug) extraLog += ` | ð Sleutel: ${ei.sleutel_terug}`;
+          if (ei.woning_schoon) extraLog += ` | 🧹 Schoon: ${ei.woning_schoon}`;
+          if (ei.sleutel_terug) extraLog += ` | 🔑 Sleutel: ${ei.sleutel_terug}`;
           if (ei.opmerkingen) extraLog += ` | "${ei.opmerkingen}"`;
         } catch(e) {}
       }
-      logActiviteit("taak_gedaan", `â Taak gedaan: ${t?.titel||"?"}${updates.notitie?` â "${updates.notitie}"`:""}${extraLog}${huis?` â ${huis.adres}`:" â Algemeen"}${t?.kamer?` K${t.kamer}`:""}`, {taak_id:id, notitie:updates.notitie||null});
+      logActiviteit("taak_gedaan", `✅ Taak gedaan: ${t?.titel||"?"}${updates.notitie?` — "${updates.notitie}"`:""}${extraLog}${huis?` — ${huis.adres}`:" — Algemeen"}${t?.kamer?` K${t.kamer}`:""}`, {taak_id:id, notitie:updates.notitie||null});
       stuurMail({
-        type: "â Taak afgevinkt",
-        type_icon: "â",
-        medewerker: updates.afgehandeld_door || "â",
+        type: "✅ Taak afgevinkt",
+        type_icon: "✅",
+        medewerker: updates.afgehandeld_door || "—",
         woning: huis ? `${huis.adres}, ${huis.stad}` : "Algemeen",
-        kamer: t?.kamer ? `Kamer ${t.kamer}` : "â",
+        kamer: t?.kamer ? `Kamer ${t.kamer}` : "—",
         datum: new Date().toISOString().slice(0,10),
         ingediend_door: updates.afgehandeld_door || gebruiker.naam,
         opmerkingen: `Taak: ${t?.titel||"?"}${updates.notitie ? `. Opmerking: ${updates.notitie}` : ""}`,
@@ -752,19 +752,19 @@ function App() {
   async function addWoning(w) {
     const { error } = await supabase.from("woningen").insert([w]);
     if (error) { showToast("Fout bij toevoegen woning","err"); return false; }
-    showToast("â Woning toegevoegd"); await loadHouses(); return true;
+    showToast("✓ Woning toegevoegd"); await loadHouses(); return true;
   }
 
   async function updateWoning(id, updates) {
     const { error } = await supabase.from("woningen").update(updates).eq("id",id);
     if (error) { showToast("Fout bij opslaan","err"); return false; }
-    showToast("â Opgeslagen"); await loadHouses(); return true;
+    showToast("✓ Opgeslagen"); await loadHouses(); return true;
   }
 
   async function deleteWoning(id) {
     const { error } = await supabase.from("woningen").delete().eq("id",id);
     if (error) { showToast("Fout bij verwijderen","err"); return false; }
-    showToast("â Woning verwijderd"); await loadHouses(); return true;
+    showToast("✓ Woning verwijderd"); await loadHouses(); return true;
   }
 
   async function slaChecklistOp(type, week, items, huisId) {
@@ -777,8 +777,8 @@ function App() {
       await supabase.from("checklists").insert([{sleutel:key,type,week_jaar:week,woning_id:huisId||null,items,aangemaakt_door:gebruiker.naam}]);
     }
     await loadChecklists();
-    const typeLabel = type==="wekelijks"?"ð Wekelijkse":type==="4wekelijks"?"ð 4-wekelijkse":"ð Kwartaal";
-    logActiviteit("checklist", `${typeLabel} checklist opgeslagen: ${items.length} items afgevinkt${huis?` â ${huis.adres}`:""}`, {type, week, items_count: items.length});
+    const typeLabel = type==="wekelijks"?"📋 Wekelijkse":type==="4wekelijks"?"📅 4-wekelijkse":"🏆 Kwartaal";
+    logActiviteit("checklist", `${typeLabel} checklist opgeslagen: ${items.length} items afgevinkt${huis?` — ${huis.adres}`:""}`, {type, week, items_count: items.length});
   }
 
   const openMeldingen = meldingen.filter(m=>m.status==="open" && (gebruiker?.rol!=="backoffice" || m.voor_rol==="backoffice"));
@@ -791,7 +791,7 @@ function App() {
   if (loading) return <LoadingScreen />;
   if (!gebruiker) return <LoginScreen gebruikers={gebruikers} onLogin={login} taal={taal} onTaalWissel={wisselTaal}/>;
 
-  const rolIcon = rol==="backoffice"?"ð":rol==="huismeester"?"ð ":rol==="financieel"?"ð¶":"ð¤";
+  const rolIcon = rol==="backoffice"?"📊":rol==="huismeester"?"🏠":rol==="financieel"?"💶":"👤";
   const totalNotifs = openMeldingen.length + openTaken.length;
 
   return (
@@ -847,7 +847,7 @@ function App() {
 
       {toast && <div style={{position:"fixed",bottom:16,right:16,left:16,zIndex:9999,background:toast.type==="ok"?C.groen:"#dc2626",color:"white",padding:"12px 18px",borderRadius:10,fontWeight:600,fontSize:14,boxShadow:"0 8px 30px rgba(0,0,0,.2)",textAlign:"center"}}>{toast.msg}</div>}
 
-      {/* TOPBAR â mobiel scrollbaar */}
+      {/* TOPBAR — mobiel scrollbaar */}
       <div style={{background:C.blauw,borderBottom:`2px solid ${C.groen}`,position:"sticky",top:0,zIndex:100,boxShadow:"0 2px 12px rgba(27,58,107,.3)"}}>
         <div style={{maxWidth:1400,margin:"0 auto",padding:"0 12px"}}>
           {/* Logo + user rij */}
@@ -870,65 +870,65 @@ function App() {
                 <span style={{fontSize:12}}>{rolIcon}</span>
                 <span style={{fontSize:12,color:"white",fontWeight:600}}>{naam}</span>
               </div>
-              <button style={{background:"rgba(255,255,255,.15)",border:"none",borderRadius:7,padding:"5px 10px",fontSize:12,color:"white",cursor:"pointer",fontFamily:"inherit"}} onClick={logout}>â©</button>
+              <button style={{background:"rgba(255,255,255,.15)",border:"none",borderRadius:7,padding:"5px 10px",fontSize:12,color:"white",cursor:"pointer",fontFamily:"inherit"}} onClick={logout}>↩</button>
             </div>
           </div>
-          {/* Tab navigatie â horizontaal scrollbaar op mobiel */}
+          {/* Tab navigatie — horizontaal scrollbaar op mobiel */}
           <div style={{display:"flex",gap:2,overflowX:"auto",paddingBottom:6,scrollbarWidth:"none",msOverflowStyle:"none"}}>
             {rol==="collega" && (<>
-              <button className={`tp ${tab==="taken"?"act":""}`} onClick={()=>setTab("taken")}>ð Taken & Meldingen {(openTaken.length+mijnMeldingen.length)>0&&<Notif n={openTaken.length+mijnMeldingen.length}/>}</button>
-              <button className={`tp ${tab==="woningen"?"act":""}`} onClick={()=>setTab("woningen")}>ð  Woningen</button>
-              <button className={`tp ${tab==="autos"?"act":""}`} onClick={()=>setTab("autos")}>ð Auto's {ongelzenAutoReacties>0&&<Notif n={ongelzenAutoReacties}/>}</button>
-              <button className={`tp ${tab==="fietsen"?"act":""}`} onClick={()=>setTab("fietsen")}>ð² Fietsen</button>
-              <button className={`tp ${tab==="huurbetalingen"?"act":""}`} onClick={()=>setTab("huurbetalingen")}>ð¶ Huur</button>
-              <button className={`tp ${tab==="huismeesterplanning"?"act":""}`} onClick={()=>setTab("huismeesterplanning")}>ð Planning</button>
-              <button className={`tp ${tab==="borg"?"act":""}`} onClick={()=>setTab("borg")}>ð¡ï¸ Inhoudingen</button>
-              <button className={`tp ${tab==="medewerker360"?"act":""}`} onClick={()=>setTab("medewerker360")}>ð¤ Medewerker</button>
-              <button className={`tp ${tab==="berichten"?"act":""}`} onClick={()=>setTab("berichten")}>ð¬ Berichten {ongelzenBerichten>0&&<Notif n={ongelzenBerichten}/>}</button>
-              <button className={`tp ${tab==="handleiding"?"act":""}`} onClick={()=>setTab("handleiding")}>ð Handleiding</button>
-              <button className={`tp ${tab==="kleding"?"act":""}`} onClick={()=>setTab("kleding")}>ð Kleding</button>
+              <button className={`tp ${tab==="taken"?"act":""}`} onClick={()=>setTab("taken")}>📋 Taken & Meldingen {(openTaken.length+mijnMeldingen.length)>0&&<Notif n={openTaken.length+mijnMeldingen.length}/>}</button>
+              <button className={`tp ${tab==="woningen"?"act":""}`} onClick={()=>setTab("woningen")}>🏠 Woningen</button>
+              <button className={`tp ${tab==="autos"?"act":""}`} onClick={()=>setTab("autos")}>🚗 Auto's {ongelzenAutoReacties>0&&<Notif n={ongelzenAutoReacties}/>}</button>
+              <button className={`tp ${tab==="fietsen"?"act":""}`} onClick={()=>setTab("fietsen")}>🚲 Fietsen</button>
+              <button className={`tp ${tab==="huurbetalingen"?"act":""}`} onClick={()=>setTab("huurbetalingen")}>💶 Huur</button>
+              <button className={`tp ${tab==="huismeesterplanning"?"act":""}`} onClick={()=>setTab("huismeesterplanning")}>📅 Planning</button>
+              <button className={`tp ${tab==="borg"?"act":""}`} onClick={()=>setTab("borg")}>🛡️ Inhoudingen</button>
+              <button className={`tp ${tab==="medewerker360"?"act":""}`} onClick={()=>setTab("medewerker360")}>👤 Medewerker</button>
+              <button className={`tp ${tab==="berichten"?"act":""}`} onClick={()=>setTab("berichten")}>💬 Berichten {ongelzenBerichten>0&&<Notif n={ongelzenBerichten}/>}</button>
+              <button className={`tp ${tab==="handleiding"?"act":""}`} onClick={()=>setTab("handleiding")}>📖 Handleiding</button>
+              <button className={`tp ${tab==="kleding"?"act":""}`} onClick={()=>setTab("kleding")}>👕 Kleding</button>
             </>)}
             {rol==="huismeester" && (<>
-              <button className={`tp ${tab==="dagplanning"?"act":""}`} onClick={()=>setTab("dagplanning")}>ð Mijn dag {totalNotifs>0&&<Notif n={totalNotifs}/>}</button>
-              <button className={`tp ${tab==="taken"?"act":""}`} onClick={()=>setTab("taken")}>ð Taken & Meldingen {(openTaken.length+openMeldingen.filter(m=>m.voor_rol==="huismeester"||!m.voor_rol).length)>0&&<Notif n={openTaken.length+openMeldingen.filter(m=>m.voor_rol==="huismeester"||!m.voor_rol).length}/>}</button>
-              <button className={`tp ${tab==="woningen"?"act":""}`} onClick={()=>setTab("woningen")}>ð  Woningen</button>
-              <button className={`tp ${tab==="autos"?"act":""}`} onClick={()=>setTab("autos")}>ð Auto's {ongelzenAutoReacties>0&&<Notif n={ongelzenAutoReacties}/>}</button>
-              <button className={`tp ${tab==="fietsen"?"act":""}`} onClick={()=>setTab("fietsen")}>ð² Fietsen</button>
-              <button className={`tp ${tab==="huurbetalingen"?"act":""}`} onClick={()=>setTab("huurbetalingen")}>ð¶ Huur</button>
-              <button className={`tp ${tab==="borg"?"act":""}`} onClick={()=>setTab("borg")}>ð¡ï¸ Inhoudingen</button>
-              <button className={`tp ${tab==="medewerker360"?"act":""}`} onClick={()=>setTab("medewerker360")}>ð¤ Medewerker</button>
-              <button className={`tp ${tab==="berichten"?"act":""}`} onClick={()=>setTab("berichten")}>ð¬ Berichten {ongelzenBerichten>0&&<Notif n={ongelzenBerichten}/>}</button>
-              <button className={`tp ${tab==="handleiding"?"act":""}`} onClick={()=>setTab("handleiding")}>ð Handleiding</button>
-              <button className={`tp ${tab==="kleding"?"act":""}`} onClick={()=>setTab("kleding")}>ð Kleding</button>
+              <button className={`tp ${tab==="dagplanning"?"act":""}`} onClick={()=>setTab("dagplanning")}>📅 Mijn dag {totalNotifs>0&&<Notif n={totalNotifs}/>}</button>
+              <button className={`tp ${tab==="taken"?"act":""}`} onClick={()=>setTab("taken")}>📋 Taken & Meldingen {(openTaken.length+openMeldingen.filter(m=>m.voor_rol==="huismeester"||!m.voor_rol).length)>0&&<Notif n={openTaken.length+openMeldingen.filter(m=>m.voor_rol==="huismeester"||!m.voor_rol).length}/>}</button>
+              <button className={`tp ${tab==="woningen"?"act":""}`} onClick={()=>setTab("woningen")}>🏠 Woningen</button>
+              <button className={`tp ${tab==="autos"?"act":""}`} onClick={()=>setTab("autos")}>🚗 Auto's {ongelzenAutoReacties>0&&<Notif n={ongelzenAutoReacties}/>}</button>
+              <button className={`tp ${tab==="fietsen"?"act":""}`} onClick={()=>setTab("fietsen")}>🚲 Fietsen</button>
+              <button className={`tp ${tab==="huurbetalingen"?"act":""}`} onClick={()=>setTab("huurbetalingen")}>💶 Huur</button>
+              <button className={`tp ${tab==="borg"?"act":""}`} onClick={()=>setTab("borg")}>🛡️ Inhoudingen</button>
+              <button className={`tp ${tab==="medewerker360"?"act":""}`} onClick={()=>setTab("medewerker360")}>👤 Medewerker</button>
+              <button className={`tp ${tab==="berichten"?"act":""}`} onClick={()=>setTab("berichten")}>💬 Berichten {ongelzenBerichten>0&&<Notif n={ongelzenBerichten}/>}</button>
+              <button className={`tp ${tab==="handleiding"?"act":""}`} onClick={()=>setTab("handleiding")}>📖 Handleiding</button>
+              <button className={`tp ${tab==="kleding"?"act":""}`} onClick={()=>setTab("kleding")}>👕 Kleding</button>
             </>)}
             {rol==="financieel" && (<>
-              <button className={`tp ${tab==="taken"?"act":""}`} onClick={()=>setTab("taken")}>ð Taken & Meldingen {(openTaken.length+mijnMeldingen.length)>0&&<Notif n={openTaken.length+mijnMeldingen.length}/>}</button>
-              <button className={`tp ${tab==="huurbetalingen"?"act":""}`} onClick={()=>setTab("huurbetalingen")}>ð¶ Huur</button>
-              <button className={`tp ${tab==="woningen"?"act":""}`} onClick={()=>setTab("woningen")}>ð  Woningen</button>
-              <button className={`tp ${tab==="autos"?"act":""}`} onClick={()=>setTab("autos")}>ð Auto's</button>
-              <button className={`tp ${tab==="fietsen"?"act":""}`} onClick={()=>setTab("fietsen")}>ð² Fietsen</button>
-              <button className={`tp ${tab==="huismeesterplanning"?"act":""}`} onClick={()=>setTab("huismeesterplanning")}>ð Planning</button>
-              <button className={`tp ${tab==="borg"?"act":""}`} onClick={()=>setTab("borg")}>ð¡ï¸ Inhoudingen</button>
-              <button className={`tp ${tab==="medewerker360"?"act":""}`} onClick={()=>setTab("medewerker360")}>ð¤ Medewerker</button>
-              <button className={`tp ${tab==="berichten"?"act":""}`} onClick={()=>setTab("berichten")}>ð¬ Berichten {ongelzenBerichten>0&&<Notif n={ongelzenBerichten}/>}</button>
-              <button className={`tp ${tab==="handleiding"?"act":""}`} onClick={()=>setTab("handleiding")}>ð Handleiding</button>
-              <button className={`tp ${tab==="kleding"?"act":""}`} onClick={()=>setTab("kleding")}>ð Kleding</button>
+              <button className={`tp ${tab==="taken"?"act":""}`} onClick={()=>setTab("taken")}>📋 Taken & Meldingen {(openTaken.length+mijnMeldingen.length)>0&&<Notif n={openTaken.length+mijnMeldingen.length}/>}</button>
+              <button className={`tp ${tab==="huurbetalingen"?"act":""}`} onClick={()=>setTab("huurbetalingen")}>💶 Huur</button>
+              <button className={`tp ${tab==="woningen"?"act":""}`} onClick={()=>setTab("woningen")}>🏠 Woningen</button>
+              <button className={`tp ${tab==="autos"?"act":""}`} onClick={()=>setTab("autos")}>🚗 Auto's</button>
+              <button className={`tp ${tab==="fietsen"?"act":""}`} onClick={()=>setTab("fietsen")}>🚲 Fietsen</button>
+              <button className={`tp ${tab==="huismeesterplanning"?"act":""}`} onClick={()=>setTab("huismeesterplanning")}>📅 Planning</button>
+              <button className={`tp ${tab==="borg"?"act":""}`} onClick={()=>setTab("borg")}>🛡️ Inhoudingen</button>
+              <button className={`tp ${tab==="medewerker360"?"act":""}`} onClick={()=>setTab("medewerker360")}>👤 Medewerker</button>
+              <button className={`tp ${tab==="berichten"?"act":""}`} onClick={()=>setTab("berichten")}>💬 Berichten {ongelzenBerichten>0&&<Notif n={ongelzenBerichten}/>}</button>
+              <button className={`tp ${tab==="handleiding"?"act":""}`} onClick={()=>setTab("handleiding")}>📖 Handleiding</button>
+              <button className={`tp ${tab==="kleding"?"act":""}`} onClick={()=>setTab("kleding")}>👕 Kleding</button>
             </>)}
             {rol==="backoffice" && (<>
-              <button className={`tp ${tab==="dashboard"?"act":""}`} onClick={()=>setTab("dashboard")}>ð Dashboard</button>
-              <button className={`tp ${tab==="taken"?"act":""}`} onClick={()=>setTab("taken")}>ð Taken {(openTaken.length+openMeldingen.length)>0&&<Notif n={openTaken.length+openMeldingen.length}/>}</button>
-              {isLiset&&<button className={`tp ${tab==="beheer"?"act":""}`} onClick={()=>setTab("beheer")} style={{fontWeight:800}}>âï¸ Beheer</button>}
-              <button className={`tp ${tab==="woningen"?"act":""}`} onClick={()=>setTab("woningen")}>ð  Woningen</button>
-              <button className={`tp ${tab==="autos"?"act":""}`} onClick={()=>setTab("autos")}>ð Auto's</button>
-              <button className={`tp ${tab==="fietsen"?"act":""}`} onClick={()=>setTab("fietsen")}>ð² Fietsen</button>
-              <button className={`tp ${tab==="huurbetalingen"?"act":""}`} onClick={()=>setTab("huurbetalingen")}>ð¶ Huur</button>
-              <button className={`tp ${tab==="borg"?"act":""}`} onClick={()=>setTab("borg")}>ð¡ï¸ Inhoudingen</button>
-              <button className={`tp ${tab==="log"?"act":""}`} onClick={()=>setTab("log")}>ð Log</button>
-              <button className={`tp ${tab==="huismeesterplanning"?"act":""}`} onClick={()=>setTab("huismeesterplanning")}>ð Planning</button>
-              <button className={`tp ${tab==="medewerker360"?"act":""}`} onClick={()=>setTab("medewerker360")}>ð¤ Medewerker</button>
-              <button className={`tp ${tab==="berichten"?"act":""}`} onClick={()=>setTab("berichten")}>ð¬ Berichten {ongelzenBerichten>0&&<Notif n={ongelzenBerichten}/>}</button>
-              <button className={`tp ${tab==="handleiding"?"act":""}`} onClick={()=>setTab("handleiding")}>ð Handleiding</button>
-              <button className={`tp ${tab==="kleding"?"act":""}`} onClick={()=>setTab("kleding")}>ð Kleding</button>
+              <button className={`tp ${tab==="dashboard"?"act":""}`} onClick={()=>setTab("dashboard")}>📊 Dashboard</button>
+              <button className={`tp ${tab==="taken"?"act":""}`} onClick={()=>setTab("taken")}>📋 Taken {(openTaken.length+openMeldingen.length)>0&&<Notif n={openTaken.length+openMeldingen.length}/>}</button>
+              {isLiset&&<button className={`tp ${tab==="beheer"?"act":""}`} onClick={()=>setTab("beheer")} style={{fontWeight:800}}>⚙️ Beheer</button>}
+              <button className={`tp ${tab==="woningen"?"act":""}`} onClick={()=>setTab("woningen")}>🏠 Woningen</button>
+              <button className={`tp ${tab==="autos"?"act":""}`} onClick={()=>setTab("autos")}>🚗 Auto's</button>
+              <button className={`tp ${tab==="fietsen"?"act":""}`} onClick={()=>setTab("fietsen")}>🚲 Fietsen</button>
+              <button className={`tp ${tab==="huurbetalingen"?"act":""}`} onClick={()=>setTab("huurbetalingen")}>💶 Huur</button>
+              <button className={`tp ${tab==="borg"?"act":""}`} onClick={()=>setTab("borg")}>🛡️ Inhoudingen</button>
+              <button className={`tp ${tab==="log"?"act":""}`} onClick={()=>setTab("log")}>📝 Log</button>
+              <button className={`tp ${tab==="huismeesterplanning"?"act":""}`} onClick={()=>setTab("huismeesterplanning")}>📅 Planning</button>
+              <button className={`tp ${tab==="medewerker360"?"act":""}`} onClick={()=>setTab("medewerker360")}>👤 Medewerker</button>
+              <button className={`tp ${tab==="berichten"?"act":""}`} onClick={()=>setTab("berichten")}>💬 Berichten {ongelzenBerichten>0&&<Notif n={ongelzenBerichten}/>}</button>
+              <button className={`tp ${tab==="handleiding"?"act":""}`} onClick={()=>setTab("handleiding")}>📖 Handleiding</button>
+              <button className={`tp ${tab==="kleding"?"act":""}`} onClick={()=>setTab("kleding")}>👕 Kleding</button>
             </>)}
           </div>
         </div>
@@ -957,9 +957,9 @@ function App() {
 }
 
 
-// âââ MEDEWERKER 360Â° OVERZICHT âââââââââââââââââââââââââââââââââââââââââââââââ
+// ─── MEDEWERKER 360° OVERZICHT ───────────────────────────────────────────────
 
-// âââ BORG INHOUDING INLINE COMPONENT âââââââââââââââââââââââââââââââââââââââââ
+// ─── BORG INHOUDING INLINE COMPONENT ─────────────────────────────────────────
 function BorgInhoudingInline({ plan, gekozen, onOpgeslagen, showToast }) {
   const [open, setOpen] = useState(false);
   const [actie, setActie] = useState("inhouden");
@@ -978,10 +978,10 @@ function BorgInhoudingInline({ plan, gekozen, onOpgeslagen, showToast }) {
     if (error) { showToast("Fout: "+error.message,"err"); setBezig(false); return; }
     await supabase.from("activiteiten").insert([{
       type:"borg_update",
-      omschrijving:`${actie==="inhouden"?"ð¸ Ingehouden":"ð Teruggegeven"} â¬${b.toFixed(2)} van borg ${gekozen}${omschr?` â ${omschr}`:""}`,
+      omschrijving:`${actie==="inhouden"?"💸 Ingehouden":"💚 Teruggegeven"} €${b.toFixed(2)} van borg ${gekozen}${omschr?` — ${omschr}`:""}`,
       gedaan_door:"backoffice", extra:{medewerker:gekozen,plan_id:plan.id,actie,bedrag:b}
     }]);
-    showToast(actie==="inhouden"?"ð¸ Ingehouden":"ð Teruggegeven");
+    showToast(actie==="inhouden"?"💸 Ingehouden":"💚 Teruggegeven");
     setBedrag(""); setOmschr(""); setOpen(false); setBezig(false);
     onOpgeslagen();
   }
@@ -991,12 +991,12 @@ function BorgInhoudingInline({ plan, gekozen, onOpgeslagen, showToast }) {
       <button onClick={()=>{setActie("inhouden");setOpen(true);}}
         style={{flex:1,padding:"6px 10px",borderRadius:7,border:"1px dashed #dc2626",background:"#fff1f2",
           color:"#b91c1c",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-        ð¸ Inhouden
+        💸 Inhouden
       </button>
       <button onClick={()=>{setActie("teruggeven");setOpen(true);}}
         style={{flex:1,padding:"6px 10px",borderRadius:7,border:"1px dashed #16a34a",background:"#f0fdf4",
           color:"#15803d",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-        ð Teruggeven
+        💚 Teruggeven
       </button>
     </div>
   );
@@ -1011,13 +1011,13 @@ function BorgInhoudingInline({ plan, gekozen, onOpgeslagen, showToast }) {
               borderColor:actie===a?(a==="inhouden"?"#dc2626":"#16a34a"):"#e5e7eb",
               background:actie===a?(a==="inhouden"?"#dc2626":"#16a34a"):"white",
               color:actie===a?"white":C.text,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
-            {a==="inhouden"?"ð¸ Inhouden":"ð Teruggeven"}
+            {a==="inhouden"?"💸 Inhouden":"💚 Teruggeven"}
           </button>
         ))}
       </div>
       <div style={{display:"flex",gap:8,marginBottom:8,flexWrap:"wrap"}}>
         <div style={{flex:"1 1 100px"}}>
-          <label style={{fontSize:11,color:"#6b7280",display:"block",marginBottom:3}}>Bedrag (â¬)</label>
+          <label style={{fontSize:11,color:"#6b7280",display:"block",marginBottom:3}}>Bedrag (€)</label>
           <input type="number" value={bedrag} onChange={e=>setBedrag(e.target.value)}
             placeholder="0.00" min="0" step="0.01"
             style={{width:"100%",borderRadius:6,border:"1px solid #e5e7eb",padding:"6px 8px",fontSize:13,fontFamily:"inherit",boxSizing:"border-box"}}/>
@@ -1034,7 +1034,7 @@ function BorgInhoudingInline({ plan, gekozen, onOpgeslagen, showToast }) {
           style={{flex:1,padding:"8px",borderRadius:6,border:"none",
             background:actie==="inhouden"?"#dc2626":"#16a34a",color:"white",
             fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>
-          {bezig?"Bezig...":`â ${actie==="inhouden"?"Inhouden":"Teruggeven"}`}
+          {bezig?"Bezig...":`✓ ${actie==="inhouden"?"Inhouden":"Teruggeven"}`}
         </button>
         <button onClick={()=>setOpen(false)}
           style={{padding:"8px 12px",borderRadius:6,border:"1px solid #e5e7eb",background:"white",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>
@@ -1139,7 +1139,7 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
       actief: true
     }]);
     if (error) { showToast("Fout: "+error.message,"err"); return; }
-    showToast("â Huurschuld aangemaakt");
+    showToast("✓ Huurschuld aangemaakt");
     setShowNieuweSchuld(false);
     setNieuweSchuldBedrag(""); setNieuweSchuldTarief(""); setNieuweSchuldOmschr("");
     setNieuweSchuldDatum(new Date().toISOString().slice(0,10));
@@ -1152,14 +1152,14 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
     setNotitie("");
     const { data } = await supabase.from("activiteiten").select("*").eq("type","medewerker_notitie").filter("omschrijving","like",`%[${gekozen}]%`).order("created_at",{ascending:false}).limit(20);
     setNotities(data||[]);
-    showToast("â Notitie opgeslagen");
+    showToast("✓ Notitie opgeslagen");
   }
 
   async function maakTaak() {
     if (!taakTitel.trim()) return;
     await onAddTaak({ titel: taakTitel, omschrijving: taakOmschr||null, voor_rol:"huismeester", status:"open", prioriteit:"normaal", extra_info: gekozen });
     setTaakTitel(""); setTaakOmschr(""); setShowTaakForm(false);
-    showToast("â Taak aangemaakt voor huismeester");
+    showToast("✓ Taak aangemaakt voor huismeester");
   }
 
   async function registreerHuurbetaling() {
@@ -1167,7 +1167,7 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
     const { error } = await supabase.from("huurbetalingen").insert([{ schuld_id: huurSchuldId, bedrag: parseFloat(huurBedrag), datum: huurDatum, opmerking:`Geregistreerd via medewerker overzicht`, geregistreerd_door: gebruiker?.naam||"?" }]);
     if (error) { showToast("Fout bij opslaan betaling","err"); return; }
     setHuurBedrag(""); setShowHuurForm(false);
-    showToast("â Huurbetaling geregistreerd");
+    showToast("✓ Huurbetaling geregistreerd");
     laad(gekozen);
   }
 
@@ -1179,11 +1179,11 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
     const nieuwIngehouden = borgActie==="inhouden" ? (plan.ingehouden||0)+bedrag : Math.max(0,(plan.ingehouden||0)-bedrag);
     const { error } = await supabase.from("borg_plannen").update({ ingehouden: nieuwIngehouden }).eq("id", borgPlanId);
     if (!error) {
-      await supabase.from("activiteiten").insert([{ type:"borg_update", omschrijving:`${borgActie==="inhouden"?"ð¸ Ingehouden":"ð Teruggegeven"}: â¬${bedrag.toFixed(2)} â ${borgOmschr||"Geen omschrijving"} (${gekozen})`, gedaan_door: gebruiker?.naam||"?" }]);
+      await supabase.from("activiteiten").insert([{ type:"borg_update", omschrijving:`${borgActie==="inhouden"?"💸 Ingehouden":"💚 Teruggegeven"}: €${bedrag.toFixed(2)} — ${borgOmschr||"Geen omschrijving"} (${gekozen})`, gedaan_door: gebruiker?.naam||"?" }]);
     }
     if (error) { showToast("Fout","err"); return; }
     setBorgBedrag(""); setBorgOmschr(""); setShowBorgForm(false);
-    showToast(`â Borg ${borgActie==="inhouden"?"ingehouden":"teruggegeven"}`);
+    showToast(`✓ Borg ${borgActie==="inhouden"?"ingehouden":"teruggegeven"}`);
     laad(gekozen);
   }
 
@@ -1199,10 +1199,10 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
 
   return (
     <div style={{display:"flex",gap:20,alignItems:"flex-start"}}>
-      {/* ââ Linker kolom ââ */}
+      {/* ── Linker kolom ── */}
       <div style={{width:230,flexShrink:0}}>
         <div className="card" style={{padding:14,position:"sticky",top:80}}>
-          <div style={{fontWeight:800,fontSize:15,color:C.blauw,marginBottom:12}}>ð¤ Medewerker</div>
+          <div style={{fontWeight:800,fontSize:15,color:C.blauw,marginBottom:12}}>👤 Medewerker</div>
           <input className="fi" value={zoek} onChange={e=>setZoek(e.target.value)}
             placeholder="Naam zoeken..." style={{marginBottom:10,fontSize:13,padding:"8px 12px"}}/>
           <div style={{maxHeight:480,overflowY:"auto"}}>
@@ -1221,16 +1221,16 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
         </div>
       </div>
 
-      {/* ââ Rechter kolom ââ */}
+      {/* ── Rechter kolom ── */}
       <div style={{flex:1,minWidth:0}}>
         {!gekozen && (
           <div style={{textAlign:"center",padding:"60px 20px",color:C.muted}}>
-            <div style={{fontSize:48,marginBottom:12}}>ð¤</div>
+            <div style={{fontSize:48,marginBottom:12}}>👤</div>
             <div style={{fontWeight:700,fontSize:16,color:C.text,marginBottom:6}}>Selecteer een medewerker</div>
             <div style={{fontSize:13}}>Klik links op een naam voor het volledige overzicht</div>
           </div>
         )}
-        {laden && <div style={{textAlign:"center",padding:40,color:C.muted}}><div style={{fontSize:28,marginBottom:8}}>â³</div>Laden...</div>}
+        {laden && <div style={{textAlign:"center",padding:40,color:C.muted}}><div style={{fontSize:28,marginBottom:8}}>⏳</div>Laden...</div>}
 
         {data && !laden && (
           <div>
@@ -1239,7 +1239,7 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
               {!isReadonly && (
                 <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
                   <button style={S.actieBtn(C.groen)} onClick={()=>{setShowTaakForm(!showTaakForm);setShowHuurForm(false);setShowBorgForm(false);}}>+ Taak huismeester</button>
-                  {huurSchuldId && <button style={S.actieBtn("#f59e0b")} onClick={()=>{setShowHuurForm(!showHuurForm);setShowTaakForm(false);setShowBorgForm(false);}}>ð¶ Huur afstrepen</button>}
+                  {huurSchuldId && <button style={S.actieBtn("#f59e0b")} onClick={()=>{setShowHuurForm(!showHuurForm);setShowTaakForm(false);setShowBorgForm(false);}}>💶 Huur afstrepen</button>}
 
                 </div>
               )}
@@ -1252,7 +1252,7 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
                 <input className="fi" placeholder="Taakomschrijving *" value={taakTitel} onChange={e=>setTaakTitel(e.target.value)} style={{marginBottom:8,fontSize:13}}/>
                 <textarea className="fi" placeholder="Extra info (optioneel)" value={taakOmschr} onChange={e=>setTaakOmschr(e.target.value)} rows={2} style={{marginBottom:10,fontSize:13,resize:"vertical"}}/>
                 <div style={{display:"flex",gap:8}}>
-                  <button style={S.actieBtn(C.groen)} onClick={maakTaak}>â Aanmaken</button>
+                  <button style={S.actieBtn(C.groen)} onClick={maakTaak}>✓ Aanmaken</button>
                   <button style={{...S.actieBtn("#9ca3af")}} onClick={()=>setShowTaakForm(false)}>Annuleer</button>
                 </div>
               </div>
@@ -1261,10 +1261,10 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
             {/* Huur form */}
             {showHuurForm && (
               <div style={{...S.card("#f59e0b"),marginBottom:12}}>
-                <div style={S.titel("#f59e0b")}>ð¶ Huurbetaling registreren</div>
+                <div style={S.titel("#f59e0b")}>💶 Huurbetaling registreren</div>
                 <div style={{display:"flex",gap:10,marginBottom:10,flexWrap:"wrap"}}>
                   <div style={{flex:1,minWidth:120}}>
-                    <label className="fl">Bedrag (â¬)</label>
+                    <label className="fl">Bedrag (€)</label>
                     <input className="fi" type="number" placeholder="0.00" value={huurBedrag} onChange={e=>setHuurBedrag(e.target.value)} style={{fontSize:13}}/>
                   </div>
                   <div style={{flex:1,minWidth:140}}>
@@ -1273,7 +1273,7 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
                   </div>
                 </div>
                 <div style={{display:"flex",gap:8}}>
-                  <button style={S.actieBtn("#f59e0b")} onClick={registreerHuurbetaling}>â Opslaan</button>
+                  <button style={S.actieBtn("#f59e0b")} onClick={registreerHuurbetaling}>✓ Opslaan</button>
                   <button style={S.actieBtn("#9ca3af")} onClick={()=>setShowHuurForm(false)}>Annuleer</button>
                 </div>
               </div>
@@ -1281,13 +1281,13 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
 
 
 
-            {/* ð  Kamer */}
+            {/* 🏠 Kamer */}
             <div style={S.card(C.blauw)}>
-              <div style={S.titel(C.blauw)}>ð  Kamer</div>
+              <div style={S.titel(C.blauw)}>🏠 Kamer</div>
               {data.kamers.length === 0 ? <div style={{fontSize:13,color:C.muted,fontStyle:"italic"}}>Geen kamer gevonden</div>
                 : data.kamers.map((item,i) => (
                 <div key={i} style={{paddingBottom:6,marginBottom:6,borderBottom:`1px solid ${C.border}`}}>
-                  <div style={{fontWeight:700,fontSize:13,marginBottom:4}}>{item.huis.adres}, {item.huis.stad} â Kamer {item.kamer.k}</div>
+                  <div style={{fontWeight:700,fontSize:13,marginBottom:4}}>{item.huis.adres}, {item.huis.stad} — Kamer {item.kamer.k}</div>
                   <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:6}}>
                     <span style={S.badge(item.kamer.status==="Lopend"?C.groen:"#f59e0b")}>{item.kamer.status}</span>
                     {item.kamer.bedrijf&&<span style={S.badge(C.blauw+"22",C.blauw)}>{item.kamer.bedrijf}</span>}
@@ -1303,8 +1303,8 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
                     if (!aankomstDatum && !vertrekDatum) return null;
                     return (
                       <div style={{fontSize:12,marginTop:6,display:"flex",gap:16,flexWrap:"wrap"}}>
-                        {aankomstDatum && <span style={{color:"#374151"}}>ð In dienst: <strong style={{color:C.blauw}}>{fmtDateJaar(aankomstDatum)}</strong></span>}
-                        {vertrekDatum && <span style={{color:"#374151"}}>ðª Vertrek: <strong style={{color:"#ef4444"}}>{fmtDateJaar(vertrekDatum)}</strong></span>}
+                        {aankomstDatum && <span style={{color:"#374151"}}>📅 In dienst: <strong style={{color:C.blauw}}>{fmtDateJaar(aankomstDatum)}</strong></span>}
+                        {vertrekDatum && <span style={{color:"#374151"}}>🚪 Vertrek: <strong style={{color:"#ef4444"}}>{fmtDateJaar(vertrekDatum)}</strong></span>}
                       </div>
                     );
                   })()}
@@ -1321,23 +1321,23 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
                       borderRadius:8,padding:"10px 12px",marginTop:8,
                       border:`1px solid ${ok?"#bbf7d0":ei.woning_schoon==="gedeeltelijk"?"#fde68a":"#fecdd3"}`}}>
                       <div style={{fontWeight:700,fontSize:12,color:"#374151",marginBottom:6}}>
-                        ð  Laatste kamercontrole
+                        🏠 Laatste kamercontrole
                         {data.vertrekControle.afgehandeld_op&&<span style={{fontWeight:400,color:"#6b7280",marginLeft:6}}>{fmtDate(data.vertrekControle.afgehandeld_op)}</span>}
-                        {data.vertrekControle.afgehandeld_door&&<span style={{fontWeight:400,color:"#6b7280",marginLeft:4}}>Â· {data.vertrekControle.afgehandeld_door}</span>}
+                        {data.vertrekControle.afgehandeld_door&&<span style={{fontWeight:400,color:"#6b7280",marginLeft:4}}>· {data.vertrekControle.afgehandeld_door}</span>}
                       </div>
                       <div style={{display:"flex",gap:16,fontSize:12,marginBottom:4}}>
-                        <span>ð§¹ Schoon: <strong>{ei.woning_schoon==="ja"?"â Ja":ei.woning_schoon==="nee"?"â Nee":"â ï¸ Gedeeltelijk"}</strong></span>
-                        <span>ð Sleutel: <strong>{ei.sleutel_terug==="ja"?"â Ja":"â Nee"}</strong></span>
+                        <span>🧹 Schoon: <strong>{ei.woning_schoon==="ja"?"✅ Ja":ei.woning_schoon==="nee"?"❌ Nee":"⚠️ Gedeeltelijk"}</strong></span>
+                        <span>🔑 Sleutel: <strong>{ei.sleutel_terug==="ja"?"✅ Ja":"❌ Nee"}</strong></span>
                       </div>
                       {ei.opmerkingen&&<div style={{fontSize:11,color:"#6b7280",fontStyle:"italic",marginBottom:4}}>"{ei.opmerkingen}"</div>}
                       <div style={{fontWeight:700,fontSize:12,color:kleur}}>
-                        ð° Borg advies: {ok?"Borg teruggeven":ei.woning_schoon==="gedeeltelijk"?"Borg gedeeltelijk inhouden":"Borg inhouden"}
+                        💰 Borg advies: {ok?"Borg teruggeven":ei.woning_schoon==="gedeeltelijk"?"Borg gedeeltelijk inhouden":"Borg inhouden"}
                       </div>
                     </div>
                   );
                 } catch(e){return null;}
               })()}
-              {/* ð Kamer Historie */}
+              {/* 📋 Kamer Historie */}
               {(()=>{
                 const meld = [...(data.meldHistorie||[])].sort((a,b)=>a.datum.localeCompare(b.datum));
                 const stays = [];
@@ -1363,24 +1363,24 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
                 if (!historie.length) return null;
                 return (
                   <div style={{marginTop:12,paddingTop:12,borderTop:`1px solid ${C.border}`}}>
-                    <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".5px",textTransform:"uppercase",marginBottom:8}}>ð Kamer historie</div>
+                    <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".5px",textTransform:"uppercase",marginBottom:8}}>📋 Kamer historie</div>
                     {historie.map((s,i)=>{
                       const heeftCheck = s.kamer_schoon!=null || s.sleutel_terug!=null;
                       const badgeBg = v => v==="ja"?"#dcfce7":v==="nee"?"#fee2e2":"#fef3c7";
                       const badgeFg = v => v==="ja"?"#16a34a":v==="nee"?"#b91c1c":"#b45309";
-                      const schoonLabel = v => v==="ja"?"â Schoon":v==="nee"?"â Niet schoon":"â³ Controle lopend";
-                      const sleutelLabel = v => v==="ja"?"â Sleutel retour":v==="nee"?"â Sleutel niet retour":"â³ Sleutel â controle";
+                      const schoonLabel = v => v==="ja"?"✅ Schoon":v==="nee"?"❌ Niet schoon":"⏳ Controle lopend";
+                      const sleutelLabel = v => v==="ja"?"✅ Sleutel retour":v==="nee"?"❌ Sleutel niet retour":"⏳ Sleutel – controle";
                       return (
                         <div key={i} style={{fontSize:12,padding:"8px 10px",borderRadius:8,marginBottom:6,background:"#f9fafb",border:`1px solid ${C.border}`}}>
-                          <div style={{fontWeight:700,color:C.text,marginBottom:4}}>{s.adres}{s.stad?`, ${s.stad}`:""} â Kamer {s.kamer}</div>
+                          <div style={{fontWeight:700,color:C.text,marginBottom:4}}>{s.adres}{s.stad?`, ${s.stad}`:""} — Kamer {s.kamer}</div>
                           <div style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:heeftCheck?6:0}}>
-                            {s.aankomst&&<span style={{color:"#374151"}}>ð <strong style={{color:C.blauw}}>{fmtDateJaar(s.aankomst)}</strong></span>}
-                            {s.vertrek&&<span style={{color:"#374151"}}>ðª <strong style={{color:"#ef4444"}}>{fmtDateJaar(s.vertrek)}</strong></span>}
+                            {s.aankomst&&<span style={{color:"#374151"}}>📅 <strong style={{color:C.blauw}}>{fmtDateJaar(s.aankomst)}</strong></span>}
+                            {s.vertrek&&<span style={{color:"#374151"}}>🚪 <strong style={{color:"#ef4444"}}>{fmtDateJaar(s.vertrek)}</strong></span>}
                           </div>
                           {heeftCheck&&(
                             <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                              {s.kamer_schoon!=null&&<span style={{padding:"2px 8px",borderRadius:6,fontSize:11,fontWeight:600,background:badgeBg(s.kamer_schoon),color:badgeFg(s.kamer_schoon)}}>ð§¹ {schoonLabel(s.kamer_schoon)}</span>}
-                              {s.sleutel_terug!=null&&<span style={{padding:"2px 8px",borderRadius:6,fontSize:11,fontWeight:600,background:badgeBg(s.sleutel_terug),color:badgeFg(s.sleutel_terug)}}>ð {sleutelLabel(s.sleutel_terug)}</span>}
+                              {s.kamer_schoon!=null&&<span style={{padding:"2px 8px",borderRadius:6,fontSize:11,fontWeight:600,background:badgeBg(s.kamer_schoon),color:badgeFg(s.kamer_schoon)}}>🧹 {schoonLabel(s.kamer_schoon)}</span>}
+                              {s.sleutel_terug!=null&&<span style={{padding:"2px 8px",borderRadius:6,fontSize:11,fontWeight:600,background:badgeBg(s.sleutel_terug),color:badgeFg(s.sleutel_terug)}}>🔑 {sleutelLabel(s.sleutel_terug)}</span>}
                             </div>
                           )}
                         </div>
@@ -1391,9 +1391,9 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
               })()}
             </div>
 
-            {/* ð Auto */}
+            {/* 🚗 Auto */}
             <div style={S.card("#0891b2")}>
-              <div style={S.titel("#0891b2")}>ð Auto</div>
+              <div style={S.titel("#0891b2")}>🚗 Auto</div>
               {data.autos.length === 0 && data.autoGeschiedenis.length === 0
                   ? <div style={{fontSize:13,color:C.muted,fontStyle:"italic"}}>Geen auto toegewezen</div>
                 : data.autos.map(a => {
@@ -1405,9 +1405,9 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
                       <span style={S.badge(a.status==="In gebruik"?"#0891b2":a.status==="Beschikbaar"?C.groen:"#9ca3af")}>{a.status}</span>
                     </div>
                     {a.merk_model&&<div style={S.rij}><span style={S.lbl}>Model</span><span style={S.val}>{a.merk_model}</span></div>}
-                    {(hist?.uitgifte||a.datum_uitgifte)&&<div style={S.rij}><span style={S.lbl}>ð Uitgifte</span><span style={{...S.val,color:"#0891b2",fontWeight:600}}>{fmtDateJaar(hist?.uitgifte||a.datum_uitgifte)}</span></div>}
-                    {hist?.inname&&<div style={S.rij}><span style={S.lbl}>ð Inname</span><span style={{...S.val,color:C.groen,fontWeight:600}}>{fmtDateJaar(hist.inname)}</span></div>}
-                    {a.apk_datum&&<div style={S.rij}><span style={S.lbl}>APK</span><span style={{...S.val,color:new Date(a.apk_datum)<new Date()?"#dc2626":C.text}}>{fmtDate(a.apk_datum)}{new Date(a.apk_datum)<new Date()?" â ï¸ VERLOPEN":""}</span></div>}
+                    {(hist?.uitgifte||a.datum_uitgifte)&&<div style={S.rij}><span style={S.lbl}>🗓 Uitgifte</span><span style={{...S.val,color:"#0891b2",fontWeight:600}}>{fmtDateJaar(hist?.uitgifte||a.datum_uitgifte)}</span></div>}
+                    {hist?.inname&&<div style={S.rij}><span style={S.lbl}>🔑 Inname</span><span style={{...S.val,color:C.groen,fontWeight:600}}>{fmtDateJaar(hist.inname)}</span></div>}
+                    {a.apk_datum&&<div style={S.rij}><span style={S.lbl}>APK</span><span style={{...S.val,color:new Date(a.apk_datum)<new Date()?"#dc2626":C.text}}>{fmtDate(a.apk_datum)}{new Date(a.apk_datum)<new Date()?" ⚠️ VERLOPEN":""}</span></div>}
                   </div>
                   );
                 })}
@@ -1418,35 +1418,35 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
                     <span style={{fontWeight:600,fontSize:13,color:C.text}}>{g.kenteken}</span>
                     <span style={S.badge("#9ca3af")}>Vroeger</span>
                   </div>
-                  {g.uitgifte&&<div style={S.rij}><span style={S.lbl}>ð Uitgifte</span><span style={{...S.val,color:"#0891b2"}}>{fmtDate(g.uitgifte)}</span></div>}
-                  {g.inname&&<div style={S.rij}><span style={S.lbl}>ð Inname</span><span style={{...S.val,color:C.groen}}>{fmtDate(g.inname)}</span></div>}
+                  {g.uitgifte&&<div style={S.rij}><span style={S.lbl}>🗓 Uitgifte</span><span style={{...S.val,color:"#0891b2"}}>{fmtDate(g.uitgifte)}</span></div>}
+                  {g.inname&&<div style={S.rij}><span style={S.lbl}>🔑 Inname</span><span style={{...S.val,color:C.groen}}>{fmtDate(g.inname)}</span></div>}
                 </div>
               ))}
               {data.autoMeldingen.filter(m=>m.actie==="storing"&&m.status==="open").map(m=>(
-                <div key={m.id} style={{marginTop:8,background:"#fee2e2",borderRadius:6,padding:"8px 10px",fontSize:12}}>â ï¸ Open storing: {m.opmerkingen}</div>
+                <div key={m.id} style={{marginTop:8,background:"#fee2e2",borderRadius:6,padding:"8px 10px",fontSize:12}}>⚠️ Open storing: {m.opmerkingen}</div>
               ))}
             </div>
 
-            {/* ð² Fiets */}
+            {/* 🚲 Fiets */}
             <div style={S.card(C.groen)}>
-              <div style={S.titel(C.groen)}>ð² Fiets</div>
+              <div style={S.titel(C.groen)}>🚲 Fiets</div>
               {data.fietsen.length === 0 ? <div style={{fontSize:13,color:C.muted,fontStyle:"italic"}}>Geen fiets geregistreerd</div>
                 : data.fietsen.map(f => (
                 <div key={f.id} style={{marginBottom:8,paddingBottom:8,borderBottom:`1px solid ${C.border}`}}>
                   <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:4}}>
                     <span style={{fontWeight:700}}>#{f.fietsnummer}</span>
-                    {f.merk&&<span style={{fontSize:12,color:C.muted}}>â {f.merk}</span>}
+                    {f.merk&&<span style={{fontSize:12,color:C.muted}}>— {f.merk}</span>}
                     <span style={S.badge(f.status==="In gebruik"?C.groen:f.status==="Beschikbaar"?"#9ca3af":"#f59e0b")}>{f.status}</span>
                   </div>
-                  {f.datum_uitgifte&&<div style={S.rij}><span style={S.lbl}>ð Uitgifte</span><span style={{...S.val,color:C.groen,fontWeight:600}}>{fmtDate(f.datum_uitgifte)}</span></div>}
-                  {f.datum_inname&&<div style={S.rij}><span style={S.lbl}>ð Inname</span><span style={{...S.val,color:C.text}}>{fmtDate(f.datum_inname)}</span></div>}
+                  {f.datum_uitgifte&&<div style={S.rij}><span style={S.lbl}>🗓 Uitgifte</span><span style={{...S.val,color:C.groen,fontWeight:600}}>{fmtDate(f.datum_uitgifte)}</span></div>}
+                  {f.datum_inname&&<div style={S.rij}><span style={S.lbl}>🔑 Inname</span><span style={{...S.val,color:C.text}}>{fmtDate(f.datum_inname)}</span></div>}
                 </div>
               ))}
             </div>
 
-            {/* ð Kleding */}
+            {/* 👕 Kleding */}
             <div style={S.card("#0891b2")}>
-              <div style={S.titel("#0891b2")}>ð Kleding ontvangen</div>
+              <div style={S.titel("#0891b2")}>👕 Kleding ontvangen</div>
               {(!data.kledingHistorie || data.kledingHistorie.length === 0)
                 ? <div style={{fontSize:13,color:C.muted,fontStyle:"italic"}}>Geen kleding geregistreerd</div>
                 : (() => {
@@ -1496,9 +1496,9 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
               }
             </div>
 
-            {/* ð Borg */}
+            {/* 📋 Borg */}
             <div style={S.card("#7c3aed")}>
-              <div style={S.titel("#7c3aed")}>ð Borg & inhouding</div>
+              <div style={S.titel("#7c3aed")}>📋 Borg & inhouding</div>
               {data.borgPlannen.length === 0 ? <div style={{fontSize:13,color:C.muted,fontStyle:"italic"}}>Geen borgplan gevonden</div>
                 : data.borgPlannen.slice(0,5).map(b => (
                 <div key={b.id} style={{marginBottom:14,paddingBottom:14,borderBottom:`1px solid ${C.border}`}}>
@@ -1506,11 +1506,11 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
                     <span style={{fontWeight:700,fontSize:13}}>Kamer {b.kamer}</span>
                     <span style={S.badge(b.status==="actief"?"#7c3aed":b.status==="afgerond"?C.groen:"#9ca3af")}>{b.status||"?"}</span>
                   </div>
-                  {b.startdatum&&<div style={S.rij}><span style={S.lbl}>ð Startdatum</span><span style={{...S.val,fontWeight:600}}>{fmtDateJaar(b.startdatum)}</span></div>}
-                  {b.einddatum&&<div style={S.rij}><span style={S.lbl}>ð Einddatum</span><span style={{...S.val}}>{fmtDateJaar(b.einddatum)}</span></div>}
-                  <div style={S.rij}><span style={S.lbl}>Totaal borg</span><span style={S.val}>â¬{(b.totaal_borg||0).toFixed(2)}</span></div>
-                  <div style={S.rij}><span style={S.lbl}>Ingehouden</span><span style={{...S.val,color:(b.ingehouden||0)>0?"#dc2626":C.groen,fontWeight:700}}>â¬{(b.ingehouden||0).toFixed(2)}</span></div>
-                  <div style={S.rij}><span style={S.lbl}>Restant</span><span style={{...S.val,fontWeight:700,color:((b.totaal_borg||0)-(b.ingehouden||0))>0?C.text:C.groen}}>â¬{((b.totaal_borg||0)-(b.ingehouden||0)).toFixed(2)}</span></div>
+                  {b.startdatum&&<div style={S.rij}><span style={S.lbl}>📅 Startdatum</span><span style={{...S.val,fontWeight:600}}>{fmtDateJaar(b.startdatum)}</span></div>}
+                  {b.einddatum&&<div style={S.rij}><span style={S.lbl}>🏁 Einddatum</span><span style={{...S.val}}>{fmtDateJaar(b.einddatum)}</span></div>}
+                  <div style={S.rij}><span style={S.lbl}>Totaal borg</span><span style={S.val}>€{(b.totaal_borg||0).toFixed(2)}</span></div>
+                  <div style={S.rij}><span style={S.lbl}>Ingehouden</span><span style={{...S.val,color:(b.ingehouden||0)>0?"#dc2626":C.groen,fontWeight:700}}>€{(b.ingehouden||0).toFixed(2)}</span></div>
+                  <div style={S.rij}><span style={S.lbl}>Restant</span><span style={{...S.val,fontWeight:700,color:((b.totaal_borg||0)-(b.ingehouden||0))>0?C.text:C.groen}}>€{((b.totaal_borg||0)-(b.ingehouden||0)).toFixed(2)}</span></div>
                   {b.aankomst_datum&&<div style={S.rij}><span style={S.lbl}>Aankomst</span><span style={S.val}>{fmtDateJaar(b.aankomst_datum)}</span></div>}
                   {b.vertrek_datum&&<div style={S.rij}><span style={S.lbl}>Vertrek</span><span style={S.val}>{fmtDateJaar(b.vertrek_datum)}</span></div>}
                   {!isReadonly&&<BorgInhoudingInline plan={b} gekozen={gekozen} onOpgeslagen={()=>laad(gekozen)} showToast={showToast}/>}
@@ -1518,10 +1518,10 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
               ))}
             </div>
 
-            {/* ð¶ Huur */}
+            {/* 💶 Huur */}
             <div style={S.card("#f59e0b")}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-                <div style={S.titel("#f59e0b")}>ð¶ Huurschuld</div>
+                <div style={S.titel("#f59e0b")}>💶 Huurschuld</div>
                 {!isReadonly&&<button onClick={()=>setShowNieuweSchuld(v=>!v)}
                   style={{padding:"5px 12px",borderRadius:7,border:"1px dashed #f59e0b",background:"#fffbeb",
                     color:"#b45309",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
@@ -1530,15 +1530,15 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
               </div>
               {!isReadonly&&showNieuweSchuld&&(
                 <div style={{background:"#fffbeb",borderRadius:10,padding:"14px",marginBottom:14,border:"1px solid #fde68a"}}>
-                  <div style={{fontWeight:700,fontSize:13,color:"#92400e",marginBottom:12}}>â Nieuwe huurschuld aanmaken</div>
+                  <div style={{fontWeight:700,fontSize:13,color:"#92400e",marginBottom:12}}>➕ Nieuwe huurschuld aanmaken</div>
                   <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:8}}>
                     <div style={{flex:"1 1 120px"}}>
-                      <label style={{fontSize:11,color:"#6b7280",display:"block",marginBottom:3}}>Beginsaldo (â¬) *</label>
+                      <label style={{fontSize:11,color:"#6b7280",display:"block",marginBottom:3}}>Beginsaldo (€) *</label>
                       <input type="number" value={nieuweSchuldBedrag} onChange={e=>setNieuweSchuldBedrag(e.target.value)}
                         placeholder="bv. 500.00" style={{width:"100%",borderRadius:6,border:"1px solid #e5e7eb",padding:"7px 9px",fontSize:13,fontFamily:"inherit",boxSizing:"border-box"}}/>
                     </div>
                     <div style={{flex:"1 1 120px"}}>
-                      <label style={{fontSize:11,color:"#6b7280",display:"block",marginBottom:3}}>Tarief per periode (â¬)</label>
+                      <label style={{fontSize:11,color:"#6b7280",display:"block",marginBottom:3}}>Tarief per periode (€)</label>
                       <input type="number" value={nieuweSchuldTarief} onChange={e=>setNieuweSchuldTarief(e.target.value)}
                         placeholder="bv. 50.00" style={{width:"100%",borderRadius:6,border:"1px solid #e5e7eb",padding:"7px 9px",fontSize:13,fontFamily:"inherit",boxSizing:"border-box"}}/>
                     </div>
@@ -1562,7 +1562,7 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
                   </div>
                   <button onClick={maakNieuweSchuld}
                     style={{padding:"8px 20px",borderRadius:7,border:"none",background:"#f59e0b",color:"white",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
-                    â Aanmaken
+                    ✓ Aanmaken
                   </button>
                 </div>
               )}
@@ -1577,10 +1577,10 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
                       <span style={S.badge(h.actief?"#f59e0b":"#9ca3af")}>{h.actief?"Actief":"Afgesloten"}</span>
                       {h.startdatum&&<span style={{fontSize:12,color:C.muted}}>Vanaf {fmtDateJaar(h.startdatum)}</span>}
                     </div>
-                    <div style={S.rij}><span style={S.lbl}>Beginsaldo</span><span style={S.val}>â¬{(h.beginsaldo||0).toFixed(2)}</span></div>
-                    <div style={S.rij}><span style={S.lbl}>Betaald</span><span style={{...S.val,color:C.groen}}>â¬{totaalBetaald.toFixed(2)} ({betalingen.length}x)</span></div>
-                    <div style={S.rij}><span style={S.lbl}>Openstaand</span><span style={{...S.val,fontWeight:700,color:openstaand>0?"#dc2626":C.groen}}>â¬{openstaand.toFixed(2)}</span></div>
-                    <div style={S.rij}><span style={S.lbl}>Tarief</span><span style={S.val}>â¬{(h.tarief_bedrag||0).toFixed(2)} / {h.tarief_dagen||7} d</span></div>
+                    <div style={S.rij}><span style={S.lbl}>Beginsaldo</span><span style={S.val}>€{(h.beginsaldo||0).toFixed(2)}</span></div>
+                    <div style={S.rij}><span style={S.lbl}>Betaald</span><span style={{...S.val,color:C.groen}}>€{totaalBetaald.toFixed(2)} ({betalingen.length}x)</span></div>
+                    <div style={S.rij}><span style={S.lbl}>Openstaand</span><span style={{...S.val,fontWeight:700,color:openstaand>0?"#dc2626":C.groen}}>€{openstaand.toFixed(2)}</span></div>
+                    <div style={S.rij}><span style={S.lbl}>Tarief</span><span style={S.val}>€{(h.tarief_bedrag||0).toFixed(2)} / {h.tarief_dagen||7} d</span></div>
 
                     {/* Betalingen lijst */}
                     {betalingen.length>0&&(
@@ -1589,9 +1589,9 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
                         {betalingen.map(b=>(
                           <div key={b.id} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 0",borderBottom:`1px solid ${C.border}`,fontSize:12}}>
                             <div style={{flex:1}}>
-                              <span style={{fontWeight:600,color:C.groen}}>â¬{parseFloat(b.bedrag||0).toFixed(2)}</span>
+                              <span style={{fontWeight:600,color:C.groen}}>€{parseFloat(b.bedrag||0).toFixed(2)}</span>
                               <span style={{color:C.muted,marginLeft:8}}>{fmtDate(b.datum)}</span>
-                              {b.omschrijving&&<span style={{color:C.muted,marginLeft:6,fontStyle:"italic"}}>â {b.omschrijving}</span>}
+                              {b.omschrijving&&<span style={{color:C.muted,marginLeft:6,fontStyle:"italic"}}>— {b.omschrijving}</span>}
                             </div>
                             {!isReadonly&&(
                               <button onClick={async()=>{
@@ -1599,7 +1599,7 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
                                 await supabase.from("huurbetalingen").delete().eq("id",b.id);
                                 showToast("Betaling verwijderd");
                                 laad(gekozen);
-                              }} style={{background:"#fee2e2",color:"#b91c1c",border:"none",borderRadius:5,padding:"2px 8px",fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>â</button>
+                              }} style={{background:"#fee2e2",color:"#b91c1c",border:"none",borderRadius:5,padding:"2px 8px",fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>✕</button>
                             )}
                           </div>
                         ))}
@@ -1616,7 +1616,7 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
                         laad(gekozen);
                       }} style={{marginTop:8,padding:"5px 12px",borderRadius:6,border:"1px solid #e5e7eb",
                         background:"white",color:C.muted,fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>
-                        {h.actief?"ð Afsluiten":"ð Heropenen"}
+                        {h.actief?"🔒 Afsluiten":"🔓 Heropenen"}
                       </button>
                     )}
                   </div>
@@ -1624,9 +1624,9 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
               })}
             </div>
 
-            {/* ð Notities */}
+            {/* 📝 Notities */}
             <div style={S.card(C.muted)}>
-              <div style={S.titel(C.muted)}>ð Notities</div>
+              <div style={S.titel(C.muted)}>📝 Notities</div>
               <div style={{display:"flex",gap:8,marginBottom:12}}>
                 <input className="fi" placeholder="Voeg een notitie toe..." value={notitie} onChange={e=>setNotitie(e.target.value)}
                   onKeyDown={e=>e.key==="Enter"&&slaNotitieOp()} style={{flex:1,fontSize:13}}/>
@@ -1637,7 +1637,7 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
                 : notities.map(n => (
                   <div key={n.id} style={{padding:"8px 10px",background:C.bg,borderRadius:7,marginBottom:6,fontSize:13}}>
                     <div style={{color:C.text}}>{n.omschrijving.replace(`[${gekozen}] `,"")}</div>
-                    <div style={{fontSize:11,color:C.muted,marginTop:3}}>{n.gedaan_door} Â· {fmtDate(n.created_at)}</div>
+                    <div style={{fontSize:11,color:C.muted,marginTop:3}}>{n.gedaan_door} · {fmtDate(n.created_at)}</div>
                   </div>
                 ))
               }
@@ -1652,7 +1652,7 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
 
 function Notif({n}) { return <span style={{background:"#ef4444",color:"white",borderRadius:10,padding:"1px 6px",fontSize:11,marginLeft:4}}>{n}</span>; }
 
-// âââ LOGIN ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─── LOGIN ────────────────────────────────────────────────────────────────────
 function LoginScreen({ gebruikers, onLogin, taal="nl", onTaalWissel }) {
   const [rolFilter, setRolFilter] = useState(null);
   const [geselecteerd, setGeselecteerd] = useState(null);
@@ -1660,10 +1660,10 @@ function LoginScreen({ gebruikers, onLogin, taal="nl", onTaalWissel }) {
   const [fout, setFout] = useState("");
 
   const rollen = [
-    { id:"collega",      icon:"ð¤", label:"Collega",      kleur:C.muted },
-    { id:"huismeester",  icon:"ð ", label:"Huismeester",  kleur:C.groen },
-    { id:"financieel",   icon:"ð¶", label:"Financieel",   kleur:"#f59e0b" },
-    { id:"backoffice",   icon:"ð", label:"Backoffice",   kleur:C.blauw },
+    { id:"collega",      icon:"👤", label:"Collega",      kleur:C.muted },
+    { id:"huismeester",  icon:"🏠", label:"Huismeester",  kleur:C.groen },
+    { id:"financieel",   icon:"💶", label:"Financieel",   kleur:"#f59e0b" },
+    { id:"backoffice",   icon:"📊", label:"Backoffice",   kleur:C.blauw },
   ];
 
   const gefilterd = rolFilter ? gebruikers.filter(g=>g.rol===rolFilter) : [];
@@ -1690,7 +1690,7 @@ function LoginScreen({ gebruikers, onLogin, taal="nl", onTaalWissel }) {
       <div style={{width:"100%",maxWidth:460,background:"white",borderRadius:20,boxShadow:"0 40px 80px rgba(0,0,0,.4)",overflow:"hidden"}}>
         <div style={{background:C.groen,padding:"16px 28px"}}>
           <div style={{fontSize:14,fontWeight:700,color:"white"}}>
-            {!rolFilter ? "Selecteer je rol" : !geselecteerd ? `${rollen.find(r=>r.id===rolFilter)?.label} â Wie ben jij?` : `Inloggen als ${geselecteerd.naam}`}
+            {!rolFilter ? "Selecteer je rol" : !geselecteerd ? `${rollen.find(r=>r.id===rolFilter)?.label} — Wie ben jij?` : `Inloggen als ${geselecteerd.naam}`}
           </div>
         </div>
         <div style={{padding:"24px 28px 28px"}}>
@@ -1708,7 +1708,7 @@ function LoginScreen({ gebruikers, onLogin, taal="nl", onTaalWissel }) {
                       {r.id==="collega"?"Melding doorgeven & woningen bekijken":r.id==="huismeester"?"Taken & checklists afhandelen":r.id==="financieel"?"Huurbetalingen & financieel overzicht":"Planning, inbox & beheer"}
                     </div>
                   </div>
-                  <div style={{marginLeft:"auto",color:C.border,fontSize:20}}>âº</div>
+                  <div style={{marginLeft:"auto",color:C.border,fontSize:20}}>›</div>
                 </button>
               ))}
             </div>
@@ -1717,16 +1717,16 @@ function LoginScreen({ gebruikers, onLogin, taal="nl", onTaalWissel }) {
           {/* Stap 2: Naam kiezen */}
           {rolFilter && !geselecteerd && (
             <>
-              <button onClick={()=>setRolFilter(null)} style={{background:"none",border:"none",color:C.muted,fontSize:13,marginBottom:16,display:"flex",alignItems:"center",gap:6,cursor:"pointer",fontFamily:"inherit"}}>â Terug</button>
+              <button onClick={()=>setRolFilter(null)} style={{background:"none",border:"none",color:C.muted,fontSize:13,marginBottom:16,display:"flex",alignItems:"center",gap:6,cursor:"pointer",fontFamily:"inherit"}}>← Terug</button>
               <div style={{display:"flex",flexDirection:"column",gap:6,maxHeight:320,overflowY:"auto"}}>
                 {gefilterd.map(g=>(
                   <button key={g.naam} onClick={()=>{setGeselecteerd(g);setFout("");setPin("");}}
                     style={{background:C.bg,border:`1.5px solid ${C.border}`,borderRadius:10,padding:"12px 16px",color:C.text,display:"flex",alignItems:"center",gap:12,textAlign:"left",transition:"all .15s",cursor:"pointer"}}>
                     <div style={{width:36,height:36,borderRadius:10,background:rolKleur[g.rol]+"18",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>
-                      {g.rol==="backoffice"?"ð":g.rol==="huismeester"?"ð ":"ð¤"}
+                      {g.rol==="backoffice"?"📊":g.rol==="huismeester"?"🏠":"👤"}
                     </div>
                     <span style={{fontWeight:700,fontSize:15}}>{g.naam}</span>
-                    <div style={{marginLeft:"auto",color:C.border,fontSize:18}}>âº</div>
+                    <div style={{marginLeft:"auto",color:C.border,fontSize:18}}>›</div>
                   </button>
                 ))}
               </div>
@@ -1736,32 +1736,32 @@ function LoginScreen({ gebruikers, onLogin, taal="nl", onTaalWissel }) {
           {/* Stap 3: Pincode */}
           {geselecteerd && (
             <>
-              <button onClick={()=>{setGeselecteerd(null);setPin("");setFout("");}} style={{background:"none",border:"none",color:C.muted,fontSize:13,marginBottom:20,display:"flex",alignItems:"center",gap:6,cursor:"pointer",fontFamily:"inherit"}}>â Terug</button>
+              <button onClick={()=>{setGeselecteerd(null);setPin("");setFout("");}} style={{background:"none",border:"none",color:C.muted,fontSize:13,marginBottom:20,display:"flex",alignItems:"center",gap:6,cursor:"pointer",fontFamily:"inherit"}}>← Terug</button>
               <div style={{textAlign:"center",marginBottom:24}}>
                 <div style={{width:60,height:60,borderRadius:16,background:rolKleur[geselecteerd.rol]+"18",display:"flex",alignItems:"center",justifyContent:"center",fontSize:30,margin:"0 auto 10px"}}>
-                  {geselecteerd.rol==="backoffice"?"ð":geselecteerd.rol==="huismeester"?"ð ":"ð¤"}
+                  {geselecteerd.rol==="backoffice"?"📊":geselecteerd.rol==="huismeester"?"🏠":"👤"}
                 </div>
                 <div style={{fontWeight:800,fontSize:20,color:C.text}}>{geselecteerd.naam}</div>
               </div>
               <label style={{display:"block",fontSize:11,fontWeight:700,color:C.muted,letterSpacing:"1px",textTransform:"uppercase",marginBottom:8}}>Pincode</label>
-              <input type="password" value={pin} onChange={e=>{setPin(e.target.value);setFout("");}} onKeyDown={e=>e.key==="Enter"&&probeerLogin()} placeholder="â¢â¢â¢â¢" maxLength={8}
+              <input type="password" value={pin} onChange={e=>{setPin(e.target.value);setFout("");}} onKeyDown={e=>e.key==="Enter"&&probeerLogin()} placeholder="••••" maxLength={8}
                 style={{width:"100%",background:C.bg,border:`2px solid ${fout?"#ef4444":C.border}`,borderRadius:10,color:C.text,padding:"16px",fontSize:26,outline:"none",letterSpacing:10,textAlign:"center",marginBottom:10,transition:"border .2s"}}/>
-              {fout&&<div style={{color:"#ef4444",fontSize:13,marginBottom:12,textAlign:"center",fontWeight:500}}>â  {fout}</div>}
+              {fout&&<div style={{color:"#ef4444",fontSize:13,marginBottom:12,textAlign:"center",fontWeight:500}}>⚠ {fout}</div>}
               <button onClick={probeerLogin} disabled={!pin}
                 style={{width:"100%",background:pin?C.blauw:C.border,color:"white",border:"none",borderRadius:10,padding:14,fontSize:15,fontWeight:700,cursor:pin?"pointer":"not-allowed",fontFamily:"inherit",transition:"background .2s"}}>
-                Inloggen â
+                Inloggen →
               </button>
             </>
           )}
         </div>
       </div>
-      <div style={{marginTop:20,fontSize:12,color:"rgba(255,255,255,.4)"}}>KTP Interflex Â· Woningbeheer systeem</div>
+      <div style={{marginTop:20,fontSize:12,color:"rgba(255,255,255,.4)"}}>KTP Interflex · Woningbeheer systeem</div>
     </div>
   );
 }
 
 function LoadingScreen() {
-  return <div style={{minHeight:"100vh",background:`linear-gradient(135deg,${C.blauw} 0%,${C.dark} 100%)`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"Inter,sans-serif"}}><div style={{textAlign:"center",color:"white"}}><div style={{fontSize:36,marginBottom:16}}>â³</div><div style={{fontWeight:700,fontSize:16,marginBottom:6}}>KTP Interflex</div><div style={{fontSize:13,opacity:.6}}>Verbinden met database...</div></div></div>;
+  return <div style={{minHeight:"100vh",background:`linear-gradient(135deg,${C.blauw} 0%,${C.dark} 100%)`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"Inter,sans-serif"}}><div style={{textAlign:"center",color:"white"}}><div style={{fontSize:36,marginBottom:16}}>⏳</div><div style={{fontWeight:700,fontSize:16,marginBottom:6}}>KTP Interflex</div><div style={{fontSize:13,opacity:.6}}>Verbinden met database...</div></div></div>;
 }
 
 function SH({titel,sub,actie}) {
@@ -1772,32 +1772,32 @@ function SK({label,val,color}) {
   return <div className="card" style={{borderTop:`3px solid ${color}`,padding:"14px 16px"}}><div style={{fontSize:26,fontWeight:800,color}}>{val}</div><div style={{fontSize:11,color:C.muted,marginTop:3}}>{label}</div></div>;
 }
 
-// âââ DAGPLANNING HUISMEESTER ââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─── DAGPLANNING HUISMEESTER ──────────────────────────────────────────────────
 
-// âââ HELPER: is dit een vertrek/kamer-controle taak? âââââââââââââââââââââââââ
+// ─── HELPER: is dit een vertrek/kamer-controle taak? ─────────────────────────
 function isVertrekTaak(titel) {
   const t = (titel || "").toLowerCase();
   return t.includes("vertrek") || t.includes("kamer controleren");
 }
 
-// âââ VERTREK CONTROLE MODAL âââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─── VERTREK CONTROLE MODAL ───────────────────────────────────────────────────
 function VertrekControleModal({ taak, onBevestig, onAnnuleer }) {
   const [schoon, setSchoon] = useState("ja");
   const [sleutel, setSleutel] = useState("ja");
   const [opmerking, setOpmerking] = useState("");
   const allesOk = schoon === "ja" && sleutel === "ja";
-  const borgAdvies = allesOk ? "Borg teruggeven" : schoon === "gedeeltelijk" ? "Borg gedeeltelijk inhouden" : "Borg inhouden â nader beoordelen";
+  const borgAdvies = allesOk ? "Borg teruggeven" : schoon === "gedeeltelijk" ? "Borg gedeeltelijk inhouden" : "Borg inhouden — nader beoordelen";
   const borgKleur = allesOk ? "#16a34a" : schoon === "gedeeltelijk" ? "#d97706" : "#b91c1c";
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.55)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
       <div style={{background:"white",borderRadius:16,padding:24,maxWidth:400,width:"100%",boxShadow:"0 20px 60px rgba(0,0,0,.35)"}}>
-        <div style={{fontWeight:800,fontSize:16,marginBottom:3}}>ð  Kamercontrole invullen</div>
+        <div style={{fontWeight:800,fontSize:16,marginBottom:3}}>🏠 Kamercontrole invullen</div>
         <div style={{fontSize:12,color:"#6b7280",marginBottom:20}}>{taak.titel}</div>
 
         <div style={{marginBottom:16}}>
-          <div style={{fontSize:13,fontWeight:700,marginBottom:8}}>ð§¹ Is de woning schoon?</div>
+          <div style={{fontSize:13,fontWeight:700,marginBottom:8}}>🧹 Is de woning schoon?</div>
           <div style={{display:"flex",gap:8}}>
-            {[["ja","â Ja"],["gedeeltelijk","â ï¸ Gedeeltelijk"],["nee","â Nee"]].map(([v,l]) => (
+            {[["ja","✅ Ja"],["gedeeltelijk","⚠️ Gedeeltelijk"],["nee","❌ Nee"]].map(([v,l]) => (
               <button key={v} onClick={()=>setSchoon(v)}
                 style={{flex:1,padding:"8px 4px",borderRadius:8,border:"2px solid",
                   borderColor:schoon===v?"#7c3aed":"#e5e7eb",
@@ -1812,9 +1812,9 @@ function VertrekControleModal({ taak, onBevestig, onAnnuleer }) {
         </div>
 
         <div style={{marginBottom:16}}>
-          <div style={{fontSize:13,fontWeight:700,marginBottom:8}}>ð Sleutel terug?</div>
+          <div style={{fontSize:13,fontWeight:700,marginBottom:8}}>🔑 Sleutel terug?</div>
           <div style={{display:"flex",gap:8}}>
-            {[["ja","â Ja"],["nee","â Nee"]].map(([v,l]) => (
+            {[["ja","✅ Ja"],["nee","❌ Nee"]].map(([v,l]) => (
               <button key={v} onClick={()=>setSleutel(v)}
                 style={{flex:1,padding:"10px",borderRadius:8,border:"2px solid",
                   borderColor:sleutel===v?"#7c3aed":"#e5e7eb",
@@ -1829,7 +1829,7 @@ function VertrekControleModal({ taak, onBevestig, onAnnuleer }) {
         </div>
 
         <div style={{marginBottom:16}}>
-          <div style={{fontSize:13,fontWeight:700,marginBottom:6}}>ð¬ Opmerkingen (optioneel)</div>
+          <div style={{fontSize:13,fontWeight:700,marginBottom:6}}>💬 Opmerkingen (optioneel)</div>
           <textarea value={opmerking} onChange={e=>setOpmerking(e.target.value)}
             placeholder="Bijv. schade aan raam, borg gedeeltelijk inhouden..."
             style={{width:"100%",borderRadius:8,border:"1px solid #e5e7eb",padding:"8px 10px",
@@ -1839,7 +1839,7 @@ function VertrekControleModal({ taak, onBevestig, onAnnuleer }) {
         <div style={{background:allesOk?"#f0fdf4":schoon==="gedeeltelijk"?"#fffbeb":"#fff1f2",
           borderRadius:10,padding:"10px 14px",marginBottom:20,
           border:`1px solid ${allesOk?"#bbf7d0":schoon==="gedeeltelijk"?"#fde68a":"#fecdd3"}`}}>
-          <div style={{fontWeight:700,fontSize:13,color:borgKleur}}>ð° Borg advies: {borgAdvies}</div>
+          <div style={{fontWeight:700,fontSize:13,color:borgKleur}}>💰 Borg advies: {borgAdvies}</div>
         </div>
 
         <div style={{display:"flex",gap:10}}>
@@ -1852,7 +1852,7 @@ function VertrekControleModal({ taak, onBevestig, onAnnuleer }) {
             style={{flex:2,padding:"10px",borderRadius:8,border:"none",
               background:"#16a34a",color:"white",cursor:"pointer",
               fontSize:13,fontWeight:700,fontFamily:"inherit"}}>
-            â Afvinken & opslaan
+            ✓ Afvinken & opslaan
           </button>
         </div>
       </div>
@@ -1874,7 +1874,7 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
   const vandaag = planningMap[dag];
   const dagNamen = dagplanningDB.length > 0 ? dagplanningDB.map(d => d.dag) : ["ma","di","wo","do","vr"];
   const [gekozenDag, setGekozenDag] = useState(dag in planningMap ? dag : "ma");
-  const getoondeDag = planningMap[gekozenDag] || { label: gekozenDag, kleur: C.muted, icon: "ð§", focus: "", woning_ids: [], taken: [] };
+  const getoondeDag = planningMap[gekozenDag] || { label: gekozenDag, kleur: C.muted, icon: "🔧", focus: "", woning_ids: [], taken: [] };
 
   // Week navigatie
   const [weekOffset, setWeekOffset] = useState(0);
@@ -1894,7 +1894,7 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
     const weekNr = 1 + Math.round(((d - week1) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
     const mnd = ["jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"];
     const s = dt => `${dt.getDate()} ${mnd[dt.getMonth()]}`;
-    return { weekNr, jaar: d.getFullYear(), key: `${weekNr}-${d.getFullYear()}`, label: `Week ${weekNr} Â· ${s(ma)} â ${s(zo)} ${d.getFullYear()}`, start: ma.toISOString().slice(0,10), eind: zo.toISOString().slice(0,10) };
+    return { weekNr, jaar: d.getFullYear(), key: `${weekNr}-${d.getFullYear()}`, label: `Week ${weekNr} · ${s(ma)} – ${s(zo)} ${d.getFullYear()}`, start: ma.toISOString().slice(0,10), eind: zo.toISOString().slice(0,10) };
   }
   function dagDatumVoorOffset(dagNaam, offset) {
     const ma = getMaandagVanWeek(offset);
@@ -1946,7 +1946,7 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
       {vertrekModalTaak && <VertrekControleModal taak={vertrekModalTaak} onBevestig={bevestigVertrek} onAnnuleer={()=>setVertrekModalTaak(null)}/>}
       <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:4}}>
         <div>
-          <h2 style={{fontSize:20,fontWeight:800,color:C.blauw,marginBottom:3}}>ð Mijn werkdag</h2>
+          <h2 style={{fontSize:20,fontWeight:800,color:C.blauw,marginBottom:3}}>📅 Mijn werkdag</h2>
           <p style={{fontSize:13,color:C.muted}}>{vandaag ? vandaag.focus : "Geniet van je vrije dag!"}</p>
         </div>
         <button onClick={()=>setToonNieuwKlusje(!toonNieuwKlusje)}
@@ -1959,24 +1959,24 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
       <div style={{display:"flex",alignItems:"center",gap:10,margin:"12px 0 16px",background:"white",borderRadius:10,padding:"10px 14px",border:`1px solid ${C.border}`,justifyContent:"space-between"}}>
         <button onClick={()=>setWeekOffset(w=>w-1)}
           style={{background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,padding:"7px 14px",fontSize:13,fontWeight:600,cursor:"pointer",color:C.blauw,fontFamily:"inherit"}}>
-          â Vorige week
+          ← Vorige week
         </button>
         <div style={{textAlign:"center"}}>
           <div style={{fontWeight:700,fontSize:14,color:isHuidigeWeek?C.groen:isVerledenWeek?"#b45309":C.blauw}}>{weekInfo.label}</div>
           <div style={{fontSize:11,color:C.muted,marginTop:2}}>
-            {isHuidigeWeek ? "â Huidige week" : isVerledenWeek ? "Verleden week" : "Toekomstige week"}
+            {isHuidigeWeek ? "✓ Huidige week" : isVerledenWeek ? "Verleden week" : "Toekomstige week"}
           </div>
         </div>
         <button onClick={()=>setWeekOffset(w=>w+1)}
           style={{background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,padding:"7px 14px",fontSize:13,fontWeight:600,cursor:"pointer",color:C.blauw,fontFamily:"inherit"}}>
-          Volgende week â
+          Volgende week →
         </button>
       </div>
 
       {/* Nieuw klusje form */}
       {toonNieuwKlusje && (
         <div className="card" style={{marginBottom:20,borderTop:`3px solid ${C.groen}`}}>
-          <div style={{fontWeight:700,fontSize:13,color:C.groen,marginBottom:14}}>ð§ Klusje inplannen</div>
+          <div style={{fontWeight:700,fontSize:13,color:C.groen,marginBottom:14}}>🔧 Klusje inplannen</div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
             <div style={{gridColumn:"1/-1"}}>
               <label className="fl">Omschrijving *</label>
@@ -1994,7 +1994,7 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
               <label className="fl">Kamer</label>
               <select className="fs" value={nieuwKlusje.kamer} onChange={e=>setNieuwKlusje(p=>({...p,kamer:e.target.value}))} disabled={!nieuwKlusje.woning_id}>
                 <option value="">Selecteer kamer</option>
-                {(geselecteerdeHuisKlusje?.kamers||[]).map(k=><option key={k.k} value={k.k}>Kamer {k.k}{k.naam?` â ${k.naam}`:""}</option>)}
+                {(geselecteerdeHuisKlusje?.kamers||[]).map(k=><option key={k.k} value={k.k}>Kamer {k.k}{k.naam?` — ${k.naam}`:""}</option>)}
               </select>
             </div>
             <div>
@@ -2101,10 +2101,10 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
                       return (
                         <div key={m.id} style={{background:"#f0fdf4",borderRadius:10,padding:"10px 14px",marginBottom:8,border:"1px solid #bbf7d0"}}>
                           <div style={{display:"flex",alignItems:"center",gap:8}}>
-                            <span style={{fontSize:16}}>{m.type==="reservering"?"ð":"ð "}</span>
+                            <span style={{fontSize:16}}>{m.type==="reservering"?"📅":"🏠"}</span>
                             <div>
                               <div style={{fontWeight:700,fontSize:13,color:C.groen}}>{m.medewerker}</div>
-                              <div style={{fontSize:12,color:C.muted}}>{h?`${h.adres}, ${h.stad}`:""}{m.kamer?` Â· K${m.kamer}`:""}</div>
+                              <div style={{fontSize:12,color:C.muted}}>{h?`${h.adres}, ${h.stad}`:""}{m.kamer?` · K${m.kamer}`:""}</div>
                               {m.opmerkingen && <div style={{fontSize:12,color:C.muted,fontStyle:"italic"}}>"{m.opmerkingen}"</div>}
                             </div>
                           </div>
@@ -2115,19 +2115,19 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
                 )}
                 {openIngepland.length > 0 && (
                   <div style={{marginBottom:8}}>
-                    <div style={{fontSize:11,fontWeight:700,color:"#7c3aed",letterSpacing:".6px",textTransform:"uppercase",marginBottom:8}}>Ingepland â open ({openIngepland.length})</div>
+                    <div style={{fontSize:11,fontWeight:700,color:"#7c3aed",letterSpacing:".6px",textTransform:"uppercase",marginBottom:8}}>Ingepland — open ({openIngepland.length})</div>
                     {openIngepland.map(t => {
                       const h = houses.find(h=>h.id===t.woning_id);
                       return (
                         <div key={t.id} style={{background:"#f5f3ff",borderRadius:10,padding:"10px 14px",marginBottom:8,border:"1px solid #ddd6fe",display:"flex",alignItems:"flex-start",gap:10}}>
                           <div style={{flex:1}}>
                             <div style={{fontWeight:700,fontSize:13,color:"#7c3aed"}}>{t.titel}</div>
-                            {h && <div style={{fontSize:12,color:C.muted}}>ð {h.adres}, {h.stad}{t.kamer?` Â· K${t.kamer}`:""}</div>}
+                            {h && <div style={{fontSize:12,color:C.muted}}>📍 {h.adres}, {h.stad}{t.kamer?` · K${t.kamer}`:""}</div>}
                             {t.huismeester_opmerking && <div style={{fontSize:12,color:C.muted,fontStyle:"italic"}}>"{t.huismeester_opmerking}"</div>}
                           </div>
                           <button onClick={()=>isVertrekTaak(t.titel)?setVertrekModalTaak(t):onUpdateTaak(t.id,{status:"gedaan",afgehandeld_door:naam,afgehandeld_op:new Date().toISOString()})}
                             style={{background:isVertrekTaak(t.titel)?"#7c3aed":C.groen,color:"white",border:"none",borderRadius:6,padding:"5px 12px",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit",flexShrink:0}}>
-                            {isVertrekTaak(t.titel)?"ð  Controleren":"Gedaan"}
+                            {isVertrekTaak(t.titel)?"🏠 Controleren":"Gedaan"}
                           </button>
                         </div>
                       );
@@ -2143,14 +2143,14 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
                         <div key={t.id} style={{background:"#f0fdf4",borderRadius:10,padding:"10px 14px",marginBottom:8,border:"1px solid #bbf7d0",display:"flex",alignItems:"flex-start",gap:10}}>
                           <div style={{flex:1}}>
                             <div style={{fontWeight:700,fontSize:13,color:C.groen,textDecoration:"line-through"}}>{t.titel}</div>
-                            {h && <div style={{fontSize:12,color:C.muted}}>ð {h.adres}{t.kamer?` Â· K${t.kamer}`:""}</div>}
-                            {t.afgehandeld_door && <div style={{fontSize:11,color:C.groen,marginTop:2}}>â {t.afgehandeld_door}{t.afgehandeld_op?` Â· ${fmtDate(t.afgehandeld_op)}`:""}</div>}
-                            {t.extra_info&&(()=>{try{const ei=JSON.parse(t.extra_info);if(ei.woning_schoon)return(<div style={{fontSize:11,color:"#6b7280",marginTop:2}}>ð§¹ {ei.woning_schoon==="ja"?"Schoon â":ei.woning_schoon==="nee"?"Niet schoon â":"Gedeeltelijk â ï¸"} Â· ð {ei.sleutel_terug==="ja"?"Sleutel â":"Sleutel â"}{ei.opmerkingen?` Â· "${ei.opmerkingen}"`:""}</div>);}catch(e){}return null;})()}
+                            {h && <div style={{fontSize:12,color:C.muted}}>📍 {h.adres}{t.kamer?` · K${t.kamer}`:""}</div>}
+                            {t.afgehandeld_door && <div style={{fontSize:11,color:C.groen,marginTop:2}}>✓ {t.afgehandeld_door}{t.afgehandeld_op?` · ${fmtDate(t.afgehandeld_op)}`:""}</div>}
+                            {t.extra_info&&(()=>{try{const ei=JSON.parse(t.extra_info);if(ei.woning_schoon)return(<div style={{fontSize:11,color:"#6b7280",marginTop:2}}>🧹 {ei.woning_schoon==="ja"?"Schoon ✅":ei.woning_schoon==="nee"?"Niet schoon ❌":"Gedeeltelijk ⚠️"} · 🔑 {ei.sleutel_terug==="ja"?"Sleutel ✅":"Sleutel ❌"}{ei.opmerkingen?` · "${ei.opmerkingen}"`:""}</div>);}catch(e){}return null;})()}
                           </div>
                           <button onClick={()=>onUpdateTaak(t.id,{status:"open",afgehandeld_door:null,afgehandeld_op:null})}
                             title="Terugzetten naar open"
                             style={{background:"#fee2e2",color:"#b91c1c",border:"1px solid #fca5a5",borderRadius:6,padding:"5px 10px",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit",flexShrink:0}}>
-                            â©
+                            ↩
                           </button>
                         </div>
                       );
@@ -2183,14 +2183,14 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
                 const typeKleur = m.type==="aankomst"?C.groen:m.type==="vertrek"?"#7c3aed":m.type==="reservering"?C.blauw:"#f59e0b";
                 return (
                   <div key={m.id} style={{padding:"10px 0",borderBottom:`1px solid ${C.border}`,display:"flex",gap:10,alignItems:"flex-start"}}>
-                    <span style={{fontSize:18}}>{m.type==="aankomst"?"ð":m.type==="vertrek"?"ð§³":"ð"}</span>
+                    <span style={{fontSize:18}}>{m.type==="aankomst"?"🚗":m.type==="vertrek"?"🧳":"📅"}</span>
                     <div style={{flex:1}}>
                       <div style={{fontWeight:600,fontSize:13,color:C.text}}>{m.medewerker}</div>
                       <div style={{fontSize:11,color:"white",background:typeKleur,borderRadius:6,padding:"1px 7px",display:"inline-block",marginTop:2,marginBottom:3}}>{typeLabel}</div>
-                      <div style={{fontSize:12,color:C.muted}}>{huis?.adres||""}{m.kamer?` Â· K${m.kamer}`:""}</div>
-                      {m.datum && <div style={{fontSize:12,fontWeight:700,color:typeKleur,marginTop:2}}>ð {typeLabel}: {fmtDate(m.datum)}</div>}
+                      <div style={{fontSize:12,color:C.muted}}>{huis?.adres||""}{m.kamer?` · K${m.kamer}`:""}</div>
+                      {m.datum && <div style={{fontSize:12,fontWeight:700,color:typeKleur,marginTop:2}}>📅 {typeLabel}: {fmtDate(m.datum)}</div>}
                     </div>
-                    <button className="btn-g" style={{padding:"5px 12px",fontSize:11}} onClick={()=>onUpdate(m.id,"afgehandeld","")}>â</button>
+                    <button className="btn-g" style={{padding:"5px 12px",fontSize:11}} onClick={()=>onUpdate(m.id,"afgehandeld","")}>✓</button>
                   </div>
                 );
               })}
@@ -2200,10 +2200,10 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
           {/* Auto meldingen: storingen + reserveringen */}
           {autoMeldingen.length > 0 && (
             <div className="card" style={{marginBottom:16,borderTop:"4px solid #7c3aed"}}>
-              <div style={{fontWeight:800,fontSize:15,color:"#7c3aed",marginBottom:12}}>ð Auto meldingen ({autoMeldingen.length})</div>
+              <div style={{fontWeight:800,fontSize:15,color:"#7c3aed",marginBottom:12}}>🚗 Auto meldingen ({autoMeldingen.length})</div>
               {autoMeldingen.map(a => (
                 <div key={a.id} style={{padding:"10px 0",borderBottom:`1px solid ${C.border}`,display:"flex",gap:10,alignItems:"flex-start"}}>
-                  <span style={{fontSize:18}}>{a.actie==="storing"?"ð§":"ð"}</span>
+                  <span style={{fontSize:18}}>{a.actie==="storing"?"🔧":"📅"}</span>
                   <div style={{flex:1}}>
                     <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap",marginBottom:3}}>
                       <span style={{fontWeight:700,fontSize:13,color:C.text}}>{a.kenteken||"?"}</span>
@@ -2211,9 +2211,9 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
                         {a.actie==="storing"?"STORING":"RESERVERING"}
                       </span>
                     </div>
-                    {a.naam_medewerker&&a.naam_medewerker!=="-"&&<div style={{fontSize:12,color:C.muted}}>ð¤ {a.naam_medewerker}</div>}
+                    {a.naam_medewerker&&a.naam_medewerker!=="-"&&<div style={{fontSize:12,color:C.muted}}>👤 {a.naam_medewerker}</div>}
                     {a.opmerkingen&&<div style={{fontSize:12,color:C.text,marginTop:2,fontStyle:"italic"}}>"{a.opmerkingen}"</div>}
-                    {a.datum_tijd&&<div style={{fontSize:12,fontWeight:700,color:"#7c3aed",marginTop:2}}>ð {fmtDate(a.datum_tijd)}</div>}
+                    {a.datum_tijd&&<div style={{fontSize:12,fontWeight:700,color:"#7c3aed",marginTop:2}}>📅 {fmtDate(a.datum_tijd)}</div>}
                     <div style={{fontSize:11,color:C.muted,marginTop:2}}>Door: {a.ingediend_door||"?"}</div>
                   </div>
                 </div>
@@ -2232,20 +2232,20 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
                 const isDone = t.status === "gedaan";
                 return (
                   <div key={t.id} style={{padding:"10px 0",borderBottom:`1px solid ${C.border}`,display:"flex",gap:10,alignItems:"flex-start",opacity:isDone?.75:1}}>
-                    <span style={{fontSize:16,marginTop:2}}>{isDone?"â":t.prioriteit==="hoog"?"ð´":t.prioriteit==="middel"?"ð¡":"ð¢"}</span>
+                    <span style={{fontSize:16,marginTop:2}}>{isDone?"✅":t.prioriteit==="hoog"?"🔴":t.prioriteit==="middel"?"🟡":"🟢"}</span>
                     <div style={{flex:1}}>
                       <div style={{fontWeight:600,fontSize:13,color:isDone?C.groen:C.text,textDecoration:isDone?"line-through":"none"}}>{t.titel}</div>
-                      <div style={{fontSize:12,color:C.muted}}>{huis?.adres||"Algemeen"}{t.kamer?` Â· K${t.kamer}`:""}</div>
-                      {t.ingepland_op && <div style={{fontSize:12,fontWeight:700,color:"#7c3aed",marginTop:2}}>ð {fmtDate(t.ingepland_op)}</div>}
-                      {isDone && t.afgehandeld_door && <div style={{fontSize:11,color:C.groen,marginTop:1}}>â {t.afgehandeld_door}</div>}
+                      <div style={{fontSize:12,color:C.muted}}>{huis?.adres||"Algemeen"}{t.kamer?` · K${t.kamer}`:""}</div>
+                      {t.ingepland_op && <div style={{fontSize:12,fontWeight:700,color:"#7c3aed",marginTop:2}}>📅 {fmtDate(t.ingepland_op)}</div>}
+                      {isDone && t.afgehandeld_door && <div style={{fontSize:11,color:C.groen,marginTop:1}}>✓ {t.afgehandeld_door}</div>}
                     </div>
                     {!isDone ? (
-                      <button className="btn-b" style={{padding:"5px 12px",fontSize:11,background:isVertrekTaak(t.titel)?"#7c3aed":undefined}} onClick={()=>isVertrekTaak(t.titel)?setVertrekModalTaak(t):onUpdateTaak(t.id,{status:"gedaan",afgehandeld_door:naam,afgehandeld_op:new Date().toISOString(),notitie:null})}>{isVertrekTaak(t.titel)?"ð ":"â"}</button>
+                      <button className="btn-b" style={{padding:"5px 12px",fontSize:11,background:isVertrekTaak(t.titel)?"#7c3aed":undefined}} onClick={()=>isVertrekTaak(t.titel)?setVertrekModalTaak(t):onUpdateTaak(t.id,{status:"gedaan",afgehandeld_door:naam,afgehandeld_op:new Date().toISOString(),notitie:null})}>{isVertrekTaak(t.titel)?"🏠":"✓"}</button>
                     ) : (
                       <button onClick={()=>onUpdateTaak(t.id,{status:"open",afgehandeld_door:null,afgehandeld_op:null})}
                         title="Terugzetten naar open"
                         style={{background:"#fee2e2",color:"#b91c1c",border:"1px solid #fca5a5",borderRadius:6,padding:"5px 10px",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit",flexShrink:0}}>
-                        â©
+                        ↩
                       </button>
                     )}
                   </div>
@@ -2259,7 +2259,7 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
   );
 }
 
-// âââ WONING KAART DAG (uitklapbaar met inline checklist) âââââââââââââââââââââ
+// ─── WONING KAART DAG (uitklapbaar met inline checklist) ─────────────────────
 function WoningKaartDag({ huis, kleur, hTaken, hMeldingen, checklistItems, checklists, naam, onUpdateTaak, gekozenDag, weekJaar: weekJaarProp, weekOffset=0 }) {
   const [open, setOpen] = useState(false);
   const [vertrekModalTaak, setVertrekModalTaak] = useState(null);
@@ -2273,7 +2273,7 @@ function WoningKaartDag({ huis, kleur, hTaken, hMeldingen, checklistItems, check
   const [toonOpmerkingItem, setToonOpmerkingItem] = useState({});
   const [opmerkingItem, setOpmerkingItem] = useState({});
 
-  // Week/jaar â gebruik prop als meegegeven, anders huidige week
+  // Week/jaar — gebruik prop als meegegeven, anders huidige week
   const weekJaar = weekJaarProp || (() => {
     const nu = new Date();
     const d = new Date(nu); d.setHours(0,0,0,0); d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
@@ -2291,12 +2291,12 @@ function WoningKaartDag({ huis, kleur, hTaken, hMeldingen, checklistItems, check
   // Kwartaal: week 1-13 = Q1, 14-26 = Q2, 27-39 = Q3, 40-52 = Q4
   const periodeQ  = `Q${Math.ceil(wnNum / 13)}-${jaarNum}`;
 
-  // âââ Items per type âââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+  // ─── Items per type ───────────────────────────────────────────────────────
   const weekItems = checklistItems.filter(i => i.type === "wekelijks"   && i.actief);
   const items4W   = checklistItems.filter(i => i.type === "4wekelijks"  && i.actief);
   const itemsQ    = checklistItems.filter(i => i.type === "kwartaal"    && i.actief);
 
-  // âââ Bestaande checklists âââââââââââââââââââââââââââââââââââââââââââââââââ
+  // ─── Bestaande checklists ─────────────────────────────────────────────────
   const chkWeek = checklists.find(c => c.woning_id === huis.id && c.week_jaar === weekJaar  && c.type === "wekelijks");
   const chk4W   = checklists.find(c => c.woning_id === huis.id && c.week_jaar === periode4W && c.type === "4wekelijks");
   const chkQ    = checklists.find(c => c.woning_id === huis.id && c.week_jaar === periodeQ  && c.type === "kwartaal");
@@ -2306,7 +2306,7 @@ function WoningKaartDag({ huis, kleur, hTaken, hMeldingen, checklistItems, check
   const afgQ    = chkQ?.items    || [];
   const opmWeek = chkWeek?.items_opmerkingen || {};
 
-  // âââ Klaar-flags âââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+  // ─── Klaar-flags ─────────────────────────────────────────────────────────
   const weekKlaar = weekItems.length > 0 && weekItems.every(i => afgWeek.includes(i.id));
   const w4Klaar   = items4W.length  > 0 && items4W.every(i  => afg4W.includes(i.id));
   const qKlaar    = itemsQ.length   > 0 && itemsQ.every(i   => afgQ.includes(i.id));
@@ -2316,7 +2316,7 @@ function WoningKaartDag({ huis, kleur, hTaken, hMeldingen, checklistItems, check
   const openCheckWeek   = weekItems.filter(i => !afgWeek.includes(i.id)).length;
   const allesKlaar      = openTakenCount === 0 && hMeldingen.length === 0 && weekKlaar && w4Klaar && qKlaar;
 
-  // âââ Toggle helpers âââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+  // ─── Toggle helpers ───────────────────────────────────────────────────────
   async function toggleItem(type, periodeKey, bestaand, afgevinkt, itemId) {
     setSaving(true);
     const nieuw = afgevinkt.includes(itemId) ? afgevinkt.filter(i => i !== itemId) : [...afgevinkt, itemId];
@@ -2343,9 +2343,9 @@ function WoningKaartDag({ huis, kleur, hTaken, hMeldingen, checklistItems, check
   }
 
   const typeConfig = {
-    wekelijks:  { label: "Wekelijks",   icon: "ð", kleur: C.blauw,    items: weekItems, bestaand: chkWeek, afgevinkt: afgWeek, periodeKey: weekJaar,  klaarFlag: weekKlaar,  periodeLabel: `Week ${wnNum}` },
-    "4wekelijks":{ label: "4-wekelijks", icon: "ð", kleur: "#7c3aed", items: items4W,   bestaand: chk4W,   afgevinkt: afg4W,  periodeKey: periode4W, klaarFlag: w4Klaar,   periodeLabel: `Periode ${Math.ceil(wnNum/4)} (wk ${(Math.ceil(wnNum/4)-1)*4+1}â${Math.ceil(wnNum/4)*4})` },
-    kwartaal:   { label: "Kwartaal",    icon: "ð", kleur: "#f59e0b",  items: itemsQ,   bestaand: chkQ,    afgevinkt: afgQ,   periodeKey: periodeQ,  klaarFlag: qKlaar,    periodeLabel: `Q${Math.ceil(wnNum/13)} ${jaarNum}` },
+    wekelijks:  { label: "Wekelijks",   icon: "📋", kleur: C.blauw,    items: weekItems, bestaand: chkWeek, afgevinkt: afgWeek, periodeKey: weekJaar,  klaarFlag: weekKlaar,  periodeLabel: `Week ${wnNum}` },
+    "4wekelijks":{ label: "4-wekelijks", icon: "📅", kleur: "#7c3aed", items: items4W,   bestaand: chk4W,   afgevinkt: afg4W,  periodeKey: periode4W, klaarFlag: w4Klaar,   periodeLabel: `Periode ${Math.ceil(wnNum/4)} (wk ${(Math.ceil(wnNum/4)-1)*4+1}–${Math.ceil(wnNum/4)*4})` },
+    kwartaal:   { label: "Kwartaal",    icon: "🏆", kleur: "#f59e0b",  items: itemsQ,   bestaand: chkQ,    afgevinkt: afgQ,   periodeKey: periodeQ,  klaarFlag: qKlaar,    periodeLabel: `Q${Math.ceil(wnNum/13)} ${jaarNum}` },
   };
   const actieveConfig = typeConfig[checklistTab];
 
@@ -2359,52 +2359,52 @@ function WoningKaartDag({ huis, kleur, hTaken, hMeldingen, checklistItems, check
       borderLeft: `4px solid ${allesKlaar ? C.groen : kleur}`,
       overflow: "hidden",
     }}>
-      {/* âââ Header (klikbaar) âââ */}
+      {/* ─── Header (klikbaar) ─── */}
       <div onClick={() => setOpen(!open)} style={{padding:"12px 14px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
         <div style={{flex:1}}>
           <div style={{fontWeight:700,fontSize:13,color:allesKlaar?C.groen:kleur}}>
-            ð {huis.adres}, {huis.stad}
+            📍 {huis.adres}, {huis.stad}
           </div>
           <div style={{fontSize:11,color:C.muted,marginTop:3,display:"flex",gap:8,flexWrap:"wrap"}}>
-            {openTakenCount > 0 && <span style={{color:"#f59e0b"}}>ð§ {openTakenCount} taak{openTakenCount>1?"en":""}</span>}
-            {hMeldingen.length > 0 && <span style={{color:"#ef4444"}}>â ï¸ {hMeldingen.length} melding{hMeldingen.length>1?"en":""}</span>}
-            {weekKlaar  ? <span style={{color:C.groen}}>ð â</span> : openCheckWeek > 0 ? <span style={{color:C.muted}}>ð {weekItems.length - openCheckWeek}/{weekItems.length}</span> : null}
-            {w4Klaar    ? <span style={{color:C.groen}}>ð â</span> : items4W.length > 0 ? <span style={{color:"#7c3aed"}}>ð {afg4W.length}/{items4W.length}</span> : null}
-            {qKlaar     ? <span style={{color:C.groen}}>ð â</span> : itemsQ.length  > 0 ? <span style={{color:"#f59e0b"}}>ð {afgQ.length}/{itemsQ.length}</span>  : null}
+            {openTakenCount > 0 && <span style={{color:"#f59e0b"}}>🔧 {openTakenCount} taak{openTakenCount>1?"en":""}</span>}
+            {hMeldingen.length > 0 && <span style={{color:"#ef4444"}}>⚠️ {hMeldingen.length} melding{hMeldingen.length>1?"en":""}</span>}
+            {weekKlaar  ? <span style={{color:C.groen}}>📋 ✓</span> : openCheckWeek > 0 ? <span style={{color:C.muted}}>📋 {weekItems.length - openCheckWeek}/{weekItems.length}</span> : null}
+            {w4Klaar    ? <span style={{color:C.groen}}>📅 ✓</span> : items4W.length > 0 ? <span style={{color:"#7c3aed"}}>📅 {afg4W.length}/{items4W.length}</span> : null}
+            {qKlaar     ? <span style={{color:C.groen}}>🏆 ✓</span> : itemsQ.length  > 0 ? <span style={{color:"#f59e0b"}}>🏆 {afgQ.length}/{itemsQ.length}</span>  : null}
           </div>
         </div>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
-          {allesKlaar && <span style={{fontSize:11,fontWeight:700,color:C.groen}}>â Klaar</span>}
-          <span style={{color:C.muted,fontSize:14}}>{open?"â²":"â¼"}</span>
+          {allesKlaar && <span style={{fontSize:11,fontWeight:700,color:C.groen}}>✅ Klaar</span>}
+          <span style={{color:C.muted,fontSize:14}}>{open?"▲":"▼"}</span>
         </div>
       </div>
 
-      {/* âââ Uitklapbaar âââ */}
+      {/* ─── Uitklapbaar ─── */}
       {open && (
         <div style={{borderTop:`1px solid ${C.border}`,padding:"12px 14px"}}>
 
           {/* Taken */}
           {hTaken.length > 0 && (
             <div style={{marginBottom:14}}>
-              <div style={{fontSize:11,fontWeight:700,color:"#f59e0b",letterSpacing:".6px",textTransform:"uppercase",marginBottom:8}}>ð§ Taken</div>
+              <div style={{fontSize:11,fontWeight:700,color:"#f59e0b",letterSpacing:".6px",textTransform:"uppercase",marginBottom:8}}>🔧 Taken</div>
               {hTaken.map(t => (
                 <div key={t.id} style={{display:"flex",gap:10,padding:"7px 0",borderBottom:`1px solid ${C.border}`,alignItems:"center"}}>
                   <div style={{flex:1}}>
                     <div style={{fontSize:13,fontWeight:600,color:t.status==="gedaan"?C.groen:C.text,textDecoration:t.status==="gedaan"?"line-through":"none"}}>{t.titel}</div>
                     {t.omschrijving&&<div style={{fontSize:11,color:C.muted,marginTop:1}}>{t.omschrijving}</div>}
-                    {t.status==="gedaan"&&t.afgehandeld_door&&<div style={{fontSize:11,color:C.groen,marginTop:1}}>â {t.afgehandeld_door}</div>}
-                    {t.status==="gedaan"&&t.extra_info&&(()=>{try{const ei=JSON.parse(t.extra_info);if(ei.woning_schoon)return(<div style={{fontSize:11,color:"#6b7280",marginTop:2}}>ð§¹ {ei.woning_schoon==="ja"?"Schoon â":ei.woning_schoon==="nee"?"Niet schoon â":"Gedeeltelijk â ï¸"} Â· ð Sleutel: {ei.sleutel_terug==="ja"?"â":"â"}{ei.opmerkingen?` Â· "${ei.opmerkingen}"`:""}</div>);}catch(e){}return null;})()}
+                    {t.status==="gedaan"&&t.afgehandeld_door&&<div style={{fontSize:11,color:C.groen,marginTop:1}}>✓ {t.afgehandeld_door}</div>}
+                    {t.status==="gedaan"&&t.extra_info&&(()=>{try{const ei=JSON.parse(t.extra_info);if(ei.woning_schoon)return(<div style={{fontSize:11,color:"#6b7280",marginTop:2}}>🧹 {ei.woning_schoon==="ja"?"Schoon ✅":ei.woning_schoon==="nee"?"Niet schoon ❌":"Gedeeltelijk ⚠️"} · 🔑 Sleutel: {ei.sleutel_terug==="ja"?"✅":"❌"}{ei.opmerkingen?` · "${ei.opmerkingen}"`:""}</div>);}catch(e){}return null;})()}
                   </div>
                   {t.status !== "gedaan" ? (
                     <button onClick={()=>isVertrekTaak(t.titel)?setVertrekModalTaak(t):onUpdateTaak(t.id,{status:"gedaan",afgehandeld_door:naam,afgehandeld_op:new Date().toISOString()})}
                       style={{background:isVertrekTaak(t.titel)?"#7c3aed":C.groen,color:"white",border:"none",borderRadius:6,padding:"5px 12px",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit",flexShrink:0}}>
-                      {isVertrekTaak(t.titel)?"ð  Controleren":"â Gedaan"}
+                      {isVertrekTaak(t.titel)?"🏠 Controleren":"✓ Gedaan"}
                     </button>
                   ) : (
                     <button onClick={()=>onUpdateTaak(t.id,{status:"open",afgehandeld_door:null,afgehandeld_op:null})}
                       title="Terugzetten naar open"
                       style={{background:"#fee2e2",color:"#b91c1c",border:"1px solid #fca5a5",borderRadius:6,padding:"5px 10px",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit",flexShrink:0}}>
-                      â© Terugzetten
+                      ↩ Terugzetten
                     </button>
                   )}
                 </div>
@@ -2415,17 +2415,17 @@ function WoningKaartDag({ huis, kleur, hTaken, hMeldingen, checklistItems, check
           {/* Meldingen */}
           {hMeldingen.length > 0 && (
             <div style={{marginBottom:14}}>
-              <div style={{fontSize:11,fontWeight:700,color:"#ef4444",letterSpacing:".6px",textTransform:"uppercase",marginBottom:8}}>â ï¸ Meldingen</div>
+              <div style={{fontSize:11,fontWeight:700,color:"#ef4444",letterSpacing:".6px",textTransform:"uppercase",marginBottom:8}}>⚠️ Meldingen</div>
               {hMeldingen.map(m=>(
                 <div key={m.id} style={{padding:"7px 0",borderBottom:`1px solid ${C.border}`,fontSize:12}}>
-                  <div style={{fontWeight:600,color:C.text}}>{m.medewerker} â {m.type}</div>
+                  <div style={{fontWeight:600,color:C.text}}>{m.medewerker} — {m.type}</div>
                   {m.opmerkingen&&<div style={{color:C.muted,marginTop:1}}>{m.opmerkingen}</div>}
                 </div>
               ))}
             </div>
           )}
 
-          {/* âââ Checklist tabs âââ */}
+          {/* ─── Checklist tabs ─── */}
           <div>
             {/* Tab knoppen */}
             <div style={{display:"flex",gap:6,marginBottom:12}}>
@@ -2436,7 +2436,7 @@ function WoningKaartDag({ huis, kleur, hTaken, hMeldingen, checklistItems, check
                   <button key={key} onClick={()=>setChecklistTab(key)}
                     style={{flex:1,background:isActief?cfg.kleur:"white",color:isActief?"white":done?C.groen:C.text,border:`2px solid ${isActief?cfg.kleur:done?"#bbf7d0":C.border}`,borderRadius:8,padding:"7px 8px",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit",transition:"all .15s",position:"relative"}}>
                     {cfg.icon} {cfg.label}
-                    {done && !isActief && <span style={{marginLeft:4,color:C.groen}}>â</span>}
+                    {done && !isActief && <span style={{marginLeft:4,color:C.groen}}>✓</span>}
                     {!done && cfg.items.length > 0 && cfg.afgevinkt.length > 0 && !isActief && (
                       <span style={{marginLeft:4,fontSize:10,opacity:.7}}>{cfg.afgevinkt.length}/{cfg.items.length}</span>
                     )}
@@ -2448,20 +2448,20 @@ function WoningKaartDag({ huis, kleur, hTaken, hMeldingen, checklistItems, check
             {/* Periode label */}
             <div style={{fontSize:11,color:C.muted,marginBottom:10,display:"flex",alignItems:"center",gap:6}}>
               <span>{actieveConfig.periodeLabel}</span>
-              {saving && <span>â³</span>}
-              {actieveConfig.klaarFlag && <span style={{color:C.groen,fontWeight:700}}>â Alles afgerond voor deze periode</span>}
+              {saving && <span>⏳</span>}
+              {actieveConfig.klaarFlag && <span style={{color:C.groen,fontWeight:700}}>✓ Alles afgerond voor deze periode</span>}
             </div>
 
             {/* Items */}
             {actieveConfig.klaarFlag ? (
               <div style={{background:"#f0fdf4",borderRadius:8,padding:"12px 14px",fontSize:13,color:C.groen,fontWeight:600,textAlign:"center"}}>
-                â Alle {actieveConfig.label.toLowerCase()} items zijn afgevinkt voor {actieveConfig.periodeLabel}.<br/>
+                ✅ Alle {actieveConfig.label.toLowerCase()} items zijn afgevinkt voor {actieveConfig.periodeLabel}.<br/>
                 <span style={{fontSize:11,fontWeight:400,color:C.muted}}>Verschijnt weer bij de volgende periode.</span>
               </div>
             ) : actieveConfig.items.length === 0 ? (
               <div style={{background:C.bg,borderRadius:8,padding:"12px 14px",fontSize:13,color:C.muted,textAlign:"center"}}>
                 Nog geen items voor <strong>{actieveConfig.label}</strong>.<br/>
-                <span style={{fontSize:12}}>Voeg toe via <strong>âï¸ Beheer â Checklists</strong></span>
+                <span style={{fontSize:12}}>Voeg toe via <strong>⚙️ Beheer → Checklists</strong></span>
               </div>
             ) : (
               <div>
@@ -2474,18 +2474,18 @@ function WoningKaartDag({ huis, kleur, hTaken, hMeldingen, checklistItems, check
                       <div style={{display:"flex",gap:10,padding:"9px 0",alignItems:"flex-start"}}>
                         <div onClick={() => toggleItem(checklistTab, actieveConfig.periodeKey, actieveConfig.bestaand, actieveConfig.afgevinkt, item.id)}
                           style={{width:22,height:22,borderRadius:5,border:`2px solid ${gedaan?actieveConfig.kleur:C.border}`,background:gedaan?actieveConfig.kleur:"white",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:1,cursor:"pointer",transition:"all .15s"}}>
-                          {gedaan&&<span style={{color:"white",fontSize:12,fontWeight:700}}>â</span>}
+                          {gedaan&&<span style={{color:"white",fontSize:12,fontWeight:700}}>✓</span>}
                         </div>
                         <div style={{flex:1}}>
                           <span onClick={() => toggleItem(checklistTab, actieveConfig.periodeKey, actieveConfig.bestaand, actieveConfig.afgevinkt, item.id)}
                             style={{fontSize:13,color:gedaan?actieveConfig.kleur:C.text,textDecoration:gedaan?"line-through":"none",lineHeight:1.4,cursor:"pointer"}}>
                             {item.tekst}
                           </span>
-                          {opmerking && !toonOpm && <div style={{fontSize:11,color:C.blauw,marginTop:2,fontStyle:"italic"}}>ð¬ {opmerking}</div>}
+                          {opmerking && !toonOpm && <div style={{fontSize:11,color:C.blauw,marginTop:2,fontStyle:"italic"}}>💬 {opmerking}</div>}
                         </div>
                         {checklistTab === "wekelijks" && (
                           <button onClick={()=>{ setToonOpmerkingItem(p=>({...p,[item.id]:!p[item.id]})); setOpmerkingItem(p=>({...p,[item.id]:opmerking})); }}
-                            style={{background:"none",border:"none",color:opmerking?C.blauw:C.muted,fontSize:14,cursor:"pointer",padding:"2px 6px",flexShrink:0}}>ð¬</button>
+                            style={{background:"none",border:"none",color:opmerking?C.blauw:C.muted,fontSize:14,cursor:"pointer",padding:"2px 6px",flexShrink:0}}>💬</button>
                         )}
                       </div>
                       {checklistTab === "wekelijks" && toonOpm && (
@@ -2495,9 +2495,9 @@ function WoningKaartDag({ huis, kleur, hTaken, hMeldingen, checklistItems, check
                             style={{width:"100%",background:"white",border:`1.5px solid ${C.blauw}`,borderRadius:8,color:C.text,padding:"6px 10px",fontSize:12,outline:"none",fontFamily:"inherit",boxSizing:"border-box",marginBottom:6}}/>
                           <div style={{display:"flex",gap:6}}>
                             <button onClick={()=>slaOpmerkingOp(item.id, opmerkingItem[item.id]||"")}
-                              style={{background:C.blauw,color:"white",border:"none",borderRadius:6,padding:"5px 12px",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>â Opslaan</button>
+                              style={{background:C.blauw,color:"white",border:"none",borderRadius:6,padding:"5px 12px",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>✓ Opslaan</button>
                             {opmerking&&<button onClick={()=>slaOpmerkingOp(item.id,"")}
-                              style={{background:"white",border:"1px solid #fecaca",color:"#ef4444",borderRadius:6,padding:"5px 10px",fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>ð</button>}
+                              style={{background:"white",border:"1px solid #fecaca",color:"#ef4444",borderRadius:6,padding:"5px 10px",fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>🗑</button>}
                             <button onClick={()=>setToonOpmerkingItem(p=>({...p,[item.id]:false}))}
                               style={{background:"white",border:`1px solid ${C.border}`,color:C.muted,borderRadius:6,padding:"5px 10px",fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>Annuleren</button>
                           </div>
@@ -2516,9 +2516,9 @@ function WoningKaartDag({ huis, kleur, hTaken, hMeldingen, checklistItems, check
   );
 }
 
-// âââ GECOMBINEERDE TAKEN & MELDINGEN VIEW ââââââââââââââââââââââââââââââââââââ
+// ─── GECOMBINEERDE TAKEN & MELDINGEN VIEW ────────────────────────────────────
 
-// âââ KLEDING UITGIFTE IN TAKEN & MELDINGEN ââââââââââââââââââââââââââââââââââââ
+// ─── KLEDING UITGIFTE IN TAKEN & MELDINGEN ────────────────────────────────────
 function KledingUitgifteTabInTaken({ gebruiker, showToast }) {
   const [voorraad, setVoorraad] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -2532,7 +2532,7 @@ function KledingUitgifteTabInTaken({ gebruiker, showToast }) {
     const item = voorraad.find(v=>v.vestiging===vestiging&&v.type===type&&v.maat===maat);
     if (!item) { showToast("Artikel niet gevonden","err"); return false; }
     if (actie==="uitgifte" && item.aantal < aantal) {
-      showToast(`Onvoldoende voorraad â nog ${item.aantal} beschikbaar`,"err"); return false;
+      showToast(`Onvoldoende voorraad — nog ${item.aantal} beschikbaar`,"err"); return false;
     }
     const nieuwAantal = actie==="uitgifte" ? item.aantal - aantal : item.aantal + aantal;
     const { error } = await supabase.from("kleding_voorraad")
@@ -2545,8 +2545,8 @@ function KledingUitgifteTabInTaken({ gebruiker, showToast }) {
     }]);
     setVoorraad(prev => prev.map(v => v.id===item.id ? {...v, aantal: nieuwAantal} : v));
     const msg = actie==="uitgifte"
-      ? `â ${aantal}x ${type} ${maat} uitgegeven aan ${medewerkerNaam||gebruiker.naam}`
-      : `â ${aantal}x ${type} ${maat} ingenomen van ${medewerkerNaam||gebruiker.naam}`;
+      ? `✓ ${aantal}x ${type} ${maat} uitgegeven aan ${medewerkerNaam||gebruiker.naam}`
+      : `✓ ${aantal}x ${type} ${maat} ingenomen van ${medewerkerNaam||gebruiker.naam}`;
     showToast(msg);
     return true;
   }
@@ -2558,7 +2558,7 @@ function KledingUitgifteTabInTaken({ gebruiker, showToast }) {
 
 
 
-// âââ AUTO TAB INLINE (in Taken & Meldingen) âââââââââââââââââââââââââââââââââââ
+// ─── AUTO TAB INLINE (in Taken & Meldingen) ───────────────────────────────────
 function AutoTabInTaken({ gebruiker, showToast }) {
   const [autos, setAutos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -2574,9 +2574,9 @@ function AutoTabInTaken({ gebruiker, showToast }) {
   },[]);
 
   const acties = [
-    {id:"uitgifte", icon:"ð", label:"Uitgifte", kleur:C.groen},
-    {id:"inname",   icon:"ð", label:"Inname",   kleur:C.blauw},
-    {id:"storing",  icon:"ð§", label:"Storing",  kleur:"#f59e0b"},
+    {id:"uitgifte", icon:"🚗", label:"Uitgifte", kleur:C.groen},
+    {id:"inname",   icon:"🔑", label:"Inname",   kleur:C.blauw},
+    {id:"storing",  icon:"🔧", label:"Storing",  kleur:"#f59e0b"},
   ];
 
   async function submit() {
@@ -2602,7 +2602,7 @@ function AutoTabInTaken({ gebruiker, showToast }) {
       status: actie==="storing" ? "open" : "afgehandeld",
     }]);
 
-    showToast(`â ${acties.find(a=>a.id===actie)?.label} geregistreerd â ${kenteken}`);
+    showToast(`✓ ${acties.find(a=>a.id===actie)?.label} geregistreerd — ${kenteken}`);
     setSaving(false);
     setKenteken(""); setNaam(""); setOmschrijving("");
   }
@@ -2615,7 +2615,7 @@ function AutoTabInTaken({ gebruiker, showToast }) {
   return (
     <div style={{maxWidth:520}}>
       <div style={{background:"white",border:`1px solid ${C.border}`,borderRadius:14,padding:24}}>
-        <h3 style={{fontSize:15,fontWeight:800,color:C.blauw,marginBottom:16}}>ð Auto melding indienen</h3>
+        <h3 style={{fontSize:15,fontWeight:800,color:C.blauw,marginBottom:16}}>🚗 Auto melding indienen</h3>
 
         {/* Actie */}
         <div style={{display:"flex",gap:8,marginBottom:16}}>
@@ -2633,16 +2633,16 @@ function AutoTabInTaken({ gebruiker, showToast }) {
         <div style={{marginBottom:14}}>
           <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Auto *</label>
           <select value={kenteken} onChange={e=>setKenteken(e.target.value)} style={inp}>
-            <option value="">â Selecteer auto â</option>
+            <option value="">— Selecteer auto —</option>
             {autos.map(a=>(
               <option key={a.kenteken} value={a.kenteken}>
-                {a.kenteken} â {a.merk_model||""} [{a.status}]{a.naam_medewerker?" ("+a.naam_medewerker+")":""}
+                {a.kenteken} — {a.merk_model||""} [{a.status}]{a.naam_medewerker?" ("+a.naam_medewerker+")":""}
               </option>
             ))}
           </select>
           {geselecteerd && (
             <div style={{fontSize:12,color:C.muted,marginTop:4,padding:"4px 8px",background:C.bg,borderRadius:6}}>
-              Huidig: <strong>{geselecteerd.status}</strong>{geselecteerd.naam_medewerker?" Â· "+geselecteerd.naam_medewerker:""}
+              Huidig: <strong>{geselecteerd.status}</strong>{geselecteerd.naam_medewerker?" · "+geselecteerd.naam_medewerker:""}
             </div>
           )}
         </div>
@@ -2669,14 +2669,14 @@ function AutoTabInTaken({ gebruiker, showToast }) {
         <button onClick={submit} disabled={saving||!kenteken}
           style={{background:kenteken?(acties.find(a=>a.id===actie)?.kleur||C.blauw):"#d1dbe8",color:"white",border:"none",
             borderRadius:8,padding:"12px",fontSize:14,fontWeight:700,cursor:kenteken&&!saving?"pointer":"not-allowed",fontFamily:"inherit",width:"100%"}}>
-          {saving?"â³ Bezig...":acties.find(a=>a.id===actie)?.icon+" "+acties.find(a=>a.id===actie)?.label+" registreren"}
+          {saving?"⏳ Bezig...":acties.find(a=>a.id===actie)?.icon+" "+acties.find(a=>a.id===actie)?.label+" registreren"}
         </button>
       </div>
     </div>
   );
 }
 
-// âââ FIETS TAB INLINE (in Taken & Meldingen) ââââââââââââââââââââââââââââââââââ
+// ─── FIETS TAB INLINE (in Taken & Meldingen) ──────────────────────────────────
 function FietsTabInTaken({ gebruiker, showToast, onAddTaak }) {
   const [locatie, setLocatie] = useState("");
   const [naam, setNaam] = useState("");
@@ -2690,14 +2690,14 @@ function FietsTabInTaken({ gebruiker, showToast, onAddTaak }) {
     if (!datum) { showToast("Vul een datum in","err"); return; }
     setSaving(true);
     await onAddTaak({
-      titel: `Fiets aanvragen â ${naam.trim()} (${locatie})`,
+      titel: `Fiets aanvragen — ${naam.trim()} (${locatie})`,
       omschrijving: `Fiets nodig voor ${naam.trim()} in ${locatie} vanaf ${datum}.${opmerking ? " Opmerking: " + opmerking : ""}`,
       prioriteit: "middel",
       voor_rol: "backoffice",
       status: "open",
       aangemaakt_door: gebruiker.naam,
     });
-    showToast(`â Fietsaanvraag ingediend voor ${naam.trim()}`);
+    showToast(`✓ Fietsaanvraag ingediend voor ${naam.trim()}`);
     setSaving(false);
     setLocatie(""); setNaam(""); setDatum(new Date().toISOString().slice(0,10)); setOpmerking("");
   }
@@ -2707,7 +2707,7 @@ function FietsTabInTaken({ gebruiker, showToast, onAddTaak }) {
   return (
     <div style={{maxWidth:520}}>
       <div style={{background:"white",border:`1px solid ${C.border}`,borderRadius:14,padding:24}}>
-        <h3 style={{fontSize:15,fontWeight:800,color:C.blauw,marginBottom:4}}>ð² Fiets aanvragen</h3>
+        <h3 style={{fontSize:15,fontWeight:800,color:C.blauw,marginBottom:4}}>🚲 Fiets aanvragen</h3>
         <p style={{fontSize:13,color:C.muted,marginBottom:20}}>Vraag een fiets aan voor een medewerker.</p>
 
         {/* Locatie */}
@@ -2749,14 +2749,14 @@ function FietsTabInTaken({ gebruiker, showToast, onAddTaak }) {
           style={{background:(locatie&&naam.trim()&&datum)?C.blauw:"#d1dbe8",color:"white",border:"none",
             borderRadius:8,padding:"12px",fontSize:14,fontWeight:700,
             cursor:(locatie&&naam.trim()&&datum)&&!saving?"pointer":"not-allowed",fontFamily:"inherit",width:"100%"}}>
-          {saving?"â³ Bezig...":"ð² Fietsaanvraag indienen"}
+          {saving?"⏳ Bezig...":"🚲 Fietsaanvraag indienen"}
         </button>
       </div>
     </div>
   );
 }
 
-// âââ RESERVERING ANNULEREN ââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─── RESERVERING ANNULEREN ────────────────────────────────────────────────────
 function ReserveringAnnuleren({ houses, meldingen, gebruiker, onUpdateWoning, onUpdateMelding, showToast, onTerug }) {
   const [bezig, setBezig] = useState(null);
 
@@ -2791,7 +2791,7 @@ function ReserveringAnnuleren({ houses, meldingen, gebruiker, onUpdateWoning, on
       await onUpdateMelding(melding.id, "geannuleerd", gebruiker.naam, "Reservering geannuleerd");
     }
 
-    showToast(`â Reservering van ${kamer.naam||"?"} in K${kamer.k} geannuleerd`);
+    showToast(`✓ Reservering van ${kamer.naam||"?"} in K${kamer.k} geannuleerd`);
     setBezig(null);
   }
 
@@ -2800,14 +2800,14 @@ function ReserveringAnnuleren({ houses, meldingen, gebruiker, onUpdateWoning, on
       <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
         <button onClick={onTerug}
           style={{background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,padding:"7px 14px",fontSize:13,cursor:"pointer",fontFamily:"inherit",color:C.muted}}>
-          â Terug
+          ← Terug
         </button>
-        <h3 style={{fontSize:16,fontWeight:800,color:C.blauw,margin:0}}>ð Reservering annuleren</h3>
+        <h3 style={{fontSize:16,fontWeight:800,color:C.blauw,margin:0}}>📅 Reservering annuleren</h3>
       </div>
 
       {reserveringen.length === 0 ? (
         <div style={{textAlign:"center",padding:60,color:C.muted}}>
-          <div style={{fontSize:40,marginBottom:12}}>ð</div>
+          <div style={{fontSize:40,marginBottom:12}}>📅</div>
           <div style={{fontWeight:700,fontSize:15}}>Geen reserveringen gevonden</div>
           <div style={{fontSize:13,marginTop:6}}>Er zijn momenteel geen gereserveerde kamers.</div>
         </div>
@@ -2820,15 +2820,15 @@ function ReserveringAnnuleren({ houses, meldingen, gebruiker, onUpdateWoning, on
               <div key={key} style={{background:"white",border:"1.5px solid #fde68a",borderLeft:"4px solid #f59e0b",borderRadius:12,padding:20,display:"flex",alignItems:"center",gap:16,flexWrap:"wrap"}}>
                 <div style={{flex:1,minWidth:200}}>
                   <div style={{fontWeight:800,fontSize:14,color:C.text,marginBottom:4}}>
-                    {huis.adres}, {huis.stad} â Kamer {kamer.k}
+                    {huis.adres}, {huis.stad} — Kamer {kamer.k}
                   </div>
                   <div style={{fontSize:13,color:C.muted}}>
-                    ð¤ {kamer.naam || "Naam onbekend"}
-                    {kamer.bedrijf && <span> Â· {kamer.bedrijf}</span>}
+                    👤 {kamer.naam || "Naam onbekend"}
+                    {kamer.bedrijf && <span> · {kamer.bedrijf}</span>}
                   </div>
                   {melding?.datum && (
                     <div style={{fontSize:12,color:"#b45309",marginTop:4}}>
-                      ð Geplande aankomst: {new Date(melding.datum).toLocaleDateString("nl-NL")}
+                      📅 Geplande aankomst: {new Date(melding.datum).toLocaleDateString("nl-NL")}
                     </div>
                   )}
                 </div>
@@ -2838,7 +2838,7 @@ function ReserveringAnnuleren({ houses, meldingen, gebruiker, onUpdateWoning, on
                   style={{background:isBezig?"#fde68a":"#fef3c7",color:"#92400e",border:"2px solid #f59e0b",
                     borderRadius:8,padding:"10px 20px",fontSize:13,fontWeight:700,
                     cursor:bezig?"not-allowed":"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
-                  {isBezig ? "â³ Bezig..." : "â Annuleer reservering"}
+                  {isBezig ? "⏳ Bezig..." : "✕ Annuleer reservering"}
                 </button>
               </div>
             );
@@ -2928,7 +2928,7 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
     if (txt.includes("auto") || txt.includes("kenteken")) return "autos";
     if (txt.includes("fiets")) return "fietsen";
     if (txt.includes("kleding") || txt.includes("shirt") || txt.includes("broek") || txt.includes("trui") || txt.includes("schoen")) return "kleding";
-    return "woningen"; // meldingen + kamer/woning taken â woningen
+    return "woningen"; // meldingen + kamer/woning taken → woningen
   }
 
   const takenWoningen  = gefilterdetaken.filter(t=>catTaak(t)==="woningen");
@@ -2940,17 +2940,17 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
   const nFietsen  = takenFietsen.length;
 
   const subTabs = [
-    { id:"woningen",  label:`ð  Woningen${nWoningen>0?` (${nWoningen})`:""}` },
-    { id:"autos",     label:`ð Auto's${nAutos>0?` (${nAutos})`:""}` },
-    { id:"fietsen",   label:`ð² Fietsen${nFietsen>0?` (${nFietsen})`:""}` },
-    { id:"kleding",   label:"ð Kleding" },
+    { id:"woningen",  label:`🏠 Woningen${nWoningen>0?` (${nWoningen})`:""}` },
+    { id:"autos",     label:`🚗 Auto's${nAutos>0?` (${nAutos})`:""}` },
+    { id:"fietsen",   label:`🚲 Fietsen${nFietsen>0?` (${nFietsen})`:""}` },
+    { id:"kleding",   label:"👕 Kleding" },
   ];
 
   return (
     <div>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
         <div>
-          <h2 style={{fontSize:20,fontWeight:800,color:C.blauw,marginBottom:3}}>ð Taken & Meldingen</h2>
+          <h2 style={{fontSize:20,fontWeight:800,color:C.blauw,marginBottom:3}}>📋 Taken & Meldingen</h2>
           <p style={{fontSize:13,color:C.muted}}>{openCount} openstaand</p>
         </div>
       </div>
@@ -2977,13 +2977,13 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
               </button>
             ))}
             <input value={zoek} onChange={e=>setZoek(e.target.value)}
-              placeholder={`ð ${vertaal("zoek_placeholder",taal)}`}
+              placeholder={`🔍 ${vertaal("zoek_placeholder",taal)}`}
               style={{marginLeft:"auto",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"7px 14px",fontSize:13,outline:"none",fontFamily:"inherit",minWidth:200}}/>
           </div>
         </div>
       )}
 
-      {/* ð  WONINGEN */}
+      {/* 🏠 WONINGEN */}
       {subTab === "woningen" && (
         <div>
           {/* Actieknop voor collega */}
@@ -2995,7 +2995,7 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
               </button>
               <button onClick={()=>setSubTab("annuleer")}
                 style={{background:"white",color:"#b45309",border:"2px solid #f59e0b",borderRadius:8,padding:"10px 20px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
-                ð Reservering annuleren
+                📅 Reservering annuleren
               </button>
             </div>
           )}
@@ -3007,14 +3007,14 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
               </button>
               <button onClick={()=>setSubTab("annuleer")}
                 style={{background:"white",color:"#b45309",border:"2px solid #f59e0b",borderRadius:8,padding:"10px 20px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
-                ð Reservering annuleren
+                📅 Reservering annuleren
               </button>
             </div>
           )}
           {gefilterdeMeldingen.length > 0 && (
             <div style={{marginBottom:24}}>
               <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:10}}>
-                ð¬ Meldingen ({gefilterdeMeldingen.length})
+                📬 Meldingen ({gefilterdeMeldingen.length})
               </div>
               {gefilterdeMeldingen.map(m => (
                 <MeldingKaartCombined key={m.id} melding={m} houses={houses} gebruiker={gebruiker}
@@ -3026,13 +3026,13 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
           {takenWoningen.length > 0 && (
             <div>
               <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:10}}>
-                ð§ Taken ({takenWoningen.length})
+                🔧 Taken ({takenWoningen.length})
               </div>
               <TakenView taken={takenWoningen} houses={houses} gebruiker={gebruiker} onAdd={onAddTaak} onUpdate={onUpdateTaak} showToast={showToast} inlineMode/>
             </div>
           )}
           {gefilterdeMeldingen.length===0 && takenWoningen.length===0 && !isCollega && !(isBackoffice||isHuismeester) && (
-            <div style={{textAlign:"center",padding:"40px",color:C.muted}}><div style={{fontSize:40,marginBottom:10}}>ð</div><div>Niets openstaand!</div></div>
+            <div style={{textAlign:"center",padding:"40px",color:C.muted}}><div style={{fontSize:40,marginBottom:10}}>🎉</div><div>Niets openstaand!</div></div>
           )}
           {gefilterdeMeldingen.length===0 && takenWoningen.length===0 && (isCollega||(isBackoffice||isHuismeester)) && (
             <div style={{textAlign:"center",padding:"20px 0 40px",color:C.muted,fontSize:13}}>Geen openstaande items</div>
@@ -3040,7 +3040,7 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
         </div>
       )}
 
-      {/* ð AUTO'S */}
+      {/* 🚗 AUTO'S */}
       {subTab === "autos" && (
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20,alignItems:"start"}}>
           <AutoTabInTaken gebruiker={gebruiker} showToast={showToast}/>
@@ -3051,12 +3051,12 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
                 <TakenView taken={takenAutos} houses={houses} gebruiker={gebruiker} onAdd={onAddTaak} onUpdate={onUpdateTaak} showToast={showToast} inlineMode/>
               </>
             )}
-            {takenAutos.length===0&&<div style={{textAlign:"center",padding:"40px",color:C.muted}}><div style={{fontSize:36,marginBottom:8}}>ð</div><div>Geen openstaande auto-taken</div></div>}
+            {takenAutos.length===0&&<div style={{textAlign:"center",padding:"40px",color:C.muted}}><div style={{fontSize:36,marginBottom:8}}>🚗</div><div>Geen openstaande auto-taken</div></div>}
           </div>
         </div>
       )}
 
-      {/* ð² FIETSEN */}
+      {/* 🚲 FIETSEN */}
       {subTab === "fietsen" && (
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20,alignItems:"start"}}>
           <FietsTabInTaken gebruiker={gebruiker} showToast={showToast} onAddTaak={onAddTaak}/>
@@ -3067,12 +3067,12 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
                 <TakenView taken={takenFietsen} houses={houses} gebruiker={gebruiker} onAdd={onAddTaak} onUpdate={onUpdateTaak} showToast={showToast} inlineMode/>
               </>
             )}
-            {takenFietsen.length===0&&<div style={{textAlign:"center",padding:"40px",color:C.muted}}><div style={{fontSize:36,marginBottom:8}}>ð²</div><div>Geen openstaande fiets-taken</div></div>}
+            {takenFietsen.length===0&&<div style={{textAlign:"center",padding:"40px",color:C.muted}}><div style={{fontSize:36,marginBottom:8}}>🚲</div><div>Geen openstaande fiets-taken</div></div>}
           </div>
         </div>
       )}
 
-      {/* ð KLEDING */}
+      {/* 👕 KLEDING */}
       {subTab === "kleding" && <KledingUitgifteTabInTaken gebruiker={gebruiker} showToast={showToast}/>}
 
       {/* Nieuwe melding (collega) */}
@@ -3082,7 +3082,7 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
 
       {/* Nieuwe taak (backoffice/huismeester) */}
       {subTab === "nieuw_taak" && (isBackoffice || isHuismeester) && (
-        <NieuwesTaakForm houses={houses} gebruiker={gebruiker} onAdd={async(d)=>{ await onAddTaak(d); setSubTab("woningen"); showToast("â Taak toegevoegd"); }} showToast={showToast}/>
+        <NieuwesTaakForm houses={houses} gebruiker={gebruiker} onAdd={async(d)=>{ await onAddTaak(d); setSubTab("woningen"); showToast("✓ Taak toegevoegd"); }} showToast={showToast}/>
       )}
 
       {/* Reservering annuleren */}
@@ -3101,7 +3101,7 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
   );
 }
 
-// âââ FOTO UPLOAD MELDING âââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─── FOTO UPLOAD MELDING ─────────────────────────────────────────────────────
 function FotoUploadMelding({ melding: m, gebruiker }) {
   const [bestanden, setBestanden] = useState([]);
   const [uploading, setUploading] = useState(false);
@@ -3118,11 +3118,11 @@ function FotoUploadMelding({ melding: m, gebruiker }) {
 
   return (
     <div style={{marginTop:6}}>
-      <BijlageUploader bestanden={bestanden} setBestanden={setBestanden} label="ð· Foto/document toevoegen"/>
+      <BijlageUploader bestanden={bestanden} setBestanden={setBestanden} label="📷 Foto/document toevoegen"/>
       {bestanden.length > 0 && (
         <button onClick={upload} disabled={uploading}
           style={{background:C.blauw,color:"white",border:"none",borderRadius:8,padding:"7px 16px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit",marginTop:8}}>
-          {uploading ? "â³ Uploaden..." : `â¬ ${bestanden.length} bestand${bestanden.length>1?"en":""} uploaden`}
+          {uploading ? "⏳ Uploaden..." : `⬆ ${bestanden.length} bestand${bestanden.length>1?"en":""} uploaden`}
         </button>
       )}
       {(m.bijlages||[]).length > 0 && (
@@ -3134,7 +3134,7 @@ function FotoUploadMelding({ melding: m, gebruiker }) {
   );
 }
 
-// âââ MELDING KAART COMBINED âââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─── MELDING KAART COMBINED ───────────────────────────────────────────────────
 function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isHuismeester, onUpdate, showToast, taal="nl" }) {
   const huis = houses.find(h=>h.id===m.woning_id);
   const [toonNotitie, setToonNotitie] = useState(false);
@@ -3148,7 +3148,7 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
   const [bewerkData, setBewerkData] = useState({});
 
   const typeKleur = {aankomst:C.groen,vertrek:"#ef4444",vertrek_aankondiging:"#f59e0b",reservering:C.blauw,overig:C.oranje,verhuizing:"#0891b2"};
-  const typeIcon = {aankomst:"ð ",vertrek:"ð§³",vertrek_aankondiging:"ð¢",reservering:"ð",overig:"ð",verhuizing:"ð"};
+  const typeIcon = {aankomst:"🏠",vertrek:"🧳",vertrek_aankondiging:"📢",reservering:"📅",overig:"📝",verhuizing:"🔄"};
   const kleur = typeKleur[m.type] || C.muted;
   const isOpen = m.status === "open";
   const isIngepland = m.status === "geaccepteerd" || m.ingepland_op;
@@ -3157,7 +3157,7 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
     <div style={{background:"white",border:`1px solid ${C.border}`,borderLeft:`4px solid ${isOpen?kleur:C.muted}`,borderRadius:10,padding:"14px 18px",marginBottom:10,opacity:isOpen?1:.8}}>
       <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",flexWrap:"wrap",gap:8,marginBottom:8}}>
         <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
-          <span style={{fontSize:18}}>{typeIcon[m.type]||"ð"}</span>
+          <span style={{fontSize:18}}>{typeIcon[m.type]||"📝"}</span>
           <div>
             <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
               <span style={{fontWeight:700,fontSize:14,color:C.text}}>{m.medewerker}</span>
@@ -3169,36 +3169,36 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
                   style={{fontSize:11,fontWeight:700,borderRadius:10,padding:"2px 8px",border:"none",cursor:"pointer",fontFamily:"inherit",
                     background:m.voor_rol==="huismeester"?"#f0fdf4":C.blauw+"15",
                     color:m.voor_rol==="huismeester"?C.groen:C.blauw}}>
-                  <option value="huismeester">ð  Huismeester</option>
-                  <option value="backoffice">ð Backoffice</option>
-                  <option value="iedereen">ð¥ Iedereen</option>
+                  <option value="huismeester">🏠 Huismeester</option>
+                  <option value="backoffice">📊 Backoffice</option>
+                  <option value="iedereen">👥 Iedereen</option>
                 </select>
               ) : (
                 <span>
-                  {m.voor_rol==="huismeester"&&<span style={{padding:"2px 8px",borderRadius:10,background:"#f0fdf4",color:C.groen,fontSize:11,fontWeight:700}}>ð  Huismeester</span>}
-                  {m.voor_rol==="backoffice"&&<span style={{padding:"2px 8px",borderRadius:10,background:C.blauw+"15",color:C.blauw,fontSize:11,fontWeight:700}}>ð Backoffice</span>}
+                  {m.voor_rol==="huismeester"&&<span style={{padding:"2px 8px",borderRadius:10,background:"#f0fdf4",color:C.groen,fontSize:11,fontWeight:700}}>🏠 Huismeester</span>}
+                  {m.voor_rol==="backoffice"&&<span style={{padding:"2px 8px",borderRadius:10,background:C.blauw+"15",color:C.blauw,fontSize:11,fontWeight:700}}>📊 Backoffice</span>}
                 </span>
               )}
               {(m.status==="afgehandeld"||m.status==="verwerkt"||m.status==="gedaan") && <span style={{padding:"2px 8px",borderRadius:10,background:"#f0fdf4",color:"#16a34a",fontSize:11,fontWeight:700}}>✓ AFGEHANDELD</span>}{m.status==="geaccepteerd" && <span style={{padding:"2px 8px",borderRadius:10,background:"#eff6ff",color:"#2563eb",fontSize:11,fontWeight:700}}>📅 Ingepland</span>}
             </div>
             <div style={{fontSize:12,color:C.muted,marginTop:2}}>
-              {huis?`ð ${huis.adres}, ${huis.stad}`:""}{m.kamer?` Â· K${m.kamer}`:""}
+              {huis?`📍 ${huis.adres}, ${huis.stad}`:""}{m.kamer?` · K${m.kamer}`:""}
             </div>
             {m.datum && (
               <div style={{fontSize:13,fontWeight:700,color:kleur,marginTop:3}}>
-                ð {m.type==="aankomst"?"Aankomst":m.type==="vertrek"?"Vertrek":m.type==="reservering"?"Aankomst (reservering)":"Datum"}: {fmtDate(m.datum)}
+                📅 {m.type==="aankomst"?"Aankomst":m.type==="vertrek"?"Vertrek":m.type==="reservering"?"Aankomst (reservering)":"Datum"}: {fmtDate(m.datum)}
               </div>
             )}
             <div style={{fontSize:11,color:C.muted,marginTop:1}}>
-              Ingediend: {m.created_at?fmtFull(m.created_at):"â"}
+              Ingediend: {m.created_at?fmtFull(m.created_at):"—"}
             </div>
             <div style={{fontSize:11,color:C.muted,marginTop:2}}>Door: {m.ingediend_door}</div>
           </div>
         </div>
       </div>
       {m.opmerkingen&&<div style={{fontSize:13,color:C.muted,fontStyle:"italic",marginBottom:8}}>"{m.opmerkingen}"</div>}
-      {m.ingepland_op&&<div style={{fontSize:12,color:C.groen,fontWeight:600,marginBottom:6}}>ð Ingepland op {fmtDate(m.ingepland_op)} door {m.geaccepteerd_door}</div>}
-      {m.notitie&&<div style={{fontSize:13,color:C.blauw,background:C.blauw+"08",border:`1px solid ${C.blauw}20`,borderRadius:8,padding:"6px 10px",marginBottom:8}}>ð¬ {m.notitie}</div>}
+      {m.ingepland_op&&<div style={{fontSize:12,color:C.groen,fontWeight:600,marginBottom:6}}>📅 Ingepland op {fmtDate(m.ingepland_op)} door {m.geaccepteerd_door}</div>}
+      {m.notitie&&<div style={{fontSize:13,color:C.blauw,background:C.blauw+"08",border:`1px solid ${C.blauw}20`,borderRadius:8,padding:"6px 10px",marginBottom:8}}>💬 {m.notitie}</div>}
 
       {isOpen && (isBackoffice || isHuismeester) && (
         <div style={{marginTop:8,display:"flex",gap:8,flexWrap:"wrap"}}>
@@ -3206,7 +3206,7 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
           {isHuismeester && !toonNotitie && (
             toonInplannen ? (
               <div style={{width:"100%",background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:10,padding:14}}>
-                <div style={{fontWeight:700,color:C.groen,fontSize:13,marginBottom:10}}>ð Melding inplannen</div>
+                <div style={{fontWeight:700,color:C.groen,fontSize:13,marginBottom:10}}>📅 Melding inplannen</div>
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
                   <div>
                     <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>DATUM</label>
@@ -3225,14 +3225,14 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
                     if(inplandatum) await supabase.from("meldingen").update({ingepland_op:inplandatum,geaccepteerd_door:gebruiker.naam}).eq("id",m.id);
                     setToonInplannen(false);
                   }} style={{background:C.groen,color:"white",border:"none",borderRadius:8,padding:"8px 18px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                    â Inplannen
+                    ✓ Inplannen
                   </button>
                   <button onClick={()=>setToonInplannen(false)} style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"8px 12px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>Annuleren</button>
                 </div>
               </div>
             ) : (
               <button onClick={()=>setToonInplannen(true)} style={{background:"#f0fdf4",border:`1.5px solid ${C.groen}`,color:C.groen,borderRadius:8,padding:"7px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                ð Inplannen
+                📅 Inplannen
               </button>
             )
           )}
@@ -3244,13 +3244,13 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
                   style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"9px 12px",fontSize:13,outline:"none",fontFamily:"inherit",boxSizing:"border-box",marginBottom:10}}/>
                 <div style={{display:"flex",gap:8}}>
                   <button onClick={()=>{ onUpdate(m.id,"verwerkt",notitie); setToonNotitie(false); }}
-                    style={{background:C.groen,color:"white",border:"none",borderRadius:8,padding:"8px 18px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>â Verwerkt</button>
+                    style={{background:C.groen,color:"white",border:"none",borderRadius:8,padding:"8px 18px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>✓ Verwerkt</button>
                   <button onClick={()=>setToonNotitie(false)} style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"8px 12px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>Annuleren</button>
                 </div>
               </div>
             ) : (
               <button onClick={()=>setToonNotitie(true)} style={{background:C.blauw,color:"white",border:"none",borderRadius:8,padding:"7px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                â Verwerkt in administratie
+                ✓ Verwerkt in administratie
               </button>
             )
           )}
@@ -3260,7 +3260,7 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
       <div style={{marginTop:6}}>
         {toonBewerk ? (
           <div style={{background:C.bg,border:`1.5px solid ${C.blauw}`,borderRadius:12,padding:14,marginBottom:8}}>
-            <div style={{fontWeight:700,fontSize:13,color:C.blauw,marginBottom:12}}>âï¸ Melding bewerken</div>
+            <div style={{fontWeight:700,fontSize:13,color:C.blauw,marginBottom:12}}>✏️ Melding bewerken</div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
               <div>
                 <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>Type</label>
@@ -3288,7 +3288,7 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
                 <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>Woning</label>
                 <select value={bewerkData.woning_id||m.woning_id||""} onChange={e=>setBewerkData(p=>({...p,woning_id:Number(e.target.value)}))}
                   style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1.5px solid ${C.border}`,fontSize:13,fontFamily:"inherit",background:"white",color:C.text}}>
-                  <option value="">â Geen woning â</option>
+                  <option value="">— Geen woning —</option>
                   {houses.map(h=><option key={h.id} value={h.id}>{h.adres}, {h.stad}</option>)}
                 </select>
               </div>
@@ -3334,7 +3334,7 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
                 setBewerkData({});
               }}
                 style={{background:C.blauw,color:"white",border:"none",borderRadius:8,padding:"8px 18px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                â Opslaan
+                ✓ Opslaan
               </button>
               <button onClick={()=>{setToonBewerk(false);setBewerkData({});}}
                 style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"8px 14px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
@@ -3344,10 +3344,10 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
             {/* Wijzigingshistorie */}
             {(m.wijzigingen||[]).length > 0 && (
               <div style={{marginTop:14,borderTop:`1px solid ${C.border}`,paddingTop:10}}>
-                <div style={{fontSize:11,fontWeight:700,color:C.muted,marginBottom:6}}>ð WIJZIGINGSHISTORIE</div>
+                <div style={{fontSize:11,fontWeight:700,color:C.muted,marginBottom:6}}>📋 WIJZIGINGSHISTORIE</div>
                 {[...(m.wijzigingen||[])].reverse().map((w,i)=>(
                   <div key={i} style={{fontSize:11,color:C.muted,padding:"4px 0",borderBottom:`1px solid ${C.border}`}}>
-                    <span style={{fontWeight:600,color:C.text}}>{w.door}</span> Â· {w.op} Â· {w.reden}
+                    <span style={{fontWeight:600,color:C.text}}>{w.door}</span> · {w.op} · {w.reden}
                   </div>
                 ))}
               </div>
@@ -3357,7 +3357,7 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
           <div style={{display:"flex",gap:12,alignItems:"center"}}>
             <button onClick={()=>{setToonBewerk(true);setBewerkData({});}}
               style={{background:"none",border:"none",color:C.muted,fontSize:12,cursor:"pointer",fontFamily:"inherit",padding:"4px 0",textDecoration:"underline"}}>
-              âï¸ Bewerken
+              ✏️ Bewerken
             </button>
             {(m.wijzigingen||[]).length > 0 && (
               <span style={{fontSize:11,color:C.muted}}>({m.wijzigingen.length}x gewijzigd)</span>
@@ -3369,7 +3369,7 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
       {/* Foto toevoegen */}
       <FotoUploadMelding melding={m} gebruiker={gebruiker}/>
 
-      {/* Opmerking toevoegen â voor iedereen, ook na afhandeling */}
+      {/* Opmerking toevoegen — voor iedereen, ook na afhandeling */}
       <div style={{marginTop:8}}>
         {toonOpmerkingCollega ? (
           <div style={{background:C.bg,border:`1px solid ${C.border}`,borderRadius:10,padding:12}}>
@@ -3383,11 +3383,11 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
                 const oud = m.opmerkingen || "";
                 const nieuw2 = oud ? oud + `\n[${datum} - ${gebruiker.naam}] ${opmerkingCollega.trim()}` : `[${datum} - ${gebruiker.naam}] ${opmerkingCollega.trim()}`;
                 await supabase.from("meldingen").update({opmerkingen: nieuw2}).eq("id", m.id);
-                showToast("â Opmerking toegevoegd");
+                showToast("✓ Opmerking toegevoegd");
                 setOpmerkingCollega("");
                 setToonOpmerkingCollega(false);
               }} style={{background:C.blauw,color:"white",border:"none",borderRadius:8,padding:"7px 16px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                â Opslaan
+                ✓ Opslaan
               </button>
               <button onClick={()=>setToonOpmerkingCollega(false)}
                 style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"7px 12px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
@@ -3398,7 +3398,7 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
         ) : (
           <button onClick={()=>setToonOpmerkingCollega(true)}
             style={{background:"none",border:"none",color:C.muted,fontSize:12,cursor:"pointer",fontFamily:"inherit",padding:"4px 0",textDecoration:"underline"}}>
-            ð¬ Opmerking toevoegen
+            💬 Opmerking toevoegen
           </button>
         )}
       </div>
@@ -3438,21 +3438,21 @@ function NieuwesTaakForm({ houses, gebruiker, onAdd, showToast }) {
           <label className="fl">Kamer</label>
           <select className="fs" value={nieuw.kamer} onChange={e=>setNieuw(p=>({...p,kamer:e.target.value}))} disabled={!nieuw.woning_id}>
             <option value="">Selecteer kamer</option>
-            {(selectedHouse?.kamers||[]).map(k=><option key={k.k} value={k.k}>Kamer {k.k}{k.naam?` â ${k.naam}`:""}</option>)}
+            {(selectedHouse?.kamers||[]).map(k=><option key={k.k} value={k.k}>Kamer {k.k}{k.naam?` — ${k.naam}`:""}</option>)}
           </select>
         </div>
         <div>
           <label className="fl">Prioriteit</label>
           <select className="fs" value={nieuw.prioriteit} onChange={e=>setNieuw(p=>({...p,prioriteit:e.target.value}))}>
-            <option value="hoog">ð´ Hoog</option>
-            <option value="middel">ð¡ Middel</option>
-            <option value="laag">ð¢ Laag</option>
+            <option value="hoog">🔴 Hoog</option>
+            <option value="middel">🟡 Middel</option>
+            <option value="laag">🟢 Laag</option>
           </select>
         </div>
         <div>
           <label className="fl">Voor wie?</label>
           <div style={{display:"flex",gap:8}}>
-            {[["huismeester","ð  Huismeester"],["backoffice","ð Backoffice"],["iedereen","ð¥ Iedereen"]].map(([v,l])=>(
+            {[["huismeester","🏠 Huismeester"],["backoffice","📊 Backoffice"],["iedereen","👥 Iedereen"]].map(([v,l])=>(
               <div key={v} onClick={()=>setNieuw(p=>({...p,voor_rol:v}))}
                 style={{flex:1,border:`2px solid ${nieuw.voor_rol===v?C.blauw:C.border}`,borderRadius:8,padding:"8px 4px",textAlign:"center",cursor:"pointer",background:nieuw.voor_rol===v?C.blauw+"10":"white",fontSize:11,fontWeight:600,color:nieuw.voor_rol===v?C.blauw:C.muted}}>
                 {l}
@@ -3466,13 +3466,13 @@ function NieuwesTaakForm({ houses, gebruiker, onAdd, showToast }) {
         </div>
       </div>
       <button className="btn-g" style={{padding:"10px 24px"}} onClick={submit} disabled={saving}>
-        {saving?"â³ Opslaan...":"â Taak toevoegen"}
+        {saving?"⏳ Opslaan...":"✓ Taak toevoegen"}
       </button>
     </div>
   );
 }
 
-// âââ TAKEN / TO-DO ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─── TAKEN / TO-DO ────────────────────────────────────────────────────────────
 function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
   const [toonNieuwe, setToonNieuwe] = useState(false);
   const [filter, setFilter] = useState("open");
@@ -3521,24 +3521,24 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
         tekst: `Ik heb jouw taak opgepakt en ingepland op ${datum ? new Date(datum).toLocaleDateString("nl-NL") : "een nader te bepalen datum"}.${opmerking ? " " + opmerking : ""}`,
         van: gebruiker.naam,
         aan: taak.aangemaakt_door,
-        onderwerp: `â Taak ingepland: ${taak.titel}`,
+        onderwerp: `✅ Taak ingepland: ${taak.titel}`,
         koppeling_type: "taak",
         koppeling_id: taak.id,
         koppeling_label: taak.titel,
         gelezen_door: [gebruiker.naam],
       }]);
       stuurMail({
-        type: "ð Taak ingepland door huismeester",
-        type_icon: "ð",
+        type: "📅 Taak ingepland door huismeester",
+        type_icon: "📅",
         medewerker: taak.aangemaakt_door,
-        woning: huis ? `${huis.adres}, ${huis.stad}` : "â",
-        kamer: taak.kamer ? `Kamer ${taak.kamer}` : "â",
+        woning: huis ? `${huis.adres}, ${huis.stad}` : "—",
+        kamer: taak.kamer ? `Kamer ${taak.kamer}` : "—",
         datum: datum || new Date().toISOString().slice(0,10),
         ingediend_door: gebruiker.naam,
         opmerkingen: `Taak "${taak.titel}" is ingepland op ${datum ? new Date(datum).toLocaleDateString("nl-NL") : "nader te bepalen"}.${opmerking ? " Opmerking: " + opmerking : ""}`,
       });
     }
-    showToast("â Taak geaccepteerd & collega geÃ¯nformeerd");
+    showToast("✓ Taak geaccepteerd & collega geïnformeerd");
     setToonAccepteerMap(p=>({...p,[taak.id]:false}));
     setAccepteerMap(p=>({...p,[taak.id]:{datum:"",opmerking:""}}));
   }
@@ -3554,11 +3554,11 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
   }
 
   const prioKleur={hoog:"#ef4444",middel:"#f59e0b",laag:C.groen};
-  const prioIcon={hoog:"ð´",middel:"ð¡",laag:"ð¢"};
+  const prioIcon={hoog:"🔴",middel:"🟡",laag:"🟢"};
 
   return (
     <div>
-      <SH titel="ð To-do lijst" sub="Meld problemen of klusjes per woning/kamer"
+      <SH titel="📌 To-do lijst" sub="Meld problemen of klusjes per woning/kamer"
         actie={<button className="btn-b" style={{padding:"9px 18px",fontSize:13}} onClick={()=>setToonNieuwe(!toonNieuwe)}>+ Taak toevoegen</button>} />
 
       {toonNieuwe && (
@@ -3580,21 +3580,21 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
               <label className="fl">Kamer</label>
               <select className="fs" value={nieuw.kamer} onChange={e=>setNieuw(p=>({...p,kamer:e.target.value}))} disabled={!nieuw.woning_id}>
                 <option value="">Geen specifieke kamer</option>
-                {selectedHouse?.kamers.map(k=><option key={k.k} value={k.k}>Kamer {k.k}{k.naam?` â ${k.naam}`:""}</option>)}
+                {selectedHouse?.kamers.map(k=><option key={k.k} value={k.k}>Kamer {k.k}{k.naam?` – ${k.naam}`:""}</option>)}
               </select>
             </div>
             <div>
               <label className="fl">Prioriteit</label>
               <select className="fs" value={nieuw.prioriteit} onChange={e=>setNieuw(p=>({...p,prioriteit:e.target.value}))}>
-                <option value="hoog">ð´ Hoog â spoedeisend</option>
-                <option value="middel">ð¡ Middel â deze week</option>
-                <option value="laag">ð¢ Laag â wanneer mogelijk</option>
+                <option value="hoog">🔴 Hoog – spoedeisend</option>
+                <option value="middel">🟡 Middel – deze week</option>
+                <option value="laag">🟢 Laag – wanneer mogelijk</option>
               </select>
             </div>
             <div>
               <label className="fl">Voor wie?</label>
               <div style={{display:"flex",gap:8}}>
-                {[["iedereen","ð¥ Iedereen"],["huismeester","ð  Huismeester"],["backoffice","ð Backoffice"]].map(([v,l])=>(
+                {[["iedereen","👥 Iedereen"],["huismeester","🏠 Huismeester"],["backoffice","📊 Backoffice"]].map(([v,l])=>(
                   <div key={v} onClick={()=>setNieuw(p=>({...p,voor_rol:v}))}
                     style={{flex:1,border:`2px solid ${nieuw.voor_rol===v?C.blauw:C.border}`,borderRadius:8,padding:"8px",textAlign:"center",cursor:"pointer",background:nieuw.voor_rol===v?C.blauw+"10":"white",fontSize:12,fontWeight:600,color:nieuw.voor_rol===v?C.blauw:C.muted}}>
                     {l}
@@ -3608,14 +3608,14 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
             </div>
           </div>
           <div style={{display:"flex",gap:10}}>
-            <button className="btn-g" style={{flex:1,padding:"10px"}} onClick={voegToe} disabled={saving}>{saving?"â³ Opslaan...":"â Taak toevoegen"}</button>
+            <button className="btn-g" style={{flex:1,padding:"10px"}} onClick={voegToe} disabled={saving}>{saving?"⏳ Opslaan...":"✓ Taak toevoegen"}</button>
             <button className="btn-out" onClick={()=>setToonNieuwe(false)}>Annuleren</button>
           </div>
         </div>
       )}
 
       <div style={{display:"flex",gap:6,marginBottom:20}}>
-        {[["open","Open & Ingepland"],["geaccepteerd","ð Ingepland"],["gedaan","Gedaan"],["alle","Alle"]].map(([v,l])=>(
+        {[["open","Open & Ingepland"],["geaccepteerd","📅 Ingepland"],["gedaan","Gedaan"],["alle","Alle"]].map(([v,l])=>(
           <button key={v} onClick={()=>setFilter(v)}
             style={{background:filter===v?C.blauw:"white",color:filter===v?"white":C.muted,border:`1.5px solid ${filter===v?C.blauw:C.border}`,borderRadius:20,padding:"6px 16px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
             {l} {v==="open"&&<span style={{background:"#ef444430",color:"#ef4444",borderRadius:10,padding:"1px 6px",fontSize:11,marginLeft:4}}>{taken.filter(t=>t.status==="open").length}</span>}
@@ -3625,7 +3625,7 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
 
       {gefilterd.length===0 ? (
         <div className="card" style={{textAlign:"center",padding:"50px 20px"}}>
-          <div style={{fontSize:40,marginBottom:10}}>ð­</div>
+          <div style={{fontSize:40,marginBottom:10}}>📭</div>
           <div style={{color:C.muted}}>Geen taken in deze categorie</div>
         </div>
       ) : gefilterd.map(t=>{
@@ -3634,16 +3634,16 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
         return (
           <div key={t.id} className={`taak-card ${t.prioriteit==="hoog"?"urgent":""} ${gedaan?"gedaan":""}`}>
             <div style={{display:"flex",alignItems:"flex-start",gap:12}}>
-              <span style={{fontSize:20,marginTop:2}}>{prioIcon[t.prioriteit]||"ð¢"}</span>
+              <span style={{fontSize:20,marginTop:2}}>{prioIcon[t.prioriteit]||"🟢"}</span>
               <div style={{flex:1}}>
                 <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",marginBottom:4}}>
                   <span style={{fontWeight:700,fontSize:15,color:gedaan?C.muted:C.text,textDecoration:gedaan?"line-through":"none"}}>{t.titel}</span>
                   <span className="badge" style={{background:prioKleur[t.prioriteit]+"18",color:prioKleur[t.prioriteit]}}>{t.prioriteit?.toUpperCase()}</span>
                   {gedaan&&<span className="badge" style={{background:"#f0fdf4",color:C.groen}}>GEDAAN</span>}
-                  {t.status==="geaccepteerd"&&<span className="badge" style={{background:"#f0fdf4",color:C.groen}}>ð INGEPLAND</span>}
-                  {t.status==="bezig"&&<span className="badge" style={{background:"#fffbeb",color:"#b45309"}}>ð BEZIG</span>}
-                  {t.geblokkeerd&&<span className="badge" style={{background:"#fef2f2",color:"#ef4444"}}>ð« GEBLOKKEERD</span>}
-                  {/* Voor_rol badge â klikbaar voor backoffice om te wijzigen */}
+                  {t.status==="geaccepteerd"&&<span className="badge" style={{background:"#f0fdf4",color:C.groen}}>📅 INGEPLAND</span>}
+                  {t.status==="bezig"&&<span className="badge" style={{background:"#fffbeb",color:"#b45309"}}>🔄 BEZIG</span>}
+                  {t.geblokkeerd&&<span className="badge" style={{background:"#fef2f2",color:"#ef4444"}}>🚫 GEBLOKKEERD</span>}
+                  {/* Voor_rol badge — klikbaar voor backoffice om te wijzigen */}
                   {isBackoffice ? (
                     <select value={t.voor_rol||"iedereen"}
                       onChange={e=>onUpdate(t.id,{voor_rol:e.target.value})}
@@ -3651,35 +3651,35 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                       style={{fontSize:11,fontWeight:700,borderRadius:10,padding:"2px 8px",border:"none",cursor:"pointer",fontFamily:"inherit",
                         background:t.voor_rol==="huismeester"?"#f0fdf4":t.voor_rol==="backoffice"?C.blauw+"15":"#f0f4f8",
                         color:t.voor_rol==="huismeester"?C.groen:t.voor_rol==="backoffice"?C.blauw:C.muted}}>
-                      <option value="huismeester">ð  Huismeester</option>
-                      <option value="backoffice">ð Backoffice</option>
-                      <option value="iedereen">ð¥ Iedereen</option>
+                      <option value="huismeester">🏠 Huismeester</option>
+                      <option value="backoffice">📊 Backoffice</option>
+                      <option value="iedereen">👥 Iedereen</option>
                     </select>
                   ) : (
                     <span>
-                      {t.voor_rol==="huismeester"&&<span className="badge" style={{background:"#f0fdf4",color:C.groen}}>ð  Huismeester</span>}
-                      {t.voor_rol==="backoffice"&&<span className="badge" style={{background:C.blauw+"15",color:C.blauw}}>ð Backoffice</span>}
+                      {t.voor_rol==="huismeester"&&<span className="badge" style={{background:"#f0fdf4",color:C.groen}}>🏠 Huismeester</span>}
+                      {t.voor_rol==="backoffice"&&<span className="badge" style={{background:C.blauw+"15",color:C.blauw}}>📊 Backoffice</span>}
                     </span>
                   )}
                 </div>
                 <div style={{fontSize:12,color:C.muted}}>
-                  {huis?`ð ${huis.adres}, ${huis.stad}`:"ð Algemeen"}{t.kamer?` Â· Kamer ${t.kamer}`:""}
-                  {" Â· "}Toegevoegd door {t.aangemaakt_door}{t.created_at?` Â· ${fmtFull(t.created_at)}`:""}
+                  {huis?`📍 ${huis.adres}, ${huis.stad}`:"📋 Algemeen"}{t.kamer?` · Kamer ${t.kamer}`:""}
+                  {" · "}Toegevoegd door {t.aangemaakt_door}{t.created_at?` · ${fmtFull(t.created_at)}`:""}
                 </div>
                 {t.ingepland_op && t.status!=="geaccepteerd" && (
                   <div style={{fontSize:12,fontWeight:700,color:"#7c3aed",marginTop:3}}>
-                    ð Gepland voor: {fmtDate(t.ingepland_op)}
+                    📅 Gepland voor: {fmtDate(t.ingepland_op)}
                   </div>
                 )}
                 {t.geblokkeerd && t.blokkade_reden && (
                   <div style={{fontSize:12,color:"#ef4444",marginTop:4,background:"#fef2f2",border:"1px solid #fecaca",borderRadius:8,padding:"6px 10px"}}>
-                    ð« {t.blokkade_reden}
+                    🚫 {t.blokkade_reden}
                   </div>
                 )}
                 {t.omschrijving&&<div style={{fontSize:13,color:C.muted,marginTop:4,fontStyle:"italic"}}>"{t.omschrijving}"</div>}
                 {t.status==="geaccepteerd" && (
                   <div style={{marginTop:6,background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:8,padding:"8px 12px"}}>
-                    <div style={{fontSize:12,fontWeight:700,color:C.groen}}>ð Opgepakt door {t.geaccepteerd_door}</div>
+                    <div style={{fontSize:12,fontWeight:700,color:C.groen}}>📅 Opgepakt door {t.geaccepteerd_door}</div>
                     {t.geaccepteerd_op && <div style={{fontSize:12,color:C.groen,marginTop:2}}>Ingepland op {fmtDate(t.geaccepteerd_op)}</div>}
                     {t.geaccepteerd_opmerking && <div style={{fontSize:12,color:C.muted,fontStyle:"italic",marginTop:2}}>"{t.geaccepteerd_opmerking}"</div>}
                   </div>
@@ -3687,33 +3687,33 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                 {/* Controle checkboxes voor verhuizing taken */}
                 {(t.titel?.includes("Kamer controleren") || t.titel?.includes("Verhuizing voltooid")) && isHuismeester && !gedaan && (
                   <div style={{marginTop:10,background:"#fffbeb",border:"1px solid #fcd34d",borderRadius:10,padding:"12px 14px"}}>
-                    <div style={{fontSize:12,fontWeight:700,color:"#b45309",marginBottom:10}}>â Controlepunten afvinken</div>
+                    <div style={{fontSize:12,fontWeight:700,color:"#b45309",marginBottom:10}}>✅ Controlepunten afvinken</div>
                     {(t.titel?.includes("Verhuizing voltooid") ? [
-                      {key:"sleutel1", label:"ð Sleutel 1 uitgereikt"},
-                      {key:"sleutel2", label:"ð Sleutel 2 uitgereikt (indien 2 sleutels)"},
-                      {key:"kamer_klaar", label:"ð  Kamer klaar voor bewoning"},
+                      {key:"sleutel1", label:"🔑 Sleutel 1 uitgereikt"},
+                      {key:"sleutel2", label:"🔑 Sleutel 2 uitgereikt (indien 2 sleutels)"},
+                      {key:"kamer_klaar", label:"🏠 Kamer klaar voor bewoning"},
                     ] : [
-                      {key:"schoon", label:"ð§¹ Kamer schoon"},
-                      {key:"sleutel1", label:"ð Sleutel 1 ingeleverd"},
-                      {key:"sleutel2", label:"ð Sleutel 2 ingeleverd (indien van toepassing)"},
+                      {key:"schoon", label:"🧹 Kamer schoon"},
+                      {key:"sleutel1", label:"🔑 Sleutel 1 ingeleverd"},
+                      {key:"sleutel2", label:"🔑 Sleutel 2 ingeleverd (indien van toepassing)"},
                     ]).map(({key, label}) => {
-                      const checked = (t.notitie||"").includes(`[â ${key}]`);
+                      const checked = (t.notitie||"").includes(`[✓ ${key}]`);
                       return (
                         <div key={key} onClick={async()=>{
                           if(checked) return;
                           const oud = t.notitie||"";
-                          const nieuwNotitie = oud ? oud+" [â "+key+"]" : "[â "+key+"]";
+                          const nieuwNotitie = oud ? oud+" [✓ "+key+"]" : "[✓ "+key+"]";
                           await onUpdate(t.id, {notitie: nieuwNotitie});
                           // Check of nu alles afgevinkt is
                           const alleKeys = t.titel?.includes("Verhuizing voltooid") ? ["sleutel1","kamer_klaar"] : ["schoon","sleutel1"];
-                          const alleAfgevinkt = alleKeys.every(k => nieuwNotitie.includes("[â "+k+"]"));
+                          const alleAfgevinkt = alleKeys.every(k => nieuwNotitie.includes("[✓ "+k+"]"));
                           if (alleAfgevinkt) {
                             const isVertrek = t.titel?.includes("na vertrek");
                             const isVerhuizingVoltooid = t.titel?.includes("Verhuizing voltooid");
                             const medewerkerNaam = t.titel
-                              ?.replace("Kamer controleren na verhuizing â ","")
-                              .replace("Kamer controleren na vertrek â ","")
-                              .replace("Verhuizing voltooid â sleutel uitreiken ","") || "";
+                              ?.replace("Kamer controleren na verhuizing — ","")
+                              .replace("Kamer controleren na vertrek — ","")
+                              .replace("Verhuizing voltooid — sleutel uitreiken ","") || "";
                             
                             // Bij vertrek: kamer op Beschikbaar zetten
                             if (isVertrek && t.woning_id && t.kamer) {
@@ -3726,13 +3726,13 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
 
                             // 1. Bericht naar backoffice
                             const berichtTekst = isVerhuizingVoltooid
-                              ? `Verhuizing voltooid voor ${medewerkerNaam}: sleutel(s) uitgereikt â, kamer klaar â. Check of extra borg of km-vergoeding aanpassing nodig is.`
-                              : `Kamer ${t.kamer||""} is gecontroleerd en klaar: kamer schoon â, sleutel(s) ingeleverd â. Borg kan worden terugbetaald.`;
+                              ? `Verhuizing voltooid voor ${medewerkerNaam}: sleutel(s) uitgereikt ✓, kamer klaar ✓. Check of extra borg of km-vergoeding aanpassing nodig is.`
+                              : `Kamer ${t.kamer||""} is gecontroleerd en klaar: kamer schoon ✓, sleutel(s) ingeleverd ✓. Borg kan worden terugbetaald.`;
                             await supabase.from("berichten").insert([{
                               tekst: berichtTekst,
                               van: gebruiker?.naam||"Huismeester",
                               aan: null,
-                              onderwerp: `â Kamer klaar + borg terugbetalen â ${medewerkerNaam}`,
+                              onderwerp: `✅ Kamer klaar + borg terugbetalen — ${medewerkerNaam}`,
                               koppeling_type: "taak",
                               koppeling_id: t.id,
                               koppeling_label: t.titel,
@@ -3740,7 +3740,7 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                             }]);
 
                             // 2. Borgplan zoeken voor deze medewerker en extra "terugbetalen" post toevoegen
-                            // Alleen bij definitief vertrek â niet bij verhuizing (borg loopt dan door)
+                            // Alleen bij definitief vertrek — niet bij verhuizing (borg loopt dan door)
                             if (medewerkerNaam && isVertrek) {
                               const { data: borgPlan } = await supabase.from("borg_plannen")
                                 .select("id, naam_medewerker, totaal_borg, ingehouden")
@@ -3754,7 +3754,7 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                                   await supabase.from("borg_extra").insert([{
                                     plan_id: plan.id,
                                     naam_medewerker: medewerkerNaam,
-                                    omschrijving: `Borg terugbetalen â kamer schoon + sleutels ingeleverd (K${t.kamer||""})`,
+                                    omschrijving: `Borg terugbetalen — kamer schoon + sleutels ingeleverd (K${t.kamer||""})`,
                                     bedrag: terug,
                                     type: "terugbetalen",
                                     status: "open",
@@ -3765,19 +3765,19 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
 
                             // 3. Mail sturen
                             stuurMail({
-                              type: "â Kamer klaar + borg terugbetalen",
-                              type_icon: "â",
-                              medewerker: medewerkerNaam || "â",
-                              woning: huis ? `${huis.adres}, ${huis.stad}` : "â",
+                              type: "✅ Kamer klaar + borg terugbetalen",
+                              type_icon: "✅",
+                              medewerker: medewerkerNaam || "—",
+                              woning: huis ? `${huis.adres}, ${huis.stad}` : "—",
                               kamer: `Kamer ${t.kamer||""}`,
                               datum: new Date().toISOString().slice(0,10),
                               ingediend_door: gebruiker?.naam||"Huismeester",
-                              opmerkingen: "Kamer schoon â Â· Sleutel(s) ingeleverd â Â· Borg terugbetalen aan medewerker",
+                              opmerkingen: "Kamer schoon ✓ · Sleutel(s) ingeleverd ✓ · Borg terugbetalen aan medewerker",
                             });
                           }
                         }} style={{display:"flex",alignItems:"center",gap:10,padding:"6px 0",borderBottom:"1px solid #fcd34d",cursor:checked?"default":"pointer"}}>
                           <div style={{width:20,height:20,borderRadius:4,border:`2px solid ${checked?"#4A9B3C":"#f59e0b"}`,background:checked?"#4A9B3C":"white",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                            {checked && <span style={{color:"white",fontSize:12,fontWeight:700}}>â</span>}
+                            {checked && <span style={{color:"white",fontSize:12,fontWeight:700}}>✓</span>}
                           </div>
                           <span style={{fontSize:13,color:checked?C.groen:C.text,fontWeight:checked?600:400,textDecoration:checked?"line-through":"none"}}>{label}</span>
                         </div>
@@ -3785,12 +3785,12 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                     })}
                   </div>
                 )}
-                {t.ingepland_op&&<div style={{fontSize:12,color:"#7c3aed",fontWeight:600,marginTop:4}}>ð Ingepland op {fmtDate(t.ingepland_op)}</div>}
-                {t.huismeester_opmerking&&<div style={{fontSize:13,color:C.blauw,marginTop:4,background:C.blauw+"08",border:`1px solid ${C.blauw}20`,borderRadius:8,padding:"6px 10px"}}>ð¬ {t.huismeester_opmerking}</div>}
+                {t.ingepland_op&&<div style={{fontSize:12,color:"#7c3aed",fontWeight:600,marginTop:4}}>📅 Ingepland op {fmtDate(t.ingepland_op)}</div>}
+                {t.huismeester_opmerking&&<div style={{fontSize:13,color:C.blauw,marginTop:4,background:C.blauw+"08",border:`1px solid ${C.blauw}20`,borderRadius:8,padding:"6px 10px"}}>💬 {t.huismeester_opmerking}</div>}
                 {gedaan&&t.afgehandeld_door&&(
                   <div style={{marginTop:6}}>
-                    <div style={{fontSize:12,color:C.groen}}>â Afgehandeld door {t.afgehandeld_door}{t.afgehandeld_op?` Â· ${fmtFull(t.afgehandeld_op)}`:""}</div>
-                    {t.notitie&&<div style={{fontSize:13,color:C.muted,marginTop:3,fontStyle:"italic"}}>ð¬ "{t.notitie}"</div>}
+                    <div style={{fontSize:12,color:C.groen}}>✓ Afgehandeld door {t.afgehandeld_door}{t.afgehandeld_op?` · ${fmtFull(t.afgehandeld_op)}`:""}</div>
+                    {t.notitie&&<div style={{fontSize:13,color:C.muted,marginTop:3,fontStyle:"italic"}}>💬 "{t.notitie}"</div>}
                     {t.bijlages&&<BijlageWeergave bijlages={JSON.parse(t.bijlages||"[]")}/>}
                   </div>
                 )}
@@ -3799,7 +3799,7 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                     {isHuismeester&&(
                       <button onClick={()=>onUpdate(t.id,{status:"open",afgehandeld_door:null,afgehandeld_op:null})}
                         style={{background:"white",border:`1.5px solid ${C.oranje}`,color:C.oranje,borderRadius:8,padding:"6px 12px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                        â© Terugzetten naar open
+                        ↩ Terugzetten naar open
                       </button>
                     )}
                     {toonNaOpmerkingMap[t.id] ? (
@@ -3817,7 +3817,7 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                               setToonNaOpmerkingMap(p=>({...p,[t.id]:false}));
                             }
                           }} style={{background:C.blauw,color:"white",border:"none",borderRadius:8,padding:"7px 16px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                            â Opslaan
+                            ✓ Opslaan
                           </button>
                           <button onClick={()=>setToonNaOpmerkingMap(p=>({...p,[t.id]:false}))}
                             style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"7px 12px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
@@ -3828,7 +3828,7 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                     ) : (
                       <button onClick={()=>setToonNaOpmerkingMap(p=>({...p,[t.id]:true}))}
                         style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"6px 12px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                        ð¬ Opmerking toevoegen
+                        💬 Opmerking toevoegen
                       </button>
                     )}
                   </div>
@@ -3843,7 +3843,7 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                     placeholder="bijv. Lamp vervangen, kraan gerepareerd..." style={{marginBottom:10}}
                     autoFocus/>
                   <div style={{marginBottom:12}}>
-                    <BijlageUploader bestanden={fotoMap[t.id]||[]} setBestanden={v=>setFotoMap(p=>({...p,[t.id]:typeof v==="function"?v(p[t.id]||[]):v}))} label="ð¸ Foto's toevoegen (optioneel)"/>
+                    <BijlageUploader bestanden={fotoMap[t.id]||[]} setBestanden={v=>setFotoMap(p=>({...p,[t.id]:typeof v==="function"?v(p[t.id]||[]):v}))} label="📸 Foto's toevoegen (optioneel)"/>
                   </div>
                   <div style={{display:"flex",gap:8}}>
                     <button className="btn-g" style={{flex:1,padding:"9px"}}
@@ -3854,14 +3854,14 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                         onUpdate(t.id,{status:"gedaan",afgehandeld_door:gebruiker.naam,afgehandeld_op:new Date().toISOString(),notitie:notitieMap[t.id]||null,bijlages:fotoUrls.length>0?JSON.stringify(fotoUrls):null});
                         setFotoMap(p=>({...p,[t.id]:[]}));
                       }}>
-                      â Bevestig als gedaan
+                      ✓ Bevestig als gedaan
                     </button>
                     <button className="btn-out" style={{padding:"9px 14px"}} onClick={()=>setBevestigMap(p=>({...p,[t.id]:false}))}>Annuleren</button>
                   </div>
                 </div>
               ) : toonAccepteerMap[t.id] ? (
                 <div style={{marginTop:12,padding:"14px",background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:10}}>
-                  <div style={{fontWeight:700,fontSize:13,color:C.groen,marginBottom:12}}>ð Taak accepteren & inplannen</div>
+                  <div style={{fontWeight:700,fontSize:13,color:C.groen,marginBottom:12}}>📅 Taak accepteren & inplannen</div>
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
                     <div>
                       <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>INPLANNEN OP DATUM</label>
@@ -3881,7 +3881,7 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                   <div style={{display:"flex",gap:8}}>
                     <button className="btn-g" style={{flex:1,padding:"9px"}}
                       onClick={()=>accepteerTaak(t, accepteerMap[t.id]?.datum||null, accepteerMap[t.id]?.opmerking||"")}>
-                      â Accepteren & inplannen
+                      ✓ Accepteren & inplannen
                     </button>
                     <button className="btn-out" style={{padding:"9px 14px"}}
                       onClick={()=>setToonAccepteerMap(p=>({...p,[t.id]:false}))}>
@@ -3891,7 +3891,7 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                 </div>
               ) : toonOpmerkingMap[t.id] ? (
                 <div style={{marginTop:12,padding:"12px",background:C.blauw+"08",border:`1px solid ${C.blauw}20`,borderRadius:10}}>
-                  <div style={{fontWeight:700,fontSize:13,color:C.blauw,marginBottom:10}}>ð Opmerking & planning</div>
+                  <div style={{fontWeight:700,fontSize:13,color:C.blauw,marginBottom:10}}>📝 Opmerking & planning</div>
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
                     <div>
                       <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>OPMERKING</label>
@@ -3912,11 +3912,11 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                         if(Object.keys(updates).length > 0) {
                           await onUpdate(t.id, updates);
                           stuurMail({
-                            type: "ð¬ Opmerking op taak",
-                            type_icon: "ð¬",
+                            type: "💬 Opmerking op taak",
+                            type_icon: "💬",
                             medewerker: gebruiker.naam,
                             woning: houses.find(h=>h.id===t.woning_id)?.adres || "Algemeen",
-                            kamer: t.kamer ? `Kamer ${t.kamer}` : "â",
+                            kamer: t.kamer ? `Kamer ${t.kamer}` : "—",
                             datum: new Date().toISOString().slice(0,10),
                             ingediend_door: gebruiker.naam,
                             opmerkingen: `Taak: ${t.titel}${opmerkingMap[t.id]?`. Opmerking: ${opmerkingMap[t.id]}`:""}${planningMap2[t.id]?`. Ingepland op: ${planningMap2[t.id]}`:""}`,
@@ -3926,14 +3926,14 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                           setPlanningMap2(p=>({...p,[t.id]:""}));
                         }
                       }}>
-                      â Opslaan
+                      ✓ Opslaan
                     </button>
                     <button className="btn-out" style={{padding:"9px 14px"}} onClick={()=>setToonOpmerkingMap(p=>({...p,[t.id]:false}))}>Annuleren</button>
                   </div>
                 </div>
               ) : toonBlokkadeMap[t.id] ? (
                 <div style={{marginTop:12,padding:"12px 14px",background:"#fef2f2",border:"1px solid #fecaca",borderRadius:10}}>
-                  <div style={{fontWeight:700,fontSize:13,color:"#ef4444",marginBottom:10}}>ð« Waarom lukt het niet?</div>
+                  <div style={{fontWeight:700,fontSize:13,color:"#ef4444",marginBottom:10}}>🚫 Waarom lukt het niet?</div>
                   <input value={blokkadeMap[t.id]||""} onChange={e=>setBlokkadeMap(p=>({...p,[t.id]:e.target.value}))}
                     placeholder="bijv. onderdeel niet beschikbaar, toegang geweigerd..." autoFocus
                     style={{width:"100%",background:"white",border:"1.5px solid #fecaca",borderRadius:8,color:C.text,padding:"8px 12px",fontSize:13,outline:"none",fontFamily:"inherit",boxSizing:"border-box",marginBottom:10}}/>
@@ -3947,10 +3947,10 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                         huismeester_opmerking: blokkadeMap[t.id].trim(),
                       });
                       stuurMail({
-                        type:"ð« Taak geblokkeerd",type_icon:"ð«",
+                        type:"🚫 Taak geblokkeerd",type_icon:"🚫",
                         medewerker:gebruiker?.naam,
-                        woning:huis?`${huis.adres}, ${huis.stad}`:"â",
-                        kamer:t.kamer?`Kamer ${t.kamer}`:"â",
+                        woning:huis?`${huis.adres}, ${huis.stad}`:"—",
+                        kamer:t.kamer?`Kamer ${t.kamer}`:"—",
                         datum:new Date().toISOString().slice(0,10),
                         ingediend_door:gebruiker?.naam,
                         opmerkingen:`Taak "${t.titel}" is geblokkeerd: ${blokkadeMap[t.id].trim()}`,
@@ -3958,7 +3958,7 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                       setToonBlokkadeMap(p=>({...p,[t.id]:false}));
                       setBlokkadeMap(p=>({...p,[t.id]:""}));
                     }} style={{background:"#ef4444",color:"white",border:"none",borderRadius:8,padding:"8px 18px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                      ð« Opslaan & backoffice informeren
+                      🚫 Opslaan & backoffice informeren
                     </button>
                     <button onClick={()=>setToonBlokkadeMap(p=>({...p,[t.id]:false}))}
                       style={{background:"white",border:"1.5px solid #fecaca",color:"#ef4444",borderRadius:8,padding:"8px 12px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
@@ -3972,34 +3972,34 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                   {(t.voor_rol==="huismeester" ? isHuismeester : t.voor_rol==="backoffice" ? isBackoffice : true) && t.status !== "bezig" ? (
                     <button onClick={()=>onUpdate(t.id,{status:"bezig"})}
                       style={{background:"#fffbeb",border:"1.5px solid #f59e0b",color:"#b45309",borderRadius:8,padding:"8px 14px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                      ð Mee bezig
+                      🔄 Mee bezig
                     </button>
                   ) : (
                     <span style={{background:"#fffbeb",border:"1.5px solid #f59e0b",color:"#b45309",borderRadius:8,padding:"8px 14px",fontSize:13,fontWeight:600}}>
-                      ð Mee bezig
+                      🔄 Mee bezig
                     </span>
                   )}
                   {(t.voor_rol==="huismeester" ? isHuismeester : t.voor_rol==="backoffice" ? isBackoffice : true) && <button onClick={()=>setToonBlokkadeMap(p=>({...p,[t.id]:true}))}
                     style={{background:"#fef2f2",border:"1.5px solid #fecaca",color:"#ef4444",borderRadius:8,padding:"8px 14px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                    ð« Kan niet
+                    🚫 Kan niet
                   </button>}
                   {isHuismeester && t.status !== "geaccepteerd" && (
                     <button style={{background:"#f0fdf4",border:`1.5px solid ${C.groen}`,color:C.groen,borderRadius:8,padding:"8px 14px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}
                       onClick={()=>setToonAccepteerMap(p=>({...p,[t.id]:true}))}>
-                      ð Inplannen
+                      📅 Inplannen
                     </button>
                   )}
                   {isHuismeester && (
                     <button style={{background:"white",border:`1.5px solid ${C.blauw}`,color:C.blauw,borderRadius:8,padding:"8px 14px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}
                       onClick={()=>setToonOpmerkingMap(p=>({...p,[t.id]:true}))}>
-                      ð¬ Opmerking
+                      💬 Opmerking
                     </button>
                   )}
                   {/* Backoffice mag altijd afvinken, anderen alleen hun eigen rol */}
                   {(isBackoffice || (t.voor_rol === "huismeester" ? isHuismeester : t.voor_rol === "backoffice" ? isBackoffice : true)) && (
                     <button className="btn-g" style={{padding:"8px 16px",fontSize:13}}
                       onClick={()=>setBevestigMap(p=>({...p,[t.id]:true}))}>
-                      â Gedaan
+                      ✓ Gedaan
                     </button>
                   )}
                 </div>
@@ -4012,7 +4012,7 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
   );
 }
 
-// âââ CHECKLISTS âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─── CHECKLISTS ───────────────────────────────────────────────────────────────
 function ChecklistView({ houses, checklists, checklistItems, onSave, gebruiker }) {
   const weekNr = () => { const d=new Date(); const j=new Date(Date.UTC(d.getFullYear(),0,1)); return Math.ceil((((d-j)/86400000)+j.getDay()+1)/7); };
   const kwartaal = () => Math.ceil((new Date().getMonth()+1)/3);
@@ -4059,9 +4059,9 @@ function ChecklistView({ houses, checklists, checklistItems, onSave, gebruiker }
   const pct = lijst.length > 0 ? Math.round((afgevinkt.length/lijst.length)*100) : 0;
 
   const typeInfo = {
-    wekelijks:   {label:"Wekelijks",   icon:"ð", kleur:C.blauw,   periode:`Week ${weekNr()}, ${jaar}`},
-    "4wekelijks":{label:"4-wekelijks", icon:"ð", kleur:C.groen,   periode:`Periode ${Math.ceil(weekNr()/4)}, ${jaar}`},
-    kwartaal:    {label:"Kwartaal",    icon:"ð", kleur:"#7c3aed", periode:`Q${kwartaal()} ${jaar}`},
+    wekelijks:   {label:"Wekelijks",   icon:"📋", kleur:C.blauw,   periode:`Week ${weekNr()}, ${jaar}`},
+    "4wekelijks":{label:"4-wekelijks", icon:"📅", kleur:C.groen,   periode:`Periode ${Math.ceil(weekNr()/4)}, ${jaar}`},
+    kwartaal:    {label:"Kwartaal",    icon:"🏆", kleur:"#7c3aed", periode:`Q${kwartaal()} ${jaar}`},
   };
 
   // Historie: alle opgeslagen checklists voor huidige woning + type, gesorteerd op datum
@@ -4078,7 +4078,7 @@ function ChecklistView({ houses, checklists, checklistItems, onSave, gebruiker }
 
   return (
     <div>
-      <SH titel="â Checklists" sub="SNF-gecertificeerde controles per woning" />
+      <SH titel="✅ Checklists" sub="SNF-gecertificeerde controles per woning" />
 
       
 
@@ -4095,7 +4095,7 @@ function ChecklistView({ houses, checklists, checklistItems, onSave, gebruiker }
         ))}
       </div>
 
-      {/* Woning selector â altijd zichtbaar voor huismeester en backoffice */}
+      {/* Woning selector — altijd zichtbaar voor huismeester en backoffice */}
       <div style={{marginBottom:20}}>
         <label className="fl">Woning selecteren</label>
         <select className="fs" style={{maxWidth:400}} value={geselecteerdeWoning} onChange={e=>setGeselecteerdeWoning(e.target.value)}>
@@ -4108,7 +4108,7 @@ function ChecklistView({ houses, checklists, checklistItems, onSave, gebruiker }
       <div className="card" style={{borderTop:`4px solid ${typeInfo[actief]?.kleur||C.blauw}`,marginBottom:16}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
           <div>
-            <div style={{fontWeight:800,fontSize:16,color:typeInfo[actief]?.kleur||C.blauw}}>{typeInfo[actief]?.icon||"ð"} {typeInfo[actief]?.label||actief} â {typeInfo[actief]?.periode||""}</div>
+            <div style={{fontWeight:800,fontSize:16,color:typeInfo[actief]?.kleur||C.blauw}}>{typeInfo[actief]?.icon||"📋"} {typeInfo[actief]?.label||actief} — {typeInfo[actief]?.periode||""}</div>
             <div style={{fontSize:13,color:C.muted,marginTop:2}}>
               {geselecteerdeHuis ? `${geselecteerdeHuis.adres}, ${geselecteerdeHuis.stad}` : "Alle woningen"}
             </div>
@@ -4126,7 +4126,7 @@ function ChecklistView({ houses, checklists, checklistItems, onSave, gebruiker }
         {lijst.length === 0 ? (
           <div style={{textAlign:"center",padding:"30px",color:C.muted,fontSize:13}}>
             Nog geen items voor dit type checklist.
-            {isBackoffice && " Voeg items toe via Beheer â Checklists."}
+            {isBackoffice && " Voeg items toe via Beheer → Checklists."}
           </div>
         ) : lijst.map((item,i)=>{
           const checked=afgevinkt.includes(item);
@@ -4135,7 +4135,7 @@ function ChecklistView({ houses, checklists, checklistItems, onSave, gebruiker }
               onClick={()=>toggleItem(item)}
               style={{cursor:"pointer"}}>
               <div style={{width:22,height:22,borderRadius:6,border:`2px solid ${checked?C.groen:C.border}`,background:checked?C.groen:"white",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all .15s"}}>
-                {checked&&<span style={{color:"white",fontSize:13,fontWeight:700}}>â</span>}
+                {checked&&<span style={{color:"white",fontSize:13,fontWeight:700}}>✓</span>}
               </div>
               <span style={{fontSize:13,color:checked?C.groenDark:C.text,textDecoration:checked?"line-through":"none",fontWeight:checked?500:400}}>{item}</span>
             </div>
@@ -4145,13 +4145,13 @@ function ChecklistView({ houses, checklists, checklistItems, onSave, gebruiker }
         {lijst.length>0&&(
           <div style={{marginTop:20,display:"flex",gap:10}}>
             <button className="btn-g" style={{flex:1,padding:12}} onClick={opslaan} disabled={saving}>
-              {saving?"â³ Opslaan...":"ð¾ Voortgang opslaan"}
+              {saving?"⏳ Opslaan...":"💾 Voortgang opslaan"}
             </button>
             {afgevinkt.length>0&&<button className="btn-out" onClick={()=>setAfgevinkt([])}>Reset</button>}
           </div>
         )}
 
-        {bestaand&&<div style={{marginTop:12,fontSize:12,color:C.muted}}>Laatst opgeslagen door {bestaand.aangemaakt_door} â {bestaand.updated_at?fmtFull(bestaand.updated_at):fmtFull(bestaand.created_at)}</div>}
+        {bestaand&&<div style={{marginTop:12,fontSize:12,color:C.muted}}>Laatst opgeslagen door {bestaand.aangemaakt_door} — {bestaand.updated_at?fmtFull(bestaand.updated_at):fmtFull(bestaand.created_at)}</div>}
       </div>
 
       {/* Historie */}
@@ -4159,7 +4159,7 @@ function ChecklistView({ houses, checklists, checklistItems, onSave, gebruiker }
         <div>
           <button onClick={()=>setToonHistorie(!toonHistorie)}
             style={{background:"none",border:"none",color:C.blauw,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit",padding:"4px 0",marginBottom:10}}>
-            {toonHistorie?"â²":"â¼"} Vorige weken bekijken ({historieItems.length})
+            {toonHistorie?"▲":"▼"} Vorige weken bekijken ({historieItems.length})
           </button>
           {toonHistorie && (
             <div style={{display:"grid",gap:10}}>
@@ -4174,7 +4174,7 @@ function ChecklistView({ houses, checklists, checklistItems, onSave, gebruiker }
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
                       <div>
                         <div style={{fontWeight:700,fontSize:13,color:C.text}}>{periode}</div>
-                        <div style={{fontSize:12,color:C.muted}}>Opgeslagen door {c.aangemaakt_door} â {fmtFull(c.updated_at||c.created_at)}</div>
+                        <div style={{fontSize:12,color:C.muted}}>Opgeslagen door {c.aangemaakt_door} — {fmtFull(c.updated_at||c.created_at)}</div>
                       </div>
                       <div style={{fontWeight:800,fontSize:18,color:p===100?C.groen:p>50?"#f59e0b":C.rood||"#ef4444"}}>{p}%</div>
                     </div>
@@ -4184,7 +4184,7 @@ function ChecklistView({ houses, checklists, checklistItems, onSave, gebruiker }
                     <div style={{marginTop:8,fontSize:12,color:C.muted}}>
                       {gedaan}/{totaal} afgevinkt
                       {(c.items||[]).length>0 && (
-                        <span style={{marginLeft:10}}>â â {(c.items||[]).join(", ").slice(0,80)}{(c.items||[]).join(", ").length>80?"...":""}</span>
+                        <span style={{marginLeft:10}}>— ✓ {(c.items||[]).join(", ").slice(0,80)}{(c.items||[]).join(", ").length>80?"...":""}</span>
                       )}
                     </div>
                   </div>
@@ -4198,7 +4198,7 @@ function ChecklistView({ houses, checklists, checklistItems, onSave, gebruiker }
   );
 }
 
-// âââ WEEKPLANNING CRISTIAN (voor collega's) âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─── WEEKPLANNING CRISTIAN (voor collega's) ───────────────────────────────────────────────────────────────────────────────────────
 function HuismeesterPlanningView({ dagplanningDB, houses, taken=[], meldingen=[], checklists=[], checklistItems=[] }) {
   const dag = dagVanDeWeek();
   const [weekOffset, setWeekOffset] = useState(0);
@@ -4220,7 +4220,7 @@ function HuismeesterPlanningView({ dagplanningDB, houses, taken=[], meldingen=[]
     const weekNr = 1 + Math.round(((d - week1) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
     const mnd = ["jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"];
     const s = dt => `${dt.getDate()} ${mnd[dt.getMonth()]}`;
-    return { weekNr, jaar: d.getFullYear(), key: `${weekNr}-${d.getFullYear()}`, label: `Week ${weekNr} Â· ${s(ma)} â ${s(zo)} ${d.getFullYear()}`, start: ma.toISOString().slice(0,10), eind: zo.toISOString().slice(0,10) };
+    return { weekNr, jaar: d.getFullYear(), key: `${weekNr}-${d.getFullYear()}`, label: `Week ${weekNr} · ${s(ma)} – ${s(zo)} ${d.getFullYear()}`, start: ma.toISOString().slice(0,10), eind: zo.toISOString().slice(0,10) };
   }
   function dagDatumVoorOffset(dagNaam, offset) {
     const ma = getMaandagVanWeek(offset);
@@ -4253,7 +4253,7 @@ function HuismeesterPlanningView({ dagplanningDB, houses, taken=[], meldingen=[]
             rows.push([weekInfo.key, d.label, t.ingepland_op||dagDatum, `${h.adres} ${h.stad}`, t.titel, "Taak", t.status==="gedaan"?"Gedaan":"Open", t.afgehandeld_door||"", t.afgehandeld_op?t.afgehandeld_op.slice(0,10):"", t.omschrijving||""]);
           });
         } else {
-          rows.push([weekInfo.key, d.label, dagDatum, `${h.adres} ${h.stad}`, "(geen specifieke taken)", "Bezoek", "â", "", "", ""]);
+          rows.push([weekInfo.key, d.label, dagDatum, `${h.adres} ${h.stad}`, "(geen specifieke taken)", "Bezoek", "—", "", "", ""]);
         }
         openMeldingen.filter(m => m.woning_id === h.id && m.type !== "aankomst" && m.type !== "vertrek").forEach(m => {
           rows.push([weekInfo.key, d.label, dagDatum, `${h.adres} ${h.stad}`, `${m.type}: ${m.medewerker}`, "Melding", m.status, "", "", m.opmerkingen||""]);
@@ -4299,7 +4299,7 @@ function HuismeesterPlanningView({ dagplanningDB, houses, taken=[], meldingen=[]
     });
 
     const csv = "sep=;\n" + rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(";")).join("\n");
-    const blob = new Blob(["ï»¿"+csv], {type:"text/csv;charset=utf-8"});
+    const blob = new Blob(["﻿"+csv], {type:"text/csv;charset=utf-8"});
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a"); a.href = url;
     a.download = `planning-cristian-${weekInfo.key}.csv`;
@@ -4309,10 +4309,10 @@ function HuismeesterPlanningView({ dagplanningDB, houses, taken=[], meldingen=[]
   return (
     <div>
       <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:16,flexWrap:"wrap",gap:10}}>
-        <SH titel="ð Planning Cristian" sub="Overzicht welke woningen welke dag, inclusief status klusjes" />
+        <SH titel="📅 Planning Cristian" sub="Overzicht welke woningen welke dag, inclusief status klusjes" />
         <button onClick={exporteerCSV}
           style={{background:"white",border:`2px solid ${C.blauw}`,color:C.blauw,borderRadius:8,padding:"9px 16px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit",flexShrink:0}}>
-          ð¥ Export CSV
+          📥 Export CSV
         </button>
       </div>
 
@@ -4332,18 +4332,18 @@ function HuismeesterPlanningView({ dagplanningDB, houses, taken=[], meldingen=[]
       <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:20,background:"white",borderRadius:10,padding:"10px 14px",border:`1px solid ${C.border}`,justifyContent:"space-between"}}>
         <button onClick={()=>setWeekOffset(w=>w-1)}
           style={{background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,padding:"7px 14px",fontSize:13,fontWeight:600,cursor:"pointer",color:C.blauw,fontFamily:"inherit"}}>
-          â Vorige week
+          ← Vorige week
         </button>
         <div style={{textAlign:"center"}}>
           <div style={{fontWeight:700,fontSize:14,color:isHuidigeWeek?C.groen:isVerledenWeek?"#b45309":C.blauw}}>{weekInfo.label}</div>
           <div style={{fontSize:11,color:C.muted,marginTop:2}}>
             {isHuidigeWeek?"Huidige week":isVerledenWeek?"Verleden week":"Toekomstige week"}
-            {" Â· "}{openTaken.length} open Â· {weekTaken.filter(t=>t.status==="gedaan").length} gedaan
+            {" · "}{openTaken.length} open · {weekTaken.filter(t=>t.status==="gedaan").length} gedaan
           </div>
         </div>
         <button onClick={()=>setWeekOffset(w=>w+1)}
           style={{background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,padding:"7px 14px",fontSize:13,fontWeight:600,cursor:"pointer",color:C.blauw,fontFamily:"inherit"}}>
-          Volgende week â
+          Volgende week →
         </button>
       </div>
 
@@ -4378,8 +4378,8 @@ function HuismeesterPlanningView({ dagplanningDB, houses, taken=[], meldingen=[]
                 </div>
                 <div style={{display:"flex",gap:6,flexShrink:0}}>
                   {openItems > 0 && <span style={{background:"#fef3c7",color:"#b45309",fontSize:11,fontWeight:700,padding:"4px 10px",borderRadius:20,border:"1px solid #fcd34d"}}>{openItems} open</span>}
-                  {gedaanItems > 0 && <span style={{background:"#f0fdf4",color:C.groen,fontSize:11,fontWeight:700,padding:"4px 10px",borderRadius:20,border:"1px solid #bbf7d0"}}>â {gedaanItems} gedaan</span>}
-                  {openItems === 0 && gedaanItems === 0 && woningen.length > 0 && <span style={{background:"#f0fdf4",color:C.groen,fontSize:11,fontWeight:700,padding:"4px 10px",borderRadius:20,border:"1px solid #bbf7d0"}}>â Alles klaar</span>}
+                  {gedaanItems > 0 && <span style={{background:"#f0fdf4",color:C.groen,fontSize:11,fontWeight:700,padding:"4px 10px",borderRadius:20,border:"1px solid #bbf7d0"}}>✓ {gedaanItems} gedaan</span>}
+                  {openItems === 0 && gedaanItems === 0 && woningen.length > 0 && <span style={{background:"#f0fdf4",color:C.groen,fontSize:11,fontWeight:700,padding:"4px 10px",borderRadius:20,border:"1px solid #bbf7d0"}}>✓ Alles klaar</span>}
                 </div>
               </div>
 
@@ -4391,24 +4391,24 @@ function HuismeesterPlanningView({ dagplanningDB, houses, taken=[], meldingen=[]
                     return (
                       <div key={h.id} style={{background:openW===0&&gedaanW>0?"#f0fdf4":C.bg,borderRadius:10,padding:"10px 14px",border:`1px solid ${openW===0&&gedaanW>0?"#bbf7d0":C.border}`}}>
                         <div style={{fontWeight:700,fontSize:13,color:openW===0&&gedaanW>0?C.groen:d.kleur,marginBottom:wTaken.length+wMeldingen.length>0?8:0}}>
-                          ð {h.adres}, {h.stad}
-                          {openW===0&&gedaanW>0&&<span style={{marginLeft:8,fontSize:11,color:C.groen}}>â afgerond</span>}
+                          📍 {h.adres}, {h.stad}
+                          {openW===0&&gedaanW>0&&<span style={{marginLeft:8,fontSize:11,color:C.groen}}>✓ afgerond</span>}
                           {openW===0&&gedaanW===0&&<span style={{marginLeft:8,fontSize:11,color:C.muted}}>geen specifieke taken</span>}
                         </div>
                         {wTaken.map(t => (
                           <div key={t.id} style={{display:"flex",alignItems:"flex-start",gap:8,padding:"5px 0",borderTop:`1px solid ${C.border}`,fontSize:12}}>
-                            <span style={{color:t.status==="gedaan"?C.groen:"#f59e0b",fontWeight:700,flexShrink:0}}>{t.status==="gedaan"?"â":"ð§"}</span>
+                            <span style={{color:t.status==="gedaan"?C.groen:"#f59e0b",fontWeight:700,flexShrink:0}}>{t.status==="gedaan"?"✅":"🔧"}</span>
                             <div style={{flex:1}}>
                               <div style={{fontWeight:600,color:t.status==="gedaan"?C.groen:C.text,textDecoration:t.status==="gedaan"?"line-through":"none"}}>{t.titel}</div>
                               {t.omschrijving&&<div style={{color:C.muted,fontSize:11}}>{t.omschrijving.slice(0,80)}</div>}
-                              {t.status==="gedaan"&&t.afgehandeld_door&&<div style={{color:C.groen,fontSize:11,marginTop:1}}>â {t.afgehandeld_door}{t.afgehandeld_op?` Â· ${fmtDate(t.afgehandeld_op)}`:""}</div>}
+                              {t.status==="gedaan"&&t.afgehandeld_door&&<div style={{color:C.groen,fontSize:11,marginTop:1}}>✓ {t.afgehandeld_door}{t.afgehandeld_op?` · ${fmtDate(t.afgehandeld_op)}`:""}</div>}
                             </div>
                           </div>
                         ))}
                         {wMeldingen.map(m => (
                           <div key={m.id} style={{display:"flex",alignItems:"flex-start",gap:8,padding:"5px 0",borderTop:`1px solid ${C.border}`,fontSize:12}}>
-                            <span style={{color:"#ef4444",fontWeight:700,flexShrink:0}}>â ï¸</span>
-                            <div><div style={{fontWeight:600,color:C.text}}>{m.type} â {m.medewerker}</div>{m.opmerkingen&&<div style={{color:C.muted,fontSize:11}}>{m.opmerkingen.slice(0,80)}</div>}</div>
+                            <span style={{color:"#ef4444",fontWeight:700,flexShrink:0}}>⚠️</span>
+                            <div><div style={{fontWeight:600,color:C.text}}>{m.type} — {m.medewerker}</div>{m.opmerkingen&&<div style={{color:C.muted,fontSize:11}}>{m.opmerkingen.slice(0,80)}</div>}</div>
                           </div>
                         ))}
                       </div>
@@ -4427,10 +4427,10 @@ function HuismeesterPlanningView({ dagplanningDB, houses, taken=[], meldingen=[]
                     return (
                       <div key={m.id} style={{background:"#f0fdf4",borderRadius:10,padding:"10px 14px",marginBottom:8,border:"1px solid #bbf7d0"}}>
                         <div style={{display:"flex",alignItems:"center",gap:8}}>
-                          <span>{m.type==="reservering"?"ð":"ð "}</span>
+                          <span>{m.type==="reservering"?"📅":"🏠"}</span>
                           <div>
                             <div style={{fontWeight:700,fontSize:13,color:C.groen}}>{m.medewerker}</div>
-                            <div style={{fontSize:12,color:C.muted}}>{h?`${h.adres}`:""}{m.kamer?` Â· K${m.kamer}`:""}</div>
+                            <div style={{fontSize:12,color:C.muted}}>{h?`${h.adres}`:""}{m.kamer?` · K${m.kamer}`:""}</div>
                           </div>
                         </div>
                       </div>
@@ -4447,8 +4447,8 @@ function HuismeesterPlanningView({ dagplanningDB, houses, taken=[], meldingen=[]
                     return (
                       <div key={t.id} style={{background:t.status==="gedaan"?"#f0fdf4":"#f5f3ff",borderRadius:10,padding:"10px 14px",marginBottom:8,border:`1px solid ${t.status==="gedaan"?"#bbf7d0":"#ddd6fe"}`}}>
                         <div style={{fontWeight:700,fontSize:13,color:t.status==="gedaan"?C.groen:"#7c3aed",textDecoration:t.status==="gedaan"?"line-through":"none"}}>{t.titel}</div>
-                        {h&&<div style={{fontSize:12,color:C.muted}}>ð {h.adres}{t.kamer?` Â· K${t.kamer}`:""}</div>}
-                        {t.status==="gedaan"&&t.afgehandeld_door&&<div style={{fontSize:11,color:C.groen,marginTop:2}}>â {t.afgehandeld_door}{t.afgehandeld_op?` Â· ${fmtDate(t.afgehandeld_op)}`:""}</div>}
+                        {h&&<div style={{fontSize:12,color:C.muted}}>📍 {h.adres}{t.kamer?` · K${t.kamer}`:""}</div>}
+                        {t.status==="gedaan"&&t.afgehandeld_door&&<div style={{fontSize:11,color:C.groen,marginTop:2}}>✓ {t.afgehandeld_door}{t.afgehandeld_op?` · ${fmtDate(t.afgehandeld_op)}`:""}</div>}
                       </div>
                     );
                   })}
@@ -4504,7 +4504,7 @@ function HuismeesterPlanningView({ dagplanningDB, houses, taken=[], meldingen=[]
                 return(
                   <div key={h.id} style={{background:"white",borderRadius:10,border:`1px solid ${C.border}`,overflow:"hidden"}}>
                     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"11px 14px",gap:8}}>
-                      <span style={{fontWeight:700,fontSize:13,color:C.text}}>&#127968; {h.adres}{h.stad?`, ${h.stad}`:""}</span>
+                      <span style={{fontWeight:700,fontSize:13,color:C.text}}>🏠 {h.adres}{h.stad?`, ${h.stad}`:""}</span>
                       <span style={{fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:99,background:badgeBg,color:badgeClr,whiteSpace:"nowrap"}}>{badgeTxt}</span>
                     </div>
                     <div style={{height:3,background:"#f1f5f9"}}><div style={{height:3,width:pct+"%",background:barClr}}/></div>
@@ -4514,7 +4514,7 @@ function HuismeesterPlanningView({ dagplanningDB, houses, taken=[], meldingen=[]
                       ):isLegacy?(
                         <div>
                           <div style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".6px",color:"#94a3b8",padding:"8px 14px 3px"}}>Items afgevinkt</div>
-                          {rawItems.map((t,i)=><div key={i} style={{display:"flex",gap:7,padding:"4px 14px",fontSize:12,color:C.text}}><span>&#9989;</span><span>{String(t)}</span></div>)}
+                          {rawItems.map((t,i)=><div key={i} style={{display:"flex",gap:7,padding:"4px 14px",fontSize:12,color:C.text}}><span>✅</span><span>{String(t)}</span></div>)}
                         </div>
                       ):catOrder.length>0?catOrder.map(cat=>{
                         const items=catMap.get(cat)||[];
@@ -4526,10 +4526,10 @@ function HuismeesterPlanningView({ dagplanningDB, houses, taken=[], meldingen=[]
                             const r=rem[String(item.id)];
                             const lbl=item.tekst.includes(':')?item.tekst.split(':').slice(1).join(':').trim():item.tekst;
                             return(<div key={item.id} style={{display:"flex",alignItems:"flex-start",gap:7,padding:"4px 14px"}}>
-                              <span style={{fontSize:12,flexShrink:0,marginTop:1}}>{ok?"&#9989;":"&#10060;"}</span>
+                              <span style={{fontSize:12,flexShrink:0,marginTop:1}}>{ok?"✅":"❌"}</span>
                               <div>
                                 <div style={{fontSize:12,color:ok?C.text:"#c4c9d4",lineHeight:1.4}}>{lbl}</div>
-                                {r&&<div style={{fontSize:11,color:"#d97706",fontStyle:"italic",marginTop:1}}>&#9888;&#65039; {r}</div>}
+                                {r&&<div style={{fontSize:11,color:"#d97706",fontStyle:"italic",marginTop:1}}>⚠️ {r}</div>}
                               </div>
                             </div>);
                           })}
@@ -4616,7 +4616,7 @@ function MeldingForm({ houses, onSubmit, showToast, taal="nl" }) {
 
   if(submitted) return (
     <div className="card" style={{textAlign:"center",padding:"80px 40px",maxWidth:600,margin:"0 auto",borderTop:`4px solid ${C.groen}`}}>
-      <div style={{fontSize:64,marginBottom:16}}>â</div>
+      <div style={{fontSize:64,marginBottom:16}}>✅</div>
       <div style={{fontSize:22,fontWeight:800,color:C.groen,marginBottom:8}}>Melding verzonden!</div>
       <div style={{fontSize:14,color:C.muted,marginBottom:24}}>De huismeester en backoffice zijn op de hoogte gebracht.</div>
       <button className="btn-b" onClick={()=>setSubmitted(false)}>Nieuwe melding</button>
@@ -4624,12 +4624,12 @@ function MeldingForm({ houses, onSubmit, showToast, taal="nl" }) {
   );
 
   const types=[
-    {id:"reservering",          icon:"ð", label:"RESERVERING",           color:C.blauw},
-    {id:"aankomst",             icon:"ð", label:"AANKOMST",              color:C.groen},
-    {id:"verhuizing",           icon:"ð¦", label:"VERHUIZING",            color:"#7c3aed"},
-    {id:"vertrek_aankondiging", icon:"ð¢", label:"VERTREK AANKONDIGING",  color:"#f59e0b"},
-    {id:"vertrek",              icon:"ð§³", label:"DAADWERKELIJK VERTREK", color:"#ef4444"},
-    {id:"overig",               icon:"ð¬", label:"OVERIG",                color:C.muted},
+    {id:"reservering",          icon:"📅", label:"RESERVERING",           color:C.blauw},
+    {id:"aankomst",             icon:"🚗", label:"AANKOMST",              color:C.groen},
+    {id:"verhuizing",           icon:"📦", label:"VERHUIZING",            color:"#7c3aed"},
+    {id:"vertrek_aankondiging", icon:"📢", label:"VERTREK AANKONDIGING",  color:"#f59e0b"},
+    {id:"vertrek",              icon:"🧳", label:"DAADWERKELIJK VERTREK", color:"#ef4444"},
+    {id:"overig",               icon:"💬", label:"OVERIG",                color:C.muted},
   ];
 
   function handleBijlage(e) {
@@ -4669,7 +4669,7 @@ function MeldingForm({ houses, onSubmit, showToast, taal="nl" }) {
             <label className="fl">Kamernummer</label>
             <select className="fs" value={kamer} onChange={e=>setKamer(e.target.value)}>
               <option value="">Selecteer kamer</option>
-              {selectedHouse?.kamers.map(k=><option key={k.k} value={k.k}>Kamer {k.k}{k.naam?` â ${k.naam}`:""} [{k.status}]</option>)}
+              {selectedHouse?.kamers.map(k=><option key={k.k} value={k.k}>Kamer {k.k}{k.naam?` – ${k.naam}`:""} [{k.status}]</option>)}
             </select>
           </div>
         </>}
@@ -4678,7 +4678,7 @@ function MeldingForm({ houses, onSubmit, showToast, taal="nl" }) {
       {/* VERHUIZING velden */}
       {type==="verhuizing"&&(
         <div className="card" style={{marginBottom:16,borderTop:`3px solid #7c3aed`}}>
-          <div style={{fontWeight:700,fontSize:14,color:"#7c3aed",marginBottom:14}}>ð¦ Verhuizingsgegevens</div>
+          <div style={{fontWeight:700,fontSize:14,color:"#7c3aed",marginBottom:14}}>📦 Verhuizingsgegevens</div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:12}}>
             <div>
               <label className="fl">Van woning</label>
@@ -4691,7 +4691,7 @@ function MeldingForm({ houses, onSubmit, showToast, taal="nl" }) {
               <label className="fl">Van kamer</label>
               <select className="fs" value={vanKamer} onChange={e=>setVanKamer(e.target.value)} disabled={!vanHuisId}>
                 <option value="">Kamer</option>
-                {vanHuis?.kamers.map(k=><option key={k.k} value={k.k}>K{k.k}{k.naam?` â ${k.naam}`:""}</option>)}
+                {vanHuis?.kamers.map(k=><option key={k.k} value={k.k}>K{k.k}{k.naam?` – ${k.naam}`:""}</option>)}
               </select>
             </div>
             <div>
@@ -4705,13 +4705,13 @@ function MeldingForm({ houses, onSubmit, showToast, taal="nl" }) {
               <label className="fl">Naar kamer</label>
               <select className="fs" value={naarKamer} onChange={e=>setNaarKamer(e.target.value)} disabled={!naarHuisId}>
                 <option value="">Kamer</option>
-                {naarHuis?.kamers.map(k=><option key={k.k} value={k.k}>K{k.k}{k.naam?` â ${k.naam}`:""} [{k.status}]</option>)}
+                {naarHuis?.kamers.map(k=><option key={k.k} value={k.k}>K{k.k}{k.naam?` – ${k.naam}`:""} [{k.status}]</option>)}
               </select>
             </div>
           </div>
           {vanHuisId&&vanKamer&&naarHuisId&&naarKamer&&(
             <div style={{background:"#f5f3ff",border:"1px solid #c4b5fd",borderRadius:8,padding:"10px 14px",fontSize:13,color:"#6d28d9",fontWeight:500}}>
-              ð¦ {vanHuis?.adres} K{vanKamer} â {naarHuis?.adres} K{naarKamer}
+              📦 {vanHuis?.adres} K{vanKamer} → {naarHuis?.adres} K{naarKamer}
             </div>
           )}
           {/* Controlelijst verhuizing */}
@@ -4719,15 +4719,15 @@ function MeldingForm({ houses, onSubmit, showToast, taal="nl" }) {
             <label className="fl">Controlelijst oude kamer</label>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:6}}>
               {[
-                {key:"sleutelTerug", label:"ð Sleutel(s) ingeleverd"},
-                {key:"kamerSchoon",  label:"ð§¹ Kamer schoon achtergelaten"},
+                {key:"sleutelTerug", label:"🔑 Sleutel(s) ingeleverd"},
+                {key:"kamerSchoon",  label:"🧹 Kamer schoon achtergelaten"},
               ].map(({key,label})=>(
                 <div key={key} onClick={()=>{
                   if(key==="sleutelTerug") setSleutelTerug(sleutelTerug==="ja"?null:"ja");
                   if(key==="kamerSchoon") setKamerSchoon(kamerSchoon==="ja"?null:"ja");
                 }} style={{border:`2px solid ${(key==="sleutelTerug"?sleutelTerug:kamerSchoon)==="ja"?C.groen:C.border}`,borderRadius:8,padding:"10px 12px",cursor:"pointer",background:(key==="sleutelTerug"?sleutelTerug:kamerSchoon)==="ja"?"#f0fdf4":"white",display:"flex",alignItems:"center",gap:8}}>
                   <div style={{width:18,height:18,borderRadius:4,border:`2px solid ${(key==="sleutelTerug"?sleutelTerug:kamerSchoon)==="ja"?C.groen:C.border}`,background:(key==="sleutelTerug"?sleutelTerug:kamerSchoon)==="ja"?C.groen:"white",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                    {(key==="sleutelTerug"?sleutelTerug:kamerSchoon)==="ja"&&<span style={{color:"white",fontSize:10,fontWeight:700}}>â</span>}
+                    {(key==="sleutelTerug"?sleutelTerug:kamerSchoon)==="ja"&&<span style={{color:"white",fontSize:10,fontWeight:700}}>✓</span>}
                   </div>
                   <span style={{fontSize:13,fontWeight:500,color:(key==="sleutelTerug"?sleutelTerug:kamerSchoon)==="ja"?C.groen:C.text}}>{label}</span>
                 </div>
@@ -4748,7 +4748,7 @@ function MeldingForm({ houses, onSubmit, showToast, taal="nl" }) {
             <div>
               <label className="fl">Voor wie is deze melding?</label>
               <div style={{display:"flex",gap:8}}>
-                {[["backoffice","ð Backoffice"],["huismeester","ð  Huismeester"],["iedereen","ð¥ Iedereen"]].map(([v,l])=>(
+                {[["backoffice","📊 Backoffice"],["huismeester","🏠 Huismeester"],["iedereen","👥 Iedereen"]].map(([v,l])=>(
                   <div key={v} onClick={()=>setVoorRol(v)}
                     style={{flex:1,border:`2px solid ${voorRol===v?C.blauw:C.border}`,borderRadius:8,padding:"8px 4px",textAlign:"center",cursor:"pointer",background:voorRol===v?C.blauw+"10":"white",fontSize:11,fontWeight:600,color:voorRol===v?C.blauw:C.muted}}>
                     {l}
@@ -4764,7 +4764,7 @@ function MeldingForm({ houses, onSubmit, showToast, taal="nl" }) {
         <div className="card" style={{marginBottom:16}}>
           <label className="fl">Controlelijst bij vertrek</label>
           <div className="cr">
-            <span style={{flex:1,fontSize:14,fontWeight:500}}>ð Sleutel(s) teruggegeven?</span>
+            <span style={{flex:1,fontSize:14,fontWeight:500}}>🔑 Sleutel(s) teruggegeven?</span>
             <div style={{display:"flex",gap:8}}>
               <button className={`cb ja ${sleutelTerug==="ja"?"s":""}`} onClick={()=>setSleutelTerug("ja")}>ja</button>
               <button onClick={()=>setSleutelTerug("controle")}
@@ -4775,7 +4775,7 @@ function MeldingForm({ houses, onSubmit, showToast, taal="nl" }) {
             </div>
           </div>
           <div className="cr">
-            <span style={{flex:1,fontSize:14,fontWeight:500}}>ð§¹ Kamer schoon achtergelaten?</span>
+            <span style={{flex:1,fontSize:14,fontWeight:500}}>🧹 Kamer schoon achtergelaten?</span>
             <div style={{display:"flex",gap:8}}>
               <button className={`cb ja ${kamerSchoon==="ja"?"s":""}`} onClick={()=>setKamerSchoon("ja")}>ja</button>
               <button onClick={()=>setKamerSchoon("controle")}
@@ -4785,21 +4785,21 @@ function MeldingForm({ houses, onSubmit, showToast, taal="nl" }) {
               <button className={`cb nee ${kamerSchoon==="nee"?"s":""}`} onClick={()=>setKamerSchoon("nee")}>nee</button>
             </div>
           </div>
-          {sleutelTerug==="nee"&&<div style={{marginTop:10,padding:"10px 14px",background:"#fef2f2",border:"1px solid #fecaca",borderRadius:8,fontSize:13,color:"#b91c1c",fontWeight:500}}>â ï¸ Sleutel niet terug â backoffice wordt geÃ¯nformeerd om â¬100 in te houden van borg</div>}
-          {sleutelTerug==="controle"&&<div style={{marginTop:10,padding:"10px 14px",background:"#fef3c7",border:"1px solid #fcd34d",borderRadius:8,fontSize:13,color:"#b45309",fontWeight:500}}>ð Sleutel in controle â backoffice en huismeester worden geÃ¯nformeerd</div>}
-          {kamerSchoon==="controle"&&<div style={{marginTop:8,padding:"10px 14px",background:"#fef3c7",border:"1px solid #fcd34d",borderRadius:8,fontSize:13,color:"#b45309",fontWeight:500}}>ð Schoonmaak in controle â huismeester wordt gevraagd te inspecteren</div>}
+          {sleutelTerug==="nee"&&<div style={{marginTop:10,padding:"10px 14px",background:"#fef2f2",border:"1px solid #fecaca",borderRadius:8,fontSize:13,color:"#b91c1c",fontWeight:500}}>⚠️ Sleutel niet terug → backoffice wordt geïnformeerd om €100 in te houden van borg</div>}
+          {sleutelTerug==="controle"&&<div style={{marginTop:10,padding:"10px 14px",background:"#fef3c7",border:"1px solid #fcd34d",borderRadius:8,fontSize:13,color:"#b45309",fontWeight:500}}>🔍 Sleutel in controle → backoffice en huismeester worden geïnformeerd</div>}
+          {kamerSchoon==="controle"&&<div style={{marginTop:8,padding:"10px 14px",background:"#fef3c7",border:"1px solid #fcd34d",borderRadius:8,fontSize:13,color:"#b45309",fontWeight:500}}>🔍 Schoonmaak in controle → huismeester wordt gevraagd te inspecteren</div>}
         </div>
       )}
       <div className="card" style={{marginBottom:16}}><label className="fl">Opmerkingen</label><textarea className="fi" value={opmerkingen} onChange={e=>setOpmerkingen(e.target.value)} placeholder="Eventuele bijzonderheden..." rows={3} style={{resize:"vertical"}}/></div>
 
       {/* BIJLAGES */}
       <div className="card" style={{marginBottom:20}}>
-        <label className="fl">ð Bijlages toevoegen (optioneel)</label>
+        <label className="fl">📎 Bijlages toevoegen (optioneel)</label>
         <label style={{display:"block",cursor:"pointer"}}>
           <div className="upload-zone">
-            <div style={{fontSize:28,marginBottom:6}}>ð</div>
+            <div style={{fontSize:28,marginBottom:6}}>📎</div>
             <div style={{fontSize:14,fontWeight:600,color:C.blauw,marginBottom:4}}>Klik om bestanden te kiezen</div>
-            <div style={{fontSize:12,color:C.muted}}>Foto's, PDF's of documenten â bijv. schadefotos</div>
+            <div style={{fontSize:12,color:C.muted}}>Foto's, PDF's of documenten — bijv. schadefotos</div>
             <input type="file" multiple accept="image/*,.pdf,.doc,.docx" onChange={handleBijlage} style={{display:"none"}}/>
           </div>
         </label>
@@ -4810,39 +4810,39 @@ function MeldingForm({ houses, onSubmit, showToast, taal="nl" }) {
                 <span>{b.naam.length>20?b.naam.slice(0,20)+"...":b.naam}</span>
                 <span style={{color:C.muted,fontSize:11}}>({Math.round(b.grootte/1024)}KB)</span>
                 <button onClick={()=>setBijlages(prev=>prev.filter((_,j)=>j!==i))}
-                  style={{background:"none",border:"none",color:"#ef4444",cursor:"pointer",fontFamily:"inherit",fontSize:14,lineHeight:1,padding:"0 2px"}}>Ã</button>
+                  style={{background:"none",border:"none",color:"#ef4444",cursor:"pointer",fontFamily:"inherit",fontSize:14,lineHeight:1,padding:"0 2px"}}>×</button>
               </div>
             ))}
           </div>
         )}
       </div>
-      <button className="btn-b" style={{width:"100%",padding:14,fontSize:15}} onClick={handleSubmit} disabled={saving}>{saving?"â³ Opslaan...":`â ${type==="verhuizing"?"Verhuizing":type.charAt(0).toUpperCase()+type.slice(1)} doorgeven`}</button>
+      <button className="btn-b" style={{width:"100%",padding:14,fontSize:15}} onClick={handleSubmit} disabled={saving}>{saving?"⏳ Opslaan...":`✓ ${type==="verhuizing"?"Verhuizing":type.charAt(0).toUpperCase()+type.slice(1)} doorgeven`}</button>
     </div>
   );
 }
 
 function MijnMeldingen({meldingen,houses}) {
-  if(meldingen.length===0) return <div className="card" style={{textAlign:"center",padding:"60px 20px"}}><div style={{fontSize:40,marginBottom:12}}>ð­</div><div style={{color:C.muted}}>Je hebt nog geen meldingen ingediend</div></div>;
+  if(meldingen.length===0) return <div className="card" style={{textAlign:"center",padding:"60px 20px"}}><div style={{fontSize:40,marginBottom:12}}>📭</div><div style={{color:C.muted}}>Je hebt nog geen meldingen ingediend</div></div>;
   return <div><SH titel="Mijn meldingen"/>{meldingen.map(m=><MeldingItem key={m.id} m={m} houses={houses}/>)}</div>;
 }
 
 function MeldingItem({m,houses}) {
-  const ti={aankomst:"ð",vertrek:"ð§³",reservering:"ð",verhuizing:"ð¦",overig:"ð¬"};
+  const ti={aankomst:"🚗",vertrek:"🧳",reservering:"📅",verhuizing:"📦",overig:"💬"};
   const tc={aankomst:C.groen,vertrek:"#ef4444",reservering:C.blauw,verhuizing:"#7c3aed",overig:C.muted};
   const huis=houses.find(h=>h.id===m.woning_id);
   return(
     <div className="mc" style={{borderLeft:`3px solid ${m.sleutel_terug==="nee"||m.kamer_schoon==="nee"?"#ef4444":tc[m.type]||C.muted}`}}>
       <div style={{display:"flex",alignItems:"flex-start",gap:12}}>
-        <div style={{fontSize:24}}>{ti[m.type]||"ð¬"}</div>
+        <div style={{fontSize:24}}>{ti[m.type]||"💬"}</div>
         <div style={{flex:1}}>
           <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",marginBottom:4}}>
             <span style={{fontWeight:700,fontSize:15,color:C.text}}>{m.medewerker}</span>
             <span className="badge" style={{background:(tc[m.type]||C.muted)+"18",color:tc[m.type]||C.muted}}>{(m.type||"").toUpperCase()}</span>
             <span className="badge" style={{background:m.status==="open"?C.blauw+"18":"#f0fdf4",color:m.status==="open"?C.blauw:C.groen,marginLeft:"auto"}}>{(m.status||"").toUpperCase()}</span>
           </div>
-          <div style={{fontSize:13,color:C.muted}}>ð {huis?.adres}, {huis?.stad} Â· Kamer {m.kamer} Â· {m.created_at?fmtFull(m.created_at):""}</div>
-          {m.wie_regelt&&<div style={{fontSize:12,color:C.muted,marginTop:4}}>ð¤ Wie regelt: {m.wie_regelt}</div>}
-          {m.type==="vertrek"&&<div style={{display:"flex",gap:8,marginTop:6}}><span className="badge" style={{background:m.sleutel_terug==="ja"?C.groen+"18":"#fef2f2",color:m.sleutel_terug==="ja"?C.groen:"#ef4444"}}>ð {m.sleutel_terug}</span><span className="badge" style={{background:m.kamer_schoon==="ja"?C.groen+"18":"#fef2f2",color:m.kamer_schoon==="ja"?C.groen:"#ef4444"}}>ð§¹ {m.kamer_schoon}</span></div>}
+          <div style={{fontSize:13,color:C.muted}}>📍 {huis?.adres}, {huis?.stad} · Kamer {m.kamer} · {m.created_at?fmtFull(m.created_at):""}</div>
+          {m.wie_regelt&&<div style={{fontSize:12,color:C.muted,marginTop:4}}>👤 Wie regelt: {m.wie_regelt}</div>}
+          {m.type==="vertrek"&&<div style={{display:"flex",gap:8,marginTop:6}}><span className="badge" style={{background:m.sleutel_terug==="ja"?C.groen+"18":"#fef2f2",color:m.sleutel_terug==="ja"?C.groen:"#ef4444"}}>🔑 {m.sleutel_terug}</span><span className="badge" style={{background:m.kamer_schoon==="ja"?C.groen+"18":"#fef2f2",color:m.kamer_schoon==="ja"?C.groen:"#ef4444"}}>🧹 {m.kamer_schoon}</span></div>}
           {m.opmerkingen&&<div style={{fontSize:13,color:C.muted,marginTop:6,fontStyle:"italic"}}>"{m.opmerkingen}"</div>}
         </div>
       </div>
@@ -4857,12 +4857,12 @@ function HuismeesterTaken({meldingen,houses,onUpdate,naam}) {
 
   function taken(m){
     const t=[];
-    if(m.type==="aankomst") t.push({icon:"ð",tekst:`Kamer ${m.kamer} gereedmaken voor ${m.medewerker}`});
-    if(m.type==="vertrek"&&m.kamer_schoon==="nee") t.push({icon:"ð§¹",tekst:`Kamer ${m.kamer} schoonmaken`,urgent:true});
-    if(m.type==="vertrek") t.push({icon:"ð",tekst:`Kamer ${m.kamer} controleren na vertrek ${m.medewerker}`});
-    if(m.type==="reservering") t.push({icon:"ð",tekst:`Kamer ${m.kamer} klaarzetten voor ${m.medewerker} (aankomst ${m.datum})`});
-    if(m.wie_regelt) t.push({icon:"ð¤",tekst:`Wie regelt: ${m.wie_regelt}`});
-    if(m.opmerkingen) t.push({icon:"ð",tekst:m.opmerkingen});
+    if(m.type==="aankomst") t.push({icon:"🛏",tekst:`Kamer ${m.kamer} gereedmaken voor ${m.medewerker}`});
+    if(m.type==="vertrek"&&m.kamer_schoon==="nee") t.push({icon:"🧹",tekst:`Kamer ${m.kamer} schoonmaken`,urgent:true});
+    if(m.type==="vertrek") t.push({icon:"🔍",tekst:`Kamer ${m.kamer} controleren na vertrek ${m.medewerker}`});
+    if(m.type==="reservering") t.push({icon:"📅",tekst:`Kamer ${m.kamer} klaarzetten voor ${m.medewerker} (aankomst ${m.datum})`});
+    if(m.wie_regelt) t.push({icon:"👤",tekst:`Wie regelt: ${m.wie_regelt}`});
+    if(m.opmerkingen) t.push({icon:"📝",tekst:m.opmerkingen});
     return t;
   }
 
@@ -4875,17 +4875,17 @@ function HuismeesterTaken({meldingen,houses,onUpdate,naam}) {
           <div style={{textAlign:"center",background:"#f0fdf4",border:`1px solid ${C.groen}40`,borderRadius:10,padding:"10px 20px"}}><div style={{fontSize:22,fontWeight:700,color:C.groen}}>{afgehandeld.length}</div><div style={{fontSize:11,color:C.muted}}>Afgehandeld</div></div>
         </div>
       </div>
-      {open.length===0?<div className="card" style={{textAlign:"center",padding:"60px 20px"}}><div style={{fontSize:48,marginBottom:12}}>â</div><div style={{fontWeight:700,color:C.groen}}>Alles afgehandeld!</div></div>
+      {open.length===0?<div className="card" style={{textAlign:"center",padding:"60px 20px"}}><div style={{fontSize:48,marginBottom:12}}>✅</div><div style={{fontWeight:700,color:C.groen}}>Alles afgehandeld!</div></div>
       :open.map(m=>{
         const huis=houses.find(h=>h.id===m.woning_id);
         const tl=taken(m);
         return(
           <div key={m.id} className="mc" style={{marginBottom:14,borderLeft:`4px solid ${C.groen}`}}>
             <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
-              <span style={{fontSize:22}}>{m.type==="aankomst"?"ð":m.type==="vertrek"?"ð§³":"ð"}</span>
+              <span style={{fontSize:22}}>{m.type==="aankomst"?"🚗":m.type==="vertrek"?"🧳":"📅"}</span>
               <div>
-                <div style={{fontWeight:700,fontSize:15,color:C.text}}>{m.medewerker} â <span style={{color:C.blauw,textTransform:"uppercase",fontSize:12}}>{m.type}</span></div>
-                <div style={{fontSize:12,color:C.muted}}>ð {huis?.adres}, {huis?.stad} Â· K{m.kamer} Â· Door: {m.ingediend_door} Â· {m.created_at?fmtFull(m.created_at):""}</div>
+                <div style={{fontWeight:700,fontSize:15,color:C.text}}>{m.medewerker} — <span style={{color:C.blauw,textTransform:"uppercase",fontSize:12}}>{m.type}</span></div>
+                <div style={{fontSize:12,color:C.muted}}>📍 {huis?.adres}, {huis?.stad} · K{m.kamer} · Door: {m.ingediend_door} · {m.created_at?fmtFull(m.created_at):""}</div>
               </div>
             </div>
             <div style={{background:C.bg,borderRadius:8,padding:14,marginBottom:12,border:`1px solid ${C.border}`}}>
@@ -4899,7 +4899,7 @@ function HuismeesterTaken({meldingen,houses,onUpdate,naam}) {
             </div>
             <input className="fi" value={notitieMap[m.id]||""} onChange={e=>setNotitieMap(p=>({...p,[m.id]:e.target.value}))} placeholder="Optionele notitie..." style={{fontSize:13,marginBottom:10}}/>
             <div style={{display:"flex",gap:10}}>
-              <button className="btn-g" style={{flex:1,padding:"10px"}} onClick={()=>onUpdate(m.id,"afgehandeld",notitieMap[m.id]||"")}>â Afgehandeld</button>
+              <button className="btn-g" style={{flex:1,padding:"10px"}} onClick={()=>onUpdate(m.id,"afgehandeld",notitieMap[m.id]||"")}>✓ Afgehandeld</button>
               <button className="btn-out" onClick={()=>onUpdate(m.id,"in_behandeling",notitieMap[m.id]||"")}>In behandeling</button>
             </div>
           </div>
@@ -4924,8 +4924,8 @@ function BackofficeInbox({meldingen,houses,onUpdate,naam,showToast}) {
       </div>
       {actie.length>0&&(
         <div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:12,padding:"14px 18px",marginBottom:20}}>
-          <div style={{fontWeight:700,color:"#b91c1c",marginBottom:8,fontSize:14}}>â ï¸ Salarisverwerking vereist</div>
-          {actie.map(m=>{const h=houses.find(h=>h.id===m.woning_id);return <div key={m.id} style={{fontSize:13,color:"#b91c1c",marginBottom:4,display:"flex",gap:10,flexWrap:"wrap"}}><span>â¢ {m.medewerker} ({h?.adres}, K{m.kamer}):</span>{m.sleutel_terug==="nee"&&<span style={{background:"#fecaca",padding:"2px 8px",borderRadius:4,fontSize:11}}>ð â¬100 inhouden</span>}{m.kamer_schoon==="nee"&&<span style={{background:"#fef3c7",padding:"2px 8px",borderRadius:4,fontSize:11,color:"#b45309"}}>ð§¹ schoonmaakkosten</span>}</div>;})}
+          <div style={{fontWeight:700,color:"#b91c1c",marginBottom:8,fontSize:14}}>⚠️ Salarisverwerking vereist</div>
+          {actie.map(m=>{const h=houses.find(h=>h.id===m.woning_id);return <div key={m.id} style={{fontSize:13,color:"#b91c1c",marginBottom:4,display:"flex",gap:10,flexWrap:"wrap"}}><span>• {m.medewerker} ({h?.adres}, K{m.kamer}):</span>{m.sleutel_terug==="nee"&&<span style={{background:"#fecaca",padding:"2px 8px",borderRadius:4,fontSize:11}}>🔑 €100 inhouden</span>}{m.kamer_schoon==="nee"&&<span style={{background:"#fef3c7",padding:"2px 8px",borderRadius:4,fontSize:11,color:"#b45309"}}>🧹 schoonmaakkosten</span>}</div>;})}
         </div>
       )}
       <div style={{display:"flex",gap:6,marginBottom:20}}>{[["open","Open"],["actie","Actie vereist"],["alle","Alle"]].map(([v,l])=><button key={v} onClick={()=>setFilter(v)} style={{background:filter===v?C.blauw:"white",color:filter===v?"white":C.muted,border:`1.5px solid ${filter===v?C.blauw:C.border}`,borderRadius:20,padding:"6px 16px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>{l}</button>)}</div>
@@ -4935,33 +4935,33 @@ function BackofficeInbox({meldingen,houses,onUpdate,naam,showToast}) {
         return(
           <div key={m.id} className="mc" style={{marginBottom:12,borderLeft:`4px solid ${na?"#ef4444":C.blauw}`}}>
             <div style={{display:"flex",alignItems:"flex-start",gap:12,marginBottom:10}}>
-              <span style={{fontSize:22}}>{m.type==="aankomst"?"ð":m.type==="vertrek"?"ð§³":"ð"}</span>
+              <span style={{fontSize:22}}>{m.type==="aankomst"?"🚗":m.type==="vertrek"?"🧳":"📅"}</span>
               <div style={{flex:1}}>
                 <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
                   <span style={{fontWeight:700,color:C.text}}>{m.medewerker}</span>
                   <span className="badge" style={{background:C.bg,color:C.muted,fontSize:10}}>{(m.type||"").toUpperCase()}</span>
-                  {na&&<span className="badge" style={{background:"#fef2f2",color:"#ef4444",fontSize:10}}>â ï¸ ACTIE SALARIS</span>}
+                  {na&&<span className="badge" style={{background:"#fef2f2",color:"#ef4444",fontSize:10}}>⚠️ ACTIE SALARIS</span>}
                   <span className="badge" style={{background:m.status==="open"?C.blauw+"18":"#f0fdf4",color:m.status==="open"?C.blauw:C.groen,marginLeft:"auto",fontSize:10}}>{(m.status||"").toUpperCase()}</span>
                 </div>
-                <div style={{fontSize:12,color:C.muted,marginTop:4}}>ð {huis?.adres}, {huis?.stad} Â· K{m.kamer} Â· {m.datum} Â· Door: {m.ingediend_door}</div>
-                {m.wie_regelt&&<div style={{fontSize:12,color:C.muted,marginTop:2}}>ð¤ Wie regelt: {m.wie_regelt}</div>}
-                {m.opmerkingen&&<div style={{fontSize:13,color:C.text,marginTop:6,fontStyle:"italic",background:"#fffbeb",border:"1px solid #fcd34d",borderRadius:8,padding:"8px 12px"}}>ð¬ "{m.opmerkingen}"</div>}
+                <div style={{fontSize:12,color:C.muted,marginTop:4}}>📍 {huis?.adres}, {huis?.stad} · K{m.kamer} · {m.datum} · Door: {m.ingediend_door}</div>
+                {m.wie_regelt&&<div style={{fontSize:12,color:C.muted,marginTop:2}}>👤 Wie regelt: {m.wie_regelt}</div>}
+                {m.opmerkingen&&<div style={{fontSize:13,color:C.text,marginTop:6,fontStyle:"italic",background:"#fffbeb",border:"1px solid #fcd34d",borderRadius:8,padding:"8px 12px"}}>💬 "{m.opmerkingen}"</div>}
               </div>
             </div>
             <div style={{background:C.bg,borderRadius:8,padding:12,marginBottom:10,border:`1px solid ${C.border}`}}>
               <div style={{fontSize:11,fontWeight:700,color:C.muted,marginBottom:8,letterSpacing:".8px"}}>ADMINISTRATIEVE ACTIES:</div>
-              {m.type==="aankomst"&&<div style={{fontSize:13,color:C.text}}>â Kamer {m.kamer} â <strong style={{color:C.groen}}>Lopend</strong> â huuraftrek actief per {m.datum}</div>}
-              {m.type==="reservering"&&<div style={{fontSize:13,color:C.text}}>ð Kamer {m.kamer} gereserveerd voor {m.medewerker} â aankomst {m.datum}</div>}
+              {m.type==="aankomst"&&<div style={{fontSize:13,color:C.text}}>✅ Kamer {m.kamer} → <strong style={{color:C.groen}}>Lopend</strong> — huuraftrek actief per {m.datum}</div>}
+              {m.type==="reservering"&&<div style={{fontSize:13,color:C.text}}>📅 Kamer {m.kamer} gereserveerd voor {m.medewerker} — aankomst {m.datum}</div>}
               {m.type==="vertrek"&&(<><div style={{fontSize:13,color:C.text,marginBottom:6}}>
-                {m.sleutel_terug==="nee"?"ðâ ":m.sleutel_terug==="controle"?"ðð ":"ðâ "}
-                {m.sleutel_terug==="nee"?<strong style={{color:"#ef4444"}}>NIET terug â â¬100 inhouden van borg</strong>:m.sleutel_terug==="controle"?<strong style={{color:"#f59e0b"}}>In controle â nog natrekken</strong>:<span style={{color:C.groen}}>Sleutel teruggegeven</span>}
+                {m.sleutel_terug==="nee"?"🔑❌ ":m.sleutel_terug==="controle"?"🔑🔍 ":"🔑✅ "}
+                {m.sleutel_terug==="nee"?<strong style={{color:"#ef4444"}}>NIET terug → €100 inhouden van borg</strong>:m.sleutel_terug==="controle"?<strong style={{color:"#f59e0b"}}>In controle → nog natrekken</strong>:<span style={{color:C.groen}}>Sleutel teruggegeven</span>}
               </div><div style={{fontSize:13,color:C.text}}>
-                {m.kamer_schoon==="nee"?"ð§¹â ":m.kamer_schoon==="controle"?"ð§¹ð ":"ð§¹â "}
-                {m.kamer_schoon==="nee"?<strong style={{color:"#f59e0b"}}>NIET schoon â schoonmaakkosten verwerken</strong>:m.kamer_schoon==="controle"?<strong style={{color:"#f59e0b"}}>In controle â huismeester inspecteert</strong>:<span style={{color:C.groen}}>Kamer schoon achtergelaten</span>}
+                {m.kamer_schoon==="nee"?"🧹❌ ":m.kamer_schoon==="controle"?"🧹🔍 ":"🧹✅ "}
+                {m.kamer_schoon==="nee"?<strong style={{color:"#f59e0b"}}>NIET schoon → schoonmaakkosten verwerken</strong>:m.kamer_schoon==="controle"?<strong style={{color:"#f59e0b"}}>In controle → huismeester inspecteert</strong>:<span style={{color:C.groen}}>Kamer schoon achtergelaten</span>}
               </div></>)}
             </div>
-            {m.status==="open"&&m.type!=="vertrek_aankondiging"&&(<><input className="fi" value={notitieMap[m.id]||""} onChange={e=>setNotitieMap(p=>({...p,[m.id]:e.target.value}))} placeholder="Notitie bij verwerking..." style={{fontSize:13,marginBottom:10}}/><button className="btn-b" style={{width:"100%"}} onClick={()=>onUpdate(m.id,"verwerkt",notitieMap[m.id]||"")}>â Verwerkt in administratie</button></>)}
-            {m.status!=="open"&&m.afgehandeld_door&&<div style={{fontSize:12,color:C.muted,marginTop:8}}>Verwerkt door {m.afgehandeld_door}{m.notitie?` â "${m.notitie}"`:""}</div>}
+            {m.status==="open"&&m.type!=="vertrek_aankondiging"&&(<><input className="fi" value={notitieMap[m.id]||""} onChange={e=>setNotitieMap(p=>({...p,[m.id]:e.target.value}))} placeholder="Notitie bij verwerking..." style={{fontSize:13,marginBottom:10}}/><button className="btn-b" style={{width:"100%"}} onClick={()=>onUpdate(m.id,"verwerkt",notitieMap[m.id]||"")}>✓ Verwerkt in administratie</button></>)}
+            {m.status!=="open"&&m.afgehandeld_door&&<div style={{fontSize:12,color:C.muted,marginTop:8}}>Verwerkt door {m.afgehandeld_door}{m.notitie?` — "${m.notitie}"`:""}</div>}
           </div>
         );
       })}
@@ -5016,7 +5016,7 @@ function WoningenDetail({houses, onUpdateWoning}) {
         <SK label="Totaal kamers" val={total} color={C.muted}/>
       </div>
       <div style={{display:"flex",gap:10,marginBottom:20,flexWrap:"wrap",alignItems:"center"}}>
-        <input value={zoek} onChange={e=>setZoek(e.target.value)} placeholder="ð Zoek op naam, adres, bedrijf..."
+        <input value={zoek} onChange={e=>setZoek(e.target.value)} placeholder="🔍 Zoek op naam, adres, bedrijf..."
           style={{background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"8px 14px",fontSize:13,outline:"none",width:240}}/>
         <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>{steden.map(s=><button key={s} onClick={()=>setFilterStad(s)} style={{background:filterStad===s?C.blauw:"white",color:filterStad===s?"white":C.muted,border:`1.5px solid ${filterStad===s?C.blauw:C.border}`,borderRadius:20,padding:"6px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>{s}</button>)}</div>
         <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)} style={{background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"8px 12px",fontSize:12,outline:"none"}}>
@@ -5032,11 +5032,11 @@ function WoningenDetail({houses, onUpdateWoning}) {
           return(
             <div key={h.id} className="card" style={{borderTop:`3px solid ${hasIssue?"#ef4444":hasVrij?C.blauw:C.groen}`,padding:"18px 18px 14px"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
-                <div><div style={{fontWeight:800,fontSize:15,color:C.text}}>{h.adres}</div><div style={{fontSize:12,color:C.muted,marginTop:2}}>{h.stad} Â· {h.postcode}</div></div>
+                <div><div style={{fontWeight:800,fontSize:15,color:C.text}}>{h.adres}</div><div style={{fontSize:12,color:C.muted,marginTop:2}}>{h.stad} · {h.postcode}</div></div>
                 <div style={{textAlign:"right",flexShrink:0,marginLeft:10}}><div style={{fontSize:22,fontWeight:800,color:C.blauw,lineHeight:1}}>{bezette}<span style={{fontSize:13,color:C.muted}}>/{h.kamers.length}</span></div><div style={{fontSize:10,color:C.muted,marginTop:2}}>bezet</div></div>
               </div>
               <div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:12}}>
-                {h.kamers.map(k=>{const c=STATUS_MAP[k.status]||{dot:C.muted};return <div key={k.k} title={`K${k.k}: ${k.naam||"leeg"} â ${k.status}`} style={{width:12,height:12,borderRadius:3,background:c.dot+"50",border:`1.5px solid ${c.dot}`}}/>;  })}
+                {h.kamers.map(k=>{const c=STATUS_MAP[k.status]||{dot:C.muted};return <div key={k.k} title={`K${k.k}: ${k.naam||"leeg"} — ${k.status}`} style={{width:12,height:12,borderRadius:3,background:c.dot+"50",border:`1.5px solid ${c.dot}`}}/>;  })}
               </div>
               <div style={{borderTop:`1px solid ${C.border}`,paddingTop:10}}>
                 {h.kamers.map(k=>{
@@ -5047,9 +5047,9 @@ function WoningenDetail({houses, onUpdateWoning}) {
                   return(
                     <div key={k.k}>
                       {isBezig ? (
-                        // ââ Inline bewerk formulier ââ
+                        // ── Inline bewerk formulier ──
                         <div style={{background:C.blauw+"08",border:`1.5px solid ${C.blauw}`,borderRadius:8,padding:10,marginBottom:4}}>
-                          <div style={{fontSize:11,fontWeight:700,color:C.blauw,marginBottom:8}}>âï¸ Kamer {k.k} bewerken</div>
+                          <div style={{fontSize:11,fontWeight:700,color:C.blauw,marginBottom:8}}>✏️ Kamer {k.k} bewerken</div>
                           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:6}}>
                             <div>
                               <label style={{fontSize:10,fontWeight:600,color:C.muted,display:"block",marginBottom:3,textTransform:"uppercase",letterSpacing:".5px"}}>Naam bewoner</label>
@@ -5068,13 +5068,13 @@ function WoningenDetail({houses, onUpdateWoning}) {
                           </div>
                           <div style={{display:"flex",gap:6}}>
                             <button className="btn-b" style={{flex:1,padding:"7px",fontSize:12}} onClick={()=>slaBewerk(h)} disabled={saving}>
-                              {saving?"â³":"â Opslaan"}
+                              {saving?"⏳":"✓ Opslaan"}
                             </button>
                             <button className="btn-out" style={{padding:"7px 12px",fontSize:12}} onClick={()=>setBewerkKamer(null)}>Annuleren</button>
                           </div>
                         </div>
                       ) : (
-                        // ââ Normale weergave met bewerk-knop ââ
+                        // ── Normale weergave met bewerk-knop ──
                         <div style={{display:"flex",alignItems:"center",gap:8,padding:"6px 8px",borderRadius:7,marginBottom:2,background:rijBg,cursor:"pointer"}}
                           onMouseEnter={e=>e.currentTarget.style.background=C.blauw+"08"}
                           onMouseLeave={e=>e.currentTarget.style.background=rijBg}>
@@ -5086,7 +5086,7 @@ function WoningenDetail({houses, onUpdateWoning}) {
                           {onUpdateWoning&&(
                             <button onClick={()=>startBewerk(h,k)}
                               style={{background:"none",border:`1px solid ${C.border}`,borderRadius:5,padding:"2px 7px",fontSize:11,cursor:"pointer",color:C.muted,flexShrink:0,transition:"all .15s"}}
-                              title="Bewerken">âï¸</button>
+                              title="Bewerken">✏️</button>
                           )}
                         </div>
                       )}
@@ -5097,8 +5097,8 @@ function WoningenDetail({houses, onUpdateWoning}) {
               <div style={{marginTop:10,paddingTop:10,borderTop:`1px solid ${C.border}`,display:"flex",gap:6,flexWrap:"wrap"}}>
                 {hasVrij&&<span style={{fontSize:10,fontWeight:600,color:C.blauw,background:C.blauw+"18",padding:"3px 8px",borderRadius:4}}>{h.kamers.filter(k=>k.status==="Beschikbaar").length} vrij</span>}
                 {h.kamers.filter(k=>k.status==="Gereserveerd").length>0&&<span style={{fontSize:10,fontWeight:600,color:"#b45309",background:"#fef3c7",padding:"3px 8px",borderRadius:4}}>{h.kamers.filter(k=>k.status==="Gereserveerd").length} gereserveerd</span>}
-                {h.kamers.filter(k=>k.status==="Controle").length>0&&<span style={{fontSize:10,fontWeight:600,color:"#ef4444",background:"#fef2f2",padding:"3px 8px",borderRadius:4}}>â  {h.kamers.filter(k=>k.status==="Controle").length} controle</span>}
-                {h.kamers.filter(k=>k.status==="Moet aan het werk").length>0&&<span style={{fontSize:10,fontWeight:600,color:"#c2410c",background:"#fff7ed",padding:"3px 8px",borderRadius:4}}>â  {h.kamers.filter(k=>k.status==="Moet aan het werk").length} moet aan het werk</span>}
+                {h.kamers.filter(k=>k.status==="Controle").length>0&&<span style={{fontSize:10,fontWeight:600,color:"#ef4444",background:"#fef2f2",padding:"3px 8px",borderRadius:4}}>⚠ {h.kamers.filter(k=>k.status==="Controle").length} controle</span>}
+                {h.kamers.filter(k=>k.status==="Moet aan het werk").length>0&&<span style={{fontSize:10,fontWeight:600,color:"#c2410c",background:"#fff7ed",padding:"3px 8px",borderRadius:4}}>⚠ {h.kamers.filter(k=>k.status==="Moet aan het werk").length} moet aan het werk</span>}
                 {h.kamers.filter(k=>k.status==="Vertrokken").length>0&&<span style={{fontSize:10,fontWeight:600,color:"#52525b",background:"#f4f4f5",padding:"3px 8px",borderRadius:4}}>{h.kamers.filter(k=>k.status==="Vertrokken").length} vertrokken</span>}
               </div>
             </div>
@@ -5133,7 +5133,7 @@ function PlanningView({houses}) {
           return(
             <div key={h.id} className="card" style={{borderTop:`3px solid ${C.blauw}`}}>
               <div style={{display:"flex",justifyContent:"space-between",marginBottom:14}}>
-                <div><div style={{fontWeight:800,fontSize:15,color:C.text}}>{h.adres}</div><div style={{fontSize:12,color:C.muted,marginTop:2}}>{h.stad} Â· {h.postcode}</div></div>
+                <div><div style={{fontWeight:800,fontSize:15,color:C.text}}>{h.adres}</div><div style={{fontSize:12,color:C.muted,marginTop:2}}>{h.stad} · {h.postcode}</div></div>
                 <div style={{textAlign:"right"}}><div style={{fontSize:22,fontWeight:800,color:C.blauw}}>{bezette}/{h.kamers.length}</div><div style={{fontSize:10,color:C.muted}}>bezet</div></div>
               </div>
               <div style={{display:"flex",gap:3,flexWrap:"wrap",marginBottom:12}}>{h.kamers.map(k=>{const c=STATUS_MAP[k.status]||{dot:C.muted};return <div key={k.k} title={`K${k.k}: ${k.naam||"leeg"}`} style={{width:10,height:10,borderRadius:3,background:c.dot+"60",border:`1.5px solid ${c.dot}`}}/>;})}</div>
@@ -5155,7 +5155,7 @@ function PlanningView({houses}) {
   );
 }
 
-// âââ DASHBOARD VIEW âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─── DASHBOARD VIEW ───────────────────────────────────────────────────────────
 function DashboardView({ houses, meldingen, taken, gebruikers, activiteiten }) {
   const vandaag = todayISO();
   const nu = new Date();
@@ -5210,22 +5210,22 @@ function DashboardView({ houses, meldingen, taken, gebruikers, activiteiten }) {
 
   return (
     <div style={{maxWidth:1200,margin:"0 auto"}}>
-      <SH titel="ð Dashboard" sub={`Overzicht â ${new Date().toLocaleDateString("nl-NL",{weekday:"long",day:"numeric",month:"long"})}`}/>
+      <SH titel="📊 Dashboard" sub={`Overzicht — ${new Date().toLocaleDateString("nl-NL",{weekday:"long",day:"numeric",month:"long"})}`}/>
 
       {/* Stat cards */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:14,marginBottom:24}}>
-        {statCard("ð ", "Bezetting", `${bezetting}%`, C.blauw, `${kamerstats.lopend} van ${kamerstats.totaal} kamers`)}
-        {statCard("â", "Beschikbaar", kamerstats.beschikbaar, C.groen, "kamers vrij")}
-        {statCard("ð", "Open meldingen", openMeld.length, "#f59e0b", `${inBehandeling.length} in behandeling`)}
-        {statCard("â¡", "Urgente taken", hoogTaken.length, "#ef4444", `${openTakenAll.length} taken totaal`)}
-        {statCard("ðª", "Aankomsten", aankomsten.length, "#8b5cf6", "komende 7 dagen")}
-        {statCard("ð§³", "Vertrekken", vertrekken.length, "#6b7280", "komende 7 dagen")}
+        {statCard("🏠", "Bezetting", `${bezetting}%`, C.blauw, `${kamerstats.lopend} van ${kamerstats.totaal} kamers`)}
+        {statCard("✅", "Beschikbaar", kamerstats.beschikbaar, C.groen, "kamers vrij")}
+        {statCard("📋", "Open meldingen", openMeld.length, "#f59e0b", `${inBehandeling.length} in behandeling`)}
+        {statCard("⚡", "Urgente taken", hoogTaken.length, "#ef4444", `${openTakenAll.length} taken totaal`)}
+        {statCard("🚪", "Aankomsten", aankomsten.length, "#8b5cf6", "komende 7 dagen")}
+        {statCard("🧳", "Vertrekken", vertrekken.length, "#6b7280", "komende 7 dagen")}
       </div>
 
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
         {/* Kamerstatus per stad */}
         {card(<>
-          <div style={{fontWeight:800,fontSize:15,color:C.text,marginBottom:16}}>ðï¸ Bezetting per stad</div>
+          <div style={{fontWeight:800,fontSize:15,color:C.text,marginBottom:16}}>🏙️ Bezetting per stad</div>
           <div style={{display:"grid",gap:10}}>
             {steden.map(stad => {
               const stadKamers = houses.filter(h=>h.stad===stad).flatMap(h=>h.kamers||[]);
@@ -5237,7 +5237,7 @@ function DashboardView({ houses, meldingen, taken, gebruikers, activiteiten }) {
                 <div key={stad}>
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
                     <span style={{fontSize:13,fontWeight:600,color:C.text}}>{stad}</span>
-                    <span style={{fontSize:12,color:C.muted}}>{lopend}/{totaal} {controle>0&&<span style={{color:"#ef4444",marginLeft:4}}>â ï¸ {controle}</span>}</span>
+                    <span style={{fontSize:12,color:C.muted}}>{lopend}/{totaal} {controle>0&&<span style={{color:"#ef4444",marginLeft:4}}>⚠️ {controle}</span>}</span>
                   </div>
                   <div style={{height:8,background:C.bg,borderRadius:4,overflow:"hidden"}}>
                     <div style={{height:"100%",width:`${pct}%`,background:pct>90?C.groen:pct>70?C.blauw:"#f59e0b",borderRadius:4,transition:"width .4s"}}/>
@@ -5250,17 +5250,17 @@ function DashboardView({ houses, meldingen, taken, gebruikers, activiteiten }) {
 
         {/* Aankomsten & vertrekken deze week */}
         {card(<>
-          <div style={{fontWeight:800,fontSize:15,color:C.text,marginBottom:16}}>ð Deze week</div>
+          <div style={{fontWeight:800,fontSize:15,color:C.text,marginBottom:16}}>📅 Deze week</div>
           {aankomsten.length === 0 && vertrekken.length === 0 && (
             <div style={{color:C.muted,fontSize:13,textAlign:"center",padding:"20px 0"}}>Geen aankomsten of vertrekken gepland</div>
           )}
           <div style={{display:"grid",gap:8}}>
             {[...aankomsten.map(m=>({...m,_soort:"aankomst"})),...vertrekken.map(m=>({...m,_soort:"vertrek"}))].sort((a,b)=>a.datum.localeCompare(b.datum)).slice(0,6).map(m=>(
               <div key={m.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 12px",borderRadius:8,background:m._soort==="aankomst"?"#f0fdf4":"#fff7ed",border:`1px solid ${m._soort==="aankomst"?"#bbf7d0":"#fed7aa"}`}}>
-                <span style={{fontSize:16}}>{m._soort==="aankomst"?"ð":"ð§³"}</span>
+                <span style={{fontSize:16}}>{m._soort==="aankomst"?"🚗":"🧳"}</span>
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{fontSize:13,fontWeight:600,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.medewerker}</div>
-                  <div style={{fontSize:11,color:C.muted}}>{m.datum} {m.kamer?"Â· K"+m.kamer:""}</div>
+                  <div style={{fontSize:11,color:C.muted}}>{m.datum} {m.kamer?"· K"+m.kamer:""}</div>
                 </div>
               </div>
             ))}
@@ -5271,13 +5271,13 @@ function DashboardView({ houses, meldingen, taken, gebruikers, activiteiten }) {
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
         {/* Urgente taken */}
         {card(<>
-          <div style={{fontWeight:800,fontSize:15,color:C.text,marginBottom:16}}>â¡ Urgente taken <span style={{fontSize:12,fontWeight:400,color:C.muted}}>({hoogTaken.length})</span></div>
-          {hoogTaken.length === 0 && <div style={{color:C.muted,fontSize:13,textAlign:"center",padding:"20px 0"}}>â Geen urgente taken</div>}
+          <div style={{fontWeight:800,fontSize:15,color:C.text,marginBottom:16}}>⚡ Urgente taken <span style={{fontSize:12,fontWeight:400,color:C.muted}}>({hoogTaken.length})</span></div>
+          {hoogTaken.length === 0 && <div style={{color:C.muted,fontSize:13,textAlign:"center",padding:"20px 0"}}>✅ Geen urgente taken</div>}
           <div style={{display:"grid",gap:8}}>
             {hoogTaken.slice(0,5).map(t=>(
               <div key={t.id} style={{padding:"8px 12px",borderRadius:8,background:"#fff1f2",border:"1px solid #fecdd3"}}>
                 <div style={{fontSize:13,fontWeight:600,color:"#9f1239",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.titel}</div>
-                <div style={{fontSize:11,color:C.muted,marginTop:2}}>{t.voor_rol||"iedereen"} Â· {t.created_at?.slice(0,10)}</div>
+                <div style={{fontSize:11,color:C.muted,marginTop:2}}>{t.voor_rol||"iedereen"} · {t.created_at?.slice(0,10)}</div>
               </div>
             ))}
             {hoogTaken.length > 5 && <div style={{fontSize:12,color:C.muted,textAlign:"center"}}>+{hoogTaken.length-5} meer</div>}
@@ -5286,7 +5286,7 @@ function DashboardView({ houses, meldingen, taken, gebruikers, activiteiten }) {
 
         {/* Recente meldingen */}
         {card(<>
-          <div style={{fontWeight:800,fontSize:15,color:C.text,marginBottom:16}}>ð Recente meldingen</div>
+          <div style={{fontWeight:800,fontSize:15,color:C.text,marginBottom:16}}>🔔 Recente meldingen</div>
           <div style={{display:"grid",gap:8}}>
             {recentMeldingen.map(m=>{
               const typeKleur = {aankomst:"#16a34a",vertrek:"#9333ea",reservering:"#2563eb",verhuizing:"#d97706",overig:"#6b7280"};
@@ -5297,7 +5297,7 @@ function DashboardView({ houses, meldingen, taken, gebruikers, activiteiten }) {
                   <div style={{width:8,height:8,borderRadius:"50%",background:kleur,flexShrink:0}}/>
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{fontSize:13,fontWeight:600,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.medewerker}</div>
-                    <div style={{fontSize:11,color:C.muted}}>{typeLabel[m.type]||m.type} Â· {m.created_at?.slice(0,10)}</div>
+                    <div style={{fontSize:11,color:C.muted}}>{typeLabel[m.type]||m.type} · {m.created_at?.slice(0,10)}</div>
                   </div>
                   <span style={{fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:10,background:m.status==="open"?"#fef3c7":m.status==="afgehandeld"?"#dcfce7":"#dbeafe",color:m.status==="open"?"#92400e":m.status==="afgehandeld"?"#166534":"#1e40af"}}>{m.status}</span>
                 </div>
@@ -5315,9 +5315,9 @@ function BeheerView({houses,onAdd,onUpdate,onDelete,showToast,gebruikers,onAddGe
   const [subTab,setSubTab]=useState("woningen");
   return(
     <div>
-      <SH titel="âï¸ Beheer" sub="Alleen beschikbaar voor Liset"/>
+      <SH titel="⚙️ Beheer" sub="Alleen beschikbaar voor Liset"/>
       <div style={{display:"flex",gap:6,marginBottom:24,borderBottom:`2px solid ${C.border}`,paddingBottom:0}}>
-        {[["woningen","ð  Woningen & kamers"],["gebruikers","ð¥ Gebruikers & pincodes"],["checklists","â Checklists"],["dagplanning","ð Dagplanning huismeester"]].map(([v,l])=>(
+        {[["woningen","🏠 Woningen & kamers"],["gebruikers","👥 Gebruikers & pincodes"],["checklists","✅ Checklists"],["dagplanning","📅 Dagplanning huismeester"]].map(([v,l])=>(
           <button key={v} onClick={()=>setSubTab(v)}
             style={{background:"none",border:"none",padding:"10px 20px",fontSize:14,fontWeight:700,color:subTab===v?C.blauw:C.muted,borderBottom:subTab===v?`3px solid ${C.blauw}`:"3px solid transparent",marginBottom:-2,cursor:"pointer",fontFamily:"inherit"}}>
             {l}
@@ -5332,7 +5332,7 @@ function BeheerView({houses,onAdd,onUpdate,onDelete,showToast,gebruikers,onAddGe
   );
 }
 
-// âââ DAGPLANNING BEHEER âââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─── DAGPLANNING BEHEER ───────────────────────────────────────────────────────
 function DagplanningBeheer({ dagplanningDB, showToast, houses=[] }) {
   const [bewerkId, setBewerkId] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -5347,14 +5347,14 @@ function DagplanningBeheer({ dagplanningDB, showToast, houses=[] }) {
     }).eq("id", dag.id);
     setSaving(false);
     if (error) { showToast("Fout bij opslaan","err"); return; }
-    showToast("â Dagplanning opgeslagen");
+    showToast("✓ Dagplanning opgeslagen");
     setBewerkId(null);
   }
 
   return (
     <div>
       <div style={{marginBottom:20}}>
-        <h3 style={{fontSize:16,fontWeight:800,color:C.blauw}}>ð Dagplanning huismeester</h3>
+        <h3 style={{fontSize:16,fontWeight:800,color:C.blauw}}>📅 Dagplanning huismeester</h3>
         <p style={{fontSize:13,color:C.muted,marginTop:4}}>Pas per dag de focus en taken aan. De huismeester ziet dit direct in zijn "Mijn dag" overzicht.</p>
       </div>
       <div style={{display:"grid",gap:16}}>
@@ -5396,7 +5396,7 @@ function DagKaart({ dag, isBewerken, onBewerken, onAnnuleren, onOpslaan, saving,
         {!isBewerken && (
           <button onClick={onBewerken}
             style={{background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,padding:"7px 16px",fontSize:13,cursor:"pointer",fontFamily:"inherit",color:C.muted}}>
-            âï¸ Aanpassen
+            ✏️ Aanpassen
           </button>
         )}
       </div>
@@ -5409,7 +5409,7 @@ function DagKaart({ dag, isBewerken, onBewerken, onAnnuleren, onOpslaan, saving,
                 const h = houses.find(h=>h.id===id);
                 return h ? (
                   <span key={id} style={{padding:"3px 10px",borderRadius:20,fontSize:11,fontWeight:600,background:dag.kleur+"18",color:dag.kleur}}>
-                    ð {h.adres}, {h.stad}
+                    📍 {h.adres}, {h.stad}
                   </span>
                 ) : null;
               })}
@@ -5438,7 +5438,7 @@ function DagKaart({ dag, isBewerken, onBewerken, onAnnuleren, onOpslaan, saving,
                 <input value={t} onChange={e=>updateTaak(i,e.target.value)}
                   style={{flex:1,background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"8px 12px",fontSize:13,outline:"none",fontFamily:"inherit"}}/>
                 <button onClick={()=>verwijderTaak(i)}
-                  style={{background:"#fef2f2",border:"1px solid #fecaca",color:"#ef4444",borderRadius:6,padding:"6px 10px",cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>ð</button>
+                  style={{background:"#fef2f2",border:"1px solid #fecaca",color:"#ef4444",borderRadius:6,padding:"6px 10px",cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>🗑</button>
               </div>
             ))}
             <button onClick={voegToe}
@@ -5454,7 +5454,7 @@ function DagKaart({ dag, isBewerken, onBewerken, onAnnuleren, onOpslaan, saving,
                 return (
                   <div key={h.id} onClick={()=>toggleWoning(h.id)}
                     style={{padding:"6px 12px",borderRadius:20,fontSize:12,fontWeight:600,cursor:"pointer",border:`1.5px solid ${geselecteerd?dag.kleur:C.border}`,background:geselecteerd?dag.kleur+"18":"white",color:geselecteerd?dag.kleur:C.muted}}>
-                    {geselecteerd?"â ":""}{h.adres}, {h.stad}
+                    {geselecteerd?"✓ ":""}{h.adres}, {h.stad}
                   </div>
                 );
               })}
@@ -5463,7 +5463,7 @@ function DagKaart({ dag, isBewerken, onBewerken, onAnnuleren, onOpslaan, saving,
           <div style={{display:"flex",gap:8}}>
             <button onClick={()=>onOpslaan({...dag, focus, taken, woning_ids: woningIds})} disabled={saving}
               style={{background:C.blauw,color:"white",border:"none",borderRadius:8,padding:"10px 24px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-              {saving?"â³ Opslaan...":"â Opslaan"}
+              {saving?"⏳ Opslaan...":"✓ Opslaan"}
             </button>
             <button onClick={onAnnuleren}
               style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"10px 16px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
@@ -5519,8 +5519,8 @@ function WoningBeheer({houses,onAdd,onUpdate,onDelete,showToast}) {
               <input className="fi" value={nieuweWoning.adres} onChange={e=>setNieuweWoning(p=>({...p,adres:e.target.value}))} placeholder="Adres" style={{fontSize:13}}/>
               <input className="fi" value={nieuweWoning.postcode} onChange={e=>setNieuweWoning(p=>({...p,postcode:e.target.value}))} placeholder="Postcode" style={{fontSize:13}}/>
               <div style={{display:"flex",gap:8}}>
-                <button className="btn-b" style={{flex:1,padding:"8px",fontSize:13}} onClick={woningToevoegen} disabled={saving}>{saving?"â³":"â Toevoegen"}</button>
-                <button className="btn-out" style={{padding:"8px 12px",fontSize:13}} onClick={()=>setToonNieuwe(false)}>â</button>
+                <button className="btn-b" style={{flex:1,padding:"8px",fontSize:13}} onClick={woningToevoegen} disabled={saving}>{saving?"⏳":"✓ Toevoegen"}</button>
+                <button className="btn-out" style={{padding:"8px 12px",fontSize:13}} onClick={()=>setToonNieuwe(false)}>✗</button>
               </div>
             </div>
           </div>
@@ -5542,11 +5542,11 @@ function WoningBeheer({houses,onAdd,onUpdate,onDelete,showToast}) {
         ))}
       </div>
       <div>
-        {!huis?<div className="card" style={{textAlign:"center",padding:"60px 20px"}}><div style={{fontSize:40,marginBottom:10}}>ð</div><div style={{color:C.muted}}>Selecteer een woning</div></div>:(
+        {!huis?<div className="card" style={{textAlign:"center",padding:"60px 20px"}}><div style={{fontSize:40,marginBottom:10}}>👈</div><div style={{color:C.muted}}>Selecteer een woning</div></div>:(
           <div>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
-              <div><h3 style={{fontSize:18,fontWeight:800,color:C.blauw}}>{huis.adres}</h3><div style={{fontSize:13,color:C.muted,marginTop:2}}>{huis.stad} Â· {huis.postcode} Â· {huis.kamers.length} kamers</div></div>
-              <button className="btn-r" onClick={()=>woningVerwijderen(huis.id)}>ð Verwijderen</button>
+              <div><h3 style={{fontSize:18,fontWeight:800,color:C.blauw}}>{huis.adres}</h3><div style={{fontSize:13,color:C.muted,marginTop:2}}>{huis.stad} · {huis.postcode} · {huis.kamers.length} kamers</div></div>
+              <button className="btn-r" onClick={()=>woningVerwijderen(huis.id)}>🗑 Verwijderen</button>
             </div>
             <div className="card" style={{marginBottom:16}}>
               <div style={{fontWeight:700,fontSize:13,marginBottom:14,color:C.blauw}}>Kamers</div>
@@ -5560,8 +5560,8 @@ function WoningBeheer({houses,onAdd,onUpdate,onDelete,showToast}) {
                     <span style={{flex:1,fontSize:13,color:k.naam?C.text:"#aab4c4",fontStyle:k.naam?"normal":"italic"}}>{k.naam||"leeg"}</span>
                     {k.bedrijf&&<span style={{fontSize:11,color:C.muted}}>{k.bedrijf}</span>}
                     <span style={{padding:"2px 8px",borderRadius:4,background:STATUS_MAP[k.status]?.bg||C.bg,color:STATUS_MAP[k.status]?.text||C.muted,fontSize:10,fontWeight:600}}>{k.status}</span>
-                    <button className="btn-out" style={{padding:"4px 10px",fontSize:11}} onClick={()=>setBewerkKamer(k.k)}>âï¸</button>
-                    <button className="btn-r" style={{padding:"4px 10px",fontSize:11}} onClick={()=>kamerVerwijderen(k.k)}>ð</button>
+                    <button className="btn-out" style={{padding:"4px 10px",fontSize:11}} onClick={()=>setBewerkKamer(k.k)}>✏️</button>
+                    <button className="btn-r" style={{padding:"4px 10px",fontSize:11}} onClick={()=>kamerVerwijderen(k.k)}>🗑</button>
                   </div>
                 }</div>
               ))}
@@ -5574,7 +5574,7 @@ function WoningBeheer({houses,onAdd,onUpdate,onDelete,showToast}) {
                 <div><label className="fl">Bedrijf</label><input className="fi" value={nieuweKamer.bedrijf} onChange={e=>setNieuweKamer(p=>({...p,bedrijf:e.target.value}))} placeholder="Optioneel" style={{fontSize:13}}/></div>
               </div>
               <div style={{marginBottom:12}}><label className="fl">Status</label><select className="fs" value={nieuweKamer.status} onChange={e=>setNieuweKamer(p=>({...p,status:e.target.value}))} style={{fontSize:13}}>{STATUSSEN.map(s=><option key={s}>{s}</option>)}</select></div>
-              <button className="btn-g" style={{width:"100%",padding:10,fontSize:13}} onClick={kamerToevoegen} disabled={saving}>{saving?"â³ Opslaan...":"â Kamer toevoegen"}</button>
+              <button className="btn-g" style={{width:"100%",padding:10,fontSize:13}} onClick={kamerToevoegen} disabled={saving}>{saving?"⏳ Opslaan...":"✓ Kamer toevoegen"}</button>
             </div>
           </div>
         )}
@@ -5596,7 +5596,7 @@ function KamerBewerken({kamer,onSave,onCancel,saving}) {
       </div>
       <select className="fs" value={status} onChange={e=>setStatus(e.target.value)} style={{fontSize:12,marginBottom:8}}>{STATUSSEN.map(s=><option key={s}>{s}</option>)}</select>
       <div style={{display:"flex",gap:8}}>
-        <button className="btn-b" style={{flex:1,padding:"7px",fontSize:12}} onClick={()=>onSave({naam,bedrijf,status})} disabled={saving}>{saving?"â³":"â Opslaan"}</button>
+        <button className="btn-b" style={{flex:1,padding:"7px",fontSize:12}} onClick={()=>onSave({naam,bedrijf,status})} disabled={saving}>{saving?"⏳":"✓ Opslaan"}</button>
         <button className="btn-out" style={{padding:"7px 12px",fontSize:12}} onClick={onCancel}>Annuleren</button>
       </div>
     </div>
@@ -5632,7 +5632,7 @@ function GebruikersBeheer({gebruikers,onAdd,onUpdate,onDelete,showToast}) {
   }
 
   const rk={backoffice:C.blauw,huismeester:C.groen,collega:C.muted,financieel:"#f59e0b"};
-  const ri={backoffice:"ð",huismeester:"ð ",collega:"ð¤",financieel:"ð¶"};
+  const ri={backoffice:"📊",huismeester:"🏠",collega:"👤",financieel:"💶"};
 
   return(
     <div style={{maxWidth:700}}>
@@ -5641,9 +5641,9 @@ function GebruikersBeheer({gebruikers,onAdd,onUpdate,onDelete,showToast}) {
         <div style={{display:"grid",gridTemplateColumns:"1fr 120px 160px",gap:12,marginBottom:12}}>
           <div><label className="fl">Naam</label><input className="fi" value={nieuw.naam} onChange={e=>setNieuw(p=>({...p,naam:e.target.value}))} placeholder="Voornaam"/></div>
           <div><label className="fl">Pincode</label><input className="fi" value={nieuw.pin} onChange={e=>setNieuw(p=>({...p,pin:e.target.value.replace(/\D/g,"")}))} placeholder="1234" maxLength={8} type="password"/></div>
-          <div><label className="fl">Rol</label><select className="fs" value={nieuw.rol} onChange={e=>setNieuw(p=>({...p,rol:e.target.value}))}><option value="collega">ð¤ Collega</option><option value="huismeester">ð  Huismeester</option><option value="financieel">ð¶ Financieel</option><option value="backoffice">ð Backoffice</option></select></div>
+          <div><label className="fl">Rol</label><select className="fs" value={nieuw.rol} onChange={e=>setNieuw(p=>({...p,rol:e.target.value}))}><option value="collega">👤 Collega</option><option value="huismeester">🏠 Huismeester</option><option value="financieel">💶 Financieel</option><option value="backoffice">📊 Backoffice</option></select></div>
         </div>
-        <button className="btn-g" style={{padding:"10px 24px"}} onClick={voegToe} disabled={saving}>{saving?"â³ Opslaan...":"â Toevoegen"}</button>
+        <button className="btn-g" style={{padding:"10px 24px"}} onClick={voegToe} disabled={saving}>{saving?"⏳ Opslaan...":"✓ Toevoegen"}</button>
       </div>
       <div className="card">
         <div style={{fontWeight:700,fontSize:14,color:C.blauw,marginBottom:16}}>Alle gebruikers ({gebruikers.length})</div>
@@ -5653,9 +5653,9 @@ function GebruikersBeheer({gebruikers,onAdd,onUpdate,onDelete,showToast}) {
               <div className="br" style={{marginBottom:8}}>
                 <div style={{width:32,height:32,borderRadius:8,background:rk[g.rol]+"18",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>{ri[g.rol]}</div>
                 <div style={{flex:1}}><div style={{fontWeight:700,fontSize:14,color:C.text}}>{g.naam}</div><div style={{fontSize:11,color:rk[g.rol],fontWeight:600,textTransform:"capitalize"}}>{g.rol}</div></div>
-                <div style={{fontSize:13,color:C.muted,fontFamily:"monospace",background:C.bg,padding:"4px 10px",borderRadius:6}}>â¢â¢â¢â¢</div>
-                <button className="btn-out" style={{padding:"5px 12px",fontSize:12}} onClick={()=>setBewerk(g.id)}>âï¸ Bewerken</button>
-                {g.naam!=="Liset"&&<button className="btn-r" style={{padding:"5px 12px",fontSize:12}} onClick={()=>verwijder(g)}>ð</button>}
+                <div style={{fontSize:13,color:C.muted,fontFamily:"monospace",background:C.bg,padding:"4px 10px",borderRadius:6}}>••••</div>
+                <button className="btn-out" style={{padding:"5px 12px",fontSize:12}} onClick={()=>setBewerk(g.id)}>✏️ Bewerken</button>
+                {g.naam!=="Liset"&&<button className="btn-r" style={{padding:"5px 12px",fontSize:12}} onClick={()=>verwijder(g)}>🗑</button>}
               </div>
             )}
           </div>
@@ -5673,17 +5673,17 @@ function GebruikerBewerken({g,onSave,onCancel}) {
       <div style={{display:"grid",gridTemplateColumns:"1fr 120px 160px",gap:10,marginBottom:10}}>
         <div><label className="fl">Naam</label><input className="fi" value={naam} onChange={e=>setNaam(e.target.value)} style={{fontSize:13}}/></div>
         <div><label className="fl">Pincode</label><input className="fi" value={pin} onChange={e=>setPin(e.target.value.replace(/\D/g,""))} type="text" maxLength={8} style={{fontSize:13}}/></div>
-        <div><label className="fl">Rol</label><select className="fs" value={rol} onChange={e=>setRol(e.target.value)} style={{fontSize:13}}><option value="collega">ð¤ Collega</option><option value="huismeester">ð  Huismeester</option><option value="financieel">ð¶ Financieel</option><option value="backoffice">ð Backoffice</option></select></div>
+        <div><label className="fl">Rol</label><select className="fs" value={rol} onChange={e=>setRol(e.target.value)} style={{fontSize:13}}><option value="collega">👤 Collega</option><option value="huismeester">🏠 Huismeester</option><option value="financieel">💶 Financieel</option><option value="backoffice">📊 Backoffice</option></select></div>
       </div>
       <div style={{display:"flex",gap:8}}>
-        <button className="btn-b" style={{padding:"8px 20px",fontSize:13}} onClick={()=>onSave({naam,pin,rol})}>â Opslaan</button>
+        <button className="btn-b" style={{padding:"8px 20px",fontSize:13}} onClick={()=>onSave({naam,pin,rol})}>✓ Opslaan</button>
         <button className="btn-out" style={{padding:"8px 16px",fontSize:13}} onClick={onCancel}>Annuleren</button>
       </div>
     </div>
   );
 }
 
-// âââ CHECKLIST ITEMS BEHEER âââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─── CHECKLIST ITEMS BEHEER ───────────────────────────────────────────────────
 function ChecklistItemsBeheer({ checklistItems, showToast }) {
   const [actief, setActief] = useState("wekelijks");
   const [nieuwTekst, setNieuwTekst] = useState("");
@@ -5692,9 +5692,9 @@ function ChecklistItemsBeheer({ checklistItems, showToast }) {
   const [saving, setSaving] = useState(false);
 
   const types = [
-    { id:"wekelijks",   label:"ð Wekelijks",   kleur:C.blauw },
-    { id:"4wekelijks",  label:"ð 4-wekelijks",  kleur:C.groen },
-    { id:"kwartaal",    label:"ð Kwartaal",     kleur:"#7c3aed" },
+    { id:"wekelijks",   label:"📋 Wekelijks",   kleur:C.blauw },
+    { id:"4wekelijks",  label:"📅 4-wekelijks",  kleur:C.groen },
+    { id:"kwartaal",    label:"🏆 Kwartaal",     kleur:"#7c3aed" },
   ];
 
   const huidigeLijst = checklistItems.filter(i => i.type === actief);
@@ -5710,7 +5710,7 @@ function ChecklistItemsBeheer({ checklistItems, showToast }) {
     setSaving(false);
     if (error) { showToast("Fout bij toevoegen", "err"); return; }
     setNieuwTekst("");
-    showToast("â Item toegevoegd");
+    showToast("✓ Item toegevoegd");
   }
 
   async function slaBewerk(id) {
@@ -5720,14 +5720,14 @@ function ChecklistItemsBeheer({ checklistItems, showToast }) {
     setSaving(false);
     if (error) { showToast("Fout bij opslaan", "err"); return; }
     setBewerkId(null);
-    showToast("â Opgeslagen");
+    showToast("✓ Opgeslagen");
   }
 
   async function verwijder(id, tekst) {
     if (!window.confirm(`"${tekst.substring(0,50)}..." verwijderen?`)) return;
     const { error } = await supabase.from("checklist_items").update({ actief: false }).eq("id", id);
     if (error) { showToast("Fout bij verwijderen", "err"); return; }
-    showToast("â Item verwijderd");
+    showToast("✓ Item verwijderd");
   }
 
   async function verschuif(item, richting) {
@@ -5760,7 +5760,7 @@ function ChecklistItemsBeheer({ checklistItems, showToast }) {
             placeholder="Omschrijving van de controletaak..."
             style={{ flex:1 }} />
           <button className="btn-b" style={{ padding:"10px 20px", flexShrink:0 }} onClick={voegToe} disabled={saving}>
-            {saving?"â³":"+ Toevoegen"}
+            {saving?"⏳":"+ Toevoegen"}
           </button>
         </div>
       </div>
@@ -5768,7 +5768,7 @@ function ChecklistItemsBeheer({ checklistItems, showToast }) {
       {/* Huidige items */}
       <div className="card">
         <div style={{ fontWeight:700, fontSize:13, color:C.blauw, marginBottom:16 }}>
-          {actiefInfo.label} â {huidigeLijst.length} items
+          {actiefInfo.label} — {huidigeLijst.length} items
         </div>
         {huidigeLijst.length === 0 && (
           <div style={{ textAlign:"center", padding:"30px", color:C.muted, fontSize:13 }}>
@@ -5782,8 +5782,8 @@ function ChecklistItemsBeheer({ checklistItems, showToast }) {
                 <input className="fi" value={bewerkTekst} onChange={e=>setBewerkTekst(e.target.value)}
                   onKeyDown={e=>e.key==="Enter"&&slaBewerk(item.id)}
                   style={{ flex:1, fontSize:13 }} autoFocus />
-                <button className="btn-b" style={{ padding:"8px 14px", fontSize:12, flexShrink:0 }} onClick={()=>slaBewerk(item.id)} disabled={saving}>â</button>
-                <button className="btn-out" style={{ padding:"8px 12px", fontSize:12, flexShrink:0 }} onClick={()=>setBewerkId(null)}>â</button>
+                <button className="btn-b" style={{ padding:"8px 14px", fontSize:12, flexShrink:0 }} onClick={()=>slaBewerk(item.id)} disabled={saving}>✓</button>
+                <button className="btn-out" style={{ padding:"8px 12px", fontSize:12, flexShrink:0 }} onClick={()=>setBewerkId(null)}>✗</button>
               </div>
             ) : (
               <div className="br" style={{ gap:6 }}>
@@ -5791,13 +5791,13 @@ function ChecklistItemsBeheer({ checklistItems, showToast }) {
                 <span style={{ flex:1, fontSize:13, color:C.text }}>{item.tekst}</span>
                 <div style={{ display:"flex", gap:4, flexShrink:0 }}>
                   <button onClick={()=>verschuif(item,"up")} disabled={idx===0}
-                    style={{ background:"none", border:`1px solid ${C.border}`, borderRadius:6, padding:"4px 8px", cursor:idx===0?"not-allowed":"pointer", color:idx===0?C.border:C.muted, fontSize:12 }}>â</button>
+                    style={{ background:"none", border:`1px solid ${C.border}`, borderRadius:6, padding:"4px 8px", cursor:idx===0?"not-allowed":"pointer", color:idx===0?C.border:C.muted, fontSize:12 }}>↑</button>
                   <button onClick={()=>verschuif(item,"down")} disabled={idx===arr.length-1}
-                    style={{ background:"none", border:`1px solid ${C.border}`, borderRadius:6, padding:"4px 8px", cursor:idx===arr.length-1?"not-allowed":"pointer", color:idx===arr.length-1?C.border:C.muted, fontSize:12 }}>â</button>
+                    style={{ background:"none", border:`1px solid ${C.border}`, borderRadius:6, padding:"4px 8px", cursor:idx===arr.length-1?"not-allowed":"pointer", color:idx===arr.length-1?C.border:C.muted, fontSize:12 }}>↓</button>
                   <button className="btn-out" style={{ padding:"4px 10px", fontSize:11 }}
-                    onClick={()=>{ setBewerkId(item.id); setBewerkTekst(item.tekst); }}>âï¸</button>
+                    onClick={()=>{ setBewerkId(item.id); setBewerkTekst(item.tekst); }}>✏️</button>
                   <button className="btn-r" style={{ padding:"4px 10px", fontSize:11 }}
-                    onClick={()=>verwijder(item.id, item.tekst)}>ð</button>
+                    onClick={()=>verwijder(item.id, item.tekst)}>🗑</button>
                 </div>
               </div>
             )}
@@ -5808,7 +5808,7 @@ function ChecklistItemsBeheer({ checklistItems, showToast }) {
   );
 }
 
-// âââ LOG VIEW âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─── LOG VIEW ─────────────────────────────────────────────────────────────────
 function LogView({meldingen,houses,activiteiten}) {
   const [zoek, setZoek] = useState("");
   const [typeFilter, setTypeFilter] = useState("alle");
@@ -5846,7 +5846,7 @@ function LogView({meldingen,houses,activiteiten}) {
     borg_plan:"#7c3aed", huurschuld:"#d97706", huurbetaling:"#16a34a",
   };
 
-  const soortIcoon = { melding:"ð", activiteit:"â¡", auto:"ð", fiets:"ð²", borg:"ð", huur:"ð°" };
+  const soortIcoon = { melding:"📋", activiteit:"⚡", auto:"🚗", fiets:"🚲", borg:"🔐", huur:"💰" };
 
   const alles = [
     ...meldingen.map(m=>({
@@ -5865,7 +5865,7 @@ function LogView({meldingen,houses,activiteiten}) {
       type:a.actie||"auto", naam:a.naam_medewerker||"-", door:a.ingediend_door||"",
       adres:"", kamer:"", status:a.status||"",
       notitie:a.kenteken||"",
-      extra:[a.opmerkingen, a.locatie, a.kilometerstand?`${a.kilometerstand} km`:""].filter(Boolean).join(" Â· "),
+      extra:[a.opmerkingen, a.locatie, a.kilometerstand?`${a.kilometerstand} km`:""].filter(Boolean).join(" · "),
     })),
     ...fietsLog.map(f=>({
       id:`fi-${f.id}`, soort:"fiets", datum:f.created_at,
@@ -5878,13 +5878,13 @@ function LogView({meldingen,houses,activiteiten}) {
       type:"borg_plan", naam:b.naam_medewerker||"-", door:b.aangemaakt_door||b.ingediend_door||"",
       adres:houses.find(h=>h.id===b.woning_id)?.adres||"",
       kamer:b.kamer||"", status:b.status||"",
-      notitie:`Borg â¬${b.totaal_borg||0}`, extra:b.opmerkingen||"",
+      notitie:`Borg €${b.totaal_borg||0}`, extra:b.opmerkingen||"",
     })),
     ...huurschulden.map(s=>({
       id:`hs-${s.id}`, soort:"huur", datum:s.created_at,
       type:"huurschuld", naam:s.naam_medewerker||"-", door:s.aangemaakt_door||"",
       adres:"", kamer:"", status:s.actief?"actief":"afgesloten",
-      notitie:`Schuld â¬${s.beginsaldo||0}`, extra:s.opmerkingen||"",
+      notitie:`Schuld €${s.beginsaldo||0}`, extra:s.opmerkingen||"",
     })),
     ...huurbetalingen.map(b=>{
       const schuld=huurschulden.find(s=>s.id===b.schuld_id);
@@ -5892,7 +5892,7 @@ function LogView({meldingen,houses,activiteiten}) {
         id:`hb-${b.id}`, soort:"huur", datum:b.created_at,
         type:"huurbetaling", naam:schuld?.naam_medewerker||"-", door:b.geregistreerd_door||"",
         adres:"", kamer:"", status:"",
-        notitie:`Betaling â¬${b.bedrag||0}`, extra:b.opmerking||"",
+        notitie:`Betaling €${b.bedrag||0}`, extra:b.opmerking||"",
       };
     }),
   ].sort((a,b)=>new Date(b.datum||0)-new Date(a.datum||0));
@@ -5903,7 +5903,7 @@ function LogView({meldingen,houses,activiteiten}) {
       const dt=item.datum?new Date(item.datum):new Date();
       csv+=`"${fmtDate(dt)}";"${fmtTime(dt)}";"${item.soort}";"${item.type}";"${item.naam}";"${(item.extra||item.notitie||"").replace(/"/g,"'")}";"${item.adres}";"${item.kamer}";"${item.door}";"${item.status}"\n`;
     });
-    const blob=new Blob(["ï»¿"+csv],{type:"text/csv;charset=utf-8;"});
+    const blob=new Blob(["﻿"+csv],{type:"text/csv;charset=utf-8;"});
     const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`KTP_volledig_log_${todayISO()}.csv`;a.click();URL.revokeObjectURL(url);
   }
 
@@ -5928,14 +5928,14 @@ function LogView({meldingen,houses,activiteiten}) {
 
   return (
     <div>
-      <SH titel="ð Log" sub={`${alles.length} totaal Â· ${extraLoading?"laden...":"alles geladen"}`}
-        actie={<button className="btn-out" onClick={exportCSV}>â¬ Exporteer CSV</button>}/>
+      <SH titel="📝 Log" sub={`${alles.length} totaal · ${extraLoading?"laden...":"alles geladen"}`}
+        actie={<button className="btn-out" onClick={exportCSV}>⬇ Exporteer CSV</button>}/>
       <div style={{display:"flex",gap:10,marginBottom:12,flexWrap:"wrap"}}>
         <input value={zoek} onChange={e=>setZoek(e.target.value)}
-          placeholder="ð Zoek op naam, kenteken, adres, ingediend door..."
+          placeholder="🔍 Zoek op naam, kenteken, adres, ingediend door..."
           style={{flex:1,minWidth:220,background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"9px 14px",fontSize:13,outline:"none",fontFamily:"inherit"}}/>
         <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
-          {[["alle","Alles",alles.length],["meldingen","ð Woningen",totalen.meldingen],["activiteiten","â¡ Activiteiten",totalen.activiteiten],["autos","ð Auto's",totalen.autos],["fietsen","ð² Fietsen",totalen.fietsen],["borg_huur","ð° Borg/Huur",totalen.borg_huur]].map(([v,l,n])=>(
+          {[["alle","Alles",alles.length],["meldingen","📋 Woningen",totalen.meldingen],["activiteiten","⚡ Activiteiten",totalen.activiteiten],["autos","🚗 Auto's",totalen.autos],["fietsen","🚲 Fietsen",totalen.fietsen],["borg_huur","💰 Borg/Huur",totalen.borg_huur]].map(([v,l,n])=>(
             <button key={v} onClick={()=>setTypeFilter(v)}
               style={{background:typeFilter===v?C.blauw:"white",color:typeFilter===v?"white":C.muted,border:`1.5px solid ${typeFilter===v?C.blauw:C.border}`,borderRadius:20,padding:"7px 12px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
               {l} <span style={{opacity:.7,fontSize:10}}>({n})</span>
@@ -5946,7 +5946,7 @@ function LogView({meldingen,houses,activiteiten}) {
       {q&&<div style={{fontSize:13,color:C.muted,marginBottom:10}}>{gefilterd.length} resultaten voor "<strong>{zoek}</strong>"</div>}
       {gefilterd.length===0?(
         <div className="card" style={{textAlign:"center",padding:"50px"}}>
-          <div style={{fontSize:40,marginBottom:10}}>ð</div>
+          <div style={{fontSize:40,marginBottom:10}}>🔍</div>
           <div style={{color:C.muted}}>Geen resultaten{q?` voor "${zoek}"`:""}</div>
         </div>
       ):(
@@ -5962,14 +5962,14 @@ function LogView({meldingen,houses,activiteiten}) {
                 <span style={{color:C.muted}}>{fmtDate(dt)}</span>
                 <span style={{color:C.muted}}>{fmtTime(dt)}</span>
                 <span style={{padding:"2px 6px",borderRadius:4,background:kleur+"18",color:kleur,fontSize:9,fontWeight:700,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{item.type}</span>
-                <span style={{fontSize:14,textAlign:"center"}}>{soortIcoon[item.soort]||"â¢"}</span>
+                <span style={{fontSize:14,textAlign:"center"}}>{soortIcoon[item.soort]||"•"}</span>
                 <div>
                   <div style={{fontWeight:600,color:C.text,marginBottom:1}}>{item.naam}</div>
                   {item.notitie&&<div style={{fontSize:11,color:C.muted}}>{item.notitie}</div>}
                   {item.status&&<span style={{fontSize:10,fontWeight:700,color:item.status==="open"||item.status==="actief"?C.blauw:C.groen}}>{item.status.toUpperCase()}</span>}
                 </div>
                 <div>
-                  <div style={{color:C.muted,fontSize:11}}>{item.adres}{item.kamer?` Â· K${item.kamer}`:""}</div>
+                  <div style={{color:C.muted,fontSize:11}}>{item.adres}{item.kamer?` · K${item.kamer}`:""}</div>
                   {item.extra&&<div style={{fontSize:11,color:C.text,fontStyle:"italic"}}>{item.extra.slice(0,70)}{item.extra.length>70?"...":""}</div>}
                 </div>
                 <span style={{fontWeight:600,color:C.blauw,fontSize:11}}>{item.door}</span>
