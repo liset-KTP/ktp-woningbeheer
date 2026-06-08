@@ -69,6 +69,8 @@ function berekenBorgPlan(sleutels, heeftFiets) {
   return { termijnen, totaal };
 }
 
+const sortBorgType = (a, b) => (a.omschrijving?.includes("fiets") ? 1 : 0) - (b.omschrijving?.includes("fiets") ? 1 : 0);
+
 export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
   const [plannen, setPlannen] = useState([]);
   const [termijnen, setTermijnen] = useState([]);
@@ -299,8 +301,8 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
 
   // Open termijnen deze en volgende week
   const openTermijnen = termijnen.filter(t => t.status === "open");
-  const dezeWeek = openTermijnen.filter(t => t.week_nummer === huidigeWeek && t.jaar === huidigJaar);
-  const volgendeWeek = openTermijnen.filter(t => t.week_nummer === huidigeWeek + 1 && t.jaar === huidigJaar);
+  const dezeWeek = openTermijnen.filter(t => t.week_nummer === huidigeWeek && t.jaar === huidigJaar).sort(sortBorgType);
+  const volgendeWeek = openTermijnen.filter(t => t.week_nummer === huidigeWeek + 1 && t.jaar === huidigJaar).sort(sortBorgType);
   const terug = extras.filter(e => e.type === "terugbetalen" && e.status === "open");
 
   const tabs = [
@@ -505,7 +507,7 @@ function WekenOverzicht({ termijnen, plannen, isBackoffice, onVerwerk, readonly 
       </div>
 
       {weken.map(({jaar, week}) => {
-        const weekTermijnen = openTermijnen.filter(t => t.week_nummer === week && t.jaar === jaar);
+        const weekTermijnen = openTermijnen.filter(t => t.week_nummer === week && t.jaar === jaar).sort(sortBorgType);
         const totaal = weekTermijnen.reduce((s,t) => s+Number(t.bedrag), 0);
         const isDezeWeek = week === huidigeWeek && jaar === huidigJaar;
         const maandag = getMaandagVanWeek(week, jaar);
