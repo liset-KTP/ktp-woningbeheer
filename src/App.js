@@ -3740,7 +3740,8 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                             }]);
 
                             // 2. Borgplan zoeken voor deze medewerker en extra "terugbetalen" post toevoegen
-                            if (medewerkerNaam) {
+                            // Alleen bij definitief vertrek — niet bij verhuizing (borg loopt dan door)
+                            if (medewerkerNaam && isVertrek) {
                               const { data: borgPlan } = await supabase.from("borg_plannen")
                                 .select("id, naam_medewerker, totaal_borg, ingehouden")
                                 .eq("naam_medewerker", medewerkerNaam)
