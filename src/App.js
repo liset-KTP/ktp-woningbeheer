@@ -4204,6 +4204,7 @@ function HuismeesterPlanningView({ dagplanningDB, houses, taken=[], meldingen=[]
   const [weekOffset, setWeekOffset] = useState(0);
   const [viewMode, setViewMode] = useState('planning');
   const [checklistType, setChecklistType] = useState('wekelijks');
+  const [filterMode, setFilterMode] = useState('alles');
 
   function getMaandagVanWeek(offset) {
     const nu = new Date();
@@ -4479,6 +4480,18 @@ function HuismeesterPlanningView({ dagplanningDB, houses, taken=[], meldingen=[]
                 </button>
               ))}
             </div>
+            {/* Filter toggle */}
+            <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
+              {[{k:'alles',l:'Alles'},{k:'niet_gedaan',l:'❌ Niet gedaan'},{k:'gedaan',l:'✅ Gedaan'}].map(({k,l})=>(
+                <button key={k} onClick={()=>setFilterMode(k)}
+                  style={{padding:"6px 16px",borderRadius:20,border:`1.5px solid ${filterMode===k?C.blauw:C.border}`,background:filterMode===k?C.blauw:"white",color:filterMode===k?"white":C.text,fontWeight:600,fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>
+                  {l}
+                </button>
+              ))}
+              {filterMode!=='alles'&&<span style={{alignSelf:"center",fontSize:12,color:C.muted,fontStyle:"italic"}}>
+                {filterMode==='niet_gedaan'?'Alleen woningen met openstaande items':'Alleen volledig afgevinkte woningen'}
+              </span>}
+            </div>
             <div style={{display:"flex",gap:20,flexWrap:"wrap",marginBottom:16,padding:"12px 16px",background:"white",borderRadius:10,border:`1px solid ${C.border}`,fontSize:13}}>
               <span>Woningen: <strong>{displayHouses.length}</strong></span>
               <span style={{color:C.groen}}>Volledig: <strong>{volledig}</strong></span>
@@ -4495,6 +4508,13 @@ function HuismeesterPlanningView({ dagplanningDB, houses, taken=[], meldingen=[]
                 const notFilled=!chk||(!chk.bijgewerkt_door&&checkedIds.size===0);
                 const pct=tpl.length>0?Math.round(checkedIds.size/tpl.length*100):0;
                 const rem=chk?.items_opmerkingen||{};
+                // Filter: bepaal welke items getoond worden
+                const visibleTplItems = filterMode==='alles' ? tpl
+                  : filterMode==='gedaan' ? tpl.filter(i=>checkedIds.has(i.id))
+                  : tpl.filter(i=>!checkedIds.has(i.id));
+                // Kaart verbergen als er niets te tonen is (bij filter)
+                if(filterMode==='niet_gedaan' && !notFilled && pct>=100) return null;
+                if(filterMode==='gedaan' && notFilled) return null;
                 let badgeBg,badgeClr,badgeTxt;
                 if(notFilled){badgeBg="#f1f5f9";badgeClr="#94a3b8";badgeTxt="Niet ingevuld";}
                 else if(pct>=100){badgeBg="#dcfce7";badgeClr="#15803d";badgeTxt="100% ✓";}
@@ -4502,7 +4522,7 @@ function HuismeesterPlanningView({ dagplanningDB, houses, taken=[], meldingen=[]
                 else{badgeBg="#fee2e2";badgeClr="#dc2626";badgeTxt=pct+"%";}
                 const barClr=pct>=90?"#16a34a":pct>=50?"#f97316":"#dc2626";
                 return(
-                  <div key={h.id} style={{background:"white",borderRadius:10,border:`1px solid ${C.border}`,overflow:"hidden"}}>
+                  <div key={h.id} style={{background:"white",borderRadius:10,border:`1.5px solid ${filterMode==='niet_gedaan'&&pct<100&&!notFilled?"#fca5a5":filterMode==='gedaan'&&pct>=100?"#86efac":C.border}`,overflow:"hidden"}}>
                     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"11px 14px",gap:8}}>
                       <span style={{fontWeight:700,fontSize:13,color:C.text}}>🏠 {h.adres}{h.stad?`, ${h.stad}`:""}</span>
                       <span style={{fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:99,background:badgeBg,color:badgeClr,whiteSpace:"nowrap"}}>{badgeTxt}</span>
@@ -4517,7 +4537,7 @@ function HuismeesterPlanningView({ dagplanningDB, houses, taken=[], meldingen=[]
                           {rawItems.map((t,i)=><div key={i} style={{display:"flex",gap:7,padding:"4px 14px",fontSize:12,color:C.text}}><span>✅</span><span>{String(t)}</span></div>)}
                         </div>
                       ):catOrder.length>0?catOrder.map(cat=>{
-                        const items=catMap.get(cat)||[];
+                        const items=(catMap.get(cat)||[]).filter(i=>visibleTplItems.includes(i));
                         if(!items.length)return null;
                         return(<div key={cat}>
                           <div style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".6px",color:"#94a3b8",padding:"8px 14px 3px"}}>{cat}</div>
@@ -4528,7 +4548,7 @@ function HuismeesterPlanningView({ dagplanningDB, houses, taken=[], meldingen=[]
                             return(<div key={item.id} style={{display:"flex",alignItems:"flex-start",gap:7,padding:"4px 14px"}}>
                               <span style={{fontSize:12,flexShrink:0,marginTop:1}}>{ok?"✅":"❌"}</span>
                               <div>
-                                <div style={{fontSize:12,color:ok?C.text:"#c4c9d4",lineHeight:1.4}}>{lbl}</div>
+                                <div style={{fontSize:12,color:ok?C.text:filterMode==='niet_gedaan'?"#dc2626":"#c4c9d4",fontWeight:ok?400:filterMode==='niet_gedaan'?600:400,lineHeight:1.4}}>{lbl}</div>
                                 {r&&<div style={{fontSize:11,color:"#d97706",fontStyle:"italic",marginTop:1}}>⚠️ {r}</div>}
                               </div>
                             </div>);
