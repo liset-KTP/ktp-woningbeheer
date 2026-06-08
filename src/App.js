@@ -4202,6 +4202,8 @@ function ChecklistView({ houses, checklists, checklistItems, onSave, gebruiker }
 function HuismeesterPlanningView({ dagplanningDB, houses, taken=[], meldingen=[], checklists=[], checklistItems=[] }) {
   const dag = dagVanDeWeek();
   const [weekOffset, setWeekOffset] = useState(0);
+  const [viewMode, setViewMode] = useState('planning');
+  const [checklistType, setChecklistType] = useState('wekelijks');
 
   function getMaandagVanWeek(offset) {
     const nu = new Date();
@@ -4314,6 +4316,18 @@ function HuismeesterPlanningView({ dagplanningDB, houses, taken=[], meldingen=[]
         </button>
       </div>
 
+      {/* View toggle */}
+      <div style={{display:"flex",marginBottom:16,background:"white",borderRadius:10,border:`1px solid ${C.border}`,overflow:"hidden"}}>
+        <button onClick={()=>setViewMode('planning')}
+          style={{flex:1,padding:"10px 0",border:"none",borderRight:`1px solid ${C.border}`,background:viewMode==='planning'?C.blauw:"white",color:viewMode==='planning'?"white":C.text,fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
+          📅 Planning
+        </button>
+        <button onClick={()=>setViewMode('checklists')}
+          style={{flex:1,padding:"10px 0",border:"none",background:viewMode==='checklists'?C.blauw:"white",color:viewMode==='checklists'?"white":C.text,fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
+          ✅ Checklists
+        </button>
+      </div>
+
       {/* Week navigatie */}
       <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:20,background:"white",borderRadius:10,padding:"10px 14px",border:`1px solid ${C.border}`,justifyContent:"space-between"}}>
         <button onClick={()=>setWeekOffset(w=>w-1)}
@@ -4333,7 +4347,7 @@ function HuismeesterPlanningView({ dagplanningDB, houses, taken=[], meldingen=[]
         </button>
       </div>
 
-      <div style={{display:"grid",gap:12}}>
+      {viewMode==='planning'&&<div style={{display:"grid",gap:12}}>
         {dagplanningDB.map(d => {
           const isVandaag = d.dag === dag && isHuidigeWeek;
           const dagDatum = dagDatumVoorOffset(d.dag, weekOffset);
@@ -4443,7 +4457,94 @@ function HuismeesterPlanningView({ dagplanningDB, houses, taken=[], meldingen=[]
             </div>
           );
         })}
-      </div>
+      </div>}
+      {viewMode==='checklists'&&(()=>{
+        const tpl=checklistItems.filter(i=>i.type===checklistType&&i.actief);
+        const allWIds=new Set([...dagplanningDB.flatMap(d=>d.woning_ids||[]),...checklists.filter(c=>c.week_jaar===weekInfo.key&&c.type===checklistType).map(c=>c.woning_id)]);
+        const displayHouses=allWIds.size>0?houses.filter(h=>allWIds.has(h.id)):houses;
+        function vindChk(wId){return checklists.find(c=>c.woning_id===wId&&c.week_jaar===weekInfo.key&&c.type===checklistType);}
+        function getCat(t){const cats=['Algemeen','Keuken','Badkamer & toilet','Slaapkamers','Brandveiligheid','Buitenruimte'];for(const c of cats)if(t.startsWith(c+':'))return c;return 'Overig';}
+        const catMap=new Map();const catOrder=[];
+        tpl.forEach(item=>{const cat=getCat(item.tekst);if(!catMap.has(cat)){catMap.set(cat,[]);catOrder.push(cat);}catMap.get(cat).push(item);});
+        let volledig=0,deels=0,leeg=0,totPct=0;
+        displayHouses.forEach(h=>{const chk=vindChk(h.id);const ids=new Set((chk?.items||[]).filter(i=>typeof i==='number'));if(!chk||(!chk.bijgewerkt_door&&ids.size===0)){leeg++;}else if(tpl.length>0&&ids.size>=tpl.length){volledig++;totPct+=1;}else{deels++;totPct+=tpl.length>0?ids.size/tpl.length:0;}});
+        const avgPct=displayHouses.length>0?Math.round(totPct/displayHouses.length*100):0;
+        return(
+          <div>
+            <div style={{display:"flex",marginBottom:16,background:"white",borderRadius:10,border:`1px solid ${C.border}`,overflow:"hidden"}}>
+              {[{k:'wekelijks',l:'Wekelijks'},{k:'4wekelijks',l:'4-Wekelijks'},{k:'kwartaal',l:'Kwartaal'}].map(({k,l})=>(
+                <button key={k} onClick={()=>setChecklistType(k)}
+                  style={{flex:1,padding:"10px 0",border:"none",borderRight:k!=='kwartaal'?`1px solid ${C.border}`:'none',background:checklistType===k?C.blauw:"white",color:checklistType===k?"white":C.text,fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
+                  {l}
+                </button>
+              ))}
+            </div>
+            <div style={{display:"flex",gap:20,flexWrap:"wrap",marginBottom:16,padding:"12px 16px",background:"white",borderRadius:10,border:`1px solid ${C.border}`,fontSize:13}}>
+              <span>Woningen: <strong>{displayHouses.length}</strong></span>
+              <span style={{color:C.groen}}>Volledig: <strong>{volledig}</strong></span>
+              <span style={{color:"#c2410c"}}>Deels: <strong>{deels}</strong></span>
+              <span style={{color:C.muted}}>Niet ingevuld: <strong>{leeg}</strong></span>
+              <span style={{color:C.blauw}}>Gemiddeld: <strong>{avgPct}%</strong></span>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:12}}>
+              {[...displayHouses].sort((a,b)=>(a.adres||'').localeCompare(b.adres||'')).map(h=>{
+                const chk=vindChk(h.id);
+                const rawItems=(chk?.items||[]);
+                const isLegacy=rawItems.some(i=>typeof i==='string');
+                const checkedIds=new Set(rawItems.filter(i=>typeof i==='number'));
+                const notFilled=!chk||(!chk.bijgewerkt_door&&checkedIds.size===0);
+                const pct=tpl.length>0?Math.round(checkedIds.size/tpl.length*100):0;
+                const rem=chk?.items_opmerkingen||{};
+                let badgeBg,badgeClr,badgeTxt;
+                if(notFilled){badgeBg="#f1f5f9";badgeClr="#94a3b8";badgeTxt="Niet ingevuld";}
+                else if(pct>=100){badgeBg="#dcfce7";badgeClr="#15803d";badgeTxt="100% ✓";}
+                else if(pct>=50){badgeBg="#ffedd5";badgeClr="#c2410c";badgeTxt=pct+"%";}
+                else{badgeBg="#fee2e2";badgeClr="#dc2626";badgeTxt=pct+"%";}
+                const barClr=pct>=90?"#16a34a":pct>=50?"#f97316":"#dc2626";
+                return(
+                  <div key={h.id} style={{background:"white",borderRadius:10,border:`1px solid ${C.border}`,overflow:"hidden"}}>
+                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"11px 14px",gap:8}}>
+                      <span style={{fontWeight:700,fontSize:13,color:C.text}}>&#127968; {h.adres}{h.stad?`, ${h.stad}`:""}</span>
+                      <span style={{fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:99,background:badgeBg,color:badgeClr,whiteSpace:"nowrap"}}>{badgeTxt}</span>
+                    </div>
+                    <div style={{height:3,background:"#f1f5f9"}}><div style={{height:3,width:pct+"%",background:barClr}}/></div>
+                    <div style={{padding:"6px 0 8px"}}>
+                      {notFilled?(
+                        <div style={{padding:"14px",textAlign:"center",color:"#94a3b8",fontSize:12,fontStyle:"italic"}}>Nog niet ingevuld door Cristian</div>
+                      ):isLegacy?(
+                        <div>
+                          <div style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".6px",color:"#94a3b8",padding:"8px 14px 3px"}}>Items afgevinkt</div>
+                          {rawItems.map((t,i)=><div key={i} style={{display:"flex",gap:7,padding:"4px 14px",fontSize:12,color:C.text}}><span>&#9989;</span><span>{String(t)}</span></div>)}
+                        </div>
+                      ):catOrder.length>0?catOrder.map(cat=>{
+                        const items=catMap.get(cat)||[];
+                        if(!items.length)return null;
+                        return(<div key={cat}>
+                          <div style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".6px",color:"#94a3b8",padding:"8px 14px 3px"}}>{cat}</div>
+                          {items.map(item=>{
+                            const ok=checkedIds.has(item.id);
+                            const r=rem[String(item.id)];
+                            const lbl=item.tekst.includes(':')?item.tekst.split(':').slice(1).join(':').trim():item.tekst;
+                            return(<div key={item.id} style={{display:"flex",alignItems:"flex-start",gap:7,padding:"4px 14px"}}>
+                              <span style={{fontSize:12,flexShrink:0,marginTop:1}}>{ok?"&#9989;":"&#10060;"}</span>
+                              <div>
+                                <div style={{fontSize:12,color:ok?C.text:"#c4c9d4",lineHeight:1.4}}>{lbl}</div>
+                                {r&&<div style={{fontSize:11,color:"#d97706",fontStyle:"italic",marginTop:1}}>&#9888;&#65039; {r}</div>}
+                              </div>
+                            </div>);
+                          })}
+                        </div>);
+                      }):(
+                        <div style={{padding:"14px",textAlign:"center",color:"#94a3b8",fontSize:12}}>{checkedIds.size} items afgevinkt</div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
