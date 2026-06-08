@@ -1365,9 +1365,11 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
                   <div style={{marginTop:12,paddingTop:12,borderTop:`1px solid ${C.border}`}}>
                     <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".5px",textTransform:"uppercase",marginBottom:8}}>📋 Kamer historie</div>
                     {historie.map((s,i)=>{
-                      const schoonOk = s.kamer_schoon==="ja";
-                      const sleutelOk = s.sleutel_terug==="ja";
                       const heeftCheck = s.kamer_schoon!=null || s.sleutel_terug!=null;
+                      const badgeBg = v => v==="ja"?"#dcfce7":v==="nee"?"#fee2e2":"#fef3c7";
+                      const badgeFg = v => v==="ja"?"#16a34a":v==="nee"?"#b91c1c":"#b45309";
+                      const schoonLabel = v => v==="ja"?"✅ Schoon":v==="nee"?"❌ Niet schoon":"⏳ Controle lopend";
+                      const sleutelLabel = v => v==="ja"?"✅ Sleutel retour":v==="nee"?"❌ Sleutel niet retour":"⏳ Sleutel – controle";
                       return (
                         <div key={i} style={{fontSize:12,padding:"8px 10px",borderRadius:8,marginBottom:6,background:"#f9fafb",border:`1px solid ${C.border}`}}>
                           <div style={{fontWeight:700,color:C.text,marginBottom:4}}>{s.adres}{s.stad?`, ${s.stad}`:""} — Kamer {s.kamer}</div>
@@ -1377,8 +1379,8 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
                           </div>
                           {heeftCheck&&(
                             <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                              {s.kamer_schoon!=null&&<span style={{padding:"2px 8px",borderRadius:6,fontSize:11,fontWeight:600,background:schoonOk?"#dcfce7":"#fee2e2",color:schoonOk?"#16a34a":"#b91c1c"}}>🧹 {schoonOk?"Schoon":"Niet schoon"}</span>}
-                              {s.sleutel_terug!=null&&<span style={{padding:"2px 8px",borderRadius:6,fontSize:11,fontWeight:600,background:sleutelOk?"#dcfce7":"#fee2e2",color:sleutelOk?"#16a34a":"#b91c1c"}}>🔑 {sleutelOk?"Sleutel retour":"Sleutel niet retour"}</span>}
+                              {s.kamer_schoon!=null&&<span style={{padding:"2px 8px",borderRadius:6,fontSize:11,fontWeight:600,background:badgeBg(s.kamer_schoon),color:badgeFg(s.kamer_schoon)}}>🧹 {schoonLabel(s.kamer_schoon)}</span>}
+                              {s.sleutel_terug!=null&&<span style={{padding:"2px 8px",borderRadius:6,fontSize:11,fontWeight:600,background:badgeBg(s.sleutel_terug),color:badgeFg(s.sleutel_terug)}}>🔑 {sleutelLabel(s.sleutel_terug)}</span>}
                             </div>
                           )}
                         </div>
