@@ -729,10 +729,10 @@ function App() {
       let extraLog = "";
       // Lees checkbox-vinkjes uit t.notitie (bijv. Kamer schoon, Sleutel ingeleverd)
       if (t && t.notitie) {
-        if (t.notitie.indexOf('[✔ schoon]') > -1) extraLog += ' | Kamer schoon ✔';
-        if (t.notitie.indexOf('[✔ sleutel1]') > -1) extraLog += ' | Sleutel 1 ingeleverd ✔';
-        if (t.notitie.indexOf('[✔ sleutel2]') > -1) extraLog += ' | Sleutel 2 ingeleverd ✔';
-        if (t.notitie.indexOf('[✔ kamer_klaar]') > -1) extraLog += ' | Kamer klaar ✔';
+        if (t.notitie.indexOf('[✓ schoon]') > -1) extraLog += ' | Kamer schoon ✓';
+        if (t.notitie.indexOf('[✓ sleutel1]') > -1) extraLog += ' | Sleutel 1 ingeleverd ✓';
+        if (t.notitie.indexOf('[✓ sleutel2]') > -1) extraLog += ' | Sleutel 2 ingeleverd ✓';
+        if (t.notitie.indexOf('[✓ kamer_klaar]') > -1) extraLog += ' | Kamer klaar ✓';
       }
       if (updates.extra_info) {
         try {
