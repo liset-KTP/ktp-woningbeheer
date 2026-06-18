@@ -5063,10 +5063,10 @@ function WoningenDetail({houses, onUpdateWoning}) {
                 <div style={{textAlign:"right",flexShrink:0,marginLeft:10}}><div style={{fontSize:22,fontWeight:800,color:C.blauw,lineHeight:1}}>{bezette}<span style={{fontSize:13,color:C.muted}}>/{h.kamers.length}</span></div><div style={{fontSize:10,color:C.muted,marginTop:2}}>bezet</div></div>
               </div>
               <div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:12}}>
-                {h.kamers.map(k=>{const c=STATUS_MAP[k.status]||{dot:C.muted};return <div key={k.k} title={`K${k.k}: ${k.naam||"leeg"} — ${k.status}`} style={{width:12,height:12,borderRadius:3,background:c.dot+"50",border:`1.5px solid ${c.dot}`}}/>;  })}
+                {[...h.kamers].sort((a,b)=>parseFloat(a.k)-parseFloat(b.k)).map(k=>{const c=STATUS_MAP[k.status]||{dot:C.muted};return <div key={k.k} title={`K${k.k}: ${k.naam||"leeg"} — ${k.status}`} style={{width:12,height:12,borderRadius:3,background:c.dot+"50",border:`1.5px solid ${c.dot}`}}/>;  })}
               </div>
               <div style={{borderTop:`1px solid ${C.border}`,paddingTop:10}}>
-                {h.kamers.map(k=>{
+                {[...h.kamers].sort((a,b)=>parseFloat(a.k)-parseFloat(b.k)).map(k=>{
                   const c=STATUS_MAP[k.status]||{bg:C.bg,text:C.muted,dot:C.muted};
                   const rijBg=k.status==="Controle"?"#fef2f2":k.status==="Moet aan het werk"?"#fff7ed":k.status==="Beschikbaar"?C.blauw+"08":"transparent";
                   const isBezig=bewerkKamer?.huisId===h.id&&bewerkKamer?.kamerNr===k.k;
@@ -5163,9 +5163,9 @@ function PlanningView({houses}) {
                 <div><div style={{fontWeight:800,fontSize:15,color:C.text}}>{h.adres}</div><div style={{fontSize:12,color:C.muted,marginTop:2}}>{h.stad} · {h.postcode}</div></div>
                 <div style={{textAlign:"right"}}><div style={{fontSize:22,fontWeight:800,color:C.blauw}}>{bezette}/{h.kamers.length}</div><div style={{fontSize:10,color:C.muted}}>bezet</div></div>
               </div>
-              <div style={{display:"flex",gap:3,flexWrap:"wrap",marginBottom:12}}>{h.kamers.map(k=>{const c=STATUS_MAP[k.status]||{dot:C.muted};return <div key={k.k} title={`K${k.k}: ${k.naam||"leeg"}`} style={{width:10,height:10,borderRadius:3,background:c.dot+"60",border:`1.5px solid ${c.dot}`}}/>;})}</div>
+              <div style={{display:"flex",gap:3,flexWrap:"wrap",marginBottom:12}}>{[...h.kamers].sort((a,b)=>parseFloat(a.k)-parseFloat(b.k)).map(k=>{const c=STATUS_MAP[k.status]||{dot:C.muted};return <div key={k.k} title={`K${k.k}: ${k.naam||"leeg"}`} style={{width:10,height:10,borderRadius:3,background:c.dot+"60",border:`1.5px solid ${c.dot}`}}/>;})}</div>
               <div style={{borderTop:`1px solid ${C.border}`,paddingTop:12}}>
-                {h.kamers.map(k=>{const c=STATUS_MAP[k.status]||{bg:C.bg,text:C.muted};return(
+                {[...h.kamers].sort((a,b)=>parseFloat(a.k)-parseFloat(b.k)).map(k=>{const c=STATUS_MAP[k.status]||{bg:C.bg,text:C.muted};return(
                   <div key={k.k} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 8px",borderRadius:6,marginBottom:2}}>
                     <span style={{fontSize:10,fontWeight:700,color:C.muted,minWidth:26,fontFamily:"monospace"}}>K{k.k}</span>
                     <span style={{flex:1,fontSize:13,color:k.naam?C.text:"#aab4c4",fontStyle:k.naam?"normal":"italic"}}>{k.naam||"leeg"}</span>
