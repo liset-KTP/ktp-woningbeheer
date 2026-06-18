@@ -1059,6 +1059,7 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
   const [laden, setLaden] = useState(false);
   const [notitie, setNotitie] = useState("");
   const [notities, setNotities] = useState([]);
+  const [notitiesBestanden, setNotitiesBestanden] = useState([]);
   const [taakTitel, setTaakTitel] = useState("");
   const [taakOmschr, setTaakOmschr] = useState("");
   const [showTaakForm, setShowTaakForm] = useState(false);
@@ -1154,9 +1155,14 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
   }
 
   async function slaNotitieOp() {
-    if (!notitie.trim()) return;
-    await supabase.from("activiteiten").insert([{ type:"medewerker_notitie", omschrijving:`[${gekozen}] ${notitie.trim()}`, gedaan_door: gebruiker?.naam||"?", extra:{medewerker:gekozen} }]);
+    if (!notitie.trim() && notitiesBestanden.length === 0) return;
+    let bijlageUrls = [];
+    if (notitiesBestanden.length > 0) {
+      bijlageUrls = await uploadBijlages(notitiesBestanden, `medewerkers/${gekozen}`);
+    }
+    await supabase.from("activiteiten").insert([{ type:"medewerker_notitie", omschrijving:`[${gekozen}] ${notitie.trim()}`, gedaan_door: gebruiker?.naam||"?", extra:{medewerker:gekozen, bijlages: bijlageUrls} }]);
     setNotitie("");
+    setNotitiesBestanden([]);
     const { data } = await supabase.from("activiteiten").select("*").eq("type","medewerker_notitie").filter("omschrijving","like",`%[${gekozen}]%`).order("created_at",{ascending:false}).limit(20);
     setNotities(data||[]);
     showToast("✓ Notitie opgeslagen");
@@ -1634,20 +1640,24 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
             {/* 📝 Notities */}
             <div style={S.card(C.muted)}>
               <div style={S.titel(C.muted)}>📝 Notities</div>
-              <div style={{display:"flex",gap:8,marginBottom:12}}>
+              <div style={{display:"flex",gap:8,marginBottom:8}}>
                 <input className="fi" placeholder="Voeg een notitie toe..." value={notitie} onChange={e=>setNotitie(e.target.value)}
                   onKeyDown={e=>e.key==="Enter"&&slaNotitieOp()} style={{flex:1,fontSize:13}}/>
                 <button onClick={slaNotitieOp} style={{...S.actieBtn(C.blauw),whiteSpace:"nowrap"}}>+ Opslaan</button>
               </div>
+              <BijlageUploader bestanden={notitiesBestanden} setBestanden={setNotitiesBestanden} label="📎 Foto of bijlage toevoegen (optioneel)"/>
+              <div style={{marginTop:12}}>
               {notities.length === 0
                 ? <div style={{fontSize:13,color:C.muted,fontStyle:"italic"}}>Nog geen notities</div>
                 : notities.map(n => (
                   <div key={n.id} style={{padding:"8px 10px",background:C.bg,borderRadius:7,marginBottom:6,fontSize:13}}>
                     <div style={{color:C.text}}>{n.omschrijving.replace(`[${gekozen}] `,"")}</div>
+                    {n.extra?.bijlages?.length > 0 && <BijlageWeergave bijlages={n.extra.bijlages}/>}
                     <div style={{fontSize:11,color:C.muted,marginTop:3}}>{n.gedaan_door} · {fmtDate(n.created_at)}</div>
                   </div>
                 ))
               }
+              </div>
             </div>
           </div>
         )}
