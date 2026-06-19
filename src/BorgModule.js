@@ -173,6 +173,15 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
   }
 
   async function voegExtraToe(planId, omschrijving, bedrag, type, bijlageUrl = null) {
+    // Duplicaatbeveiliging: voorkom dubbele terugbetaling
+    if (type === "terugbetalen") {
+      const { data: bestaand } = await supabase.from("borg_extra")
+        .select("id").eq("plan_id", planId).eq("type", "terugbetalen").eq("status", "open");
+      if (bestaand && bestaand.length > 0) {
+        showToast("⚠️ Er staat al een openstaande terugbetaling voor deze medewerker.");
+        return;
+      }
+    }
     const plan = plannen.find(p => p.id === planId);
     const isAlIngehouden = type === "al_ingehouden";
     await supabase.from("borg_extra").insert([{
@@ -961,7 +970,7 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
                       bijlageUrl = urlData.publicUrl;
                     }
                   }
-                  onVoegExtraToe(plan.id, extraOmschr, extraBedrag, extraType, bijlageUrl);
+                  await onVoegExtraToe(plan.id, extraOmschr, extraBedrag, extraType, bijlageUrl);
                   setExtraOmschr(""); setExtraBedrag(""); setExtraBijlage(null); setToonExtra(false);
                   setUploadingBijlage(false);
                 }} disabled={uploadingBijlage}
