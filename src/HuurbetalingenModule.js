@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "./supabaseClient";
 
-// ─── EMAILJS ──────────────────────────────────────────────────────────────────
+// âââ EMAILJS ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 const EMAILJS_SERVICE  = "service_1af258e";
 const EMAILJS_TEMPLATE = "template_2mjnbok";
 const EMAILJS_PUBLIC   = "CJEVdAOdA03ZQxE28";
@@ -22,7 +22,7 @@ const C = {
   groen:"#4A9B3C", groenDark:"#357a2b",
   bg:"#f0f4f8", card:"#ffffff", border:"#d1dbe8",
   text:"#1a2b47", muted:"#6b7a8d", rood:"#ef4444",
-  oranje:"#f97316", // ← toegevoegd
+  oranje:"#f97316", // â toegevoegd
 };
 
 function fmtDate(d) {
@@ -82,7 +82,7 @@ function berekenTotaalVerschuldigd(schuld) {
   const { weken, weekbedrag, eersteMaandag } = (result && typeof result === "object") ? result : { weken: 0, weekbedrag: 140, eersteMaandag: null };
   const extraBedragen = (schuld.betalingen || []).filter(b => Number(b.bedrag) < 0).reduce((s,b) => s + Math.abs(Number(b.bedrag)), 0);
 
-  // Bereken gedeeltelijke eerste week: als niet op maandag gestart, €20/dag tot eerste maandag
+  // Bereken gedeeltelijke eerste week: als niet op maandag gestart, â¬20/dag tot eerste maandag
   let partieelBedrag = 0;
   if (eersteMaandag && schuld.startdatum) {
     const start = new Date(schuld.startdatum);
@@ -159,7 +159,7 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
       tarief_dagen: data.tarief_dagen || null,
     }]);
     if (error) { showToast("Fout bij opslaan","err"); return false; }
-    showToast("✓ Huurschuld aangemaakt"); return true;
+    showToast("â Huurschuld aangemaakt"); return true;
   }
 
   async function addBetaling(schuldId, bedrag, opmerking, datum) {
@@ -171,17 +171,17 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
       geregistreerd_door: gebruiker.naam,
     }]);
     if (error) { showToast("Fout bij opslaan betaling","err"); return false; }
-    // Auto-afsluiten: als schuld een einddatum heeft en nu volledig betaald is → actief=false
+    // Auto-afsluiten: als schuld een einddatum heeft en nu volledig betaald is â actief=false
     const schuld = schulden.find(s => s.id === schuldId);
     if (schuld?.einddatum && schuld?.actief) {
       const bijgewerkt = { ...schuld, betalingen: [...(schuld.betalingen||[]), {bedrag: Number(bedrag), datum: datum||todayISO()}] };
       if (berekenOpenstaand(bijgewerkt) <= 0) {
         await supabase.from("huurschulden").update({ actief: false }).eq("id", schuldId);
-        showToast("✓ Betaling opgeslagen — schuld volledig afgerond en afgesloten");
+        showToast("â Betaling opgeslagen â schuld volledig afgerond en afgesloten");
         return true;
       }
     }
-    showToast("✓ Betaling geregistreerd"); return true;
+    showToast("â Betaling geregistreerd"); return true;
   }
 
   async function sluitAf(schuldId) {
@@ -189,7 +189,7 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
       actief: false, einddatum: todayISO(),
     }).eq("id", schuldId);
     if (error) { showToast("Fout bij afsluiten","err"); return false; }
-    showToast("✓ Huurschuld afgesloten"); return true;
+    showToast("â Huurschuld afgesloten"); return true;
   }
 
   async function addOpmerking(schuldId, tekst) {
@@ -198,10 +198,10 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
     const nieuw = huidige ? huidige + "\n" + tekst : tekst;
     const { error } = await supabase.from("huurschulden").update({ opmerkingen: nieuw }).eq("id", schuldId);
     if (error) { showToast("Fout bij opslaan","err"); return false; }
-    showToast("✓ Opmerking toegevoegd"); return true;
+    showToast("â Opmerking toegevoegd"); return true;
   }
 
-  if (loading) return <div style={{textAlign:"center",padding:"60px",color:C.muted}}>⏳ Laden...</div>;
+  if (loading) return <div style={{textAlign:"center",padding:"60px",color:C.muted}}>â³ Laden...</div>;
 
   const actief   = schulden.filter(s => s.actief);
   const gesloten = schulden.filter(s => !s.actief);
@@ -238,16 +238,16 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
       {/* Header met stats + knop */}
       <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:16,flexWrap:"wrap",gap:12}}>
         <div>
-          <h2 style={{fontSize:20,fontWeight:800,color:C.blauw,marginBottom:3}}>💶 Huurbetalingen</h2>
+          <h2 style={{fontSize:20,fontWeight:800,color:C.blauw,marginBottom:3}}>ð¶ Huurbetalingen</h2>
           <p style={{fontSize:13,color:C.muted}}>
-            {actief.length} openstaand · {gesloten.length} afgesloten
-            {totaalOpen > 0 && <> · <strong style={{color:C.rood}}>€{totaalOpen.toFixed(2)} open</strong></>}
+            {actief.length} openstaand Â· {gesloten.length} afgesloten
+            {totaalOpen > 0 && <> Â· <strong style={{color:C.rood}}>â¬{totaalOpen.toFixed(2)} open</strong></>}
           </p>
         </div>
         {isBackoffice && (
           <button onClick={() => setToonNieuw(!toonNieuw)}
             style={{background:toonNieuw?"white":C.blauw,color:toonNieuw?C.blauw:"white",border:`2px solid ${C.blauw}`,borderRadius:8,padding:"9px 18px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
-            {toonNieuw ? "✕ Annuleren" : "+ Nieuwe schuld"}
+            {toonNieuw ? "â Annuleren" : "+ Nieuwe schuld"}
           </button>
         )}
       </div>
@@ -262,7 +262,7 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
       {/* Rode banner als er openstaand is */}
       {totaalOpen > 0 && !toonNieuw && (
         <div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:10,padding:"10px 16px",marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}>
-          <div style={{fontWeight:700,color:"#b91c1c",fontSize:13}}>⚠️ Totaal openstaand: €{totaalOpen.toFixed(2)}</div>
+          <div style={{fontWeight:700,color:"#b91c1c",fontSize:13}}>â ï¸ Totaal openstaand: â¬{totaalOpen.toFixed(2)}</div>
           <div style={{fontSize:12,color:"#b91c1c"}}>Verdeeld over {actief.length} medewerker{actief.length !== 1 ? "s" : ""}</div>
         </div>
       )}
@@ -271,19 +271,19 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
       <div style={{display:"flex",gap:10,marginBottom:12,flexWrap:"wrap"}}>
         <input
           value={zoek} onChange={e => setZoek(e.target.value)}
-          placeholder="🔍 Zoek op naam..."
+          placeholder="ð Zoek op naam..."
           style={{flex:1,minWidth:200,background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"9px 14px",fontSize:13,outline:"none",fontFamily:"inherit"}}
         />
         <select value={sorteer} onChange={e => setSorteer(e.target.value)}
           style={{background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"9px 14px",fontSize:13,outline:"none",fontFamily:"inherit",cursor:"pointer"}}>
-          <option value="openstaand">↓ Hoogst openstaand</option>
-          <option value="laatste_betaling">⏰ Langst geen betaling</option>
-          <option value="naam">A–Z Naam</option>
-          <option value="startdatum">📅 Startdatum</option>
+          <option value="openstaand">â Hoogst openstaand</option>
+          <option value="laatste_betaling">â° Langst geen betaling</option>
+          <option value="naam">AâZ Naam</option>
+          <option value="startdatum">ð Startdatum</option>
         </select>
       </div>
       <div style={{display:"flex",gap:4,marginBottom:16,flexWrap:"wrap"}}>
-        {[["alle",`Alles (${schulden.length})`],["openstaand",`💶 Openstaand (${actief.length})`],["afgesloten",`✅ Afgesloten (${gesloten.length})`]].map(([v,l]) => (
+        {[["alle",`Alles (${schulden.length})`],["openstaand",`ð¶ Openstaand (${actief.length})`],["afgesloten",`â Afgesloten (${gesloten.length})`]].map(([v,l]) => (
           <button key={v} onClick={() => setFilterStatus(v)}
             style={{background:filterStatus===v?C.blauw:"white",color:filterStatus===v?"white":C.muted,border:`1.5px solid ${filterStatus===v?C.blauw:C.border}`,borderRadius:20,padding:"7px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
             {l}
@@ -295,8 +295,8 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
 
       {gefilterd.length === 0 ? (
         <div style={{textAlign:"center",padding:"60px",color:C.muted}}>
-          <div style={{fontSize:40,marginBottom:10}}>🔍</div>
-          <div>{q ? `Geen resultaten voor "${zoek}"` : "Geen huurschulden gevonden 🎉"}</div>
+          <div style={{fontSize:40,marginBottom:10}}>ð</div>
+          <div>{q ? `Geen resultaten voor "${zoek}"` : "Geen huurschulden gevonden ð"}</div>
         </div>
       ) : (
         <div style={{display:"grid",gap:16}}>
@@ -305,7 +305,7 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
             <>
               {filterStatus === "alle" && (
                 <div style={{display:"flex",alignItems:"center",gap:10,marginTop:4}}>
-                  <span style={{fontWeight:700,fontSize:13,color:C.rood}}>💶 Openstaand ({actiefGefilterd.length})</span>
+                  <span style={{fontWeight:700,fontSize:13,color:C.rood}}>ð¶ Openstaand ({actiefGefilterd.length})</span>
                   <div style={{flex:1,height:1,background:C.border}}/>
                 </div>
               )}
@@ -320,7 +320,7 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
             <>
               {filterStatus === "alle" && (
                 <div style={{display:"flex",alignItems:"center",gap:10,marginTop:8}}>
-                  <span style={{fontWeight:700,fontSize:13,color:C.groen}}>✅ Afgesloten ({geslotenGefilterd.length})</span>
+                  <span style={{fontWeight:700,fontSize:13,color:C.groen}}>â Afgesloten ({geslotenGefilterd.length})</span>
                   <div style={{flex:1,height:1,background:C.border}}/>
                 </div>
               )}
@@ -335,12 +335,12 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
   );
 }
 
-// ─── SCHULDEN LIJST ───────────────────────────────────────────────────────────
+// âââ SCHULDEN LIJST âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 function SchuldenLijst({ schulden, gebruiker, isBackoffice, onBetaling, onAfsluiten, onOpmerking, showToast, readonly }) {
   if (schulden.length === 0) return (
     <div style={{textAlign:"center",padding:"60px",color:C.muted}}>
-      <div style={{fontSize:40,marginBottom:10}}>💶</div>
-      <div>{readonly ? "Geen afgesloten schulden" : "Geen openstaande huurschulden 🎉"}</div>
+      <div style={{fontSize:40,marginBottom:10}}>ð¶</div>
+      <div>{readonly ? "Geen afgesloten schulden" : "Geen openstaande huurschulden ð"}</div>
     </div>
   );
 
@@ -353,7 +353,7 @@ function SchuldenLijst({ schulden, gebruiker, isBackoffice, onBetaling, onAfslui
   );
 }
 
-// ─── SCHULD KAART ─────────────────────────────────────────────────────────────
+// âââ SCHULD KAART âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerking, showToast, readonly, gebruiker }) {
   const [toonStopzetten, setToonStopzetten] = useState(false);
   const [stopDatum, setStopDatum] = useState("");
@@ -406,29 +406,29 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerkin
             {schuld.naam_medewerker}
             {schuld.einddatum && schuld.actief && openstaand > 0 && (
               <span style={{marginLeft:8,fontSize:11,fontWeight:700,background:"#fef2f2",color:"#ef4444",padding:"2px 8px",borderRadius:8,border:"1px solid #fecaca"}}>
-                🛑 Gestopt — schuld loopt nog
+                ð Gestopt â schuld loopt nog
               </span>
             )}
             {schuld.actief && openstaand === 0 && (
               <span style={{marginLeft:8,fontSize:11,fontWeight:700,background:"#f0fdf4",color:C.groen,padding:"2px 8px",borderRadius:8,border:"1px solid #bbf7d0"}}>
-                ✅ Volledig betaald — klaar om af te sluiten
+                â Volledig betaald â klaar om af te sluiten
               </span>
             )}
           </div>
           <div style={{fontSize:12,color:C.muted}}>
             Vanaf {fmtDate(schuld.startdatum)}
             {schuld.einddatum ? ` t/m ${fmtDate(schuld.einddatum)}` : " (lopend)"}
-            {" · "}{weken} week{weken !== 1 ? "en" : ""}
-            {" · €"}{weekbedrag}/week
+            {" Â· "}{weken} week{weken !== 1 ? "en" : ""}
+            {" Â· â¬"}{weekbedrag}/week
           </div>
           {volgendeDatum && !schuld.einddatum && (
             <div style={{fontSize:12,color:"#f59e0b",fontWeight:600,marginTop:3}}>
-              📅 Volgende betaling verwacht: {fmtDate(volgendeDatum)} (€{weekbedrag})
+              ð Volgende betaling verwacht: {fmtDate(volgendeDatum)} (â¬{weekbedrag})
             </div>
           )}
         </div>
         <div style={{textAlign:"right"}}>
-          <div style={{fontSize:24,fontWeight:800,color:kleur}}>€{openstaand.toFixed(2)}</div>
+          <div style={{fontSize:24,fontWeight:800,color:kleur}}>â¬{openstaand.toFixed(2)}</div>
           <div style={{fontSize:11,color:C.muted}}>openstaand</div>
         </div>
       </div>
@@ -436,8 +436,8 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerkin
       {/* Voortgangsbalk */}
       <div style={{marginBottom:16}}>
         <div style={{display:"flex",justifyContent:"space-between",fontSize:12,color:C.muted,marginBottom:6}}>
-          <span>Betaald: <strong style={{color:C.groen}}>€{totaalBetaald.toFixed(2)}</strong></span>
-          <span>Totaal verschuldigd: <strong style={{color:C.rood}}>€{totaalVerschuldigd.toFixed(2)}</strong></span>
+          <span>Betaald: <strong style={{color:C.groen}}>â¬{totaalBetaald.toFixed(2)}</strong></span>
+          <span>Totaal verschuldigd: <strong style={{color:C.rood}}>â¬{totaalVerschuldigd.toFixed(2)}</strong></span>
         </div>
         <div style={{background:C.bg,borderRadius:99,height:10,overflow:"hidden"}}>
           <div style={{height:"100%",width:`${pct}%`,background:C.groen,borderRadius:99,transition:"width .5s"}}/>
@@ -448,7 +448,7 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerkin
       {/* Opmerkingen */}
       {schuld.opmerkingen && (
         <div style={{background:C.bg,borderRadius:8,padding:"10px 14px",fontSize:13,color:C.muted,marginBottom:12,whiteSpace:"pre-wrap"}}>
-          💬 {schuld.opmerkingen}
+          ð¬ {schuld.opmerkingen}
         </div>
       )}
 
@@ -456,7 +456,7 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerkin
       {(schuld.betalingen || []).length > 0 && (
         <button onClick={() => setToonBetalingen(!toonBetalingen)}
           style={{background:"none",border:"none",color:C.blauw,fontSize:13,cursor:"pointer",fontFamily:"inherit",padding:"4px 0",marginBottom:8,fontWeight:600}}>
-          {toonBetalingen ? "▲" : "▼"} {(schuld.betalingen || []).length} betaling{(schuld.betalingen || []).length !== 1 ? "en" : ""} bekijken
+          {toonBetalingen ? "â²" : "â¼"} {(schuld.betalingen || []).length} betaling{(schuld.betalingen || []).length !== 1 ? "en" : ""} bekijken
         </button>
       )}
       {toonBetalingen && (
@@ -464,7 +464,7 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerkin
           {(schuld.betalingen || []).sort((a,b) => new Date(b.created_at) - new Date(a.created_at)).map(b => (
             <div key={b.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${C.border}`,fontSize:13}}>
               <div>
-                <span style={{fontWeight:700,color:C.groen}}>€{Number(b.bedrag).toFixed(2)}</span>
+                <span style={{fontWeight:700,color:C.groen}}>â¬{Number(b.bedrag).toFixed(2)}</span>
                 <span style={{color:C.muted,marginLeft:10}}>{fmtDate(b.datum)}</span>
                 {b.opmerking && <span style={{color:C.muted,marginLeft:10,fontStyle:"italic"}}>"{b.opmerking}"</span>}
               </div>
@@ -489,21 +489,21 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerkin
                   if(!collegaOpmerking.trim()){return;}
                   setSavingCollegaOpm(true);
                   stuurMail({
-                    type: "💬 Opmerking huurschuld",
-                    type_icon: "💬",
+                    type: "ð¬ Opmerking huurschuld",
+                    type_icon: "ð¬",
                     medewerker: schuld.naam_medewerker,
                     woning: "Huurschuld",
-                    kamer: "—",
+                    kamer: "â",
                     datum: new Date().toISOString().slice(0,10),
                     ingediend_door: gebruiker?.naam || "Collega",
                     opmerkingen: collegaOpmerking.trim(),
                   });
                   setSavingCollegaOpm(false);
                   setCollegaOpmerking(""); setToonCollegaOpmerkingForm(false);
-                  showToast("✓ Opmerking verstuurd naar backoffice");
+                  showToast("â Opmerking verstuurd naar backoffice");
                 }} disabled={savingCollegaOpm}
                   style={{background:C.blauw,color:"white",border:"none",borderRadius:8,padding:"9px 18px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                  {savingCollegaOpm ? "⏳" : "✓ Verstuur naar backoffice"}
+                  {savingCollegaOpm ? "â³" : "â Verstuur naar backoffice"}
                 </button>
                 <button onClick={()=>setToonCollegaOpmerkingForm(false)}
                   style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"9px 14px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
@@ -514,7 +514,7 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerkin
           ) : (
             <button onClick={()=>setToonCollegaOpmerkingForm(true)}
               style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"9px 14px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
-              💬 Opmerking plaatsen
+              ð¬ Opmerking plaatsen
             </button>
           )}
         </div>
@@ -525,11 +525,11 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerkin
         <div>
           {toonExtraForm ? (
             <div style={{background:"#fffbeb",border:"1px solid #fcd34d",borderRadius:10,padding:16,marginBottom:10}}>
-              <div style={{fontWeight:700,fontSize:13,color:"#b45309",marginBottom:12}}>➕ Extra bedrag toevoegen</div>
+              <div style={{fontWeight:700,fontSize:13,color:"#b45309",marginBottom:12}}>â Extra bedrag toevoegen</div>
               <div style={{fontSize:12,color:"#b45309",marginBottom:12}}>Voeg een extra bedrag toe aan de schuld (bijv. boete, schade of correctie). Dit verhoogt het openstaande bedrag.</div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
                 <div>
-                  <Label>Bedrag (€) *</Label>
+                  <Label>Bedrag (â¬) *</Label>
                   <Input type="number" step="0.01" min="0.01" value={extraBedrag} onChange={e=>setExtraBedrag(e.target.value)} placeholder="bijv. 60.00" autoFocus/>
                 </div>
                 <div>
@@ -542,12 +542,12 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerkin
                   if(!extraBedrag||isNaN(Number(extraBedrag))||Number(extraBedrag)<=0){showToast("Vul een geldig bedrag in","err");return;}
                   if(!extraOpmerking.trim()){showToast("Vul een reden in","err");return;}
                   setSaving(true);
-                  await onBetaling(schuld.id, -Number(extraBedrag), "➕ Extra: "+extraOpmerking);
+                  await onBetaling(schuld.id, -Number(extraBedrag), "â Extra: "+extraOpmerking);
                   setSaving(false);
                   setExtraBedrag(""); setExtraOpmerking(""); setToonExtraForm(false);
                 }} disabled={saving}
                   style={{background:"#f59e0b",color:"white",border:"none",borderRadius:8,padding:"10px 20px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                  {saving ? "⏳" : "✓ Toevoegen aan schuld"}
+                  {saving ? "â³" : "â Toevoegen aan schuld"}
                 </button>
                 <button onClick={()=>setToonExtraForm(false)}
                   style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"10px 14px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
@@ -557,7 +557,7 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerkin
             </div>
           ) : toonBetalingForm ? (
             <div style={{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:10,padding:16,marginBottom:10}}>
-              <div style={{fontWeight:700,fontSize:13,color:C.groen,marginBottom:12}}>💶 Betaling registreren</div>
+              <div style={{fontWeight:700,fontSize:13,color:C.groen,marginBottom:12}}>ð¶ Betaling registreren</div>
               <BetalingsKalender
                 betalingen={schuld.betalingen || []}
                 geselecteerdeDatum={betalingDatum}
@@ -565,7 +565,7 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerkin
               />
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12,marginTop:12}}>
                 <div>
-                  <Label>Bedrag (€) *</Label>
+                  <Label>Bedrag (â¬) *</Label>
                   <Input type="number" step="0.01" min="0.01" value={bedrag} onChange={e=>setBedrag(e.target.value)} placeholder="bijv. 130.00" autoFocus/>
                 </div>
                 <div>
@@ -576,7 +576,7 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerkin
               <div style={{display:"flex",gap:8,alignItems:"center"}}>
                 <button onClick={handleBetaling} disabled={saving}
                   style={{background:C.groen,color:"white",border:"none",borderRadius:8,padding:"10px 20px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                  {saving ? "⏳" : "✓ Betaling opslaan"}
+                  {saving ? "â³" : "â Betaling opslaan"}
                 </button>
                 <button onClick={()=>setToonBetalingForm(false)}
                   style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"10px 14px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
@@ -594,7 +594,7 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerkin
               <div style={{display:"flex",gap:8}}>
                 <button onClick={handleOpmerking} disabled={saving}
                   style={{background:C.blauw,color:"white",border:"none",borderRadius:8,padding:"9px 18px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                  {saving ? "⏳" : "✓ Opslaan"}
+                  {saving ? "â³" : "â Opslaan"}
                 </button>
                 <button onClick={()=>setToonOpmerkingForm(false)}
                   style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"9px 14px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
@@ -606,19 +606,19 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerkin
             <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
               <button onClick={()=>setToonBetalingForm(true)}
                 style={{background:C.groen,color:"white",border:"none",borderRadius:8,padding:"9px 18px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                💶 Betaling toevoegen
+                ð¶ Betaling toevoegen
               </button>
               <button onClick={()=>setToonExtraForm(true)}
                 style={{background:"white",border:`1.5px solid #f59e0b`,color:"#b45309",borderRadius:8,padding:"9px 14px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                ➕ Extra bedrag
+                â Extra bedrag
               </button>
               <button onClick={()=>setToonOpmerkingForm(true)}
                 style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"9px 14px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
-                💬 Opmerking
+                ð¬ Opmerking
               </button>
               {toonStopzetten ? (
                 <div style={{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:10,padding:12,minWidth:280}}>
-                  <div style={{fontSize:12,fontWeight:700,color:C.groen,marginBottom:8}}>📅 Einddatum instellen</div>
+                  <div style={{fontSize:12,fontWeight:700,color:C.groen,marginBottom:8}}>ð Einddatum instellen</div>
                   <div style={{fontSize:12,color:C.muted,marginBottom:8}}>De huur wordt berekend t/m deze datum. Daarna stopt de opbouw.</div>
                   <input type="date" value={stopDatum} onChange={e=>setStopDatum(e.target.value)}
                     style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1.5px solid ${C.border}`,fontSize:13,fontFamily:"inherit",background:"white",color:C.text,boxSizing:"border-box",marginBottom:8}}/>
@@ -629,10 +629,10 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerkin
                         einddatum: stopDatum,
                         actief: true,
                       }).eq("id",schuld.id);
-                      showToast("✓ Einddatum ingesteld — huur stopt op "+fmtDate(new Date(stopDatum))+", schuld blijft open tot volledig betaald");
+                      showToast("â Einddatum ingesteld â huur stopt op "+fmtDate(new Date(stopDatum))+", schuld blijft open tot volledig betaald");
                       setToonStopzetten(false);
                     }} style={{background:C.groen,color:"white",border:"none",borderRadius:8,padding:"7px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                      ✓ Opslaan
+                      â Opslaan
                     </button>
                     <button onClick={()=>setToonStopzetten(false)}
                       style={{background:"white",border:`1px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"7px 12px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>
@@ -641,16 +641,16 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerkin
                   </div>
                 </div>
               ) : (
-                // ─── FIX: fragment wrapper zodat twee buttons naast elkaar kunnen staan ───
+                // âââ FIX: fragment wrapper zodat twee buttons naast elkaar kunnen staan âââ
                 <>
                   <button onClick={()=>{setToonStopzetten(true);setStopDatum(new Date().toISOString().slice(0,10));}}
                     style={{background:"white",border:`1.5px solid ${C.oranje}`,color:C.oranje,borderRadius:8,padding:"9px 14px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                    🛑 Stopzetten
+                    ð Stopzetten
                   </button>
                   {openstaand === 0 && (
                     <button onClick={()=>{ if(window.confirm(`Schuld van ${schuld.naam_medewerker} afsluiten? Alles is betaald.`)) onAfsluiten(schuld.id); }}
                       style={{background:"#f0fdf4",border:`1.5px solid ${C.groen}`,color:C.groen,borderRadius:8,padding:"9px 14px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
-                      ✅ Afsluiten
+                      â Afsluiten
                     </button>
                   )}
                 </>
@@ -664,7 +664,7 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerkin
 }
 
 
-// ─── BETALINGS KALENDER ───────────────────────────────────────────────────────
+// âââ BETALINGS KALENDER âââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 function BetalingsKalender({ betalingen, geselecteerdeDatum, onSelecteer }) {
   const nu = new Date();
   const initDatum = geselecteerdeDatum ? new Date(geselecteerdeDatum) : nu;
@@ -714,9 +714,9 @@ function BetalingsKalender({ betalingen, geselecteerdeDatum, onSelecteer }) {
     <div style={{background:"white",border:`1px solid ${C.border}`,borderRadius:10,padding:14,marginBottom:4}}>
       {/* Navigatie */}
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
-        <button onClick={vorigeM} style={{background:"none",border:"none",cursor:"pointer",fontSize:16,color:C.muted,padding:"2px 8px"}}>‹</button>
+        <button onClick={vorigeM} style={{background:"none",border:"none",cursor:"pointer",fontSize:16,color:C.muted,padding:"2px 8px"}}>â¹</button>
         <span style={{fontWeight:700,fontSize:13,color:C.blauw}}>{maandNamen[huidigMaand]} {huidigJaar}</span>
-        <button onClick={volgendeM} style={{background:"none",border:"none",cursor:"pointer",fontSize:16,color:C.muted,padding:"2px 8px"}}>›</button>
+        <button onClick={volgendeM} style={{background:"none",border:"none",cursor:"pointer",fontSize:16,color:C.muted,padding:"2px 8px"}}>âº</button>
       </div>
 
       {/* Dagnamen */}
@@ -750,13 +750,13 @@ function BetalingsKalender({ betalingen, geselecteerdeDatum, onSelecteer }) {
                 }}>
                 {dag}
                 {isVandaag && <div style={{width:4,height:4,borderRadius:"50%",background:C.blauw,margin:"1px auto 0"}}/>}
-                {heeftBetaling && <div style={{fontSize:8,color:C.groenDark,fontWeight:700}}>✓</div>}
+                {heeftBetaling && <div style={{fontSize:8,color:C.groenDark,fontWeight:700}}>â</div>}
               </div>
               {/* Tooltip */}
               {tooltip?.iso === iso && (
                 <div style={{position:"absolute",bottom:"110%",left:"50%",transform:"translateX(-50%)",background:C.blauwDark,color:"white",borderRadius:8,padding:"6px 10px",fontSize:11,whiteSpace:"nowrap",zIndex:99,boxShadow:"0 4px 12px rgba(0,0,0,.2)",pointerEvents:"none"}}>
                   {bets.map((b,bi) => (
-                    <div key={bi}>💶 €{Number(b.bedrag).toFixed(2)} — {b.geregistreerd_door}</div>
+                    <div key={bi}>ð¶ â¬{Number(b.bedrag).toFixed(2)} â {b.geregistreerd_door}</div>
                   ))}
                   <div style={{position:"absolute",bottom:-5,left:"50%",width:10,height:10,background:C.blauwDark,borderRadius:2,transform:"translateX(-50%) rotate(45deg)"}}/>
                 </div>
@@ -781,7 +781,7 @@ function BetalingsKalender({ betalingen, geselecteerdeDatum, onSelecteer }) {
   );
 }
 
-// ─── NIEUWE SCHULD FORMULIER ──────────────────────────────────────────────────
+// âââ NIEUWE SCHULD FORMULIER ââââââââââââââââââââââââââââââââââââââââââââââââââ
 function NieuweSchuld({ onSubmit, showToast }) {
   const [naam, setNaam]           = useState("");
   const [startdatum, setStart]    = useState(todayISO());
@@ -804,7 +804,7 @@ function NieuweSchuld({ onSubmit, showToast }) {
 
   if (submitted) return (
     <div style={{textAlign:"center",padding:"60px",color:C.groen}}>
-      <div style={{fontSize:40,marginBottom:10}}>✅</div>
+      <div style={{fontSize:40,marginBottom:10}}>â</div>
       <div style={{fontWeight:700,fontSize:16}}>Huurschuld aangemaakt!</div>
     </div>
   );
@@ -813,7 +813,7 @@ function NieuweSchuld({ onSubmit, showToast }) {
     <div style={{maxWidth:600}}>
       <h3 style={{fontSize:16,fontWeight:800,color:C.blauw,marginBottom:20}}>Nieuwe huurschuld aanmaken</h3>
       <div style={{background:"#fef3c7",border:"1px solid #fcd34d",borderRadius:10,padding:"12px 16px",marginBottom:20,fontSize:13,color:"#b45309"}}>
-        ℹ️ Elke maandag op of na de startdatum wordt automatisch het weekbedrag bijgeteld. Standaard €140 per week, vooraf te betalen.
+        â¹ï¸ Elke maandag op of na de startdatum wordt automatisch het weekbedrag bijgeteld. Standaard â¬140 per week, vooraf te betalen.
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
         <div style={{gridColumn:"1/-1"}}>
@@ -832,25 +832,25 @@ function NieuweSchuld({ onSubmit, showToast }) {
         <div style={{gridColumn:"1/-1"}}>
           <Label>Weekbedrag</Label>
           <div style={{display:"flex",gap:10,marginBottom:12}}>
-            {[["standaard","€140 per week (standaard)"],["handmatig","Afwijkend weekbedrag"]].map(([v,l])=>(
+            {[["standaard","â¬140 per week (standaard)"],["handmatig","Afwijkend weekbedrag"]].map(([v,l])=>(
               <div key={v} onClick={()=>setTariefType(v)}
                 style={{flex:1,border:`2px solid ${tariefType===v?C.blauw:C.border}`,borderRadius:10,padding:"14px 16px",cursor:"pointer",background:tariefType===v?C.blauw+"10":"white",textAlign:"center"}}>
                 <div style={{fontWeight:700,fontSize:13,color:tariefType===v?C.blauw:C.muted}}>{l}</div>
-                {v==="standaard" && <div style={{fontSize:11,color:C.muted,marginTop:4}}>Elke maandag €140</div>}
+                {v==="standaard" && <div style={{fontSize:11,color:C.muted,marginTop:4}}>Elke maandag â¬140</div>}
               </div>
             ))}
           </div>
           {tariefType==="handmatig" && (
             <div style={{background:"#fffbeb",border:"1px solid #fcd34d",borderRadius:10,padding:14}}>
-              <Label>Weekbedrag (€)</Label>
+              <Label>Weekbedrag (â¬)</Label>
               <Input type="number" step="0.01" min="1" value={tariefBedrag} onChange={e=>setTariefBedrag(e.target.value)} placeholder="bijv. 70"/>
               <div style={{fontSize:11,color:C.muted,marginTop:6}}>Dit bedrag wordt elke maandag bijgeteld</div>
             </div>
           )}
         </div>
         <div>
-          <Label>Beginsaldo (€) — bestaande achterstand</Label>
-          <Input type="number" step="0.01" min="0" value={beginsaldo} onChange={e=>setBeginsaldo(e.target.value)} placeholder="bijv. 200.00 — laat leeg als er geen achterstand is"/>
+          <Label>Beginsaldo (â¬) â bestaande achterstand</Label>
+          <Input type="number" step="0.01" min="0" value={beginsaldo} onChange={e=>setBeginsaldo(e.target.value)} placeholder="bijv. 200.00 â laat leeg als er geen achterstand is"/>
           <div style={{fontSize:11,color:C.muted,marginTop:4}}>Dit bedrag wordt direct bovenop de dagelijkse teller gezet</div>
         </div>
         <div style={{gridColumn:"1/-1"}}>
@@ -861,8 +861,74 @@ function NieuweSchuld({ onSubmit, showToast }) {
       </div>
       <button onClick={handleSubmit} disabled={saving}
         style={{background:C.blauw,color:"white",border:"none",borderRadius:8,padding:"12px 28px",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
-        {saving ? "⏳ Opslaan..." : "✓ Huurschuld aanmaken"}
+        {saving ? "â³ Opslaan..." : "â Huurschuld aanmaken"}
       </button>
+    </div>
+  );
+}
+
+
+// ─── HUUR BETALING INLINE ───────────────────────────────────────────────────
+// Compact betaalformulier voor op de medewerkerpagina
+export function HuurBetalingInline({ schuldId, onOpgeslagen }) {
+  const [toon, setToon] = useState(false);
+  const [bedrag, setBedrag] = useState("");
+  const [datum, setDatum] = useState(todayISO());
+  const [opmerking, setOpmerking] = useState("");
+  const [bezig, setBezig] = useState(false);
+
+  if (!toon) return (
+    <button
+      onClick={() => setToon(true)}
+      style={{ marginTop: 6, padding: "4px 10px", borderRadius: 6, border: "1px solid #3b82f6", background: "white", color: "#3b82f6", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}
+    >
+      + Betaling registreren
+    </button>
+  );
+
+  async function opslaan() {
+    if (!bedrag || isNaN(Number(bedrag))) return;
+    setBezig(true);
+    const { error } = await supabase.from("huurbetalingen").insert([{
+      schuld_id: schuldId,
+      bedrag: Number(bedrag),
+      datum: datum || todayISO(),
+      opmerking: opmerking || null,
+    }]);
+    setBezig(false);
+    if (error) { alert("Fout: " + error.message); return; }
+    setBedrag(""); setOpmerking(""); setDatum(todayISO()); setToon(false);
+    if (onOpgeslagen) onOpgeslagen();
+  }
+
+  return (
+    <div style={{ marginTop: 8, padding: 10, background: "#f0f9ff", borderRadius: 8, border: "1px solid #bae6fd" }}>
+      <div style={{ fontWeight: 600, fontSize: 11, color: "#0369a1", marginBottom: 6 }}>BETALING REGISTREREN</div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
+        <div>
+          <div style={{ fontSize: 10, color: "#64748b", marginBottom: 2 }}>Bedrag (€)</div>
+          <input type="number" min="0" step="0.01" value={bedrag} onChange={e => setBedrag(e.target.value)}
+            style={{ width: 80, padding: "4px 6px", border: "1px solid #cbd5e1", borderRadius: 4, fontSize: 12 }} />
+        </div>
+        <div>
+          <div style={{ fontSize: 10, color: "#64748b", marginBottom: 2 }}>Datum</div>
+          <input type="date" value={datum} onChange={e => setDatum(e.target.value)}
+            style={{ padding: "4px 6px", border: "1px solid #cbd5e1", borderRadius: 4, fontSize: 12 }} />
+        </div>
+        <div style={{ flex: 1, minWidth: 120 }}>
+          <div style={{ fontSize: 10, color: "#64748b", marginBottom: 2 }}>Opmerking</div>
+          <input type="text" value={opmerking} onChange={e => setOpmerking(e.target.value)} placeholder="Optioneel"
+            style={{ width: "100%", padding: "4px 6px", border: "1px solid #cbd5e1", borderRadius: 4, fontSize: 12 }} />
+        </div>
+        <button onClick={opslaan} disabled={bezig}
+          style={{ padding: "5px 12px", borderRadius: 6, border: "none", background: "#3b82f6", color: "white", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
+          {bezig ? "..." : "✓ Opslaan"}
+        </button>
+        <button onClick={() => setToon(false)}
+          style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #e5e7eb", background: "white", color: "#64748b", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
+          Annuleer
+        </button>
+      </div>
     </div>
   );
 }
