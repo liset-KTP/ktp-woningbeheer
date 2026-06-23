@@ -308,8 +308,9 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
   const huidigeWeek = getWeekNr(nu);
   const huidigJaar = nu.getFullYear();
 
-  // Open termijnen deze en volgende week
-  const openTermijnen = termijnen.filter(t => t.status === "open");
+  // Open termijnen deze en volgende week (alleen actieve borgplannen)
+  const activePlanIds = new Set(plannen.filter(p => p.status === "actief").map(p => p.id));
+  const openTermijnen = termijnen.filter(t => t.status === "open" && activePlanIds.has(t.plan_id));
   const dezeWeek = openTermijnen.filter(t => t.week_nummer === huidigeWeek && t.jaar === huidigJaar).sort(sortBorgType);
   const volgendeWeek = openTermijnen.filter(t => t.week_nummer === huidigeWeek + 1 && t.jaar === huidigJaar).sort(sortBorgType);
   const terug = extras.filter(e => e.type === "terugbetalen" && e.status === "open");
@@ -486,8 +487,9 @@ function WekenOverzicht({ termijnen, plannen, isBackoffice, onVerwerk, readonly 
   const huidigeWeek = getWeekNr(nu);
   const huidigJaar = nu.getFullYear();
 
-  // Groepeer open termijnen per week
-  const openTermijnen = termijnen.filter(t => t.status === "open");
+  // Groepeer open termijnen per week (alleen actieve borgplannen)
+  const activePlanIds = new Set(plannen.filter(p => p.status === "actief").map(p => p.id));
+  const openTermijnen = termijnen.filter(t => t.status === "open" && activePlanIds.has(t.plan_id));
 
   // Verzamel alle unieke weken
   const weken = [];
