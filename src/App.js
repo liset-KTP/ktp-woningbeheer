@@ -2090,6 +2090,7 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
                     checklists={checklists}
                     naam={naam}
                     onUpdateTaak={onUpdateTaak}
+                    onUpdateMelding={onUpdate}
                     gekozenDag={gekozenDag}
                     weekJaar={weekInfo.key}
                     weekOffset={weekOffset}
@@ -2278,7 +2279,7 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
 }
 
 // ─── WONING KAART DAG (uitklapbaar met inline checklist) ─────────────────────
-function WoningKaartDag({ huis, kleur, hTaken, hMeldingen, checklistItems, checklists, naam, onUpdateTaak, gekozenDag, weekJaar: weekJaarProp, weekOffset=0 }) {
+function WoningKaartDag({ huis, kleur, hTaken, hMeldingen, checklistItems, checklists, naam, onUpdateTaak, onUpdateMelding, gekozenDag, weekJaar: weekJaarProp, weekOffset=0 }) {
   const [open, setOpen] = useState(false);
   const [vertrekModalTaak, setVertrekModalTaak] = useState(null);
   const bevestigVertrekWKD = ({schoon, sleutel, opmerking}) => {
@@ -2435,9 +2436,17 @@ function WoningKaartDag({ huis, kleur, hTaken, hMeldingen, checklistItems, check
             <div style={{marginBottom:14}}>
               <div style={{fontSize:11,fontWeight:700,color:"#ef4444",letterSpacing:".6px",textTransform:"uppercase",marginBottom:8}}>⚠️ Meldingen</div>
               {hMeldingen.map(m=>(
-                <div key={m.id} style={{padding:"7px 0",borderBottom:`1px solid ${C.border}`,fontSize:12}}>
-                  <div style={{fontWeight:600,color:C.text}}>{m.medewerker} — {m.type}</div>
-                  {m.opmerkingen&&<div style={{color:C.muted,marginTop:1}}>{m.opmerkingen}</div>}
+                <div key={m.id} style={{padding:"7px 0",borderBottom:`1px solid ${C.border}`,fontSize:12,display:"flex",alignItems:"flex-start",gap:10}}>
+                  <div style={{flex:1}}>
+                    <div style={{fontWeight:600,color:C.text}}>{m.medewerker} — {m.type}</div>
+                    {m.opmerkingen&&<div style={{color:C.muted,marginTop:1}}>{m.opmerkingen}</div>}
+                  </div>
+                  {onUpdateMelding && (
+                    <button onClick={()=>onUpdateMelding(m.id,"afgehandeld","")}
+                      style={{background:C.groen,color:"white",border:"none",borderRadius:6,padding:"5px 10px",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit",flexShrink:0}}>
+                      ✓ Afhandelen
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
