@@ -105,6 +105,7 @@ function App() {
   const [taal, setTaal] = useState(() => { try { return localStorage.getItem("ktp_taal")||"nl"; } catch { return "nl"; } });
   const [gebruikers, setGebruikers] = useState([]);
   const [houses, setHouses] = useState([]);
+  const [gearchiveerdeHouses, setGearchiveerdeHouses] = useState([]);
   const [meldingen, setMeldingen] = useState([]);
   const [taken, setTaken] = useState([]);
   const [checklists, setChecklists] = useState([]);
@@ -193,9 +194,15 @@ function App() {
   }, []);
 
   const loadHouses = useCallback(async () => {
-    const { data, error } = await supabase.from("woningen").select("*").order("stad").order("adres");
+    const { data, error } = await supabase.from("woningen").select("*").order("stad").order("adres").neq("gearchiveerd", true);
     if (error) { console.error(error); return; }
     setHouses(data.map(h => ({ ...h, kamers: h.kamers || [] })));
+  }, []);
+
+  const loadGearchiveerdeHouses = useCallback(async () => {
+    const { data, error } = await supabase.from("woningen").select("*").order("stad").order("adres").eq("gearchiveerd", true);
+    if (error) { console.error(error); return; }
+    setGearchiveerdeHouses(data.map(h => ({ ...h, kamers: h.kamers || [] })));
   }, []);
 
   const loadMeldingen = useCallback(async () => {
@@ -220,7 +227,7 @@ function App() {
     async function init() {
       setLoading(true);
       try {
-        await Promise.all([loadGebruikers(), loadHouses(), loadMeldingen(), loadTaken(), loadChecklists(), loadChecklistItems(), loadActiviteiten(), loadDagplanning()]);
+        await Promise.all([loadGebruikers(), loadHouses(), loadGearchiveerdeHouses(), loadMeldingen(), loadTaken(), loadChecklists(), loadChecklistItems(), loadActiviteiten(), loadDagplanning()]);
       } catch(e) {
         console.error("Init fout:", e);
       }
@@ -769,10 +776,15 @@ function App() {
     showToast("✓ Opgeslagen"); await loadHouses(); return true;
   }
 
-  async function deleteWoning(id) {
-    const { error } = await supabase.from("woningen").delete().eq("id",id);
-    if (error) { showToast("Fout bij verwijderen","err"); return false; }
-    showToast("✓ Woning verwijderd"); await loadHouses(); return true;
+  async function archiveerWoning(id) {
+    const { error } = await supabase.from("woningen").update({ gearchiveerd: true }).eq("id",id);
+    if (error) { showToast("Fout bij archiveren","err"); return false; }
+    showToast("✓ Woning gearchiveerd"); await loadHouses(); await loadGearchiveerdeHouses(); return true;
+  }
+  async function terugzetWoning(id) {
+    const { error } = await supabase.from("woningen").update({ gearchiveerd: false }).eq("id",id);
+    if (error) { showToast("Fout bij terugzetten","err"); return false; }
+    showToast("✓ Woning teruggezet"); await loadHouses(); await loadGearchiveerdeHouses(); return true;
   }
 
   async function slaChecklistOp(type, week, items, huisId) {
@@ -958,7 +970,7 @@ function App() {
         {tab==="kleding"&&<KledingModule gebruiker={gebruiker} showToast={showToast}/>}
         {tab==="medewerker360"&&<Medewerker360View houses={houses} gebruiker={gebruiker} showToast={showToast} onAddTaak={addTaak}/>}
         {tab==="huismeesterplanning"&&<HuismeesterPlanningView dagplanningDB={dagplanningDB} houses={houses} taken={taken} meldingen={meldingen} checklists={checklists} checklistItems={checklistItems}/>}
-        {rol==="backoffice"&&isLiset&&tab==="beheer"&&<BeheerView houses={houses} onAdd={addWoning} onUpdate={updateWoning} onDelete={deleteWoning} showToast={showToast} gebruikers={gebruikers} onAddGebruiker={voegGebruikerToe} onUpdateGebruiker={updateGebruiker} onDeleteGebruiker={verwijderGebruiker} checklistItems={checklistItems} dagplanningDB={dagplanningDB}/>}
+        {rol==="backoffice"&&isLiset&&tab==="beheer"&&<BeheerView houses={houses} gearchiveerdeHouses={gearchiveerdeHouses} onAdd={addWoning} onUpdate={updateWoning} onArchiveer={archiveerWoning} onTerugzetten={terugzetWoning} showToast={showToast} gebruikers={gebruikers} onAddGebruiker={voegGebruikerToe} onUpdateGebruiker={updateGebruiker} onDeleteGebruiker={verwijderGebruiker} checklistItems={checklistItems} dagplanningDB={dagplanningDB}/>}
       </div>
     </div>
   );
@@ -5358,20 +5370,21 @@ function DashboardView({ houses, meldingen, taken, gebruikers, activiteiten }) {
 }
 
 
-function BeheerView({houses,onAdd,onUpdate,onDelete,showToast,gebruikers,onAddGebruiker,onUpdateGebruiker,onDeleteGebruiker,checklistItems,dagplanningDB}) {
+function BeheerView({houses,gearchiveerdeHouses=[],onAdd,onUpdate,onArchiveer,onTerugzetten,showToast,gebruikers,onAddGebruiker,onUpdateGebruiker,onDeleteGebruiker,checklistItems,dagplanningDB}) {
   const [subTab,setSubTab]=useState("woningen");
   return(
     <div>
       <SH titel="⚙️ Beheer" sub="Alleen beschikbaar voor Liset"/>
       <div style={{display:"flex",gap:6,marginBottom:24,borderBottom:`2px solid ${C.border}`,paddingBottom:0}}>
-        {[["woningen","🏠 Woningen & kamers"],["gebruikers","👥 Gebruikers & pincodes"],["checklists","✅ Checklists"],["dagplanning","📅 Dagplanning huismeester"]].map(([v,l])=>(
+        {[["woningen","🏠 Woningen & kamers"],["gearchiveerd","🗃 Gearchiveerd"],["gebruikers","👥 Gebruikers & pincodes"],["checklists","✅ Checklists"],["dagplanning","📅 Dagplanning huismeester"]].map(([v,l])=>(
           <button key={v} onClick={()=>setSubTab(v)}
             style={{background:"none",border:"none",padding:"10px 20px",fontSize:14,fontWeight:700,color:subTab===v?C.blauw:C.muted,borderBottom:subTab===v?`3px solid ${C.blauw}`:"3px solid transparent",marginBottom:-2,cursor:"pointer",fontFamily:"inherit"}}>
             {l}
           </button>
         ))}
       </div>
-      {subTab==="woningen"&&<WoningBeheer houses={houses} onAdd={onAdd} onUpdate={onUpdate} onDelete={onDelete} showToast={showToast}/>}
+      {subTab==="woningen"&&<WoningBeheer houses={houses} onAdd={onAdd} onUpdate={onUpdate} onArchiveer={onArchiveer} showToast={showToast}/>}
+      {subTab==="gearchiveerd"&&<GearchiveerdeBeheer houses={gearchiveerdeHouses} onTerugzetten={onTerugzetten} showToast={showToast}/>}
       {subTab==="gebruikers"&&<GebruikersBeheer gebruikers={gebruikers} onAdd={onAddGebruiker} onUpdate={onUpdateGebruiker} onDelete={onDeleteGebruiker} showToast={showToast}/>}
       {subTab==="checklists"&&<ChecklistItemsBeheer checklistItems={checklistItems} showToast={showToast}/>}
       {subTab==="dagplanning"&&<DagplanningBeheer dagplanningDB={dagplanningDB} showToast={showToast} houses={houses}/>}
@@ -5523,7 +5536,49 @@ function DagKaart({ dag, isBewerken, onBewerken, onAnnuleren, onOpslaan, saving,
   );
 }
 
-function WoningBeheer({houses,onAdd,onUpdate,onDelete,showToast}) {
+
+// ─── GEARCHIVEERDE WONINGEN BEHEER ───────────────────────────────────────────
+function GearchiveerdeBeheer({houses=[], onTerugzetten, showToast}) {
+  const [saving, setSaving] = useState(false);
+
+  async function terugzetten(id, adres) {
+    if(!window.confirm(`"${adres}" terugzetten naar actieve woningen?`)) return;
+    setSaving(id);
+    await onTerugzetten(id);
+    setSaving(false);
+  }
+
+  return (
+    <div>
+      {houses.length === 0 ? (
+        <div className="card" style={{color:"#6b7280",fontStyle:"italic",fontSize:13}}>
+          Geen gearchiveerde woningen.
+        </div>
+      ) : (
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {houses.map(h => (
+            <div key={h.id} className="card" style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div>
+                <div style={{fontWeight:700,fontSize:14}}>{h.adres}</div>
+                <div style={{fontSize:12,color:"#6b7280"}}>{h.stad} · {h.postcode} · {h.kamers.length} kamers</div>
+              </div>
+              <button
+                className="btn-b"
+                style={{fontSize:12,padding:"6px 14px"}}
+                disabled={saving===h.id}
+                onClick={()=>terugzetten(h.id, h.adres)}
+              >
+                {saving===h.id ? "..." : "↩ Terugzetten"}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function WoningBeheer({houses,onAdd,onUpdate,onArchiveer,showToast}) {
   const [geselecteerd,setGeselecteerd]=useState(null);
   const [nieuweWoning,setNieuweWoning]=useState({stad:"",adres:"",postcode:""});
   const [toonNieuwe,setToonNieuwe]=useState(false);
@@ -5549,7 +5604,7 @@ function WoningBeheer({houses,onAdd,onUpdate,onDelete,showToast}) {
   }
   async function kamerOpslaan(nr,u) { if(!huis) return; setSaving(true); await onUpdate(huis.id,{kamers:huis.kamers.map(k=>k.k===nr?{...k,...u}:k)}); setSaving(false); setBewerkKamer(null); }
   async function kamerVerwijderen(nr) { if(!huis||!window.confirm(`Kamer ${nr} verwijderen?`)) return; setSaving(true); await onUpdate(huis.id,{kamers:huis.kamers.filter(k=>k.k!==nr)}); setSaving(false); }
-  async function woningVerwijderen(id) { if(!window.confirm("Woning verwijderen?")) return; const ok=await onDelete(id); if(ok) setGeselecteerd(null); }
+  async function woningArchiveren(id) { if(!window.confirm("Woning archiveren? De woning blijft beschikbaar in het Gearchiveerd-tabblad.")) return; const ok=await onArchiveer(id); if(ok) setGeselecteerd(null); }
 
   return(
     <div style={{display:"grid",gridTemplateColumns:"300px 1fr",gap:20}}>
@@ -5593,7 +5648,7 @@ function WoningBeheer({houses,onAdd,onUpdate,onDelete,showToast}) {
           <div>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
               <div><h3 style={{fontSize:18,fontWeight:800,color:C.blauw}}>{huis.adres}</h3><div style={{fontSize:13,color:C.muted,marginTop:2}}>{huis.stad} · {huis.postcode} · {huis.kamers.length} kamers</div></div>
-              <button className="btn-r" onClick={()=>woningVerwijderen(huis.id)}>🗑 Verwijderen</button>
+              <button className="btn-r" onClick={()=>woningArchiveren(huis.id)}>🗃 Archiveren</button>
             </div>
             <div className="card" style={{marginBottom:16}}>
               <div style={{fontWeight:700,fontSize:13,marginBottom:14,color:C.blauw}}>Kamers</div>
