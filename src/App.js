@@ -69,6 +69,7 @@ const STATUS_MAP = {
   "Controle":          { bg:"#ef444418", text:"#b91c1c", dot:"#ef4444" },
   "Niet beschikbaar":  { bg:"#8b5cf618", text:"#6d28d9", dot:"#8b5cf6" },
   "Moet aan het werk": { bg:"#f9731618", text:"#c2410c", dot:"#f97316" },
+  "Moet weg":          { bg:"#be123c18", text:"#9f1239", dot:"#be123c" },
   "Vertrokken":        { bg:"#71717a18", text:"#3f3f46", dot:"#71717a" },
 };
 const STATUSSEN = Object.keys(STATUS_MAP);
@@ -5078,7 +5079,7 @@ function WoningenDetail({houses, onUpdateWoning}) {
               <div style={{borderTop:`1px solid ${C.border}`,paddingTop:10}}>
                 {[...h.kamers].sort((a,b)=>parseFloat(a.k)-parseFloat(b.k)).map(k=>{
                   const c=STATUS_MAP[k.status]||{bg:C.bg,text:C.muted,dot:C.muted};
-                  const rijBg=k.status==="Controle"?"#fef2f2":k.status==="Moet aan het werk"?"#fff7ed":k.status==="Beschikbaar"?C.blauw+"08":"transparent";
+                  const rijBg=k.status==="Controle"?"#fef2f2":k.status==="Moet aan het werk"?"#fff7ed":k.status==="Moet weg"?"#fff1f2":k.status==="Beschikbaar"?C.blauw+"08":"transparent";
                   const isBezig=bewerkKamer?.huisId===h.id&&bewerkKamer?.kamerNr===k.k;
 
                   return(
