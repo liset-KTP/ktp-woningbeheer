@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "./supabaseClient";
 import { BijlageUploader, BijlageWeergave, uploadBijlages } from "./BijlageUploader";
 
@@ -80,6 +80,7 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
   const [toonNieuw, setToonNieuw] = useState(false);
   const [toonLosseInhouding, setToonLosseInhouding] = useState(false);
   const [zoek, setZoek] = useState("");
+  const bezigSluitenRef = useRef(false);
 
   const isBackoffice = gebruiker?.rol === "backoffice" && !readonly;
 
@@ -176,9 +177,9 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
     // Duplicaatbeveiliging: voorkom dubbele terugbetaling
     if (type === "terugbetalen") {
       const { data: bestaand } = await supabase.from("borg_extra")
-        .select("id").eq("plan_id", planId).eq("type", "terugbetalen").eq("status", "open");
+        .select("id").eq("plan_id", planId).eq("type", "terugbetalen");
       if (bestaand && bestaand.length > 0) {
-        showToast("⚠️ Er staat al een openstaande terugbetaling voor deze medewerker.");
+        showToast("⚠️ Er is al een terugbetaling geregistreerd voor dit borgplan. Verwijder eerst de bestaande.");
         return;
       }
     }
@@ -274,6 +275,9 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
   }
 
   async function sluitPlanAf(planId, terugbetalen) {
+    if (bezigSluitenRef.current) return;
+    bezigSluitenRef.current = true;
+    try {
     await supabase.from("borg_plannen").update({
       status: terugbetalen ? "terugbetaald" : "afgesloten",
       vertrek_datum: new Date().toISOString().slice(0,10),
@@ -289,6 +293,9 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
     }]);
     showToast(terugbetalen ? "✓ Borg terugbetaald" : "✓ Plan afgesloten");
     await loadAll();
+    } finally {
+      bezigSluitenRef.current = false;
+    }
   }
 
   async function voegOpmerkingToe(planId, tekst) {
