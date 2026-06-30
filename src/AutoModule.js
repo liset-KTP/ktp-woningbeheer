@@ -54,14 +54,21 @@ function SH({titel,sub,actie}) {
 // ─── HOOFD AUTO MODULE ────────────────────────────────────────────────────────
 export function AutoModule({ gebruiker, showToast }) {
   const [autos, setAutos] = useState([]);
+  const [gearchiveerdeAutos, setGearchiveerdeAutos] = useState([]);
   const [autoMeldingen, setAutoMeldingen] = useState([]);
   const [subTab, setSubTab] = useState("overzicht");
   const [loading, setLoading] = useState(true);
 
   const loadAutos = useCallback(async () => {
-    const { data, error } = await supabase.from("autos").select("*").order("status").order("kenteken");
+    const { data, error } = await supabase.from("autos").select("*").order("status").order("kenteken").neq("gearchiveerd", true);
     if (error) { console.error(error); return; }
     setAutos(data || []);
+  }, []);
+
+  const loadGearchiveerdeAutos = useCallback(async () => {
+    const { data, error } = await supabase.from("autos").select("*").order("kenteken").eq("gearchiveerd", true);
+    if (error) { console.error(error); return; }
+    setGearchiveerdeAutos(data || []);
   }, []);
 
   const loadAutoMeldingen = useCallback(async () => {
@@ -73,7 +80,7 @@ export function AutoModule({ gebruiker, showToast }) {
   useEffect(() => {
     async function init() {
       setLoading(true);
-      await Promise.all([loadAutos(), loadAutoMeldingen()]);
+      await Promise.all([loadAutos(), loadGearchiveerdeAutos(), loadAutoMeldingen()]);
       setLoading(false);
     }
     init();
@@ -180,10 +187,15 @@ export function AutoModule({ gebruiker, showToast }) {
     showToast("✓ Opgeslagen"); return true;
   }
 
-  async function deleteAuto(id) {
-    const { error } = await supabase.from("autos").delete().eq("id", id);
-    if (error) { showToast("Fout bij verwijderen","err"); return false; }
-    showToast("✓ Auto verwijderd"); return true;
+  async function archiveerAuto(id) {
+    const { error } = await supabase.from("autos").update({ gearchiveerd: true }).eq("id", id);
+    if (error) { showToast("Fout bij archiveren","err"); return false; }
+    showToast("✓ Auto gearchiveerd"); await loadAutos(); await loadGearchiveerdeAutos(); return true;
+  }
+  async function terugzetAuto(id) {
+    const { error } = await supabase.from("autos").update({ gearchiveerd: false }).eq("id", id);
+    if (error) { showToast("Fout bij terugzetten","err"); return false; }
+    showToast("✓ Auto teruggezet"); await loadAutos(); await loadGearchiveerdeAutos(); return true;
   }
 
   const openMeldingen = autoMeldingen.filter(m => m.status === "open");
@@ -217,7 +229,7 @@ export function AutoModule({ gebruiker, showToast }) {
       {subTab==="overzicht" && <AutoOverzicht autos={autos} gebruiker={gebruiker} />}
       {subTab==="melding"   && <AutoMeldingForm autos={autos} gebruiker={gebruiker} onSubmit={addAutoMelding} showToast={showToast} />}
       {subTab==="log"       && <AutoLog meldingen={autoMeldingen} autos={autos} onUpdate={updateAutoMelding} gebruiker={gebruiker} isBackoffice={isBackoffice} onReactie={stuurReactie} onMarkeerGelezen={markeerGelezen} />}
-      {subTab==="beheer" && isBackoffice && <AutoBeheer autos={autos} onAdd={addAuto} onUpdate={updateAuto} onDelete={deleteAuto} showToast={showToast} />}
+      {subTab==="beheer" && isBackoffice && <AutoBeheer autos={autos} gearchiveerdeAutos={gearchiveerdeAutos} onAdd={addAuto} onUpdate={updateAuto} onArchiveer={archiveerAuto} onTerugzetten={terugzetAuto} showToast={showToast} />}
       {subTab==="boete" && isBackoffice && <BoeteOpzoeken meldingen={autoMeldingen} autos={autos} />}
     </div>
   );
@@ -897,7 +909,7 @@ function BoeteOpzoeken({ meldingen, autos }) {
 }
 
 // ─── AUTO BEHEER ──────────────────────────────────────────────────────────────
-function AutoBeheer({ autos, onAdd, onUpdate, onDelete, showToast }) {
+function AutoBeheer({ autos, gearchiveerdeAutos=[], onAdd, onUpdate, onArchiveer, onTerugzetten, showToast }) {
   const [toonNieuwe, setToonNieuwe] = useState(false);
   const [nieuw, setNieuw] = useState({kenteken:"",merk_model:"",kleur:"",apk_datum:"",datum_uitgifte:"",vestiging:"",status:"Beschikbaar",naam_medewerker:""});
   const [bewerkId, setBewerkId] = useState(null);
@@ -988,12 +1000,32 @@ function AutoBeheer({ autos, onAdd, onUpdate, onDelete, showToast }) {
               <span style={{padding:"3px 8px",borderRadius:6,background:c.bg,color:c.text,fontSize:10,fontWeight:700}}>{a.status}</span>
               <div style={{display:"flex",gap:4}}>
                 <button onClick={()=>setBewerkId(a.id)} style={{background:"white",border:`1px solid ${C.border}`,borderRadius:6,padding:"4px 8px",cursor:"pointer",fontSize:11}}>✏️</button>
-                <button onClick={async()=>{if(window.confirm(`${a.kenteken} verwijderen?`)){await onDelete(a.id);}}} style={{background:"#dc2626",color:"white",border:"none",borderRadius:6,padding:"4px 8px",cursor:"pointer",fontSize:11}}>🗑</button>
+                <button onClick={async()=>{if(window.confirm(`${a.kenteken} archiveren?`)){await onArchiveer(a.id);}}} style={{background:"#f59e0b",color:"white",border:"none",borderRadius:6,padding:"4px 8px",cursor:"pointer",fontSize:11}}>🗃</button>
               </div>
             </div>
           );
         })}
       </div>
+
+      {gearchiveerdeAutos.length > 0 && (
+        <div style={{marginTop:24}}>
+          <div style={{fontWeight:700,fontSize:13,color:"#6b7280",marginBottom:10,borderTop:"2px dashed #e5e7eb",paddingTop:16}}>
+            🗃 Gearchiveerde auto's ({gearchiveerdeAutos.length})
+          </div>
+          {gearchiveerdeAutos.map(a => (
+            <div key={a.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 16px",background:"#f9fafb",borderRadius:8,marginBottom:6,border:"1px solid #e5e7eb"}}>
+              <div>
+                <span style={{fontWeight:800,color:"#6b7280",fontFamily:"monospace",marginRight:12}}>{a.kenteken}</span>
+                <span style={{fontSize:12,color:"#9ca3af"}}>{a.merk_model}{a.kleur ? " · " + a.kleur : ""}</span>
+              </div>
+              <button onClick={async()=>{if(window.confirm(a.kenteken + " terugzetten?")){await onTerugzetten(a.id);}}}
+                style={{background:"#10b981",color:"white",border:"none",borderRadius:6,padding:"4px 12px",cursor:"pointer",fontSize:11}}>
+                ↩ Terugzetten
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
