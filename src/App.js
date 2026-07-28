@@ -4659,12 +4659,10 @@ function MeldingForm({ houses, onSubmit, showToast, taal="nl" }) {
   // Aantal sleutels automatisch op de standaard van de gekozen woning zetten (foutpreventie)
   useEffect(()=>{
     if(type==="aankomst"||type==="reservering") setSleutelAantal(selectedHouse?.standaard_sleutels??1);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[huisId,type]);
+  },[huisId,type]); // eslint-disable-line
   useEffect(()=>{
     if(type==="verhuizing"&&naarHuisId) setSleutelAantal(naarHuis?.standaard_sleutels??1);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[naarHuisId,type]);
+  },[naarHuisId,type]); // eslint-disable-line
 
   async function handleSubmit() {
     if(!medewerker.trim()){showToast("Vul naam medewerker in","err");return;}
