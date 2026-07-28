@@ -286,6 +286,15 @@ function App() {
   }
 
   async function addMelding(m) {
+    // Guard: voorkom dubbele aankomstmelding voor dezelfde persoon + datum
+    if (m.type === "aankomst" && m.medewerker) {
+      const { data: dubbel } = await supabase.from("meldingen")
+        .select("id").eq("type","aankomst").eq("medewerker",m.medewerker).eq("datum",m.datum).limit(1);
+      if (dubbel && dubbel.length > 0) {
+        showToast(`Er bestaat al een aankomstmelding voor ${m.medewerker} op ${m.datum}`, "err");
+        return;
+      }
+    }
     const { error } = await supabase.from("meldingen").insert([{
       type:m.type, medewerker:m.medewerker, datum:m.datum, woning_id:m.huisId,
       kamer:m.kamer, wie_regelt:m.wieRegelt||null, sleutel_terug:m.sleutelTerug||null,
@@ -550,7 +559,8 @@ function App() {
       }
 
       // Als aankomst verwerkt wordt → automatisch borgplan aanmaken
-      if ((newStatus==="verwerkt"||newStatus==="afgehandeld") && m?.type==="aankomst") {
+      // Guard: niet nogmaals draaien als de melding al verwerkt/afgehandeld was (voorkomt dubbele borgtermijnen)
+      if ((newStatus==="verwerkt"||newStatus==="afgehandeld") && m?.type==="aankomst" && m?.status!=="verwerkt" && m?.status!=="afgehandeld") {
         const sleutels = m.sleutel_aantal || 1;
         // Check of er al een borgplan bestaat voor deze persoon + kamer
         const { data: bestaand } = await supabase.from("borg_plannen")
@@ -568,7 +578,10 @@ function App() {
             sleutelTermijnen.push({omschrijving:"Borg sleutels (week 3/4)",bedrag:50});
             sleutelTermijnen.push({omschrijving:"Borg sleutels (week 4/4)",bedrag:30});
           }
-          if (sleutelTermijnen.length > 0) {
+          // Guard: alleen toevoegen als dit plan nog géén sleutel-termijnen heeft (voorkomt dubbele borg bij dubbele meldingen)
+          const { data: alSleutels } = await supabase.from("borg_termijnen")
+            .select("id").eq("plan_id", bestaandPlanId).ilike("omschrijving", "%sleutel%").limit(1);
+          if (sleutelTermijnen.length > 0 && (!alSleutels || alSleutels.length === 0)) {
             const nu3 = new Date();
             const sw = (() => { const d=new Date(); const j=new Date(Date.UTC(d.getFullYear(),0,1)); return Math.ceil((((d-j)/86400000)+j.getDay()+1)/7)+1; })();
             const extraTotaal = sleutelTermijnen.reduce((s,t)=>s+t.bedrag,0);
@@ -586,9 +599,10 @@ function App() {
               if (week > 52) { week -= 52; jaar++; }
               return { plan_id: bestaandPlanId, naam_medewerker: m.medewerker, week_nummer: week, jaar, bedrag: t.bedrag, type: "inhouden", omschrijving: t.omschrijving, status: "open" };
             });
-            await supabase.from("borg_termijnen").insert(rows);
-            // Update totaal_borg en sleutels op bestaand plan
-            const { data: huidigPlan } = await supabase.from("borg_plannen").select("totaal_borg,sleutels").eq("id",bestaandPlanId).single();
+            const { error: termijnFout } = await supabase.from("borg_termijnen").insert(rows);
+            if (termijnFout) { showToast("Fout: borgtermijnen niet aangemaakt — totaal niet opgehoogd", "err"); }
+            // Update totaal_borg en sleutels op bestaand plan (alleen als termijnen gelukt zijn)
+            const { data: huidigPlan } = termijnFout ? { data: null } : await supabase.from("borg_plannen").select("totaal_borg,sleutels").eq("id",bestaandPlanId).single();
             if (huidigPlan) {
               await supabase.from("borg_plannen").update({
                 totaal_borg: Number(huidigPlan.totaal_borg) + extraTotaal,

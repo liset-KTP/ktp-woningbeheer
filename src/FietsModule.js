@@ -94,16 +94,31 @@ export function FietsModule({ gebruiker, showToast }) {
     } else {
       const plan = bestaandPlan[0];
       if (!plan.heeft_fiets) {
-        await supabase.from("borg_plannen").update({ heeft_fiets:true, totaal_borg: Number(plan.totaal_borg)+100 }).eq("id", plan.id);
         const nu = new Date();
         const j = new Date(Date.UTC(nu.getFullYear(),0,1));
         const sw = Math.ceil((((nu-j)/86400000)+j.getDay()+1)/7)+1;
-        const w2 = sw+1>52?1:sw+1;
-        const jaar = nu.getFullYear();
-        await supabase.from("borg_termijnen").insert([
-          { plan_id:plan.id, naam_medewerker:uitgifte.naam_medewerker, week_nummer:sw, jaar, bedrag:50, type:"inhouden", omschrijving:"Borg fiets (week 1/2)", status:"open" },
-          { plan_id:plan.id, naam_medewerker:uitgifte.naam_medewerker, week_nummer:w2, jaar: w2===1?jaar+1:jaar, bedrag:50, type:"inhouden", omschrijving:"Borg fiets (week 2/2)", status:"open" },
+        let jaar = nu.getFullYear();
+        // Plan fiets-termijnen ná de laatste bestaande termijn (voorkomt unieke-week-conflict → stille fout)
+        let w1 = sw;
+        const { data: laatste } = await supabase.from("borg_termijnen")
+          .select("week_nummer,jaar").eq("plan_id",plan.id)
+          .order("jaar",{ascending:false}).order("week_nummer",{ascending:false}).limit(1);
+        if (laatste && laatste.length > 0) {
+          const l = laatste[0];
+          if (l.jaar > jaar || (l.jaar === jaar && l.week_nummer >= w1)) { w1 = l.week_nummer + 1; jaar = l.jaar; }
+        }
+        if (w1 > 52) { w1 -= 52; jaar++; }
+        let w2 = w1 + 1, jaar2 = jaar;
+        if (w2 > 52) { w2 -= 52; jaar2++; }
+        const { error: termijnFout } = await supabase.from("borg_termijnen").insert([
+          { plan_id:plan.id, naam_medewerker:uitgifte.naam_medewerker, week_nummer:w1, jaar, bedrag:50, type:"inhouden", omschrijving:"Borg fiets (week 1/2)", status:"open" },
+          { plan_id:plan.id, naam_medewerker:uitgifte.naam_medewerker, week_nummer:w2, jaar:jaar2, bedrag:50, type:"inhouden", omschrijving:"Borg fiets (week 2/2)", status:"open" },
         ]);
+        if (termijnFout) {
+          showToast("Fout: fiets-borgtermijnen niet aangemaakt — borgtotaal NIET opgehoogd", "err");
+        } else {
+          await supabase.from("borg_plannen").update({ heeft_fiets:true, totaal_borg: Number(plan.totaal_borg)+100 }).eq("id", plan.id);
+        }
       }
     }
 
