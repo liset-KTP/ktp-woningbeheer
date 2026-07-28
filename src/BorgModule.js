@@ -240,26 +240,40 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
   }
 
   async function wijzigTermijn(id, nieuwBedrag, nieuwWeek, nieuwJaar) {
-    await supabase.from("borg_termijnen").update({
+    const { error } = await supabase.from("borg_termijnen").update({
       bedrag: Number(nieuwBedrag),
       week_nummer: Number(nieuwWeek),
       jaar: Number(nieuwJaar),
     }).eq("id", id);
+    if (error) {
+      showToast("⚠️ Wijzigen mislukt (week al bezet?): " + error.message);
+      return;
+    }
     showToast("✓ Termijn bijgewerkt");
     await loadAll();
   }
 
   async function schuifWeekOp(planId) {
-    // Verschuif alle open termijnen 1 week later
-    const planTermijnen = termijnen.filter(t => t.plan_id === planId && t.status === "open");
+    // Verschuif alle open termijnen 1 week later.
+    // BELANGRIJK: van de LAATSTE naar de EERSTE week updaten. De database heeft
+    // een unieke beperking op (plan_id, week_nummer, jaar); als je vooraan begint
+    // botst elke update met de volgende termijn en schuift alleen de laatste op.
+    const planTermijnen = termijnen
+      .filter(t => t.plan_id === planId && t.status === "open")
+      .sort((a, b) => (b.jaar - a.jaar) || (b.week_nummer - a.week_nummer));
     for (const term of planTermijnen) {
       let nieuwWeek = term.week_nummer + 1;
       let nieuwJaar = term.jaar;
       if (nieuwWeek > 52) { nieuwWeek = 1; nieuwJaar++; }
-      await supabase.from("borg_termijnen").update({
+      const { error } = await supabase.from("borg_termijnen").update({
         week_nummer: nieuwWeek,
         jaar: nieuwJaar,
       }).eq("id", term.id);
+      if (error) {
+        showToast("⚠️ Opschuiven mislukt bij week " + term.week_nummer + ": " + error.message);
+        await loadAll();
+        return;
+      }
     }
     showToast("✓ Alle termijnen 1 week opgeschoven");
     await loadAll();
