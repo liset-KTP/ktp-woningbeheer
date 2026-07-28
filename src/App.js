@@ -455,6 +455,14 @@ function App() {
     if (m.type === "verhuizing") {
       const vanHuis = houses.find(h => h.id === m.vanHuisId);
       const naarHuisVerh = houses.find(h => h.id === m.huisId);
+      // FIX: m.sleutelAantal is het aantal sleutels van de NIEUWE kamer.
+      // Voor de inlever-controle van de OUDE kamer: pak het werkelijk uitgereikte aantal
+      // uit het actieve borgplan, anders de standaard van de oude woning.
+      let inleverSleutels = vanHuis?.standaard_sleutels || 1;
+      const { data: oudPlan } = await supabase.from("borg_plannen").select("sleutels")
+        .eq("naam_medewerker", m.medewerker).eq("woning_id", m.vanHuisId).eq("status","actief")
+        .order("id",{ascending:false}).limit(1).maybeSingle();
+      if (oudPlan?.sleutels) inleverSleutels = oudPlan.sleutels;
       const sleutelAantal = m.sleutelAantal || 1;
       const context = `${m.medewerker} | Van: ${vanHuis?.adres||"?"} K${m.vanKamer} → Naar: ${naarHuisVerh?.adres||"?"} K${m.kamer}`;
 
@@ -462,14 +470,14 @@ function App() {
         // Taak 1: Huismeester — fysieke controle kamer + sleutels
         {
           titel: `Kamer controleren na verhuizing — ${m.medewerker}`,
-          omschrijving: `${context}. Controleer: kamer schoon + ${sleutelAantal} sleutel${sleutelAantal>1?"s":""} ingeleverd.`,
+          omschrijving: `${context}. Controleer: kamer schoon + ${inleverSleutels} sleutel${inleverSleutels>1?"s":""} ingeleverd.`,
           woning_id: m.vanHuisId || null,
           kamer: m.vanKamer || null,
           prioriteit: "hoog",
           voor_rol: "huismeester",
           status: "open",
           aangemaakt_door: gebruiker.naam,
-          huismeester_opmerking: `Verwacht: ${sleutelAantal} sleutel${sleutelAantal>1?"s":""}. Kamer schoon afvinken voor afronding.`,
+          huismeester_opmerking: `Verwacht: ${inleverSleutels} sleutel${inleverSleutels>1?"s":""}. Kamer schoon afvinken voor afronding.`,
         },
         // Taak 2: Backoffice — administratieve verwerking
         {
@@ -4648,6 +4656,16 @@ function MeldingForm({ houses, onSubmit, showToast, taal="nl" }) {
   const vanHuis=houses.find(h=>h.id===Number(vanHuisId));
   const naarHuis=houses.find(h=>h.id===Number(naarHuisId));
 
+  // Aantal sleutels automatisch op de standaard van de gekozen woning zetten (foutpreventie)
+  useEffect(()=>{
+    if(type==="aankomst"||type==="reservering") setSleutelAantal(selectedHouse?.standaard_sleutels??1);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[huisId,type]);
+  useEffect(()=>{
+    if(type==="verhuizing"&&naarHuisId) setSleutelAantal(naarHuis?.standaard_sleutels??1);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[naarHuisId,type]);
+
   async function handleSubmit() {
     if(!medewerker.trim()){showToast("Vul naam medewerker in","err");return;}
     if(type==="verhuizing"){
@@ -4808,8 +4826,13 @@ function MeldingForm({ houses, onSubmit, showToast, taal="nl" }) {
             </div>
             <label className="fl" style={{marginTop:12}}>Aantal sleutels nieuwe kamer</label>
             <select className="fs" value={sleutelAantal} onChange={e=>setSleutelAantal(Number(e.target.value))}>
-              {[1,2].map(n=><option key={n} value={n}>{n} sleutel{n>1?"s":""}</option>)}
+              {[1,2,3].map(n=><option key={n} value={n}>{n} sleutel{n>1?"s":""}</option>)}
             </select>
+            {naarHuis?.standaard_sleutels>1 && sleutelAantal<naarHuis.standaard_sleutels && (
+              <div style={{marginTop:6,fontSize:12,fontWeight:600,color:"#b45309",background:"#fef3c7",border:"1px solid #fcd34d",borderRadius:6,padding:"6px 10px"}}>
+                ⚠️ Standaard voor {naarHuis.adres}: {naarHuis.standaard_sleutels} sleutels. Weet je zeker dat het er {sleutelAantal} {sleutelAantal===1?"is":"zijn"}?
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -4830,7 +4853,13 @@ function MeldingForm({ houses, onSubmit, showToast, taal="nl" }) {
               </div>
             </div>
           )}
-          {type==="aankomst"&&<div><label className="fl">Aantal sleutels ontvangen</label><select className="fs" value={sleutelAantal} onChange={e=>setSleutelAantal(Number(e.target.value))}>{[0,1,2,3].map(n=><option key={n} value={n}>{n}</option>)}</select></div>}
+          {type==="aankomst"&&<div><label className="fl">Aantal sleutels ontvangen</label><select className="fs" value={sleutelAantal} onChange={e=>setSleutelAantal(Number(e.target.value))}>{[0,1,2,3].map(n=><option key={n} value={n}>{n}</option>)}</select>
+            {selectedHouse?.standaard_sleutels>1 && sleutelAantal<selectedHouse.standaard_sleutels && (
+              <div style={{marginTop:6,fontSize:12,fontWeight:600,color:"#b45309",background:"#fef3c7",border:"1px solid #fcd34d",borderRadius:6,padding:"6px 10px"}}>
+                ⚠️ Standaard voor {selectedHouse.adres}: {selectedHouse.standaard_sleutels} sleutels. Weet je zeker dat het er {sleutelAantal} {sleutelAantal===1?"is":"zijn"}?
+              </div>
+            )}
+          </div>}
         </div>
       )}
       {(type==="vertrek")&&(
