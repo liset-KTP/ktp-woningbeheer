@@ -44,27 +44,37 @@ function getMaandagVanWeek(week, jaar) {
   return d;
 }
 
+// Termijnen o.b.v. aantal sleutels (los herbruikbaar, ook bij wijzigen van een bestaand plan)
+function berekenSleutelTermijnen(sleutels) {
+  if (sleutels === 1) {
+    return [
+      { omschrijving: "Borg sleutel (week 1/2)", bedrag: 50 },
+      { omschrijving: "Borg sleutel (week 2/2)", bedrag: 50 },
+    ];
+  }
+  if (sleutels === 2) {
+    return [
+      { omschrijving: "Borg sleutels (week 1/4)", bedrag: 50 },
+      { omschrijving: "Borg sleutels (week 2/4)", bedrag: 50 },
+      { omschrijving: "Borg sleutels (week 3/4)", bedrag: 50 },
+      { omschrijving: "Borg sleutels (week 4/4)", bedrag: 30 },
+    ];
+  }
+  return [];
+}
+
+// Termijnen o.b.v. fiets
+function berekenFietsTermijnen(heeftFiets) {
+  if (!heeftFiets) return [];
+  return [
+    { omschrijving: "Borg fiets (week 1/2)", bedrag: 50 },
+    { omschrijving: "Borg fiets (week 2/2)", bedrag: 50 },
+  ];
+}
+
 // Bereken borgplan op basis van sleutels en fiets
 function berekenBorgPlan(sleutels, heeftFiets) {
-  const termijnen = [];
-
-  // Sleutels
-  if (sleutels === 1) {
-    termijnen.push({ omschrijving: "Borg sleutel (week 1/2)", bedrag: 50 });
-    termijnen.push({ omschrijving: "Borg sleutel (week 2/2)", bedrag: 50 });
-  } else if (sleutels === 2) {
-    termijnen.push({ omschrijving: "Borg sleutels (week 1/4)", bedrag: 50 });
-    termijnen.push({ omschrijving: "Borg sleutels (week 2/4)", bedrag: 50 });
-    termijnen.push({ omschrijving: "Borg sleutels (week 3/4)", bedrag: 50 });
-    termijnen.push({ omschrijving: "Borg sleutels (week 4/4)", bedrag: 30 });
-  }
-
-  // Fiets
-  if (heeftFiets) {
-    termijnen.push({ omschrijving: "Borg fiets (week 1/2)", bedrag: 50 });
-    termijnen.push({ omschrijving: "Borg fiets (week 2/2)", bedrag: 50 });
-  }
-
+  const termijnen = [...berekenSleutelTermijnen(sleutels), ...berekenFietsTermijnen(heeftFiets)];
   const totaal = termijnen.reduce((s, t) => s + t.bedrag, 0);
   return { termijnen, totaal };
 }
@@ -279,6 +289,75 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
     await loadAll();
   }
 
+  // Sleutels van een lopend plan wijzigen (bv. medewerker verhuist naar kamer met minder sleutels).
+  // Vervangt alleen de nog OPEN sleuteltermijnen door een nieuwe reeks o.b.v. het nieuwe aantal.
+  // Al verwerkte (ingehouden) sleuteltermijnen worden nooit automatisch aangepast — dat betekent
+  // geld dat al is ingehouden, en moet je bewust met een terugbetaling/extra post afhandelen.
+  async function wijzigSleutels(planId, nieuweSleutels) {
+    const plan = plannen.find(p => p.id === planId);
+    if (!plan) return;
+
+    const planTermijnen = termijnen.filter(t => t.plan_id === planId);
+    const sleutelTermijnen = planTermijnen.filter(t => t.omschrijving?.startsWith("Borg sleutel"));
+    const overigeTermijnen = planTermijnen.filter(t => !t.omschrijving?.startsWith("Borg sleutel"));
+    const verwerkteSleutelTermijnen = sleutelTermijnen.filter(t => t.status === "verwerkt");
+    const openSleutelTermijnen = sleutelTermijnen.filter(t => t.status === "open").sort((a,b)=>(a.jaar-b.jaar)||(a.week_nummer-b.week_nummer));
+
+    if (verwerkteSleutelTermijnen.length > 0) {
+      showToast("⚠️ Er is al een sleuteltermijn ingehouden — pas dit handmatig aan via een extra post (terugbetalen/inhouden), niet automatisch.", "err");
+      return;
+    }
+
+    // Startweek: gewoon doorgaan vanaf de eerste nog openstaande sleuteltermijn (niet resetten naar 'nu').
+    let startWeek = openSleutelTermijnen[0]?.week_nummer;
+    let startJaar = openSleutelTermijnen[0]?.jaar;
+    if (startWeek === undefined) {
+      const nu = new Date();
+      startWeek = getWeekNr(nu);
+      startJaar = nu.getFullYear();
+    }
+
+    const nieuweTermijnen = berekenSleutelTermijnen(Number(nieuweSleutels)).map((term, i) => {
+      let week = startWeek + i;
+      let jaar = startJaar;
+      if (week > 52) { week -= 52; jaar++; }
+      return {
+        plan_id: planId,
+        naam_medewerker: plan.naam_medewerker,
+        week_nummer: week,
+        jaar,
+        bedrag: term.bedrag,
+        type: "inhouden",
+        omschrijving: term.omschrijving,
+        status: "open",
+      };
+    });
+
+    // Eerst verwijderen (unieke beperking op plan_id+week+jaar), dan pas de nieuwe reeks invoegen.
+    if (openSleutelTermijnen.length > 0) {
+      const { error: delError } = await supabase.from("borg_termijnen").delete().in("id", openSleutelTermijnen.map(t=>t.id));
+      if (delError) { showToast("⚠️ Wijzigen mislukt: " + delError.message, "err"); return; }
+    }
+    if (nieuweTermijnen.length > 0) {
+      const { error: insError } = await supabase.from("borg_termijnen").insert(nieuweTermijnen);
+      if (insError) { showToast("⚠️ Wijzigen mislukt: " + insError.message, "err"); return; }
+    }
+
+    const overigeTotaal = overigeTermijnen.reduce((s,t)=>s+Number(t.bedrag),0);
+    const nieuwTotaalBorg = overigeTotaal + nieuweTermijnen.reduce((s,t)=>s+Number(t.bedrag),0);
+    const oudeSleutels = plan.sleutels;
+    const oudTotaalBorg = plan.totaal_borg;
+
+    await supabase.from("borg_plannen").update({
+      sleutels: Number(nieuweSleutels),
+      totaal_borg: nieuwTotaalBorg,
+      opmerkingen: `${plan.opmerkingen ? plan.opmerkingen + " | " : ""}Correctie ${new Date().toLocaleDateString("nl-NL")} (${gebruiker.naam}): sleutels ${oudeSleutels} → ${nieuweSleutels}, borg €${Number(oudTotaalBorg).toFixed(2)} → €${nieuwTotaalBorg.toFixed(2)}.`,
+    }).eq("id", planId);
+
+    showToast(`✓ Sleutels aangepast: ${oudeSleutels} → ${nieuweSleutels} sleutel(s), borg €${nieuwTotaalBorg.toFixed(2)}`);
+    await loadAll();
+  }
+
   async function archiveerPlan(planId, reden) {
     await supabase.from("borg_plannen").update({
       status: "afgesloten",
@@ -482,6 +561,7 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
           onZetTerug={zetTermijnTerug}
           onZetExtraTerug={zetExtraTerug}
           onWijzig={wijzigTermijn}
+          onWijzigSleutels={wijzigSleutels}
           readonly={readonly}
           showToast={showToast}
         />
@@ -698,7 +778,7 @@ function WeekOverzicht({ dezeWeek, volgendeWeek, plannen, huidigeWeek, huidigJaa
 }
 
 // ─── PLANNEN OVERZICHT ────────────────────────────────────────────────────────
-function PlannenOverzicht({ plannen, termijnen, extras, houses, isBackoffice, onVoegExtraToe, onSluitAf, onVerwerkExtra, onVerwerk, onOpmerking, onSchuifWeekOp, onArchiveer, onZetTerug, onZetExtraTerug, onWijzig, readonly, showToast }) {
+function PlannenOverzicht({ plannen, termijnen, extras, houses, isBackoffice, onVoegExtraToe, onSluitAf, onVerwerkExtra, onVerwerk, onOpmerking, onSchuifWeekOp, onArchiveer, onZetTerug, onZetExtraTerug, onWijzig, onWijzigSleutels, readonly, showToast }) {
   // Groepeer plannen per medewerker
   const groepen = [];
   const gezien = new Set();
@@ -710,7 +790,7 @@ function PlannenOverzicht({ plannen, termijnen, extras, houses, isBackoffice, on
     }
   });
 
-  const planProps = { houses, isBackoffice, onVoegExtraToe, onSluitAf, onVerwerkExtra, onVerwerk, onOpmerking, onSchuifWeekOp, onArchiveer, onZetTerug, onZetExtraTerug, onWijzig, readonly };
+  const planProps = { houses, isBackoffice, onVoegExtraToe, onSluitAf, onVerwerkExtra, onVerwerk, onOpmerking, onSchuifWeekOp, onArchiveer, onZetTerug, onZetExtraTerug, onWijzig, onWijzigSleutels, readonly };
 
   return (
     <div style={{display:"grid",gap:16}}>
@@ -769,7 +849,7 @@ function PlannenOverzicht({ plannen, termijnen, extras, houses, isBackoffice, on
   );
 }
 
-function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraToe, onSluitAf, onVerwerkExtra, onVerwerk, onOpmerking, onSchuifWeekOp, onArchiveer, onZetTerug, onZetExtraTerug, onWijzig, readonly, gegroepeerd=false }) {
+function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraToe, onSluitAf, onVerwerkExtra, onVerwerk, onOpmerking, onSchuifWeekOp, onArchiveer, onZetTerug, onZetExtraTerug, onWijzig, onWijzigSleutels, readonly, gegroepeerd=false }) {
   const [toonDetails, setToonDetails] = useState(false);
   const [toonExtra, setToonExtra] = useState(false);
   const [toonOpmerkingForm, setToonOpmerkingForm] = useState(false);
@@ -779,12 +859,15 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
   const [extraType, setExtraType] = useState("inhouden");
   const [toonArchiveer, setToonArchiveer] = useState(false);
   const [archiveerReden, setArchiveerReden] = useState("");
+  const [toonSleutelsWijzig, setToonSleutelsWijzig] = useState(false);
+  const [nieuweSleutels, setNieuweSleutels] = useState(plan.sleutels ?? 0);
   const [extraBijlage, setExtraBijlage] = useState(null);
   const [uploadingBijlage, setUploadingBijlage] = useState(false);
   const huis = houses.find(h=>h.id===plan.woning_id);
 
   const openTermijnen = termijnen.filter(t=>t.status==="open");
   const verwerktTermijnen = termijnen.filter(t=>t.status==="verwerkt");
+  const heeftVerwerkteSleutelTermijn = verwerktTermijnen.some(t=>t.omschrijving?.startsWith("Borg sleutel"));
 
   // Alles wat al ingehouden is (verwerkte termijnen + al_ingehouden extra posten + verwerkte inhoud extra)
   const totaalIngehouden = verwerktTermijnen.reduce((s,t)=>s+Number(t.bedrag),0)
@@ -1012,6 +1095,55 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
             style={{background:"white",border:`1.5px solid #f59e0b`,color:"#b45309",borderRadius:8,padding:"8px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
             📅 Week opschuiven
           </button>
+
+          {/* Sleutels aanpassen (bv. medewerker verhuisd naar kamer met minder/meer sleutels) */}
+          {toonSleutelsWijzig ? (
+            <div style={{width:"100%",background:C.bg,border:`1px solid ${C.border}`,borderRadius:10,padding:14,marginTop:4}}>
+              <div style={{fontWeight:700,fontSize:13,color:C.text,marginBottom:8}}>🔑 Sleutels aanpassen</div>
+              {heeftVerwerkteSleutelTermijn ? (
+                <div style={{fontSize:12,color:C.rood,marginBottom:10}}>
+                  ⚠️ Er is al een sleuteltermijn ingehouden bij dit plan. Dit kan niet automatisch herberekend worden —
+                  regel het verschil handmatig via "➕ Extra post" (inhouden of terugbetalen).
+                </div>
+              ) : (
+                <>
+                  <div style={{display:"flex",gap:10,marginBottom:10}}>
+                    {[[0,"Geen","€0"],[1,"1 sleutel","€100"],[2,"2 sleutels","€180"]].map(([n,l,prijs])=>(
+                      <div key={n} onClick={()=>setNieuweSleutels(n)}
+                        style={{flex:1,border:`2px solid ${nieuweSleutels===n?C.blauw:C.border}`,borderRadius:8,padding:"8px",textAlign:"center",cursor:"pointer",background:nieuweSleutels===n?C.blauw+"10":"white"}}>
+                        <div style={{fontWeight:700,fontSize:12,color:nieuweSleutels===n?C.blauw:C.muted}}>{l}</div>
+                        <div style={{fontSize:11,color:C.muted}}>{prijs}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{fontSize:11,color:C.muted,marginBottom:10}}>
+                    Alleen de nog openstaande sleuteltermijnen worden vervangen. Fiets- en extra posten blijven ongewijzigd.
+                  </div>
+                </>
+              )}
+              <div style={{display:"flex",gap:8}}>
+                {!heeftVerwerkteSleutelTermijn && (
+                  <button onClick={()=>{
+                      if (nieuweSleutels === plan.sleutels) { setToonSleutelsWijzig(false); return; }
+                      onWijzigSleutels(plan.id, nieuweSleutels);
+                      setToonSleutelsWijzig(false);
+                    }}
+                    style={{background:C.blauw,color:"white",border:"none",borderRadius:8,padding:"8px 16px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                    ✓ Toepassen
+                  </button>
+                )}
+                <button onClick={()=>{ setToonSleutelsWijzig(false); setNieuweSleutels(plan.sleutels ?? 0); }}
+                  style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"8px 12px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>
+                  Annuleren
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button onClick={()=>{ setNieuweSleutels(plan.sleutels ?? 0); setToonSleutelsWijzig(true); }}
+              style={{background:"white",border:`1.5px solid ${C.blauw}`,color:C.blauw,borderRadius:8,padding:"8px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+              🔑 Sleutels aanpassen
+            </button>
+          )}
 
           {/* Archiveren met reden */}
           {toonArchiveer ? (
