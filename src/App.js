@@ -1115,11 +1115,74 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
   const [nieuweSchuldOmschr, setNieuweSchuldOmschr] = useState("");
   const isReadonly = gebruiker?.rol === "huismeester" || gebruiker?.rol === "collega";
 
-  const alleMedewerkers = useMemo(() => {
-    const namen = new Set();
-    houses.forEach(h => (h.kamers||[]).forEach(k => { if (k.naam && k.naam.trim()) namen.add(k.naam.trim()); }));
-    return [...namen].sort((a,b) => a.localeCompare(b));
+  const [openstaandeNamen, setOpenstaandeNamen] = useState([]);
+
+  useEffect(() => {
+    // Medewerkers die niet meer in een kamer staan, maar nog wel een openstaande
+    // vertrekmelding, actief borgplan of actieve huurschuld hebben moeten vindbaar
+    // blijven — anders raakt hun financiele/administratieve afhandeling zoek.
+    async function laadOpenstaandeNamen() {
+      const [vertrekRes, borgRes, schuldRes] = await Promise.all([
+        supabase.from("meldingen").select("medewerker").eq("type","vertrek").neq("status","afgehandeld"),
+        supabase.from("borg_plannen").select("naam_medewerker").eq("status","actief"),
+        supabase.from("huurschulden").select("naam_medewerker").eq("actief", true),
+      ]);
+      const namen = new Set();
+      (vertrekRes.data||[]).forEach(r => r.medewerker && namen.add(r.medewerker.trim()));
+      (borgRes.data||[]).forEach(r => r.naam_medewerker && namen.add(r.naam_medewerker.trim()));
+      (schuldRes.data||[]).forEach(r => r.naam_medewerker && namen.add(r.naam_medewerker.trim()));
+      setOpenstaandeNamen([...namen]);
+    }
+    laadOpenstaandeNamen();
+  }, []);
+
+  const gehuisvestSet = useMemo(() => {
+    const s = new Set();
+    houses.forEach(h => (h.kamers||[]).forEach(k => { if (k.naam && k.naam.trim()) s.add(k.naam.trim()); }));
+    return s;
   }, [houses]);
+
+  const openstaandSet = useMemo(() => new Set(openstaandeNamen), [openstaandeNamen]);
+
+  // Volledig archief (iedereen die ooit is voorgekomen) wordt pas geladen als de
+  // toggle "toon ook archief" wordt aangezet — voorkomt onnodige laadtijd/queries
+  // voor het dagelijkse gebruik, waarin alleen huidige + openstaande zaken tellen.
+  const [toonArchief, setToonArchief] = useState(false);
+  const [archiefNamen, setArchiefNamen] = useState(null);
+  const [archiefLaden, setArchiefLaden] = useState(false);
+
+  useEffect(() => {
+    if (!toonArchief || archiefNamen !== null) return;
+    async function laadArchief() {
+      setArchiefLaden(true);
+      const [meldRes, autoRes, borgRes, schuldRes, fietsRes, kledingRes] = await Promise.all([
+        supabase.from("meldingen").select("medewerker"),
+        supabase.from("auto_meldingen").select("naam_medewerker"),
+        supabase.from("borg_plannen").select("naam_medewerker"),
+        supabase.from("huurschulden").select("naam_medewerker"),
+        supabase.from("fietsen").select("naam_medewerker"),
+        supabase.from("kleding_transacties").select("medewerker"),
+      ]);
+      const namen = new Set();
+      const voegToe = (rows, veld) => (rows||[]).forEach(r => r[veld] && namen.add(r[veld].trim()));
+      voegToe(meldRes.data, "medewerker");
+      voegToe(autoRes.data, "naam_medewerker");
+      voegToe(borgRes.data, "naam_medewerker");
+      voegToe(schuldRes.data, "naam_medewerker");
+      voegToe(fietsRes.data, "naam_medewerker");
+      voegToe(kledingRes.data, "medewerker");
+      setArchiefNamen([...namen]);
+      setArchiefLaden(false);
+    }
+    laadArchief();
+  }, [toonArchief, archiefNamen]);
+
+  const alleMedewerkers = useMemo(() => {
+    const namen = new Set(gehuisvestSet);
+    openstaandeNamen.forEach(n => namen.add(n));
+    if (toonArchief && archiefNamen) archiefNamen.forEach(n => namen.add(n));
+    return [...namen].sort((a,b) => a.localeCompare(b));
+  }, [gehuisvestSet, openstaandeNamen, toonArchief, archiefNamen]);
 
   const gefilterd = zoek.trim()
     ? alleMedewerkers.filter(n => n.toLowerCase().includes(zoek.toLowerCase()))
@@ -1252,7 +1315,11 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
         <div className="card" style={{padding:14,position:"sticky",top:80}}>
           <div style={{fontWeight:800,fontSize:15,color:C.blauw,marginBottom:12}}>👤 Medewerker</div>
           <input className="fi" value={zoek} onChange={e=>setZoek(e.target.value)}
-            placeholder="Naam zoeken..." style={{marginBottom:10,fontSize:13,padding:"8px 12px"}}/>
+            placeholder="Naam zoeken..." style={{marginBottom:8,fontSize:13,padding:"8px 12px"}}/>
+          <label style={{display:"flex",alignItems:"center",gap:6,fontSize:11,color:C.muted,marginBottom:10,cursor:"pointer"}}>
+            <input type="checkbox" checked={toonArchief} onChange={e=>setToonArchief(e.target.checked)}/>
+            Toon ook volledig afgehandeld archief{archiefLaden?" (laden...)":""}
+          </label>
           <div style={{maxHeight:480,overflowY:"auto"}}>
             {gefilterd.length === 0
               ? <div style={{fontSize:12,color:C.muted,fontStyle:"italic"}}>Geen resultaten</div>
@@ -1262,6 +1329,11 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
                     background:gekozen===naam?C.blauw+"18":"transparent",color:gekozen===naam?C.blauw:C.text,
                     borderLeft:gekozen===naam?`3px solid ${C.blauw}`:"3px solid transparent",marginBottom:2,transition:"all .15s"}}>
                   {naam}
+                  {!gehuisvestSet.has(naam) && (
+                    openstaandSet.has(naam)
+                      ? <span style={{marginLeft:6,fontSize:9,fontWeight:700,color:"#ef4444"}}>VERTROKKEN · OPENSTAAND</span>
+                      : <span style={{marginLeft:6,fontSize:9,fontWeight:700,color:C.muted}}>VERTROKKEN · ARCHIEF</span>
+                  )}
                 </div>
               ))}
           </div>
@@ -5955,6 +6027,7 @@ function ChecklistItemsBeheer({ checklistItems, showToast }) {
 function LogView({meldingen,houses,activiteiten}) {
   const [zoek, setZoek] = useState("");
   const [typeFilter, setTypeFilter] = useState("alle");
+  const [uitgeklapt, setUitgeklapt] = useState(new Set());
   const [autoMeldingen, setAutoMeldingen] = useState([]);
   const [fietsLog, setFietsLog] = useState([]);
   const [borgPlannen, setBorgPlannen] = useState([]);
@@ -6113,7 +6186,19 @@ function LogView({meldingen,houses,activiteiten}) {
                 </div>
                 <div>
                   <div style={{color:C.muted,fontSize:11}}>{item.adres}{item.kamer?` · K${item.kamer}`:""}</div>
-                  {item.extra&&<div style={{fontSize:11,color:C.text,fontStyle:"italic"}}>{item.extra.slice(0,70)}{item.extra.length>70?"...":""}</div>}
+                  {item.extra&&(()=>{
+                    const lang=item.extra.length>70;
+                    const open=uitgeklapt.has(item.id);
+                    return (
+                      <div onClick={()=>lang&&setUitgeklapt(prev=>{const n=new Set(prev); n.has(item.id)?n.delete(item.id):n.add(item.id); return n;})}
+                        title={lang?(open?"Klik om in te klappen":"Klik om volledig bericht te lezen"):undefined}
+                        style={{fontSize:11,color:C.text,fontStyle:"italic",cursor:lang?"pointer":"default",
+                          whiteSpace:open?"pre-wrap":"nowrap",overflow:open?"visible":"hidden",textOverflow:open?"clip":"ellipsis"}}>
+                        {open?item.extra:`${item.extra.slice(0,70)}${lang?"...":""}`}
+                        {lang&&<span style={{color:C.blauw,fontWeight:700,marginLeft:4,fontStyle:"normal"}}>{open?"▲ minder":"▼ meer"}</span>}
+                      </div>
+                    );
+                  })()}
                 </div>
                 <span style={{fontWeight:600,color:C.blauw,fontSize:11}}>{item.door}</span>
               </div>
