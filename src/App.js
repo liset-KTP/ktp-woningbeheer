@@ -6244,7 +6244,10 @@ function LogView({meldingen,houses,activiteiten}) {
       id:`m-${m.id}`, soort:"melding", datum:m.created_at,
       type:m.type, naam:m.medewerker, door:m.ingediend_door,
       adres:houses.find(h=>h.id===m.woning_id)?.adres||"",
-      kamer:m.kamer, status:m.status, notitie:m.notitie||"", extra:m.opmerkingen||"",
+      kamer:m.kamer, status:m.status, notitie:m.notitie||"",
+      extra:(m.type==="aankomst"||m.type==="reservering")&&m.datum
+        ?`Verwachte aankomst: ${fmtDateJaar(m.datum)}${m.opmerkingen?` · ${m.opmerkingen}`:""}`
+        :(m.opmerkingen||""),
     })),
     ...activiteiten.map(a=>({
       id:`a-${a.id}`, soort:"activiteit", datum:a.created_at,
