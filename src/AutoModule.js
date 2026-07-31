@@ -181,20 +181,57 @@ export function AutoModule({ gebruiker, showToast }) {
     showToast("✓ Auto toegevoegd"); return true;
   }
 
-  async function updateAuto(id, updates) {
-    const { error } = await supabase.from("autos").update(updates).eq("id", id);
+  // Velden die je via het bewerkformulier kunt wijzigen — gebruikt om een leesbare
+  // wijzigingslog te bouwen (welk veld ging van wat naar wat).
+  const AUTO_AUDIT_VELDEN = [
+    { key: "kenteken",       label: "Kenteken" },
+    { key: "merk_model",     label: "Merk & model" },
+    { key: "kleur",          label: "Kleur" },
+    { key: "vestiging",      label: "Vestiging" },
+    { key: "naam_medewerker",label: "Medewerker" },
+    { key: "apk_datum",      label: "APK datum" },
+    { key: "datum_uitgifte", label: "Datum uitgifte" },
+    { key: "status",         label: "Status" },
+  ];
+
+  function autoWijzigingen(oud, nieuw) {
+    return AUTO_AUDIT_VELDEN
+      .filter(f => (oud?.[f.key] || "") !== (nieuw?.[f.key] || ""))
+      .map(f => `${f.label}: "${oud?.[f.key] || "—"}" → "${nieuw?.[f.key] || "—"}"`);
+  }
+
+  async function logAutoActiviteit(type, omschrijving, extra) {
+    await supabase.from("activiteiten").insert([{
+      type, omschrijving, gedaan_door: gebruiker.naam, extra,
+    }]);
+  }
+
+  async function updateAuto(id, updates, oudeAuto) {
+    const payload = { ...updates, bijgewerkt_door: gebruiker.naam, updated_at: new Date().toISOString() };
+    const { error } = await supabase.from("autos").update(payload).eq("id", id);
     if (error) { showToast("Fout bij opslaan","err"); return false; }
+
+    const wijzigingen = autoWijzigingen(oudeAuto, updates);
+    if (wijzigingen.length) {
+      await logAutoActiviteit(
+        "auto_bewerkt",
+        `🚗 Auto bewerkt: ${updates.kenteken || oudeAuto?.kenteken} — ${wijzigingen.join(", ")}`,
+        { auto_id: id, wijzigingen }
+      );
+    }
     showToast("✓ Opgeslagen"); return true;
   }
 
-  async function archiveerAuto(id) {
-    const { error } = await supabase.from("autos").update({ gearchiveerd: true }).eq("id", id);
+  async function archiveerAuto(id, kenteken) {
+    const { error } = await supabase.from("autos").update({ gearchiveerd: true, bijgewerkt_door: gebruiker.naam, updated_at: new Date().toISOString() }).eq("id", id);
     if (error) { showToast("Fout bij archiveren","err"); return false; }
+    await logAutoActiviteit("auto_gearchiveerd", `🗃 Auto gearchiveerd: ${kenteken || id}`, { auto_id: id });
     showToast("✓ Auto gearchiveerd"); await loadAutos(); await loadGearchiveerdeAutos(); return true;
   }
-  async function terugzetAuto(id) {
-    const { error } = await supabase.from("autos").update({ gearchiveerd: false }).eq("id", id);
+  async function terugzetAuto(id, kenteken) {
+    const { error } = await supabase.from("autos").update({ gearchiveerd: false, bijgewerkt_door: gebruiker.naam, updated_at: new Date().toISOString() }).eq("id", id);
     if (error) { showToast("Fout bij terugzetten","err"); return false; }
+    await logAutoActiviteit("auto_teruggezet", `↩️ Auto teruggezet uit archief: ${kenteken || id}`, { auto_id: id });
     showToast("✓ Auto teruggezet"); await loadAutos(); await loadGearchiveerdeAutos(); return true;
   }
 
@@ -989,7 +1026,7 @@ function AutoBeheer({ autos, gearchiveerdeAutos=[], onAdd, onUpdate, onArchiveer
         {autos.map((a,i) => {
           const c = AUTO_STATUS_MAP[a.status]||{bg:C.bg,text:C.muted};
           return bewerkId === a.id ? (
-            <AutoBewerken key={a.id} auto={a} onSave={async u=>{setSaving(true);await onUpdate(a.id,u);setSaving(false);setBewerkId(null);}} onCancel={()=>setBewerkId(null)} saving={saving}/>
+            <AutoBewerken key={a.id} auto={a} onSave={async u=>{setSaving(true);await onUpdate(a.id,u,a);setSaving(false);setBewerkId(null);}} onCancel={()=>setBewerkId(null)} saving={saving}/>
           ) : (
             <div key={a.id} style={{display:"grid",gridTemplateColumns:"120px 1fr 130px 100px 100px 120px 80px",padding:"12px 16px",fontSize:12,borderBottom:i<autos.length-1?`1px solid ${C.border}`:"none",alignItems:"center",background:i%2===0?"white":C.bg+"40"}}>
               <span style={{fontWeight:800,color:C.blauw,fontFamily:"monospace"}}>{a.kenteken}</span>
@@ -1000,7 +1037,7 @@ function AutoBeheer({ autos, gearchiveerdeAutos=[], onAdd, onUpdate, onArchiveer
               <span style={{padding:"3px 8px",borderRadius:6,background:c.bg,color:c.text,fontSize:10,fontWeight:700}}>{a.status}</span>
               <div style={{display:"flex",gap:4}}>
                 <button onClick={()=>setBewerkId(a.id)} style={{background:"white",border:`1px solid ${C.border}`,borderRadius:6,padding:"4px 8px",cursor:"pointer",fontSize:11}}>✏️</button>
-                <button onClick={async()=>{if(window.confirm(`${a.kenteken} archiveren?`)){await onArchiveer(a.id);}}} style={{background:"#f59e0b",color:"white",border:"none",borderRadius:6,padding:"4px 8px",cursor:"pointer",fontSize:11}}>🗃</button>
+                <button onClick={async()=>{if(window.confirm(`${a.kenteken} archiveren?`)){await onArchiveer(a.id,a.kenteken);}}} style={{background:"#f59e0b",color:"white",border:"none",borderRadius:6,padding:"4px 8px",cursor:"pointer",fontSize:11}}>🗃</button>
               </div>
             </div>
           );
@@ -1018,7 +1055,7 @@ function AutoBeheer({ autos, gearchiveerdeAutos=[], onAdd, onUpdate, onArchiveer
                 <span style={{fontWeight:800,color:"#6b7280",fontFamily:"monospace",marginRight:12}}>{a.kenteken}</span>
                 <span style={{fontSize:12,color:"#9ca3af"}}>{a.merk_model}{a.kleur ? " · " + a.kleur : ""}</span>
               </div>
-              <button onClick={async()=>{if(window.confirm(a.kenteken + " terugzetten?")){await onTerugzetten(a.id);}}}
+              <button onClick={async()=>{if(window.confirm(a.kenteken + " terugzetten?")){await onTerugzetten(a.id,a.kenteken);}}}
                 style={{background:"#10b981",color:"white",border:"none",borderRadius:6,padding:"4px 12px",cursor:"pointer",fontSize:11}}>
                 ↩ Terugzetten
               </button>
