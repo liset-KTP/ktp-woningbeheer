@@ -64,6 +64,7 @@ const C = {
 // ─── STATUS KLEUREN ───────────────────────────────────────────────────────────
 const STATUS_MAP = {
   "Lopend":            { bg:"#4A9B3C18", text:"#357a2b", dot:"#4A9B3C" },
+  "Vakantie":          { bg:"#14b8a618", text:"#0f766e", dot:"#14b8a6" },
   "Beschikbaar":       { bg:"#1B3A6B18", text:"#1B3A6B", dot:"#2a52a0" },
   "Gereserveerd":      { bg:"#f59e0b18", text:"#b45309", dot:"#f59e0b" },
   "Controle":          { bg:"#ef444418", text:"#b91c1c", dot:"#ef4444" },
@@ -5155,6 +5156,7 @@ function WoningenDetail({houses, onUpdateWoning}) {
   const beschikbaar=houses.reduce((s,h)=>s+h.kamers.filter(k=>k.status==="Beschikbaar").length,0);
   const gereserveerd=houses.reduce((s,h)=>s+h.kamers.filter(k=>k.status==="Gereserveerd").length,0);
   const controle=houses.reduce((s,h)=>s+h.kamers.filter(k=>k.status==="Controle").length,0);
+  const vakantie=houses.reduce((s,h)=>s+h.kamers.filter(k=>k.status==="Vakantie").length,0);
   const filtered=houses.filter(h=>{
     if(filterStad!=="Alle"&&h.stad!==filterStad) return false;
     if(filterStatus!=="Alle"&&!h.kamers.some(k=>k.status===filterStatus)) return false;
@@ -5180,10 +5182,11 @@ function WoningenDetail({houses, onUpdateWoning}) {
   return(
     <div>
       <SH titel="Woningoverzicht" sub={`Alle ${houses.length} woningen met bewoners en kamerstatus`}/>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10,marginBottom:24}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:10,marginBottom:24}}>
         <SK label="Bezet" val={bezet} color={C.groen}/>
         <SK label="Beschikbaar" val={beschikbaar} color={C.blauw}/>
         <SK label="Gereserveerd" val={gereserveerd} color="#f59e0b"/>
+        <SK label="Vakantie" val={vakantie} color="#14b8a6"/>
         <SK label="Controle" val={controle} color="#ef4444"/>
         <SK label="Totaal kamers" val={total} color={C.muted}/>
       </div>
@@ -5213,7 +5216,7 @@ function WoningenDetail({houses, onUpdateWoning}) {
               <div style={{borderTop:`1px solid ${C.border}`,paddingTop:10}}>
                 {[...h.kamers].sort((a,b)=>parseFloat(a.k)-parseFloat(b.k)).map(k=>{
                   const c=STATUS_MAP[k.status]||{bg:C.bg,text:C.muted,dot:C.muted};
-                  const rijBg=k.status==="Controle"?"#fef2f2":k.status==="Moet aan het werk"?"#fff7ed":k.status==="Moet weg"?"#fff1f2":k.status==="Beschikbaar"?C.blauw+"08":"transparent";
+                  const rijBg=k.status==="Controle"?"#fef2f2":k.status==="Moet aan het werk"?"#fff7ed":k.status==="Moet weg"?"#fff1f2":k.status==="Vakantie"?"#14b8a608":k.status==="Beschikbaar"?C.blauw+"08":"transparent";
                   const isBezig=bewerkKamer?.huisId===h.id&&bewerkKamer?.kamerNr===k.k;
 
                   return(
@@ -5271,6 +5274,7 @@ function WoningenDetail({houses, onUpdateWoning}) {
                 {h.kamers.filter(k=>k.status==="Gereserveerd").length>0&&<span style={{fontSize:10,fontWeight:600,color:"#b45309",background:"#fef3c7",padding:"3px 8px",borderRadius:4}}>{h.kamers.filter(k=>k.status==="Gereserveerd").length} gereserveerd</span>}
                 {h.kamers.filter(k=>k.status==="Controle").length>0&&<span style={{fontSize:10,fontWeight:600,color:"#ef4444",background:"#fef2f2",padding:"3px 8px",borderRadius:4}}>⚠ {h.kamers.filter(k=>k.status==="Controle").length} controle</span>}
                 {h.kamers.filter(k=>k.status==="Moet aan het werk").length>0&&<span style={{fontSize:10,fontWeight:600,color:"#c2410c",background:"#fff7ed",padding:"3px 8px",borderRadius:4}}>⚠ {h.kamers.filter(k=>k.status==="Moet aan het werk").length} moet aan het werk</span>}
+                {h.kamers.filter(k=>k.status==="Vakantie").length>0&&<span style={{fontSize:10,fontWeight:600,color:"#0f766e",background:"#14b8a618",padding:"3px 8px",borderRadius:4}}>🏖 {h.kamers.filter(k=>k.status==="Vakantie").length} op vakantie</span>}
                 {h.kamers.filter(k=>k.status==="Vertrokken").length>0&&<span style={{fontSize:10,fontWeight:600,color:"#52525b",background:"#f4f4f5",padding:"3px 8px",borderRadius:4}}>{h.kamers.filter(k=>k.status==="Vertrokken").length} vertrokken</span>}
               </div>
             </div>
