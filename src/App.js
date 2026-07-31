@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, Component } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, Component } from "react";
 
 class ErrorBoundary extends Component {
   constructor(props) { super(props); this.state = { error: null }; }
@@ -249,6 +249,34 @@ function App() {
     const s8 = supabase.channel("dag-rt").on("postgres_changes",{event:"*",schema:"public",table:"dagplanning"},()=>loadDagplanning()).subscribe();
     return () => { supabase.removeChannel(s1); supabase.removeChannel(s2); supabase.removeChannel(s3); supabase.removeChannel(s4); supabase.removeChannel(s5); supabase.removeChannel(s6); supabase.removeChannel(s7); supabase.removeChannel(s8); };
   }, [loadHouses, loadMeldingen, loadTaken, loadChecklists, loadGebruikers, loadChecklistItems, loadActiviteiten, loadDagplanning, loadOngelzenAutoReacties, loadAutoMeldingenApp]);
+
+  // Vakantie-controle: als de "datum terug" van een kamer met status Vakantie is verstreken,
+  // automatisch een taak aanmaken voor de huismeester om te controleren of de bewoner echt terug is.
+  // Dubbele taken worden voorkomen via een sessie-guard + check op reeds openstaande taken.
+  const vakantieCheckGedaan = useRef(new Set());
+  useEffect(() => {
+    if (loading) return;
+    const vandaag = todayISO();
+    houses.forEach(h => {
+      (h.kamers || []).forEach(k => {
+        if (k.status !== "Vakantie" || !k.vakantieTot || k.vakantieTot > vandaag) return;
+        const guardKey = `${h.id}-${k.k}-${k.vakantieTot}`;
+        if (vakantieCheckGedaan.current.has(guardKey)) return;
+        const bestaatAl = taken.some(t =>
+          t.woning_id === h.id && t.kamer === k.k && t.status === "open" &&
+          (t.titel || "").startsWith("Controleer terugkomst vakantie")
+        );
+        if (bestaatAl) { vakantieCheckGedaan.current.add(guardKey); return; }
+        vakantieCheckGedaan.current.add(guardKey);
+        supabase.from("taken").insert([{
+          titel: `Controleer terugkomst vakantie — ${k.naam || "kamer " + k.k}`,
+          omschrijving: `${k.naam || "Bewoner"} zou terug moeten zijn van vakantie op ${k.vakantieTot} (kamer ${k.k}, ${h.adres}, ${h.stad}). Controleer of dit klopt en zet de kamerstatus terug naar "Lopend", of pas de datum aan als het nog niet zover is.`,
+          woning_id: h.id, kamer: k.k, prioriteit: "normaal", voor_rol: "huismeester",
+          status: "open", aangemaakt_door: "Systeem (vakantie-check)",
+        }]).then(({ error }) => { if (!error) loadTaken(); });
+      });
+    });
+  }, [houses, taken, loading, loadTaken]);
 
   function showToast(msg, type="ok") { setToast({msg,type}); setTimeout(()=>setToast(null),3500); }
 
@@ -5227,13 +5255,14 @@ function WoningenDetail({houses, onUpdateWoning}) {
 
   function startBewerk(huis, k) {
     setBewerkKamer({huisId:huis.id, kamerNr:k.k});
-    setBewerkWaarden({naam:k.naam||"", bedrijf:k.bedrijf||"", status:k.status||"Beschikbaar"});
+    setBewerkWaarden({naam:k.naam||"", bedrijf:k.bedrijf||"", status:k.status||"Beschikbaar", opmerking:k.opmerking||"", vakantieTot:k.vakantieTot||""});
   }
 
   async function slaBewerk(huis) {
     setSaving(true);
+    const waarden = bewerkWaarden.status==="Vakantie" ? bewerkWaarden : {...bewerkWaarden, vakantieTot:""};
     const nieuweKamers = huis.kamers.map(k =>
-      k.k===bewerkKamer.kamerNr ? {...k,...bewerkWaarden} : k
+      k.k===bewerkKamer.kamerNr ? {...k,...waarden} : k
     );
     await onUpdateWoning(huis.id, {kamers:nieuweKamers}, huis);
     setSaving(false);
@@ -5297,11 +5326,21 @@ function WoningenDetail({houses, onUpdateWoning}) {
                             </div>
                           </div>
                           <div style={{marginBottom:8}}>
+                            <label style={{fontSize:10,fontWeight:600,color:C.muted,display:"block",marginBottom:3,textTransform:"uppercase",letterSpacing:".5px"}}>Opmerking</label>
+                            <input className="fi" value={bewerkWaarden.opmerking} onChange={e=>setBewerkWaarden(p=>({...p,opmerking:e.target.value}))} placeholder="Bijv. terug 9-8, sleutel bij buren..." style={{fontSize:12,padding:"6px 10px"}}/>
+                          </div>
+                          <div style={{marginBottom:8}}>
                             <label style={{fontSize:10,fontWeight:600,color:C.muted,display:"block",marginBottom:3,textTransform:"uppercase",letterSpacing:".5px"}}>Status</label>
                             <select className="fs" value={bewerkWaarden.status} onChange={e=>setBewerkWaarden(p=>({...p,status:e.target.value}))} style={{fontSize:12,padding:"6px 10px"}}>
                               {STATUSSEN.map(s=><option key={s}>{s}</option>)}
                             </select>
                           </div>
+                          {bewerkWaarden.status==="Vakantie"&&(
+                            <div style={{marginBottom:8}}>
+                              <label style={{fontSize:10,fontWeight:600,color:"#0f766e",display:"block",marginBottom:3,textTransform:"uppercase",letterSpacing:".5px"}}>🏖 Datum terug</label>
+                              <input type="date" className="fi" value={bewerkWaarden.vakantieTot} onChange={e=>setBewerkWaarden(p=>({...p,vakantieTot:e.target.value}))} style={{fontSize:12,padding:"6px 10px"}}/>
+                            </div>
+                          )}
                           <div style={{display:"flex",gap:6}}>
                             <button className="btn-b" style={{flex:1,padding:"7px",fontSize:12}} onClick={()=>slaBewerk(h)} disabled={saving}>
                               {saving?"⏳":"✓ Opslaan"}
@@ -5311,18 +5350,30 @@ function WoningenDetail({houses, onUpdateWoning}) {
                         </div>
                       ) : (
                         // ── Normale weergave met bewerk-knop ──
-                        <div style={{display:"flex",alignItems:"center",gap:8,padding:"6px 8px",borderRadius:7,marginBottom:2,background:rijBg,cursor:"pointer"}}
-                          onMouseEnter={e=>e.currentTarget.style.background=C.blauw+"08"}
-                          onMouseLeave={e=>e.currentTarget.style.background=rijBg}>
-                          <div style={{width:6,height:6,borderRadius:2,background:c.dot,flexShrink:0}}/>
-                          <span style={{fontSize:11,fontWeight:700,color:C.muted,minWidth:28,fontFamily:"monospace"}}>K{k.k}</span>
-                          <span style={{flex:1,fontSize:13,color:k.naam?C.text:"#aab4c4",fontStyle:k.naam?"normal":"italic",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{k.naam||"leeg"}</span>
-                          {k.bedrijf&&<span style={{fontSize:11,color:C.muted,whiteSpace:"nowrap",flexShrink:1,overflow:"hidden",textOverflow:"ellipsis",maxWidth:"35%"}}>{k.bedrijf}</span>}
-                          <span style={{padding:"2px 8px",borderRadius:4,background:c.bg,color:c.text,fontSize:10,fontWeight:600,whiteSpace:"nowrap",flexShrink:0}}>{k.status}</span>
-                          {onUpdateWoning&&(
-                            <button onClick={()=>startBewerk(h,k)}
-                              style={{background:"none",border:`1px solid ${C.border}`,borderRadius:5,padding:"2px 7px",fontSize:11,cursor:"pointer",color:C.muted,flexShrink:0,transition:"all .15s"}}
-                              title="Bewerken">✏️</button>
+                        <div style={{marginBottom:2}}>
+                          <div style={{display:"flex",alignItems:"center",gap:8,padding:"6px 8px",borderRadius:7,background:rijBg,cursor:"pointer"}}
+                            onMouseEnter={e=>e.currentTarget.style.background=C.blauw+"08"}
+                            onMouseLeave={e=>e.currentTarget.style.background=rijBg}>
+                            <div style={{width:6,height:6,borderRadius:2,background:c.dot,flexShrink:0}}/>
+                            <span style={{fontSize:11,fontWeight:700,color:C.muted,minWidth:28,fontFamily:"monospace"}}>K{k.k}</span>
+                            <span style={{flex:1,fontSize:13,color:k.naam?C.text:"#aab4c4",fontStyle:k.naam?"normal":"italic",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{k.naam||"leeg"}</span>
+                            {k.bedrijf&&<span style={{fontSize:11,color:C.muted,whiteSpace:"nowrap",flexShrink:1,overflow:"hidden",textOverflow:"ellipsis",maxWidth:"35%"}}>{k.bedrijf}</span>}
+                            <span style={{padding:"2px 8px",borderRadius:4,background:c.bg,color:c.text,fontSize:10,fontWeight:600,whiteSpace:"nowrap",flexShrink:0}}>{k.status}</span>
+                            {onUpdateWoning&&(
+                              <button onClick={()=>startBewerk(h,k)}
+                                style={{background:"none",border:`1px solid ${C.border}`,borderRadius:5,padding:"2px 7px",fontSize:11,cursor:"pointer",color:C.muted,flexShrink:0,transition:"all .15s"}}
+                                title="Bewerken">✏️</button>
+                            )}
+                          </div>
+                          {(k.opmerking||(k.status==="Vakantie"&&k.vakantieTot))&&(
+                            <div style={{fontSize:11,color:"#0f766e",padding:"0 8px 2px 22px",fontStyle:"italic"}}>
+                              {k.opmerking&&<span>📝 {k.opmerking}</span>}
+                              {k.status==="Vakantie"&&k.vakantieTot&&(
+                                k.vakantieTot<=todayISO()
+                                  ? <span style={{color:"#c2410c",fontWeight:700,marginLeft:k.opmerking?8:0}}>⚠ terug verwacht {k.vakantieTot} — controleer</span>
+                                  : <span style={{marginLeft:k.opmerking?8:0}}>🏖 terug op {k.vakantieTot}</span>
+                              )}
+                            </div>
                           )}
                         </div>
                       )}
@@ -5760,7 +5811,7 @@ function WoningBeheer({houses,onAdd,onUpdate,onArchiveer,showToast}) {
   const [geselecteerd,setGeselecteerd]=useState(null);
   const [nieuweWoning,setNieuweWoning]=useState({stad:"",adres:"",postcode:""});
   const [toonNieuwe,setToonNieuwe]=useState(false);
-  const [nieuweKamer,setNieuweKamer]=useState({k:"",naam:"",bedrijf:"",status:"Beschikbaar"});
+  const [nieuweKamer,setNieuweKamer]=useState({k:"",naam:"",bedrijf:"",status:"Beschikbaar",opmerking:""});
   const [bewerkKamer,setBewerkKamer]=useState(null);
   const [saving,setSaving]=useState(false);
   const huis=houses.find(h=>h.id===geselecteerd);
@@ -5778,9 +5829,9 @@ function WoningBeheer({houses,onAdd,onUpdate,onArchiveer,showToast}) {
     if(!huis) return;
     if(huis.kamers.some(k=>k.k===nieuweKamer.k)){showToast("Kamernummer bestaat al","err");return;}
     setSaving(true);await onUpdate(huis.id,{kamers:[...huis.kamers,{...nieuweKamer}]},huis);setSaving(false);
-    setNieuweKamer({k:"",naam:"",bedrijf:"",status:"Beschikbaar"});
+    setNieuweKamer({k:"",naam:"",bedrijf:"",status:"Beschikbaar",opmerking:""});
   }
-  async function kamerOpslaan(nr,u) { if(!huis) return; setSaving(true); await onUpdate(huis.id,{kamers:huis.kamers.map(k=>k.k===nr?{...k,...u}:k)},huis); setSaving(false); setBewerkKamer(null); }
+  async function kamerOpslaan(nr,u) { if(!huis) return; const waarden = u.status==="Vakantie" ? u : {...u, vakantieTot:""}; setSaving(true); await onUpdate(huis.id,{kamers:huis.kamers.map(k=>k.k===nr?{...k,...waarden}:k)},huis); setSaving(false); setBewerkKamer(null); }
   async function kamerVerwijderen(nr) { if(!huis||!window.confirm(`Kamer ${nr} verwijderen?`)) return; setSaving(true); await onUpdate(huis.id,{kamers:huis.kamers.filter(k=>k.k!==nr)},huis); setSaving(false); }
   async function woningArchiveren(id) { if(!window.confirm("Woning archiveren? De woning blijft beschikbaar in het Gearchiveerd-tabblad.")) return; const ok=await onArchiveer(id, huis?.adres); if(ok) setGeselecteerd(null); }
 
@@ -5839,6 +5890,8 @@ function WoningBeheer({houses,onAdd,onUpdate,onArchiveer,showToast}) {
                     <span style={{fontSize:11,fontWeight:700,color:C.muted,minWidth:30,fontFamily:"monospace"}}>K{k.k}</span>
                     <span style={{flex:1,fontSize:13,color:k.naam?C.text:"#aab4c4",fontStyle:k.naam?"normal":"italic"}}>{k.naam||"leeg"}</span>
                     {k.bedrijf&&<span style={{fontSize:11,color:C.muted}}>{k.bedrijf}</span>}
+                    {k.opmerking&&<span title={k.opmerking} style={{fontSize:12,cursor:"help"}}>📝</span>}
+                    {k.status==="Vakantie"&&k.vakantieTot&&<span title={`Terug op ${k.vakantieTot}`} style={{fontSize:10,fontWeight:600,color:k.vakantieTot<=todayISO()?"#c2410c":"#0f766e"}}>🏖 {k.vakantieTot}</span>}
                     <span style={{padding:"2px 8px",borderRadius:4,background:STATUS_MAP[k.status]?.bg||C.bg,color:STATUS_MAP[k.status]?.text||C.muted,fontSize:10,fontWeight:600}}>{k.status}</span>
                     <button className="btn-out" style={{padding:"4px 10px",fontSize:11}} onClick={()=>setBewerkKamer(k.k)}>✏️</button>
                     <button className="btn-r" style={{padding:"4px 10px",fontSize:11}} onClick={()=>kamerVerwijderen(k.k)}>🗑</button>
@@ -5853,6 +5906,7 @@ function WoningBeheer({houses,onAdd,onUpdate,onArchiveer,showToast}) {
                 <div><label className="fl">Naam bewoner</label><input className="fi" value={nieuweKamer.naam} onChange={e=>setNieuweKamer(p=>({...p,naam:e.target.value}))} placeholder="Optioneel" style={{fontSize:13}}/></div>
                 <div><label className="fl">Bedrijf</label><input className="fi" value={nieuweKamer.bedrijf} onChange={e=>setNieuweKamer(p=>({...p,bedrijf:e.target.value}))} placeholder="Optioneel" style={{fontSize:13}}/></div>
               </div>
+              <div style={{marginBottom:12}}><label className="fl">Opmerking</label><input className="fi" value={nieuweKamer.opmerking} onChange={e=>setNieuweKamer(p=>({...p,opmerking:e.target.value}))} placeholder="Optioneel" style={{fontSize:13}}/></div>
               <div style={{marginBottom:12}}><label className="fl">Status</label><select className="fs" value={nieuweKamer.status} onChange={e=>setNieuweKamer(p=>({...p,status:e.target.value}))} style={{fontSize:13}}>{STATUSSEN.map(s=><option key={s}>{s}</option>)}</select></div>
               <button className="btn-g" style={{width:"100%",padding:10,fontSize:13}} onClick={kamerToevoegen} disabled={saving}>{saving?"⏳ Opslaan...":"✓ Kamer toevoegen"}</button>
             </div>
@@ -5867,6 +5921,8 @@ function KamerBewerken({kamer,onSave,onCancel,saving}) {
   const [naam,setNaam]=useState(kamer.naam||"");
   const [bedrijf,setBedrijf]=useState(kamer.bedrijf||"");
   const [status,setStatus]=useState(kamer.status||"Beschikbaar");
+  const [opmerking,setOpmerking]=useState(kamer.opmerking||"");
+  const [vakantieTot,setVakantieTot]=useState(kamer.vakantieTot||"");
   return(
     <div style={{background:C.blauw+"08",borderRadius:8,padding:12,marginBottom:6,border:`1.5px solid ${C.blauw}`}}>
       <div style={{fontSize:12,fontWeight:700,color:C.blauw,marginBottom:10}}>Kamer {kamer.k} bewerken</div>
@@ -5874,9 +5930,16 @@ function KamerBewerken({kamer,onSave,onCancel,saving}) {
         <input className="fi" value={naam} onChange={e=>setNaam(e.target.value)} placeholder="Naam bewoner" style={{fontSize:12}}/>
         <input className="fi" value={bedrijf} onChange={e=>setBedrijf(e.target.value)} placeholder="Bedrijf" style={{fontSize:12}}/>
       </div>
+      <input className="fi" value={opmerking} onChange={e=>setOpmerking(e.target.value)} placeholder="Opmerking (optioneel)" style={{fontSize:12,marginBottom:8}}/>
       <select className="fs" value={status} onChange={e=>setStatus(e.target.value)} style={{fontSize:12,marginBottom:8}}>{STATUSSEN.map(s=><option key={s}>{s}</option>)}</select>
+      {status==="Vakantie"&&(
+        <div style={{marginBottom:8}}>
+          <label style={{fontSize:10,fontWeight:600,color:"#0f766e",display:"block",marginBottom:3,textTransform:"uppercase",letterSpacing:".5px"}}>🏖 Datum terug</label>
+          <input type="date" className="fi" value={vakantieTot} onChange={e=>setVakantieTot(e.target.value)} style={{fontSize:12}}/>
+        </div>
+      )}
       <div style={{display:"flex",gap:8}}>
-        <button className="btn-b" style={{flex:1,padding:"7px",fontSize:12}} onClick={()=>onSave({naam,bedrijf,status})} disabled={saving}>{saving?"⏳":"✓ Opslaan"}</button>
+        <button className="btn-b" style={{flex:1,padding:"7px",fontSize:12}} onClick={()=>onSave({naam,bedrijf,status,opmerking,vakantieTot:status==="Vakantie"?vakantieTot:""})} disabled={saving}>{saving?"⏳":"✓ Opslaan"}</button>
         <button className="btn-out" style={{padding:"7px 12px",fontSize:12}} onClick={onCancel}>Annuleren</button>
       </div>
     </div>
