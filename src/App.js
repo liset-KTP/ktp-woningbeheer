@@ -793,20 +793,81 @@ function App() {
     showToast("✓ Woning toegevoegd"); await loadHouses(); return true;
   }
 
-  async function updateWoning(id, updates) {
-    const { error } = await supabase.from("woningen").update(updates).eq("id",id);
+  // Velden op woningniveau die je direct kunt bewerken (buiten de kamers-array om).
+  const WONING_AUDIT_VELDEN = [
+    { key: "adres",              label: "Adres" },
+    { key: "postcode",           label: "Postcode" },
+    { key: "stad",                label: "Stad" },
+    { key: "standaard_sleutels", label: "Standaard sleutels" },
+  ];
+
+  function woningVeldWijzigingen(oud, nieuw) {
+    return WONING_AUDIT_VELDEN
+      .filter(f => (oud?.[f.key] ?? "") !== (nieuw?.[f.key] ?? ""))
+      .map(f => `${f.label}: "${oud?.[f.key] ?? "—"}" → "${nieuw?.[f.key] ?? "—"}"`);
+  }
+
+  // Vergelijkt de kamers-array voor/na zodat we exact kunnen loggen welke kamer
+  // en welk veld (bewoner/bedrijf/status) direct is aangepast, buiten de meldingen-flow om.
+  function woningKamerWijzigingen(oud, nieuw) {
+    const oudeKamers = oud?.kamers || [];
+    const nieuweKamers = nieuw?.kamers || [];
+    const oudeMap = new Map(oudeKamers.map(k => [k.k, k]));
+    const nieuweMap = new Map(nieuweKamers.map(k => [k.k, k]));
+    const wijzigingen = [];
+    for (const [nr, nk] of nieuweMap) {
+      const ok = oudeMap.get(nr);
+      if (!ok) { wijzigingen.push(`Kamer ${nr} toegevoegd`); continue; }
+      ["naam", "bedrijf", "status"].forEach(f => {
+        if ((ok[f] || "") !== (nk[f] || "")) {
+          wijzigingen.push(`K${nr} ${f}: "${ok[f] || "—"}" → "${nk[f] || "—"}"`);
+        }
+      });
+    }
+    for (const [nr] of oudeMap) {
+      if (!nieuweMap.has(nr)) wijzigingen.push(`Kamer ${nr} verwijderd`);
+    }
+    return wijzigingen;
+  }
+
+  async function logWoningActiviteit(type, omschrijving, extra) {
+    await supabase.from("activiteiten").insert([{ type, omschrijving, gedaan_door: gebruiker.naam, extra }]);
+  }
+
+  // oudeWoning is optioneel: alleen meegeven vanaf een direct bewerkformulier (beheer/kamer
+  // rechtstreeks aanpassen). Aanroepen vanuit de meldingen-/taken-flow geven dit bewust NIET
+  // mee — die wijzigingen zijn al te herleiden via de bijbehorende melding/taak (ingediend_door
+  // / afgehandeld_door), dus we loggen dan niet nogmaals (voorkomt dubbele/ruisvolle regels).
+  async function updateWoning(id, updates, oudeWoning) {
+    const payload = { ...updates, bijgewerkt_door: gebruiker.naam, updated_at: new Date().toISOString() };
+    const { error } = await supabase.from("woningen").update(payload).eq("id",id);
     if (error) { showToast("Fout bij opslaan","err"); return false; }
+
+    if (oudeWoning) {
+      const wijzigingen = updates.kamers
+        ? woningKamerWijzigingen(oudeWoning, updates)
+        : woningVeldWijzigingen(oudeWoning, updates);
+      if (wijzigingen.length) {
+        await logWoningActiviteit(
+          "woning_bewerkt",
+          `🏠 Woning bewerkt: ${oudeWoning.adres || id} — ${wijzigingen.join(", ")}`,
+          { woning_id: id, wijzigingen }
+        );
+      }
+    }
     showToast("✓ Opgeslagen"); await loadHouses(); return true;
   }
 
-  async function archiveerWoning(id) {
-    const { error } = await supabase.from("woningen").update({ gearchiveerd: true }).eq("id",id);
+  async function archiveerWoning(id, adres) {
+    const { error } = await supabase.from("woningen").update({ gearchiveerd: true, bijgewerkt_door: gebruiker.naam, updated_at: new Date().toISOString() }).eq("id",id);
     if (error) { showToast("Fout bij archiveren","err"); return false; }
+    await logWoningActiviteit("woning_gearchiveerd", `🗃 Woning gearchiveerd: ${adres || id}`, { woning_id: id });
     showToast("✓ Woning gearchiveerd"); await loadHouses(); await loadGearchiveerdeHouses(); return true;
   }
-  async function terugzetWoning(id) {
-    const { error } = await supabase.from("woningen").update({ gearchiveerd: false }).eq("id",id);
+  async function terugzetWoning(id, adres) {
+    const { error } = await supabase.from("woningen").update({ gearchiveerd: false, bijgewerkt_door: gebruiker.naam, updated_at: new Date().toISOString() }).eq("id",id);
     if (error) { showToast("Fout bij terugzetten","err"); return false; }
+    await logWoningActiviteit("woning_teruggezet", `↩️ Woning teruggezet uit archief: ${adres || id}`, { woning_id: id });
     showToast("✓ Woning teruggezet"); await loadHouses(); await loadGearchiveerdeHouses(); return true;
   }
 
@@ -5174,7 +5235,7 @@ function WoningenDetail({houses, onUpdateWoning}) {
     const nieuweKamers = huis.kamers.map(k =>
       k.k===bewerkKamer.kamerNr ? {...k,...bewerkWaarden} : k
     );
-    await onUpdateWoning(huis.id, {kamers:nieuweKamers});
+    await onUpdateWoning(huis.id, {kamers:nieuweKamers}, huis);
     setSaving(false);
     setBewerkKamer(null);
   }
@@ -5661,7 +5722,7 @@ function GearchiveerdeBeheer({houses=[], onTerugzetten, showToast}) {
   async function terugzetten(id, adres) {
     if(!window.confirm(`"${adres}" terugzetten naar actieve woningen?`)) return;
     setSaving(id);
-    await onTerugzetten(id);
+    await onTerugzetten(id, adres);
     setSaving(false);
   }
 
@@ -5716,12 +5777,12 @@ function WoningBeheer({houses,onAdd,onUpdate,onArchiveer,showToast}) {
     if(!nieuweKamer.k){showToast("Vul kamernummer in","err");return;}
     if(!huis) return;
     if(huis.kamers.some(k=>k.k===nieuweKamer.k)){showToast("Kamernummer bestaat al","err");return;}
-    setSaving(true);await onUpdate(huis.id,{kamers:[...huis.kamers,{...nieuweKamer}]});setSaving(false);
+    setSaving(true);await onUpdate(huis.id,{kamers:[...huis.kamers,{...nieuweKamer}]},huis);setSaving(false);
     setNieuweKamer({k:"",naam:"",bedrijf:"",status:"Beschikbaar"});
   }
-  async function kamerOpslaan(nr,u) { if(!huis) return; setSaving(true); await onUpdate(huis.id,{kamers:huis.kamers.map(k=>k.k===nr?{...k,...u}:k)}); setSaving(false); setBewerkKamer(null); }
-  async function kamerVerwijderen(nr) { if(!huis||!window.confirm(`Kamer ${nr} verwijderen?`)) return; setSaving(true); await onUpdate(huis.id,{kamers:huis.kamers.filter(k=>k.k!==nr)}); setSaving(false); }
-  async function woningArchiveren(id) { if(!window.confirm("Woning archiveren? De woning blijft beschikbaar in het Gearchiveerd-tabblad.")) return; const ok=await onArchiveer(id); if(ok) setGeselecteerd(null); }
+  async function kamerOpslaan(nr,u) { if(!huis) return; setSaving(true); await onUpdate(huis.id,{kamers:huis.kamers.map(k=>k.k===nr?{...k,...u}:k)},huis); setSaving(false); setBewerkKamer(null); }
+  async function kamerVerwijderen(nr) { if(!huis||!window.confirm(`Kamer ${nr} verwijderen?`)) return; setSaving(true); await onUpdate(huis.id,{kamers:huis.kamers.filter(k=>k.k!==nr)},huis); setSaving(false); }
+  async function woningArchiveren(id) { if(!window.confirm("Woning archiveren? De woning blijft beschikbaar in het Gearchiveerd-tabblad.")) return; const ok=await onArchiveer(id, huis?.adres); if(ok) setGeselecteerd(null); }
 
   return(
     <div style={{display:"grid",gridTemplateColumns:"300px 1fr",gap:20}}>
