@@ -65,6 +65,7 @@ const C = {
 const STATUS_MAP = {
   "Lopend":            { bg:"#4A9B3C18", text:"#357a2b", dot:"#4A9B3C" },
   "Vakantie":          { bg:"#14b8a618", text:"#0f766e", dot:"#14b8a6" },
+  "Ziek":              { bg:"#eab30818", text:"#a16207", dot:"#eab308" },
   "Beschikbaar":       { bg:"#1B3A6B18", text:"#1B3A6B", dot:"#2a52a0" },
   "Gereserveerd":      { bg:"#f59e0b18", text:"#b45309", dot:"#f59e0b" },
   "Controle":          { bg:"#ef444418", text:"#b91c1c", dot:"#ef4444" },
@@ -74,6 +75,37 @@ const STATUS_MAP = {
   "Vertrokken":        { bg:"#71717a18", text:"#3f3f46", dot:"#71717a" },
 };
 const STATUSSEN = Object.keys(STATUS_MAP);
+
+// Kamers met deze status tellen mee als "bezet" (bewoner is er nog steeds, alleen tijdelijk anders)
+function isBezetStatus(status) { return status === "Lopend" || status === "Ziek"; }
+
+// Per status: optioneel datumveld + hoe dat datumveld heet/eruitziet + wat de automatische
+// controletaak moet zeggen zodra de datum verstreken is en de status niet is bijgewerkt.
+const STATUS_DATUM = {
+  "Vakantie": { veld:"vakantieTot",  icon:"🏖", label:"Datum terug", kleur:"#0f766e",
+    taakTitel:(k)=>`Controleer terugkomst vakantie — ${k.naam||"kamer "+k.k}`,
+    taakTekst:(k,h)=>`${k.naam||"Bewoner"} zou terug moeten zijn van vakantie op ${k.vakantieTot} (kamer ${k.k}, ${h.adres}, ${h.stad}). Controleer of dit klopt en zet de kamerstatus terug naar "Lopend", of pas de datum aan als het nog niet zover is.` },
+  "Ziek": { veld:"ziekTot", icon:"🤒", label:"Verwachte hersteldatum", kleur:"#a16207",
+    taakTitel:(k)=>`Controleer herstel — ${k.naam||"kamer "+k.k}`,
+    taakTekst:(k,h)=>`${k.naam||"Bewoner"} zou hersteld/terug moeten zijn op ${k.ziekTot} (kamer ${k.k}, ${h.adres}, ${h.stad}). Controleer de status en werk deze bij.` },
+  "Moet weg": { veld:"moetWegVoor", icon:"📦", label:"Uiterlijke vertrekdatum", kleur:"#9f1239",
+    taakTitel:(k)=>`Controleer vertrek — ${k.naam||"kamer "+k.k}`,
+    taakTekst:(k,h)=>`${k.naam||"Bewoner"} moest voor ${k.moetWegVoor} weg zijn uit kamer ${k.k} (${h.adres}, ${h.stad}). Controleer of dit is gebeurd en werk de kamerstatus bij.` },
+  "Controle": { veld:"controleOp", icon:"🔍", label:"Datum controle", kleur:"#b91c1c",
+    taakTitel:(k)=>`Voer controle uit — kamer ${k.k}`,
+    taakTekst:(k,h)=>`Geplande controledatum (${k.controleOp}) voor kamer ${k.k} (${h.adres}, ${h.stad}) is verstreken en de status staat nog op "Controle". Voer de controle uit en werk de status bij.` },
+};
+const STATUS_DATUM_VELDEN = Object.values(STATUS_DATUM).map(c=>c.veld); // alle mogelijke datumvelden, voor het opschonen bij opslaan
+
+// Bewaar alleen het datumveld dat bij de huidige status hoort; maak de rest leeg.
+// Voorkomt dat een oude "terugkomstdatum" blijft hangen nadat de status is gewijzigd.
+function sanitizeKamerDatums(waarden) {
+  const schoon = {...waarden};
+  STATUS_DATUM_VELDEN.forEach(v => { schoon[v] = ""; });
+  const dc = STATUS_DATUM[waarden.status];
+  if (dc) schoon[dc.veld] = waarden[dc.veld] || "";
+  return schoon;
+}
 
 // ─── CHECKLIST FALLBACK (worden geladen uit Supabase) ────────────────────────
 // Items worden dynamisch geladen — hier alleen lege arrays als fallback
@@ -250,29 +282,32 @@ function App() {
     return () => { supabase.removeChannel(s1); supabase.removeChannel(s2); supabase.removeChannel(s3); supabase.removeChannel(s4); supabase.removeChannel(s5); supabase.removeChannel(s6); supabase.removeChannel(s7); supabase.removeChannel(s8); };
   }, [loadHouses, loadMeldingen, loadTaken, loadChecklists, loadGebruikers, loadChecklistItems, loadActiviteiten, loadDagplanning, loadOngelzenAutoReacties, loadAutoMeldingenApp]);
 
-  // Vakantie-controle: als de "datum terug" van een kamer met status Vakantie is verstreken,
-  // automatisch een taak aanmaken voor de huismeester om te controleren of de bewoner echt terug is.
+  // Statuscontrole: als het datumveld van Vakantie/Ziek/Moet weg/Controle is verstreken,
+  // automatisch een taak aanmaken voor de huismeester om te controleren of de status nog klopt.
   // Dubbele taken worden voorkomen via een sessie-guard + check op reeds openstaande taken.
-  const vakantieCheckGedaan = useRef(new Set());
+  const statusCheckGedaan = useRef(new Set());
   useEffect(() => {
     if (loading) return;
     const vandaag = todayISO();
     houses.forEach(h => {
       (h.kamers || []).forEach(k => {
-        if (k.status !== "Vakantie" || !k.vakantieTot || k.vakantieTot > vandaag) return;
-        const guardKey = `${h.id}-${k.k}-${k.vakantieTot}`;
-        if (vakantieCheckGedaan.current.has(guardKey)) return;
+        const dc = STATUS_DATUM[k.status];
+        if (!dc) return;
+        const datum = k[dc.veld];
+        if (!datum || datum > vandaag) return;
+        const guardKey = `${h.id}-${k.k}-${k.status}-${datum}`;
+        if (statusCheckGedaan.current.has(guardKey)) return;
+        const taakTitel = dc.taakTitel(k);
         const bestaatAl = taken.some(t =>
-          t.woning_id === h.id && t.kamer === k.k && t.status === "open" &&
-          (t.titel || "").startsWith("Controleer terugkomst vakantie")
+          t.woning_id === h.id && t.kamer === k.k && t.status === "open" && t.titel === taakTitel
         );
-        if (bestaatAl) { vakantieCheckGedaan.current.add(guardKey); return; }
-        vakantieCheckGedaan.current.add(guardKey);
+        if (bestaatAl) { statusCheckGedaan.current.add(guardKey); return; }
+        statusCheckGedaan.current.add(guardKey);
         supabase.from("taken").insert([{
-          titel: `Controleer terugkomst vakantie — ${k.naam || "kamer " + k.k}`,
-          omschrijving: `${k.naam || "Bewoner"} zou terug moeten zijn van vakantie op ${k.vakantieTot} (kamer ${k.k}, ${h.adres}, ${h.stad}). Controleer of dit klopt en zet de kamerstatus terug naar "Lopend", of pas de datum aan als het nog niet zover is.`,
+          titel: taakTitel,
+          omschrijving: dc.taakTekst(k, h),
           woning_id: h.id, kamer: k.k, prioriteit: "normaal", voor_rol: "huismeester",
-          status: "open", aangemaakt_door: "Systeem (vakantie-check)",
+          status: "open", aangemaakt_door: "Systeem (statuscontrole)",
         }]).then(({ error }) => { if (!error) loadTaken(); });
       });
     });
@@ -5241,7 +5276,7 @@ function WoningenDetail({houses, onUpdateWoning}) {
 
   const steden=["Alle",...Array.from(new Set(houses.map(h=>h.stad))).sort()];
   const total=houses.reduce((s,h)=>s+h.kamers.length,0);
-  const bezet=houses.reduce((s,h)=>s+h.kamers.filter(k=>k.naam&&k.status==="Lopend").length,0);
+  const bezet=houses.reduce((s,h)=>s+h.kamers.filter(k=>k.naam&&isBezetStatus(k.status)).length,0);
   const beschikbaar=houses.reduce((s,h)=>s+h.kamers.filter(k=>k.status==="Beschikbaar").length,0);
   const gereserveerd=houses.reduce((s,h)=>s+h.kamers.filter(k=>k.status==="Gereserveerd").length,0);
   const controle=houses.reduce((s,h)=>s+h.kamers.filter(k=>k.status==="Controle").length,0);
@@ -5255,12 +5290,13 @@ function WoningenDetail({houses, onUpdateWoning}) {
 
   function startBewerk(huis, k) {
     setBewerkKamer({huisId:huis.id, kamerNr:k.k});
-    setBewerkWaarden({naam:k.naam||"", bedrijf:k.bedrijf||"", status:k.status||"Beschikbaar", opmerking:k.opmerking||"", vakantieTot:k.vakantieTot||""});
+    setBewerkWaarden({naam:k.naam||"", bedrijf:k.bedrijf||"", status:k.status||"Beschikbaar", opmerking:k.opmerking||"",
+      vakantieTot:k.vakantieTot||"", ziekTot:k.ziekTot||"", moetWegVoor:k.moetWegVoor||"", controleOp:k.controleOp||""});
   }
 
   async function slaBewerk(huis) {
     setSaving(true);
-    const waarden = bewerkWaarden.status==="Vakantie" ? bewerkWaarden : {...bewerkWaarden, vakantieTot:""};
+    const waarden = sanitizeKamerDatums(bewerkWaarden);
     const nieuweKamers = huis.kamers.map(k =>
       k.k===bewerkKamer.kamerNr ? {...k,...waarden} : k
     );
@@ -5291,7 +5327,7 @@ function WoningenDetail({houses, onUpdateWoning}) {
       </div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(340px,1fr))",gap:16}}>
         {filtered.map(h=>{
-          const bezette=h.kamers.filter(k=>k.naam&&k.status==="Lopend").length;
+          const bezette=h.kamers.filter(k=>k.naam&&isBezetStatus(k.status)).length;
           const hasIssue=h.kamers.some(k=>k.status==="Controle"||k.status==="Moet aan het werk");
           const hasVrij=h.kamers.some(k=>k.status==="Beschikbaar");
           return(
@@ -5306,7 +5342,7 @@ function WoningenDetail({houses, onUpdateWoning}) {
               <div style={{borderTop:`1px solid ${C.border}`,paddingTop:10}}>
                 {[...h.kamers].sort((a,b)=>parseFloat(a.k)-parseFloat(b.k)).map(k=>{
                   const c=STATUS_MAP[k.status]||{bg:C.bg,text:C.muted,dot:C.muted};
-                  const rijBg=k.status==="Controle"?"#fef2f2":k.status==="Moet aan het werk"?"#fff7ed":k.status==="Moet weg"?"#fff1f2":k.status==="Vakantie"?"#14b8a608":k.status==="Beschikbaar"?C.blauw+"08":"transparent";
+                  const rijBg=k.status==="Controle"?"#fef2f2":k.status==="Moet aan het werk"?"#fff7ed":k.status==="Moet weg"?"#fff1f2":k.status==="Vakantie"?"#14b8a608":k.status==="Ziek"?"#eab30808":k.status==="Beschikbaar"?C.blauw+"08":"transparent";
                   const isBezig=bewerkKamer?.huisId===h.id&&bewerkKamer?.kamerNr===k.k;
 
                   return(
@@ -5335,12 +5371,12 @@ function WoningenDetail({houses, onUpdateWoning}) {
                               {STATUSSEN.map(s=><option key={s}>{s}</option>)}
                             </select>
                           </div>
-                          {bewerkWaarden.status==="Vakantie"&&(
+                          {STATUS_DATUM[bewerkWaarden.status]&&(()=>{const dc=STATUS_DATUM[bewerkWaarden.status];return(
                             <div style={{marginBottom:8}}>
-                              <label style={{fontSize:10,fontWeight:600,color:"#0f766e",display:"block",marginBottom:3,textTransform:"uppercase",letterSpacing:".5px"}}>🏖 Datum terug</label>
-                              <input type="date" className="fi" value={bewerkWaarden.vakantieTot} onChange={e=>setBewerkWaarden(p=>({...p,vakantieTot:e.target.value}))} style={{fontSize:12,padding:"6px 10px"}}/>
+                              <label style={{fontSize:10,fontWeight:600,color:dc.kleur,display:"block",marginBottom:3,textTransform:"uppercase",letterSpacing:".5px"}}>{dc.icon} {dc.label}</label>
+                              <input type="date" className="fi" value={bewerkWaarden[dc.veld]||""} onChange={e=>setBewerkWaarden(p=>({...p,[dc.veld]:e.target.value}))} style={{fontSize:12,padding:"6px 10px"}}/>
                             </div>
-                          )}
+                          );})()}
                           <div style={{display:"flex",gap:6}}>
                             <button className="btn-b" style={{flex:1,padding:"7px",fontSize:12}} onClick={()=>slaBewerk(h)} disabled={saving}>
                               {saving?"⏳":"✓ Opslaan"}
@@ -5365,16 +5401,20 @@ function WoningenDetail({houses, onUpdateWoning}) {
                                 title="Bewerken">✏️</button>
                             )}
                           </div>
-                          {(k.opmerking||(k.status==="Vakantie"&&k.vakantieTot))&&(
-                            <div style={{fontSize:11,color:"#0f766e",padding:"0 8px 2px 22px",fontStyle:"italic"}}>
-                              {k.opmerking&&<span>📝 {k.opmerking}</span>}
-                              {k.status==="Vakantie"&&k.vakantieTot&&(
-                                k.vakantieTot<=todayISO()
-                                  ? <span style={{color:"#c2410c",fontWeight:700,marginLeft:k.opmerking?8:0}}>⚠ terug verwacht {k.vakantieTot} — controleer</span>
-                                  : <span style={{marginLeft:k.opmerking?8:0}}>🏖 terug op {k.vakantieTot}</span>
-                              )}
-                            </div>
-                          )}
+                          {(()=>{const dc=STATUS_DATUM[k.status];const datum=dc?k[dc.veld]:null;
+                            if(!k.opmerking&&!datum) return null;
+                            const verstreken=datum&&datum<=todayISO();
+                            return(
+                              <div style={{fontSize:11,color:"#0f766e",padding:"0 8px 2px 22px",fontStyle:"italic"}}>
+                                {k.opmerking&&<span>📝 {k.opmerking}</span>}
+                                {datum&&(
+                                  verstreken
+                                    ? <span style={{color:"#c2410c",fontWeight:700,marginLeft:k.opmerking?8:0}}>⚠ {dc.label.toLowerCase()} {datum} verstreken — controleer</span>
+                                    : <span style={{marginLeft:k.opmerking?8:0}}>{dc.icon} {dc.label.toLowerCase()}: {datum}</span>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </div>
                       )}
                     </div>
@@ -5387,6 +5427,7 @@ function WoningenDetail({houses, onUpdateWoning}) {
                 {h.kamers.filter(k=>k.status==="Controle").length>0&&<span style={{fontSize:10,fontWeight:600,color:"#ef4444",background:"#fef2f2",padding:"3px 8px",borderRadius:4}}>⚠ {h.kamers.filter(k=>k.status==="Controle").length} controle</span>}
                 {h.kamers.filter(k=>k.status==="Moet aan het werk").length>0&&<span style={{fontSize:10,fontWeight:600,color:"#c2410c",background:"#fff7ed",padding:"3px 8px",borderRadius:4}}>⚠ {h.kamers.filter(k=>k.status==="Moet aan het werk").length} moet aan het werk</span>}
                 {h.kamers.filter(k=>k.status==="Vakantie").length>0&&<span style={{fontSize:10,fontWeight:600,color:"#0f766e",background:"#14b8a618",padding:"3px 8px",borderRadius:4}}>🏖 {h.kamers.filter(k=>k.status==="Vakantie").length} op vakantie</span>}
+                {h.kamers.filter(k=>k.status==="Ziek").length>0&&<span style={{fontSize:10,fontWeight:600,color:"#a16207",background:"#eab30818",padding:"3px 8px",borderRadius:4}}>🤒 {h.kamers.filter(k=>k.status==="Ziek").length} ziek</span>}
                 {h.kamers.filter(k=>k.status==="Vertrokken").length>0&&<span style={{fontSize:10,fontWeight:600,color:"#52525b",background:"#f4f4f5",padding:"3px 8px",borderRadius:4}}>{h.kamers.filter(k=>k.status==="Vertrokken").length} vertrokken</span>}
               </div>
             </div>
@@ -5402,7 +5443,7 @@ function PlanningView({houses}) {
   const steden=["Alle",...Array.from(new Set(houses.map(h=>h.stad))).sort()];
   const filtered=filterStad==="Alle"?houses:houses.filter(h=>h.stad===filterStad);
   const total=houses.reduce((s,h)=>s+h.kamers.length,0);
-  const bezet=houses.reduce((s,h)=>s+h.kamers.filter(k=>k.naam&&k.status==="Lopend").length,0);
+  const bezet=houses.reduce((s,h)=>s+h.kamers.filter(k=>k.naam&&isBezetStatus(k.status)).length,0);
   const beschikbaar=houses.reduce((s,h)=>s+h.kamers.filter(k=>k.status==="Beschikbaar").length,0);
   const controle=houses.reduce((s,h)=>s+h.kamers.filter(k=>k.status==="Controle").length,0);
   return(
@@ -5417,7 +5458,7 @@ function PlanningView({houses}) {
       <div style={{display:"flex",gap:6,marginBottom:20,flexWrap:"wrap"}}>{steden.map(s=><button key={s} onClick={()=>setFilterStad(s)} style={{background:filterStad===s?C.blauw:"white",color:filterStad===s?"white":C.muted,border:`1.5px solid ${filterStad===s?C.blauw:C.border}`,borderRadius:20,padding:"6px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>{s}</button>)}</div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(320px,1fr))",gap:14}}>
         {filtered.map(h=>{
-          const bezette=h.kamers.filter(k=>k.naam&&k.status==="Lopend").length;
+          const bezette=h.kamers.filter(k=>k.naam&&isBezetStatus(k.status)).length;
           return(
             <div key={h.id} className="card" style={{borderTop:`3px solid ${C.blauw}`}}>
               <div style={{display:"flex",justifyContent:"space-between",marginBottom:14}}>
@@ -5452,7 +5493,7 @@ function DashboardView({ houses, meldingen, taken, gebruikers, activiteiten }) {
   const alleKamers = houses.flatMap(h => (h.kamers || []));
   const kamerstats = {
     totaal:      alleKamers.length,
-    lopend:      alleKamers.filter(k => k.status === "Lopend").length,
+    lopend:      alleKamers.filter(k => isBezetStatus(k.status)).length,
     beschikbaar: alleKamers.filter(k => k.status === "Beschikbaar").length,
     gereserveerd:alleKamers.filter(k => k.status === "Gereserveerd").length,
     controle:    alleKamers.filter(k => k.status === "Controle" || k.status === "Niet beschikbaar").length,
@@ -5517,7 +5558,7 @@ function DashboardView({ houses, meldingen, taken, gebruikers, activiteiten }) {
           <div style={{display:"grid",gap:10}}>
             {steden.map(stad => {
               const stadKamers = houses.filter(h=>h.stad===stad).flatMap(h=>h.kamers||[]);
-              const lopend = stadKamers.filter(k=>k.status==="Lopend").length;
+              const lopend = stadKamers.filter(k=>isBezetStatus(k.status)).length;
               const totaal = stadKamers.length;
               const pct = totaal > 0 ? Math.round(lopend/totaal*100) : 0;
               const controle = stadKamers.filter(k=>k.status==="Controle"||k.status==="Niet beschikbaar"||k.status==="Moet aan het werk").length;
@@ -5811,7 +5852,7 @@ function WoningBeheer({houses,onAdd,onUpdate,onArchiveer,showToast}) {
   const [geselecteerd,setGeselecteerd]=useState(null);
   const [nieuweWoning,setNieuweWoning]=useState({stad:"",adres:"",postcode:""});
   const [toonNieuwe,setToonNieuwe]=useState(false);
-  const [nieuweKamer,setNieuweKamer]=useState({k:"",naam:"",bedrijf:"",status:"Beschikbaar",opmerking:""});
+  const [nieuweKamer,setNieuweKamer]=useState({k:"",naam:"",bedrijf:"",status:"Beschikbaar",opmerking:"",vakantieTot:"",ziekTot:"",moetWegVoor:"",controleOp:""});
   const [bewerkKamer,setBewerkKamer]=useState(null);
   const [saving,setSaving]=useState(false);
   const huis=houses.find(h=>h.id===geselecteerd);
@@ -5828,10 +5869,10 @@ function WoningBeheer({houses,onAdd,onUpdate,onArchiveer,showToast}) {
     if(!nieuweKamer.k){showToast("Vul kamernummer in","err");return;}
     if(!huis) return;
     if(huis.kamers.some(k=>k.k===nieuweKamer.k)){showToast("Kamernummer bestaat al","err");return;}
-    setSaving(true);await onUpdate(huis.id,{kamers:[...huis.kamers,{...nieuweKamer}]},huis);setSaving(false);
-    setNieuweKamer({k:"",naam:"",bedrijf:"",status:"Beschikbaar",opmerking:""});
+    setSaving(true);await onUpdate(huis.id,{kamers:[...huis.kamers,sanitizeKamerDatums(nieuweKamer)]},huis);setSaving(false);
+    setNieuweKamer({k:"",naam:"",bedrijf:"",status:"Beschikbaar",opmerking:"",vakantieTot:"",ziekTot:"",moetWegVoor:"",controleOp:""});
   }
-  async function kamerOpslaan(nr,u) { if(!huis) return; const waarden = u.status==="Vakantie" ? u : {...u, vakantieTot:""}; setSaving(true); await onUpdate(huis.id,{kamers:huis.kamers.map(k=>k.k===nr?{...k,...waarden}:k)},huis); setSaving(false); setBewerkKamer(null); }
+  async function kamerOpslaan(nr,u) { if(!huis) return; const waarden = sanitizeKamerDatums(u); setSaving(true); await onUpdate(huis.id,{kamers:huis.kamers.map(k=>k.k===nr?{...k,...waarden}:k)},huis); setSaving(false); setBewerkKamer(null); }
   async function kamerVerwijderen(nr) { if(!huis||!window.confirm(`Kamer ${nr} verwijderen?`)) return; setSaving(true); await onUpdate(huis.id,{kamers:huis.kamers.filter(k=>k.k!==nr)},huis); setSaving(false); }
   async function woningArchiveren(id) { if(!window.confirm("Woning archiveren? De woning blijft beschikbaar in het Gearchiveerd-tabblad.")) return; const ok=await onArchiveer(id, huis?.adres); if(ok) setGeselecteerd(null); }
 
@@ -5891,7 +5932,9 @@ function WoningBeheer({houses,onAdd,onUpdate,onArchiveer,showToast}) {
                     <span style={{flex:1,fontSize:13,color:k.naam?C.text:"#aab4c4",fontStyle:k.naam?"normal":"italic"}}>{k.naam||"leeg"}</span>
                     {k.bedrijf&&<span style={{fontSize:11,color:C.muted}}>{k.bedrijf}</span>}
                     {k.opmerking&&<span title={k.opmerking} style={{fontSize:12,cursor:"help"}}>📝</span>}
-                    {k.status==="Vakantie"&&k.vakantieTot&&<span title={`Terug op ${k.vakantieTot}`} style={{fontSize:10,fontWeight:600,color:k.vakantieTot<=todayISO()?"#c2410c":"#0f766e"}}>🏖 {k.vakantieTot}</span>}
+                    {STATUS_DATUM[k.status]&&k[STATUS_DATUM[k.status].veld]&&(()=>{const dc=STATUS_DATUM[k.status];const datum=k[dc.veld];return(
+                      <span title={`${dc.label}: ${datum}`} style={{fontSize:10,fontWeight:600,color:datum<=todayISO()?"#c2410c":dc.kleur}}>{dc.icon} {datum}</span>
+                    );})()}
                     <span style={{padding:"2px 8px",borderRadius:4,background:STATUS_MAP[k.status]?.bg||C.bg,color:STATUS_MAP[k.status]?.text||C.muted,fontSize:10,fontWeight:600}}>{k.status}</span>
                     <button className="btn-out" style={{padding:"4px 10px",fontSize:11}} onClick={()=>setBewerkKamer(k.k)}>✏️</button>
                     <button className="btn-r" style={{padding:"4px 10px",fontSize:11}} onClick={()=>kamerVerwijderen(k.k)}>🗑</button>
@@ -5908,6 +5951,9 @@ function WoningBeheer({houses,onAdd,onUpdate,onArchiveer,showToast}) {
               </div>
               <div style={{marginBottom:12}}><label className="fl">Opmerking</label><input className="fi" value={nieuweKamer.opmerking} onChange={e=>setNieuweKamer(p=>({...p,opmerking:e.target.value}))} placeholder="Optioneel" style={{fontSize:13}}/></div>
               <div style={{marginBottom:12}}><label className="fl">Status</label><select className="fs" value={nieuweKamer.status} onChange={e=>setNieuweKamer(p=>({...p,status:e.target.value}))} style={{fontSize:13}}>{STATUSSEN.map(s=><option key={s}>{s}</option>)}</select></div>
+              {STATUS_DATUM[nieuweKamer.status]&&(()=>{const dc=STATUS_DATUM[nieuweKamer.status];return(
+                <div style={{marginBottom:12}}><label className="fl">{dc.icon} {dc.label}</label><input type="date" className="fi" value={nieuweKamer[dc.veld]||""} onChange={e=>setNieuweKamer(p=>({...p,[dc.veld]:e.target.value}))} style={{fontSize:13}}/></div>
+              );})()}
               <button className="btn-g" style={{width:"100%",padding:10,fontSize:13}} onClick={kamerToevoegen} disabled={saving}>{saving?"⏳ Opslaan...":"✓ Kamer toevoegen"}</button>
             </div>
           </div>
@@ -5922,7 +5968,8 @@ function KamerBewerken({kamer,onSave,onCancel,saving}) {
   const [bedrijf,setBedrijf]=useState(kamer.bedrijf||"");
   const [status,setStatus]=useState(kamer.status||"Beschikbaar");
   const [opmerking,setOpmerking]=useState(kamer.opmerking||"");
-  const [vakantieTot,setVakantieTot]=useState(kamer.vakantieTot||"");
+  const [datums,setDatums]=useState({vakantieTot:kamer.vakantieTot||"", ziekTot:kamer.ziekTot||"", moetWegVoor:kamer.moetWegVoor||"", controleOp:kamer.controleOp||""});
+  const dc = STATUS_DATUM[status];
   return(
     <div style={{background:C.blauw+"08",borderRadius:8,padding:12,marginBottom:6,border:`1.5px solid ${C.blauw}`}}>
       <div style={{fontSize:12,fontWeight:700,color:C.blauw,marginBottom:10}}>Kamer {kamer.k} bewerken</div>
@@ -5932,14 +5979,14 @@ function KamerBewerken({kamer,onSave,onCancel,saving}) {
       </div>
       <input className="fi" value={opmerking} onChange={e=>setOpmerking(e.target.value)} placeholder="Opmerking (optioneel)" style={{fontSize:12,marginBottom:8}}/>
       <select className="fs" value={status} onChange={e=>setStatus(e.target.value)} style={{fontSize:12,marginBottom:8}}>{STATUSSEN.map(s=><option key={s}>{s}</option>)}</select>
-      {status==="Vakantie"&&(
+      {dc&&(
         <div style={{marginBottom:8}}>
-          <label style={{fontSize:10,fontWeight:600,color:"#0f766e",display:"block",marginBottom:3,textTransform:"uppercase",letterSpacing:".5px"}}>🏖 Datum terug</label>
-          <input type="date" className="fi" value={vakantieTot} onChange={e=>setVakantieTot(e.target.value)} style={{fontSize:12}}/>
+          <label style={{fontSize:10,fontWeight:600,color:dc.kleur,display:"block",marginBottom:3,textTransform:"uppercase",letterSpacing:".5px"}}>{dc.icon} {dc.label}</label>
+          <input type="date" className="fi" value={datums[dc.veld]||""} onChange={e=>setDatums(p=>({...p,[dc.veld]:e.target.value}))} style={{fontSize:12}}/>
         </div>
       )}
       <div style={{display:"flex",gap:8}}>
-        <button className="btn-b" style={{flex:1,padding:"7px",fontSize:12}} onClick={()=>onSave({naam,bedrijf,status,opmerking,vakantieTot:status==="Vakantie"?vakantieTot:""})} disabled={saving}>{saving?"⏳":"✓ Opslaan"}</button>
+        <button className="btn-b" style={{flex:1,padding:"7px",fontSize:12}} onClick={()=>onSave(sanitizeKamerDatums({naam,bedrijf,status,opmerking,...datums}))} disabled={saving}>{saving?"⏳":"✓ Opslaan"}</button>
         <button className="btn-out" style={{padding:"7px 12px",fontSize:12}} onClick={onCancel}>Annuleren</button>
       </div>
     </div>
