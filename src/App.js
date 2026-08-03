@@ -27,6 +27,7 @@ import { BerichtenModule } from "./BerichtenModule";
 import { BorgModule } from "./BorgModule";
 import { HandleidingModule } from "./HandleidingModule";
 import { KledingModule, KledingUitgifteInline } from "./KledingModule";
+import WeekDatePicker from "./WeekDatePicker";
 
 // ─── EMAILJS ──────────────────────────────────────────────────────────────────
 const EMAILJS_SERVICE  = process.env.REACT_APP_EMAILJS_SERVICE  || "";
@@ -1514,7 +1515,7 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
                   </div>
                   <div style={{flex:1,minWidth:140}}>
                     <label className="fl">Datum</label>
-                    <input className="fi" type="date" value={huurDatum} onChange={e=>setHuurDatum(e.target.value)} style={{fontSize:13}}/>
+                    <WeekDatePicker className="fi" value={huurDatum} onChange={v=>setHuurDatum(v)} style={{fontSize:13}}/>
                   </div>
                 </div>
                 <div style={{display:"flex",gap:8}}>
@@ -1796,7 +1797,7 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
                   <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:8}}>
                     <div style={{flex:"1 1 140px"}}>
                       <label style={{fontSize:11,color:"#6b7280",display:"block",marginBottom:3}}>Startdatum</label>
-                      <input type="date" value={nieuweSchuldDatum} onChange={e=>setNieuweSchuldDatum(e.target.value)}
+                      <WeekDatePicker value={nieuweSchuldDatum} onChange={v=>setNieuweSchuldDatum(v)}
                         style={{width:"100%",borderRadius:6,border:"1px solid #e5e7eb",padding:"7px 9px",fontSize:13,fontFamily:"inherit",boxSizing:"border-box"}}/>
                     </div>
                     <div style={{flex:"2 1 180px"}}>
@@ -2248,8 +2249,8 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
             </div>
             <div>
               <label className="fl">Inplannen op dag</label>
-              <input type="date" className="fi" value={nieuwKlusje.ingepland_op || dagDatumVoorKlusje}
-                onChange={e=>setNieuwKlusje(p=>({...p,ingepland_op:e.target.value}))}/>
+              <WeekDatePicker className="fi" value={nieuwKlusje.ingepland_op || dagDatumVoorKlusje}
+                onChange={v=>setNieuwKlusje(p=>({...p,ingepland_op:v}))}/>
             </div>
             <div>
               <label className="fl">Prioriteit</label>
@@ -2994,7 +2995,7 @@ function FietsTabInTaken({ gebruiker, showToast, onAddTaak }) {
         {/* Datum */}
         <div style={{marginBottom:14}}>
           <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Datum nodig *</label>
-          <input type="date" value={datum} onChange={e=>setDatum(e.target.value)} style={inp}/>
+          <WeekDatePicker value={datum} onChange={v=>setDatum(v)} style={inp}/>
         </div>
 
         {/* Opmerking */}
@@ -3468,7 +3469,7 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
                   <div>
                     <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>DATUM</label>
-                    <input type="date" value={inplandatum} onChange={e=>setInplandatum(e.target.value)} autoFocus
+                    <WeekDatePicker value={inplandatum} onChange={v=>setInplandatum(v)} autoFocus
                       style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"8px 12px",fontSize:13,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
                   </div>
                   <div>
@@ -3529,7 +3530,7 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
               </div>
               <div>
                 <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>Datum</label>
-                <input type="date" value={bewerkData.datum||m.datum||""} onChange={e=>setBewerkData(p=>({...p,datum:e.target.value}))}
+                <WeekDatePicker value={bewerkData.datum||m.datum||""} onChange={v=>setBewerkData(p=>({...p,datum:v}))}
                   style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1.5px solid ${C.border}`,fontSize:13,fontFamily:"inherit",background:"white",color:C.text,boxSizing:"border-box"}}/>
               </div>
               <div>
@@ -4123,9 +4124,9 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
                     <div>
                       <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>INPLANNEN OP DATUM</label>
-                      <input type="date" className="fi"
+                      <WeekDatePicker className="fi"
                         value={accepteerMap[t.id]?.datum||""}
-                        onChange={e=>setAccepteerMap(p=>({...p,[t.id]:{...p[t.id],datum:e.target.value}}))}
+                        onChange={v=>setAccepteerMap(p=>({...p,[t.id]:{...p[t.id],datum:v}}))}
                         autoFocus/>
                     </div>
                     <div>
@@ -4158,7 +4159,7 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                     </div>
                     <div>
                       <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>INPLANNEN OP</label>
-                      <input type="date" className="fi" value={planningMap2[t.id]||""} onChange={e=>setPlanningMap2(p=>({...p,[t.id]:e.target.value}))}/>
+                      <WeekDatePicker className="fi" value={planningMap2[t.id]||""} onChange={v=>setPlanningMap2(p=>({...p,[t.id]:v}))}/>
                     </div>
                   </div>
                   <div style={{display:"flex",gap:8}}>
@@ -4943,7 +4944,7 @@ function MeldingForm({ houses, onSubmit, showToast, taal="nl" }) {
       </div>
       <div className="card" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}} >
         <div style={{gridColumn:"1"}}><label className="fl">Naam medewerker</label><input className="fi" value={medewerker} onChange={e=>setMedewerker(e.target.value)} placeholder="Voor- en achternaam"/></div>
-        <div style={{gridColumn:"2"}}><label className="fl">Datum</label><input className="fi" type="date" value={datum} onChange={e=>setDatum(e.target.value)}/></div>
+        <div style={{gridColumn:"2"}}><label className="fl">Datum</label><WeekDatePicker className="fi" value={datum} onChange={v=>setDatum(v)}/></div>
         {type!=="verhuizing"&&<>
           <div>
             <label className="fl">Woning</label>
@@ -5374,7 +5375,7 @@ function WoningenDetail({houses, onUpdateWoning}) {
                           {STATUS_DATUM[bewerkWaarden.status]&&(()=>{const dc=STATUS_DATUM[bewerkWaarden.status];return(
                             <div style={{marginBottom:8}}>
                               <label style={{fontSize:10,fontWeight:600,color:dc.kleur,display:"block",marginBottom:3,textTransform:"uppercase",letterSpacing:".5px"}}>{dc.icon} {dc.label}</label>
-                              <input type="date" className="fi" value={bewerkWaarden[dc.veld]||""} onChange={e=>setBewerkWaarden(p=>({...p,[dc.veld]:e.target.value}))} style={{fontSize:12,padding:"6px 10px"}}/>
+                              <WeekDatePicker className="fi" value={bewerkWaarden[dc.veld]||""} onChange={v=>setBewerkWaarden(p=>({...p,[dc.veld]:v}))} style={{fontSize:12,padding:"6px 10px"}}/>
                             </div>
                           );})()}
                           <div style={{display:"flex",gap:6}}>
@@ -5952,7 +5953,7 @@ function WoningBeheer({houses,onAdd,onUpdate,onArchiveer,showToast}) {
               <div style={{marginBottom:12}}><label className="fl">Opmerking</label><input className="fi" value={nieuweKamer.opmerking} onChange={e=>setNieuweKamer(p=>({...p,opmerking:e.target.value}))} placeholder="Optioneel" style={{fontSize:13}}/></div>
               <div style={{marginBottom:12}}><label className="fl">Status</label><select className="fs" value={nieuweKamer.status} onChange={e=>setNieuweKamer(p=>({...p,status:e.target.value}))} style={{fontSize:13}}>{STATUSSEN.map(s=><option key={s}>{s}</option>)}</select></div>
               {STATUS_DATUM[nieuweKamer.status]&&(()=>{const dc=STATUS_DATUM[nieuweKamer.status];return(
-                <div style={{marginBottom:12}}><label className="fl">{dc.icon} {dc.label}</label><input type="date" className="fi" value={nieuweKamer[dc.veld]||""} onChange={e=>setNieuweKamer(p=>({...p,[dc.veld]:e.target.value}))} style={{fontSize:13}}/></div>
+                <div style={{marginBottom:12}}><label className="fl">{dc.icon} {dc.label}</label><WeekDatePicker className="fi" value={nieuweKamer[dc.veld]||""} onChange={v=>setNieuweKamer(p=>({...p,[dc.veld]:v}))} style={{fontSize:13}}/></div>
               );})()}
               <button className="btn-g" style={{width:"100%",padding:10,fontSize:13}} onClick={kamerToevoegen} disabled={saving}>{saving?"⏳ Opslaan...":"✓ Kamer toevoegen"}</button>
             </div>
@@ -5982,7 +5983,7 @@ function KamerBewerken({kamer,onSave,onCancel,saving}) {
       {dc&&(
         <div style={{marginBottom:8}}>
           <label style={{fontSize:10,fontWeight:600,color:dc.kleur,display:"block",marginBottom:3,textTransform:"uppercase",letterSpacing:".5px"}}>{dc.icon} {dc.label}</label>
-          <input type="date" className="fi" value={datums[dc.veld]||""} onChange={e=>setDatums(p=>({...p,[dc.veld]:e.target.value}))} style={{fontSize:12}}/>
+          <WeekDatePicker className="fi" value={datums[dc.veld]||""} onChange={v=>setDatums(p=>({...p,[dc.veld]:v}))} style={{fontSize:12}}/>
         </div>
       )}
       <div style={{display:"flex",gap:8}}>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "./supabaseClient";
 import { BijlageUploader, BijlageWeergave, uploadBijlages } from "./BijlageUploader";
+import WeekDatePicker from "./WeekDatePicker";
 
 // ─── EMAILJS ─────────────────────────────────────────────────────────────────
 const EMAILJS_SERVICE  = process.env.REACT_APP_EMAILJS_SERVICE  || "";
@@ -868,7 +869,7 @@ function BoeteOpzoeken({ meldingen, autos }) {
           </div>
           <div>
             <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Datum boete</label>
-            <input type="date" value={datum} onChange={e=>setDatum(e.target.value)}
+            <WeekDatePicker value={datum} onChange={v=>setDatum(v)}
               style={{width:"100%",border:`1.5px solid ${C.border}`,borderRadius:8,padding:"10px 14px",fontSize:14,fontFamily:"inherit",color:C.text,background:"white",outline:"none",boxSizing:"border-box"}}/>
           </div>
         </div>
@@ -990,12 +991,12 @@ function AutoBeheer({ autos, gearchiveerdeAutos=[], onAdd, onUpdate, onArchiveer
             ))}
             <div>
               <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>APK datum</label>
-              <input type="date" value={nieuw.apk_datum} onChange={e=>setNieuw(p=>({...p,apk_datum:e.target.value}))}
+              <WeekDatePicker value={nieuw.apk_datum} onChange={v=>setNieuw(p=>({...p,apk_datum:v}))}
                 style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"9px 12px",fontSize:13,outline:"none",fontFamily:"inherit"}}/>
             </div>
             <div>
               <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Datum uitgifte</label>
-              <input type="date" value={nieuw.datum_uitgifte} onChange={e=>setNieuw(p=>({...p,datum_uitgifte:e.target.value}))}
+              <WeekDatePicker value={nieuw.datum_uitgifte} onChange={v=>setNieuw(p=>({...p,datum_uitgifte:v}))}
                 style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"9px 12px",fontSize:13,outline:"none",fontFamily:"inherit"}}/>
             </div>
             <div>

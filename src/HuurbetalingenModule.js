@@ -1,6 +1,7 @@
 // Huurbetalingen Module v2
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "./supabaseClient";
+import WeekDatePicker from "./WeekDatePicker";
 
 // ─── EMAILJS ──────────────────────────────────────────────────────────────────
 const EMAILJS_SERVICE  = "service_1af258e";
@@ -620,7 +621,7 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerkin
                 <div style={{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:10,padding:12,minWidth:280}}>
                   <div style={{fontSize:12,fontWeight:700,color:C.groen,marginBottom:8}}>📅 Einddatum instellen</div>
                   <div style={{fontSize:12,color:C.muted,marginBottom:8}}>De huur wordt berekend t/m deze datum. Daarna stopt de opbouw.</div>
-                  <input type="date" value={stopDatum} onChange={e=>setStopDatum(e.target.value)}
+                  <WeekDatePicker value={stopDatum} onChange={v=>setStopDatum(v)}
                     style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1.5px solid ${C.border}`,fontSize:13,fontFamily:"inherit",background:"white",color:C.text,boxSizing:"border-box",marginBottom:8}}/>
                   <div style={{display:"flex",gap:8}}>
                     <button onClick={async()=>{
@@ -822,11 +823,13 @@ function NieuweSchuld({ onSubmit, showToast }) {
         </div>
         <div>
           <Label>Startdatum (eerste dag niet werken) *</Label>
-          <Input type="date" value={startdatum} onChange={e=>setStart(e.target.value)}/>
+          <WeekDatePicker value={startdatum} onChange={v=>setStart(v)}
+            style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"10px 14px",fontSize:14,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
         </div>
         <div>
           <Label>Einddatum (indien bekend)</Label>
-          <Input type="date" value={einddatum} onChange={e=>setEind(e.target.value)}/>
+          <WeekDatePicker value={einddatum} onChange={v=>setEind(v)}
+            style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"10px 14px",fontSize:14,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
           <div style={{fontSize:11,color:C.muted,marginTop:4}}>Leeg = teller loopt nog</div>
         </div>
         <div style={{gridColumn:"1/-1"}}>
@@ -912,7 +915,7 @@ export function HuurBetalingInline({ schuldId, onOpgeslagen }) {
         </div>
         <div>
           <div style={{ fontSize: 10, color: "#64748b", marginBottom: 2 }}>Datum</div>
-          <input type="date" value={datum} onChange={e => setDatum(e.target.value)}
+          <WeekDatePicker value={datum} onChange={v => setDatum(v)}
             style={{ padding: "4px 6px", border: "1px solid #cbd5e1", borderRadius: 4, fontSize: 12 }} />
         </div>
         <div style={{ flex: 1, minWidth: 120 }}>

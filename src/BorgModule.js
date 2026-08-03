@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "./supabaseClient";
 import { BijlageUploader, BijlageWeergave, uploadBijlages } from "./BijlageUploader";
+import WeekDatePicker from "./WeekDatePicker";
 
 const C = {
   blauw:"#1B3A6B", blauwLight:"#2a52a0",
@@ -1388,7 +1389,7 @@ function NieuwBorgPlan({ houses, onSubmit, onAnnuleer }) {
         </div>
         <div>
           <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Aankomstdatum</label>
-          <input type="date" value={aankomst} onChange={e=>setAankomst(e.target.value)}
+          <WeekDatePicker value={aankomst} onChange={v=>setAankomst(v)}
             style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"10px 14px",fontSize:14,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
         </div>
         <div>

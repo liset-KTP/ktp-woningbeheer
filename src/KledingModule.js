@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { supabase } from "./supabaseClient";
+import WeekDatePicker from "./WeekDatePicker";
 
 const C = {
   blauw:"#1B3A6B", blauwDark:"#132b52", groen:"#4A9B3C",
@@ -596,7 +597,7 @@ function BijbestellenView({ voorraad, isBackoffice, onBesteld, onOntvangen }) {
                                   </div>
                                   <div>
                                     <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:3}}>Besteldatum</label>
-                                    <input type="date" value={bestellenDatum} onChange={e=>setBestellenDatum(e.target.value)} style={{...inp}}/>
+                                    <WeekDatePicker value={bestellenDatum} onChange={v=>setBestellenDatum(v)} style={{...inp}}/>
                                   </div>
                                   <div style={{marginTop:16,display:"flex",gap:6}}>
                                     <button onClick={()=>slaBestellingOp(item)} disabled={saving}
