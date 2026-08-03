@@ -26,6 +26,7 @@
     ]
   },
   "devDependencies": {
-    "@babel/parser": "^7.29.7"
+    "@babel/parser": "^7.29.7",
+    "eslint-plugin-react-hooks": "^4.6.2"
   }
 }

@@ -49,8 +49,7 @@ export default function WeekDatePicker({ value, onChange, className = "fi", styl
 
   useEffect(() => {
     if (selected) setViewDate(selected);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value]);
+  }, [value]); // opzettelijk alleen op `value`: `selected` is hiervan afgeleid
 
   useEffect(() => {
     function handleOutside(e) {
