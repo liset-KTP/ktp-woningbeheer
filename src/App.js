@@ -3019,18 +3019,23 @@ function FietsTabInTaken({ gebruiker, showToast, onAddTaak }) {
 function ReserveringAnnuleren({ houses, meldingen, gebruiker, onUpdateWoning, onUpdateMelding, showToast, onTerug }) {
   const [bezig, setBezig] = useState(null);
 
-  // Verzamel alle gereserveerde kamers
+  // Verzamel alle gereserveerde kamers — met koppeling naar de melding die de reservering veroorzaakte
   const reserveringen = [];
   houses.forEach(huis => {
     (huis.kamers||[]).forEach(kamer => {
       if (kamer.status === "Gereserveerd") {
-        // Zoek bijbehorende open reservering-melding
+        // Zoek bijbehorende open melding: kan een "reservering" zijn, óf de naar-kamer van een
+        // lopende "verhuizing" (bij verhuizing krijgt de nieuwe kamer ook status "Gereserveerd").
         const melding = meldingen.find(m =>
-          m.type === "reservering" &&
-          m.woning_id === huis.id &&
-          m.kamer === kamer.k &&
-          (m.status === "open" || m.status === "in_behandeling")
+          (m.status === "open" || m.status === "in_behandeling") &&
+          m.woning_id === huis.id && m.kamer === kamer.k &&
+          (m.type === "reservering" || m.type === "verhuizing")
         );
+        // BUGFIX: verhuizingen NIET hier laten annuleren. Dit was de oorzaak van medewerkers die
+        // volledig uit het systeem verdwenen: de kamer werd leeggemaakt, maar de verhuizing-melding
+        // en de bijbehorende taken bleven onaangeroerd "open" staan — nergens meer zichtbaar.
+        // Verhuizingen horen alleen via het tabblad Meldingen afgehandeld of geannuleerd te worden.
+        if (melding?.type === "verhuizing") return;
         reserveringen.push({ huis, kamer, melding });
       }
     });
@@ -3042,7 +3047,10 @@ function ReserveringAnnuleren({ houses, meldingen, gebruiker, onUpdateWoning, on
     const nieuweKamers = huis.kamers.map(k =>
       k.k === kamer.k ? { ...k, status: "Beschikbaar", naam: "", bedrijf: "" } : k
     );
-    const ok = await onUpdateWoning(huis.id, { kamers: nieuweKamers });
+    // BUGFIX: geef de oude woning-snapshot mee, zodat deze wijziging — net als elke andere
+    // kamer-bewerking — zichtbaar gelogd wordt in het activiteiten-overzicht. Voorheen gebeurde
+    // dit hier niet, waardoor een annulering via dit scherm volledig onopgemerkt bleef.
+    const ok = await onUpdateWoning(huis.id, { kamers: nieuweKamers }, huis);
     if (!ok) { setBezig(null); return; }
 
     // 2. Sluit bijbehorende melding af indien aanwezig
@@ -3968,6 +3976,7 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                           const alleAfgevinkt = alleKeys.every(k => nieuwNotitie.includes("[✓ "+k+"]"));
                           if (alleAfgevinkt) {
                             const isVertrek = t.titel?.includes("na vertrek");
+                            const isVerhuizingControle = t.titel?.includes("Kamer controleren na verhuizing");
                             const isVerhuizingVoltooid = t.titel?.includes("Verhuizing voltooid");
                             const medewerkerNaam = t.titel
                               ?.replace("Kamer controleren na verhuizing — ","")
@@ -3979,6 +3988,31 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                               const woning = houses.find(h=>h.id===t.woning_id);
                               if (woning) {
                                 const nk = woning.kamers.map(k=>k.k===t.kamer?{...k,status:"Beschikbaar",naam:""}:k);
+                                await supabase.from("woningen").update({kamers:nk}).eq("id",woning.id);
+                              }
+                            }
+                            // BUGFIX — Bij verhuizing (oude kamer): zodra huismeester "schoon" + "sleutel
+                            // ingeleverd" afvinkt, kamer direct op Beschikbaar zetten. Voorheen gebeurde dit
+                            // pas als iemand de onderliggende melding ook nog apart op "Verwerkt" zette —
+                            // een stap die makkelijk vergeten werd, waardoor de kamer op "Controle" bleef hangen.
+                            if (isVerhuizingControle && t.woning_id && t.kamer) {
+                              const woning = houses.find(h=>h.id===t.woning_id);
+                              if (woning) {
+                                const nk = woning.kamers.map(k=>k.k===t.kamer?{...k,status:"Beschikbaar",naam:""}:k);
+                                await supabase.from("woningen").update({kamers:nk}).eq("id",woning.id);
+                              }
+                            }
+                            // BUGFIX — Bij verhuizing (nieuwe kamer): zodra huismeester sleutel(s) uitgereikt +
+                            // "kamer klaar" afvinkt, kamer direct op Bezet zetten (met naam erin, voor de zekerheid
+                            // opnieuw gezet). Dit was de kern van de melding van Liset: deze stap gebeurde voorheen
+                            // ALLEEN als iemand de melding zelf óók nog los op "Verwerkt in administratie" zette.
+                            // Gebeurde dat niet (of werd de kamer per ongeluk via "Reservering annuleren"
+                            // leeggemaakt), dan kwam de medewerker nooit in de nieuwe kamer terecht en verdween
+                            // hij/zij volledig uit het overzicht.
+                            if (isVerhuizingVoltooid && t.woning_id && t.kamer) {
+                              const woning = houses.find(h=>h.id===t.woning_id);
+                              if (woning) {
+                                const nk = woning.kamers.map(k=>k.k===t.kamer?{...k,status:"Bezet",naam:medewerkerNaam||k.naam}:k);
                                 await supabase.from("woningen").update({kamers:nk}).eq("id",woning.id);
                               }
                             }
