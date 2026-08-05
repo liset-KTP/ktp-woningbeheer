@@ -360,14 +360,19 @@ function App() {
         return;
       }
     }
-    const { error } = await supabase.from("meldingen").insert([{
+    const { data: nieuweMelding, error } = await supabase.from("meldingen").insert([{
       type:m.type, medewerker:m.medewerker, datum:m.datum, woning_id:m.huisId,
       kamer:m.kamer, wie_regelt:m.wieRegelt||null, sleutel_terug:m.sleutelTerug||null,
       kamer_schoon:m.kamerSchoon||null, sleutel_aantal:m.sleutelAantal||null,
       opmerkingen:m.opmerkingen||null, ingediend_door:gebruiker.naam, status:"open",
       voor_rol:m.type==="reservering"?"iedereen":(m.voor_rol||"backoffice"), van_woning_id:m.vanHuisId||null, van_kamer:m.vanKamer||null,
-    }]);
+    }]).select().single();
     if (error) { showToast("Fout bij opslaan","err"); return; }
+    // Koppeling: elke taak die hieronder wordt aangemaakt voor deze melding krijgt
+    // melding_id mee, zodat afvinken van de taak automatisch de melding kan sluiten
+    // (zie cascadeMeldingAfhandelen in updateTaak) — voorkomt dat je hetzelfde
+    // event op meerdere schermen los moet afvinken.
+    const meldingId = nieuweMelding?.id || null;
 
     // Bij aankomst: taak voor huismeester (sleutel uitreiken) en backoffice (verwerken)
     if (m.type === "aankomst" && m.medewerker) {
@@ -382,6 +387,7 @@ function App() {
           voor_rol: "huismeester",
           status: "open",
           aangemaakt_door: gebruiker.naam,
+          melding_id: meldingId,
         },
         {
           titel: `Aankomst verwerken in administratie — ${m.medewerker}`,
@@ -392,6 +398,7 @@ function App() {
           voor_rol: "backoffice",
           status: "open",
           aangemaakt_door: gebruiker.naam,
+          melding_id: meldingId,
         }
       ]);
     }
@@ -543,6 +550,7 @@ function App() {
           status: "open",
           aangemaakt_door: gebruiker.naam,
           huismeester_opmerking: `Verwacht: ${inleverSleutels} sleutel${inleverSleutels>1?"s":""}. Kamer schoon afvinken voor afronding.`,
+          melding_id: meldingId,
         },
         // Taak 2: Backoffice — administratieve verwerking
         {
@@ -554,6 +562,7 @@ function App() {
           voor_rol: "backoffice",
           status: "open",
           aangemaakt_door: gebruiker.naam,
+          melding_id: meldingId,
         },
         // Taak 3: Huismeester — sleutel uitreiken bij nieuwe kamer
         {
@@ -566,6 +575,7 @@ function App() {
           status: "open",
           aangemaakt_door: gebruiker.naam,
           huismeester_opmerking: `Sleutels uitreiken bij nieuwe kamer. Noteer hoeveel sleutels (1 of 2).`,
+          melding_id: meldingId,
         },
       ]);
     }
@@ -581,6 +591,7 @@ function App() {
         voor_rol: "huismeester",
         status: "open",
         aangemaakt_door: gebruiker.naam,
+        melding_id: meldingId,
       }]);
     }
 
@@ -596,6 +607,7 @@ function App() {
         voor_rol: "huismeester",
         status: "open",
         aangemaakt_door: gebruiker.naam,
+        melding_id: meldingId,
       }]);
     }
 
@@ -807,6 +819,28 @@ function App() {
     showToast("✓ Taak toegevoegd"); await loadTaken(); return true;
   }
 
+  // Sluit automatisch de gekoppelde melding wanneer alle huismeester-taken die
+  // eraan hangen zijn afgerond. Zo hoef je hetzelfde event (bijv. een aankomst
+  // of verhuizing) niet apart af te vinken in de melding én in de taak — één
+  // keer afvinken volstaat en het verdwijnt overal (Taken & Meldingen, Mijn
+  // werkdag, Weekplanning) omdat die schermen allemaal dezelfde data tonen.
+  async function cascadeMeldingAfhandelen(meldingId) {
+    if (!meldingId) return;
+    const { data: melding } = await supabase.from("meldingen").select("id,status").eq("id", meldingId).maybeSingle();
+    if (!melding || melding.status !== "open") return;
+    const { data: nogOpen } = await supabase.from("taken").select("id")
+      .eq("melding_id", meldingId).eq("voor_rol", "huismeester").neq("status", "gedaan");
+    if (nogOpen && nogOpen.length === 0) {
+      await supabase.from("meldingen").update({
+        status: "afgehandeld",
+        afgehandeld_door: "Automatisch (gekoppelde taak afgerond)",
+        afgehandeld_op: new Date().toISOString(),
+        notitie: "Automatisch afgehandeld: gekoppelde huismeester-taak is afgevinkt",
+      }).eq("id", meldingId);
+      await loadMeldingen();
+    }
+  }
+
   async function updateTaak(id, updates) {
     const t = taken.find(t=>t.id===id);
     const huis = houses.find(h=>h.id===t?.woning_id);
@@ -820,6 +854,9 @@ function App() {
       if (error2) { showToast("Fout","err"); return; }
     }
     showToast("✓ Opgeslagen"); await loadTaken();
+    if (updates.status==="gedaan" && t?.melding_id) {
+      await cascadeMeldingAfhandelen(t.melding_id);
+    }
     if (updates.status==="gedaan") {
       let extraLog = "";
       // Lees checkbox-vinkjes uit t.notitie (bijv. Kamer schoon, Sleutel ingeleverd)
@@ -2164,6 +2201,13 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
   });
   const openTaken = weekTaken.filter(t => t.status === "open");
   const openMeldingen = meldingen.filter(m=>m.status==="open");
+  // Open taken altijd bovenaan (gesorteerd op ingeplande datum), afgeronde taken
+  // eronder — anders bleef een net afgevinkte taak door de created_at-volgorde
+  // soms nog bovenaan de lijst staan.
+  const weekTakenGesorteerd = [...weekTaken].sort((a,b) => {
+    if (a.status !== b.status) return a.status === "open" ? -1 : 1;
+    return new Date(a.ingepland_op||a.created_at||0) - new Date(b.ingepland_op||b.created_at||0);
+  });
 
   const [toonNieuwKlusje, setToonNieuwKlusje] = useState(false);
   const [nieuwKlusje, setNieuwKlusje] = useState({titel:"",omschrijving:"",woning_id:"",kamer:"",prioriteit:"middel",ingepland_op:""});
@@ -2309,7 +2353,7 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
               {(getoondeDag.woning_ids||[]).map(id=>{
                 const h = houses.find(h=>h.id===id);
                 if (!h) return null;
-                const hMeldingen = openMeldingen.filter(m=>m.woning_id===h.id && m.type!=="aankomst" && m.type!=="vertrek");
+                const hMeldingen = openMeldingen.filter(m=>m.woning_id===h.id && m.type!=="aankomst" && m.type!=="vertrek" && m.type!=="reservering");
                 const hTaken = weekTaken.filter(t=>t.woning_id===h.id);
                 return (
                   <WoningKaartDag
@@ -2473,12 +2517,15 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
           )}
 
           <div className="card" style={{borderTop:`4px solid ${C.groen}`}}>
-            <div style={{fontWeight:800,fontSize:15,color:C.groen,marginBottom:12}}>
-              {isHuidigeWeek ? "Openstaande to-do's" : `To-do's ${weekInfo.label}`} ({weekTaken.length})
+            <div style={{fontWeight:800,fontSize:15,color:C.groen,marginBottom:4}}>
+              {isHuidigeWeek ? "Openstaande to-do's" : `To-do's ${weekInfo.label}`} ({openTaken.length})
             </div>
+            {weekTaken.length - openTaken.length > 0 && (
+              <div style={{fontSize:11,color:C.muted,marginBottom:8}}>+ {weekTaken.length - openTaken.length} deze week al afgerond</div>
+            )}
             {weekTaken.length===0
               ? <div style={{fontSize:13,color:C.muted,fontStyle:"italic"}}>{isVerledenWeek ? "Geen taken voor deze week" : "Geen open taken"}</div>
-              : weekTaken.slice(0,8).map(t=>{
+              : weekTakenGesorteerd.slice(0,8).map(t=>{
                 const huis=houses.find(h=>h.id===t.woning_id);
                 const isDone = t.status === "gedaan";
                 return (
@@ -2638,7 +2685,10 @@ function WoningKaartDag({ huis, kleur, hTaken, hMeldingen, checklistItems, check
           {hTaken.length > 0 && (
             <div style={{marginBottom:14}}>
               <div style={{fontSize:11,fontWeight:700,color:"#f59e0b",letterSpacing:".6px",textTransform:"uppercase",marginBottom:8}}>🔧 Taken</div>
-              {hTaken.map(t => (
+              {[...hTaken].sort((a,b)=>{
+                if (a.status !== b.status) return a.status === "open" ? -1 : 1;
+                return new Date(a.ingepland_op||a.created_at||0) - new Date(b.ingepland_op||b.created_at||0);
+              }).map(t => (
                 <div key={t.id} style={{display:"flex",gap:10,padding:"7px 0",borderBottom:`1px solid ${C.border}`,alignItems:"center"}}>
                   <div style={{flex:1}}>
                     <div style={{fontSize:13,fontWeight:600,color:t.status==="gedaan"?C.groen:C.text,textDecoration:t.status==="gedaan"?"line-through":"none"}}>{t.titel}</div>
@@ -3125,7 +3175,7 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
   const [subTab, setSubTab] = useState("woningen");
   const [filter, setFilter] = useState("open");
   const [zoek, setZoek] = useState("");
-  const [sorteer, setSorteer] = useState("datum_nieuw"); // datum_nieuw | datum_oud | prioriteit | naam
+  const [sorteer, setSorteer] = useState("deadline"); // deadline | datum_nieuw | datum_oud | prioriteit | naam
 
   // Rol-gebaseerde filtering
   const mijnMeldingen = meldingen.filter(m => m.ingediend_door === gebruiker?.naam);
@@ -3175,6 +3225,15 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
   // Sorteer functie
   function sorteerItems(items, isMelding) {
     return [...items].sort((a, b) => {
+      if (sorteer === "deadline") {
+        // Sorteer op de eigenlijke relevante datum (aankomst/reservering-datum voor
+        // meldingen, ingeplande dag voor taken) i.p.v. op aanmaakmoment — zodat de
+        // eerstvolgende deadline bovenaan staat. Items zonder datum vallen terug op
+        // aanmaakdatum en komen als laatste.
+        const da = isMelding ? (a.datum || a.created_at) : (a.ingepland_op || a.created_at);
+        const db = isMelding ? (b.datum || b.created_at) : (b.ingepland_op || b.created_at);
+        return new Date(da||"9999-12-31") - new Date(db||"9999-12-31");
+      }
       if (sorteer === "datum_nieuw") return new Date(b.created_at||0) - new Date(a.created_at||0);
       if (sorteer === "datum_oud")  return new Date(a.created_at||0) - new Date(b.created_at||0);
       if (sorteer === "naam") return (isMelding ? a.medewerker : a.titel||"").localeCompare(isMelding ? b.medewerker : b.titel||"");
@@ -3243,9 +3302,17 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
                 {l}
               </button>
             ))}
+            <select value={sorteer} onChange={e=>setSorteer(e.target.value)}
+              style={{marginLeft:"auto",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"7px 10px",fontSize:12,outline:"none",fontFamily:"inherit",cursor:"pointer"}}>
+              <option value="deadline">📅 Op datum/deadline</option>
+              <option value="prioriteit">🔥 Op prioriteit</option>
+              <option value="naam">🔤 Op naam</option>
+              <option value="datum_nieuw">🆕 Net toegevoegd eerst</option>
+              <option value="datum_oud">⏳ Langst openstaand eerst</option>
+            </select>
             <input value={zoek} onChange={e=>setZoek(e.target.value)}
               placeholder={`🔍 ${vertaal("zoek_placeholder",taal)}`}
-              style={{marginLeft:"auto",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"7px 14px",fontSize:13,outline:"none",fontFamily:"inherit",minWidth:200}}/>
+              style={{background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"7px 14px",fontSize:13,outline:"none",fontFamily:"inherit",minWidth:200}}/>
           </div>
         </div>
       )}
@@ -4554,7 +4621,7 @@ function HuismeesterPlanningView({ dagplanningDB, houses, taken=[], meldingen=[]
         } else {
           rows.push([weekInfo.key, d.label, dagDatum, `${h.adres} ${h.stad}`, "(geen specifieke taken)", "Bezoek", "—", "", "", ""]);
         }
-        openMeldingen.filter(m => m.woning_id === h.id && m.type !== "aankomst" && m.type !== "vertrek").forEach(m => {
+        openMeldingen.filter(m => m.woning_id === h.id && m.type !== "aankomst" && m.type !== "vertrek" && m.type !== "reservering").forEach(m => {
           rows.push([weekInfo.key, d.label, dagDatum, `${h.adres} ${h.stad}`, `${m.type}: ${m.medewerker}`, "Melding", m.status, "", "", m.opmerkingen||""]);
         });
       });
@@ -4654,7 +4721,7 @@ function HuismeesterPlanningView({ dagplanningDB, houses, taken=[], meldingen=[]
           const dagItems = woningen.map(h => ({
             huis: h,
             taken: weekTaken.filter(t => t.woning_id === h.id),
-            meldingen: openMeldingen.filter(m => m.woning_id === h.id && m.type !== "aankomst" && m.type !== "vertrek"),
+            meldingen: openMeldingen.filter(m => m.woning_id === h.id && m.type !== "aankomst" && m.type !== "vertrek" && m.type !== "reservering"),
           }));
           const extraIngepland = weekTaken.filter(t => t.ingepland_op === dagDatum && !(d.woning_ids||[]).includes(t.woning_id));
           const aankomstenOpDag = meldingen.filter(m => (m.type === "aankomst" || m.type === "reservering") && m.datum === dagDatum);
