@@ -399,6 +399,17 @@ function App() {
           status: "open",
           aangemaakt_door: gebruiker.naam,
           melding_id: meldingId,
+        },
+        {
+          titel: `Aankomst bevestigen — ${m.medewerker}`,
+          omschrijving: `Bevestig dat ${m.medewerker} daadwerkelijk is aangekomen op ${m.datum} (bijv. telefonisch contact met de medewerker of terugkoppeling van de huismeester).`,
+          woning_id: m.huisId || null,
+          kamer: m.kamer || null,
+          prioriteit: "middel",
+          voor_rol: "collega",
+          status: "open",
+          aangemaakt_door: gebruiker.naam,
+          melding_id: meldingId,
         }
       ]);
     }
@@ -829,7 +840,7 @@ function App() {
     const { data: melding } = await supabase.from("meldingen").select("id,status").eq("id", meldingId).maybeSingle();
     if (!melding || melding.status !== "open") return;
     const { data: nogOpen } = await supabase.from("taken").select("id")
-      .eq("melding_id", meldingId).eq("voor_rol", "huismeester").neq("status", "gedaan");
+      .eq("melding_id", meldingId).in("voor_rol", ["huismeester", "collega"]).neq("status", "gedaan");
     if (nogOpen && nogOpen.length === 0) {
       await supabase.from("meldingen").update({
         status: "afgehandeld",
@@ -3199,7 +3210,7 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
   const relevanteTaken = taken.filter(t => {
     if (isBackoffice) return t.voor_rol === "backoffice";
     if (isHuismeester) return t.voor_rol === "huismeester" || t.voor_rol === "iedereen" || !t.voor_rol;
-    if (isCollega) return t.voor_rol === "iedereen" || !t.voor_rol;
+    if (isCollega) return t.voor_rol === "iedereen" || t.voor_rol === "collega" || !t.voor_rol;
     return false;
   }).filter(t => filter === "open" ? (t.status === "open" || t.status === "geaccepteerd") : filter === "gedaan" ? t.status === "gedaan" : true);
 
