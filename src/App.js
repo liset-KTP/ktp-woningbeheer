@@ -3972,9 +3972,14 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                           const nieuwNotitie = oud ? oud+" [✓ "+key+"]" : "[✓ "+key+"]";
                           await onUpdate(t.id, {notitie: nieuwNotitie});
                           // Check of nu alles afgevinkt is
-                          const alleKeys = t.titel?.includes("Verhuizing voltooid") ? ["sleutel1","kamer_klaar"] : ["schoon","sleutel1"];
+                          // BUGFIX — alle checkbox-keys van deze checklist moeten hier staan (sleutel2 ontbrak),
+                          // en er moet een guard zijn tegen herhaald vuren: zonder wasAlAfgevinkt-check vuurde dit
+                          // blok (bericht + mail + borg-terugbetaling) een 2e keer zodra een extra checkbox werd
+                          // aangevinkt nadat de set al compleet was — zie dubbel bericht bij Wojciech Karbowski.
+                          const alleKeys = t.titel?.includes("Verhuizing voltooid") ? ["sleutel1","kamer_klaar"] : ["schoon","sleutel1","sleutel2"];
+                          const wasAlAfgevinkt = alleKeys.every(k => (t.notitie||"").includes("[✓ "+k+"]"));
                           const alleAfgevinkt = alleKeys.every(k => nieuwNotitie.includes("[✓ "+k+"]"));
-                          if (alleAfgevinkt) {
+                          if (alleAfgevinkt && !wasAlAfgevinkt) {
                             const isVertrek = t.titel?.includes("na vertrek");
                             const isVerhuizingControle = t.titel?.includes("Kamer controleren na verhuizing");
                             const isVerhuizingVoltooid = t.titel?.includes("Verhuizing voltooid");
