@@ -29,6 +29,33 @@ import { HandleidingModule } from "./HandleidingModule";
 import { KledingModule, KledingUitgifteInline } from "./KledingModule";
 import WeekDatePicker from "./WeekDatePicker";
 
+// ─── KAMER-WRITES: race-vrije helper ───────────────────────────────────────
+// BUGFIX (2026-08-07, zie commit 009d81b): elke plek die een kamerstatus
+// wijzigt deed voorheen "lees lokale houses-state -> map -> schrijf HELE
+// kamers-kolom terug". Twee van zulke writes op hetzelfde pand kort na elkaar
+// overschreven elkaar, omdat beide op dezelfde, inmiddels verouderde lokale
+// kopie waren gebaseerd. Dat deed Robert Cincu en Patrik Gombkötö volledig
+// uit het systeem verdwijnen bij een verhuizing binnen hetzelfde pand.
+//
+// patchKamer() leest daarom ALTIJD eerst vers uit de database (nooit de
+// React-state `houses`) vlak voordat hij schrijft, en kan in 1 write meerdere
+// kamers van hetzelfde pand tegelijk aanpassen (bijv. naar- én van-kamer bij
+// een verhuizing). Gebruik deze functie voor ELKE wijziging aan
+// woningen.kamers — nooit meer rechtstreeks huis.kamers.map(...) + update.
+//
+// wijzigingenPerKamer: { [kamerNr]: {...velden om te overschrijven} }
+// Voorbeeld: patchKamer(20, { "3": {naam:"Jan", status:"Bezet"} })
+// Meerdere kamers tegelijk (zelfde pand): patchKamer(20, { "3": {...}, "5.2": {...} })
+async function patchKamer(woningId, wijzigingenPerKamer) {
+  if (!woningId || !wijzigingenPerKamer || Object.keys(wijzigingenPerKamer).length === 0) return false;
+  const { data: vers, error: readErr } = await supabase.from("woningen").select("kamers").eq("id", woningId).single();
+  if (readErr || !vers) { console.error("patchKamer: kon woning niet vers lezen", woningId, readErr); return false; }
+  const nk = (vers.kamers || []).map(k => wijzigingenPerKamer[k.k] ? { ...k, ...wijzigingenPerKamer[k.k] } : k);
+  const { error } = await supabase.from("woningen").update({ kamers: nk }).eq("id", woningId);
+  if (error) { console.error("patchKamer: write mislukt", woningId, error); return false; }
+  return true;
+}
+
 // ─── EMAILJS ──────────────────────────────────────────────────────────────────
 const EMAILJS_SERVICE  = process.env.REACT_APP_EMAILJS_SERVICE  || "";
 const EMAILJS_TEMPLATE = process.env.REACT_APP_EMAILJS_TEMPLATE || "";
@@ -809,11 +836,12 @@ function App() {
       }
 
       // Als vertrek verwerkt wordt: zet kamerstatus terug naar Beschikbaar
+      // BUGFIX (Fase 1, 2026-08-07): via patchKamer() i.p.v. rechtstreeks de
+      // mogelijk verouderde lokale kamers-array terugschrijven.
       if ((newStatus==="verwerkt"||newStatus==="afgehandeld") && m?.type==="vertrek" && huis) {
         const kamer = huis.kamers.find(k=>k.k===m.kamer);
         if (kamer && kamer.status==="Controle") {
-          const nk = huis.kamers.map(k=>k.k===m.kamer?{...k,status:"Beschikbaar",naam:""}:k);
-          await supabase.from("woningen").update({kamers:nk}).eq("id",huis.id);
+          await patchKamer(huis.id, { [m.kamer]: { status: "Beschikbaar", naam: "" } });
           await loadHouses();
         }
       }
@@ -972,7 +1000,33 @@ function App() {
   // mee — die wijzigingen zijn al te herleiden via de bijbehorende melding/taak (ingediend_door
   // / afgehandeld_door), dus we loggen dan niet nogmaals (voorkomt dubbele/ruisvolle regels).
   async function updateWoning(id, updates, oudeWoning) {
-    const payload = { ...updates, bijgewerkt_door: gebruiker.naam, updated_at: new Date().toISOString() };
+    // BUGFIX (Fase 1, 2026-08-07): als `updates.kamers` wordt meegegeven, NIET de door de
+    // aanroeper opgebouwde array blind wegschrijven — die is gebouwd op lokale, mogelijk
+    // verouderde `houses`-state (zelfde risico als de verhuizing-race, commit 009d81b).
+    // In plaats daarvan: bereken wat er ECHT gewijzigd is t.o.v. `oudeWoning` (kamer
+    // toegevoegd/verwijderd/aangepast) en pas alleen dat verschil toe op de meest recente
+    // kamers-data uit de database. Dit dekt in 1x alle aanroepers van updateWoning die
+    // kamers bewerken (WoningBeheer, medewerkersprofiel, reservering-annuleren) — zie
+    // plan_kamers_datamodel.md, Fase 1.
+    let finalUpdates = updates;
+    if (updates.kamers) {
+      const { data: vers, error: readErr } = await supabase.from("woningen").select("kamers").eq("id", id).single();
+      if (readErr || !vers) { showToast("Fout bij opslaan","err"); return false; }
+      const oudeMap = new Map((oudeWoning?.kamers || []).map(k => [k.k, k]));
+      const nieuweMap = new Map((updates.kamers || []).map(k => [k.k, k]));
+      const verwijderd = [...oudeMap.keys()].filter(nr => !nieuweMap.has(nr));
+      const gewijzigdOfNieuw = [...nieuweMap.entries()].filter(([nr, k]) => {
+        const ok = oudeMap.get(nr);
+        return !ok || JSON.stringify(ok) !== JSON.stringify(k);
+      });
+      const nk = (vers.kamers || []).filter(k => !verwijderd.includes(k.k));
+      for (const [nr, nieuweWaarde] of gewijzigdOfNieuw) {
+        const idx = nk.findIndex(k => k.k === nr);
+        if (idx >= 0) nk[idx] = nieuweWaarde; else nk.push(nieuweWaarde);
+      }
+      finalUpdates = { ...updates, kamers: nk };
+    }
+    const payload = { ...finalUpdates, bijgewerkt_door: gebruiker.naam, updated_at: new Date().toISOString() };
     const { error } = await supabase.from("woningen").update(payload).eq("id",id);
     if (error) { showToast("Fout bij opslaan","err"); return false; }
 
@@ -4087,38 +4141,35 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
                               .replace("Kamer controleren na vertrek — ","")
                               .replace("Verhuizing voltooid — sleutel uitreiken ","") || "";
                             
+                            // BUGFIX (Fase 1, 2026-08-07): alle 3 kamer-writes hieronder gaan via
+                            // patchKamer() — die leest vlak voor het schrijven altijd vers uit de
+                            // database i.p.v. te vertrouwen op de mogelijk verouderde lokale
+                            // `houses`-state. Zelfde dubbele-write-race als bij de verhuizing-flow
+                            // (commit 009d81b) kon hier ook optreden als twee taken van hetzelfde
+                            // pand kort na elkaar werden afgevinkt.
+
                             // Bij vertrek: kamer op Beschikbaar zetten
                             if (isVertrek && t.woning_id && t.kamer) {
-                              const woning = houses.find(h=>h.id===t.woning_id);
-                              if (woning) {
-                                const nk = woning.kamers.map(k=>k.k===t.kamer?{...k,status:"Beschikbaar",naam:""}:k);
-                                await supabase.from("woningen").update({kamers:nk}).eq("id",woning.id);
-                              }
+                              await patchKamer(t.woning_id, { [t.kamer]: { status: "Beschikbaar", naam: "" } });
                             }
-                            // BUGFIX — Bij verhuizing (oude kamer): zodra huismeester "schoon" + "sleutel
+                            // Bij verhuizing (oude kamer): zodra huismeester "schoon" + "sleutel
                             // ingeleverd" afvinkt, kamer direct op Beschikbaar zetten. Voorheen gebeurde dit
                             // pas als iemand de onderliggende melding ook nog apart op "Verwerkt" zette —
                             // een stap die makkelijk vergeten werd, waardoor de kamer op "Controle" bleef hangen.
                             if (isVerhuizingControle && t.woning_id && t.kamer) {
-                              const woning = houses.find(h=>h.id===t.woning_id);
-                              if (woning) {
-                                const nk = woning.kamers.map(k=>k.k===t.kamer?{...k,status:"Beschikbaar",naam:""}:k);
-                                await supabase.from("woningen").update({kamers:nk}).eq("id",woning.id);
-                              }
+                              await patchKamer(t.woning_id, { [t.kamer]: { status: "Beschikbaar", naam: "" } });
                             }
-                            // BUGFIX — Bij verhuizing (nieuwe kamer): zodra huismeester sleutel(s) uitgereikt +
-                            // "kamer klaar" afvinkt, kamer direct op Bezet zetten (met naam erin, voor de zekerheid
-                            // opnieuw gezet). Dit was de kern van de melding van Liset: deze stap gebeurde voorheen
-                            // ALLEEN als iemand de melding zelf óók nog los op "Verwerkt in administratie" zette.
-                            // Gebeurde dat niet (of werd de kamer per ongeluk via "Reservering annuleren"
-                            // leeggemaakt), dan kwam de medewerker nooit in de nieuwe kamer terecht en verdween
-                            // hij/zij volledig uit het overzicht.
+                            // Bij verhuizing (nieuwe kamer): zodra huismeester sleutel(s) uitgereikt +
+                            // "kamer klaar" afvinkt, kamer direct op Bezet zetten (met naam erin, voor de
+                            // zekerheid opnieuw gezet). Dit was de kern van de eerdere melding van Liset:
+                            // deze stap gebeurde voorheen ALLEEN als iemand de melding zelf óók nog los op
+                            // "Verwerkt in administratie" zette. Gebeurde dat niet (of werd de kamer per
+                            // ongeluk via "Reservering annuleren" leeggemaakt), dan kwam de medewerker
+                            // nooit in de nieuwe kamer terecht en verdween hij/zij volledig uit het overzicht.
+                            // Naam alleen meegeven als bekend — anders blijft de naam staan die net vers
+                            // uit de database is gelezen (nooit een lokale, mogelijk verouderde k.naam).
                             if (isVerhuizingVoltooid && t.woning_id && t.kamer) {
-                              const woning = houses.find(h=>h.id===t.woning_id);
-                              if (woning) {
-                                const nk = woning.kamers.map(k=>k.k===t.kamer?{...k,status:"Bezet",naam:medewerkerNaam||k.naam}:k);
-                                await supabase.from("woningen").update({kamers:nk}).eq("id",woning.id);
-                              }
+                              await patchKamer(t.woning_id, { [t.kamer]: { status: "Bezet", ...(medewerkerNaam ? { naam: medewerkerNaam } : {}) } });
                             }
 
                             // 1. Bericht naar backoffice
