@@ -490,20 +490,34 @@ function App() {
 
     // Kamerstatus bijwerken
     const huis = houses.find(h=>h.id===m.huisId);
+    // BUGFIX (2026-08-07): bij verhuizing binnen HETZELFDE pand (van- en naar-kamer in dezelfde
+    // woning) mogen naar-kamer en van-kamer niet met 2 losse supabase-updates worden weggeschreven.
+    // Beide updates baseerden zich op dezelfde, ongewijzigde lokale `houses`-snapshot: de 2e write
+    // (van-kamer) overschreef daardoor de volledige kamers-kolom opnieuw vanaf de OUDE snapshot en
+    // gooide de zojuist gezette naar-kamer-wijziging weg. Resultaat: de nieuwe kamer viel terug naar
+    // zijn oude ("Beschikbaar") status en de medewerker leek volledig verdwenen — precies wat er
+    // gebeurde bij Robert Cincu (K3→K2D) en Patrik Gombkötö (K5.2→K3), beiden binnen pand Misterstraat
+    // 160 (woning_id 20). Fix: als van- en naar-kamer in dezelfde woning liggen, in ÉÉN map-pass en
+    // ÉÉN write verwerken. Alleen bij een verhuizing naar een ANDER pand blijven het twee aparte
+    // (onafhankelijke) records/writes.
+    const zelfdeWoningVerhuizing = m.type==="verhuizing" && m.vanHuisId && m.vanHuisId===m.huisId;
     if (huis) {
       const nk = huis.kamers.map(k => {
-        if (k.k!==m.kamer) return k;
-        if (m.type==="aankomst")    return {...k,naam:m.medewerker,status:"Lopend"};
-        if (m.type==="reservering") return {...k,naam:m.medewerker,status:"Gereserveerd"};
-        if (m.type==="vertrek") { return {...k,status:"Controle"}; } // Altijd Controle tot huismeester heeft afgevinkt
-        if (m.type==="vertrek_aankondiging") { return {...k,status:"Gereserveerd"}; } // Aankondiging = gereserveerd
-        if (m.type==="verhuizing") { return {...k,naam:m.medewerker,status:"Gereserveerd"}; } // Naar-kamer reserveren
+        if (k.k===m.kamer) {
+          if (m.type==="aankomst")    return {...k,naam:m.medewerker,status:"Lopend"};
+          if (m.type==="reservering") return {...k,naam:m.medewerker,status:"Gereserveerd"};
+          if (m.type==="vertrek") { return {...k,status:"Controle"}; } // Altijd Controle tot huismeester heeft afgevinkt
+          if (m.type==="vertrek_aankondiging") { return {...k,status:"Gereserveerd"}; } // Aankondiging = gereserveerd
+          if (m.type==="verhuizing") { return {...k,naam:m.medewerker,status:"Gereserveerd"}; } // Naar-kamer reserveren
+          return k;
+        }
+        if (zelfdeWoningVerhuizing && k.k===m.vanKamer) return {...k,status:"Controle",naam:""};
         return k;
       });
       await supabase.from("woningen").update({kamers:nk}).eq("id",m.huisId);
     }
-    // Bij verhuizing: zet ook de van-kamer op Controle
-    if (m.type==="verhuizing" && m.vanHuisId) {
+    // Bij verhuizing naar een ANDER pand: van-kamer apart bijwerken (ander record, geen race).
+    if (m.type==="verhuizing" && m.vanHuisId && !zelfdeWoningVerhuizing) {
       const vanHuisObj = houses.find(h=>h.id===m.vanHuisId);
       if (vanHuisObj) {
         const nkVan = vanHuisObj.kamers.map(k=>k.k===m.vanKamer?{...k,status:"Controle",naam:""}:k);
@@ -805,14 +819,21 @@ function App() {
       }
 
       // Als verhuizing verwerkt wordt: zet naar-kamer op Bezet en van-kamer op Controle
+      // BUGFIX (2026-08-07): zelfde dubbele-write-race als hierboven bij addMelding — als naar- en
+      // van-kamer in dezelfde woning liggen, in 1 write combineren, anders overschrijft de 2e call
+      // de 1e (zie uitgebreide toelichting bij addMelding, zelfde incident).
       if ((newStatus==="verwerkt"||newStatus==="afgehandeld") && m?.type==="verhuizing") {
-        // Naar-kamer: Bezet met naam medewerker
+        const zelfdeWoningAfhandelen = huis && m.van_woning_id && huis.id===m.van_woning_id;
         if (huis && m.kamer) {
-          const nkNaar = huis.kamers.map(k=>k.k===m.kamer?{...k,naam:m.medewerker,status:"Bezet"}:k);
+          const nkNaar = huis.kamers.map(k => {
+            if (k.k===m.kamer) return {...k,naam:m.medewerker,status:"Bezet"};
+            if (zelfdeWoningAfhandelen && k.k===m.van_kamer) return {...k,status:"Controle",naam:""};
+            return k;
+          });
           await supabase.from("woningen").update({kamers:nkNaar}).eq("id",huis.id);
         }
-        // Van-kamer: Controle (opgeslagen in van_woning_id / van_kamer)
-        if (m.van_woning_id && m.van_kamer) {
+        // Van-kamer in een ANDERE woning: apart bijwerken (ander record, geen race).
+        if (m.van_woning_id && m.van_kamer && !zelfdeWoningAfhandelen) {
           const vanHuisObj = houses.find(h=>h.id===m.van_woning_id);
           if (vanHuisObj) {
             const nkVan = vanHuisObj.kamers.map(k=>k.k===m.van_kamer?{...k,status:"Controle",naam:""}:k);
