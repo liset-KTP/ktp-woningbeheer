@@ -863,6 +863,44 @@ function App() {
         }
       }
 
+      // Bij vertrek afgehandeld: nog OPEN aankomst-taken/-melding voor dezelfde
+      // medewerker+woning+kamer automatisch sluiten. Zonder deze check kon een
+      // "Aankomst bevestigen"- of "Aankomst begeleiden"-taak dagen later alsnog
+      // afgevinkt worden voor iemand die alweer vertrokken was — dat wekte de
+      // valse indruk dat hij nog gehuisvest is (zie Ciszek/Rogalsk, Am Busch 43-5,
+      // beiden aangekomen 06-08-2026, alweer vertrokken 07-08-2026, maar
+      // "Aankomst bevestigen" pas op 10-08-2026 nog handmatig afgevinkt).
+      if ((newStatus==="verwerkt"||newStatus==="afgehandeld") && m?.type==="vertrek" && m?.medewerker && m?.woning_id && m?.kamer) {
+        const { data: aankomstMelding } = await supabase.from("meldingen")
+          .select("id,status")
+          .eq("type", "aankomst").eq("medewerker", m.medewerker)
+          .eq("woning_id", m.woning_id).eq("kamer", m.kamer)
+          .order("id", { ascending: false }).limit(1).maybeSingle();
+        if (aankomstMelding?.id) {
+          const { data: openAankomstTaken } = await supabase.from("taken")
+            .select("id").eq("melding_id", aankomstMelding.id).neq("status", "gedaan");
+          if (openAankomstTaken && openAankomstTaken.length > 0) {
+            await supabase.from("taken").update({
+              status: "gedaan",
+              afgehandeld_door: "Automatisch (vertrek al verwerkt)",
+              afgehandeld_op: new Date().toISOString(),
+              notitie: `Automatisch geannuleerd: ${m.medewerker} is alweer vertrokken voordat deze aankomst-taak was afgerond.`,
+            }).in("id", openAankomstTaken.map(t => t.id));
+            await loadTaken();
+            showToast(`ℹ️ ${openAankomstTaken.length} openstaande aankomst-taak/taken voor ${m.medewerker} automatisch geannuleerd (al vertrokken)`);
+          }
+          if (aankomstMelding.status === "open" || aankomstMelding.status === "in_behandeling") {
+            await supabase.from("meldingen").update({
+              status: "afgehandeld",
+              afgehandeld_door: "Automatisch (vertrek al verwerkt)",
+              afgehandeld_op: new Date().toISOString(),
+              notitie: `Automatisch afgehandeld: ${m.medewerker} is alweer vertrokken.`,
+            }).eq("id", aankomstMelding.id);
+            await loadMeldingen();
+          }
+        }
+      }
+
       // Als verhuizing verwerkt wordt: zet naar-kamer op Bezet en van-kamer op Controle
       // BUGFIX (2026-08-07): zelfde dubbele-write-race als hierboven bij addMelding — als naar- en
       // van-kamer in dezelfde woning liggen, in 1 write combineren, anders overschrijft de 2e call
