@@ -24,7 +24,7 @@ import { FietsModule } from "./FietsModule";
 import { HuurbetalingenModule, HuurBetalingInline } from "./HuurbetalingenModule";
 import { BijlageUploader, BijlageWeergave, uploadBijlages } from "./BijlageUploader";
 import { BerichtenModule } from "./BerichtenModule";
-import { BorgModule } from "./BorgModule";
+import { BorgModule, berekenStartWeekVanAankomst, weekPlusN } from "./BorgModule";
 import { HandleidingModule } from "./HandleidingModule";
 import { KledingModule, KledingUitgifteInline } from "./KledingModule";
 import WeekDatePicker from "./WeekDatePicker";
@@ -463,9 +463,8 @@ function App() {
         const { data: fietsen } = await supabase.from("fietsen")
           .select("id").eq("naam_medewerker", m.medewerker).eq("status","In gebruik").limit(1);
         const heeftFiets = fietsen && fietsen.length > 0;
-        const nu2 = new Date();
-        const startWeek = (() => { const d=new Date(); const j=new Date(Date.UTC(d.getFullYear(),0,1)); return Math.ceil((((d-j)/86400000)+j.getDay()+1)/7)+1; })();
-        const startJaar = nu2.getFullYear();
+        // Startweek = 2 weken na de kalenderweek van aankomst (niet het moment van verwerken van de melding).
+        const { week: startWeek, jaar: startJaar } = berekenStartWeekVanAankomst(m.datum);
         const termijnData = [];
         if (sleutels === 1) {
           termijnData.push({omschrijving:"Borg sleutel (week 1/2)",bedrag:50});
@@ -497,8 +496,7 @@ function App() {
           }]).select().single();
           if (plan2) {
             const rows = termijnData.map((termijn,i) => {
-              let week = startWeek + i; let jaar = startJaar;
-              if (week > 52) { week -= 52; jaar++; }
+              const { week, jaar } = weekPlusN(startWeek, startJaar, i);
               return { plan_id: plan2.id, naam_medewerker: m.medewerker, week_nummer: week, jaar, bedrag: termijn.bedrag, type: "inhouden", omschrijving: termijn.omschrijving, status: "open" };
             });
             await supabase.from("borg_termijnen").insert(rows);
@@ -742,21 +740,19 @@ function App() {
           const { data: alSleutels } = await supabase.from("borg_termijnen")
             .select("id").eq("plan_id", bestaandPlanId).ilike("omschrijving", "%sleutel%").limit(1);
           if (sleutelTermijnen.length > 0 && (!alSleutels || alSleutels.length === 0)) {
-            const nu3 = new Date();
-            const sw = (() => { const d=new Date(); const j=new Date(Date.UTC(d.getFullYear(),0,1)); return Math.ceil((((d-j)/86400000)+j.getDay()+1)/7)+1; })();
             const extraTotaal = sleutelTermijnen.reduce((s,t)=>s+t.bedrag,0);
             // Zoek laatste week van bestaande termijnen zodat we daarna plannen
             const { data: bestaandeTermijnen } = await supabase.from("borg_termijnen")
               .select("week_nummer,jaar").eq("plan_id",bestaandPlanId).order("jaar").order("week_nummer");
-            let startWeekSleutel = sw;
+            // Standaard: week ná de kalenderweek van aankomst. Zijn er al termijnen op dit plan
+            // (bijv. fiets-borg), sluit dan aan ná de laatst geplande week.
+            let { week: startWeekSleutel, jaar: startJaarSleutel } = berekenStartWeekVanAankomst(m.datum);
             if (bestaandeTermijnen && bestaandeTermijnen.length > 0) {
               const laatste = bestaandeTermijnen[bestaandeTermijnen.length-1];
-              startWeekSleutel = laatste.week_nummer + 1;
-              if (startWeekSleutel > 52) startWeekSleutel = 1;
+              ({ week: startWeekSleutel, jaar: startJaarSleutel } = weekPlusN(laatste.week_nummer, laatste.jaar, 1));
             }
             const rows = sleutelTermijnen.map((t,i) => {
-              let week = startWeekSleutel+i; let jaar = nu3.getFullYear();
-              if (week > 52) { week -= 52; jaar++; }
+              const { week, jaar } = weekPlusN(startWeekSleutel, startJaarSleutel, i);
               return { plan_id: bestaandPlanId, naam_medewerker: m.medewerker, week_nummer: week, jaar, bedrag: t.bedrag, type: "inhouden", omschrijving: t.omschrijving, status: "open" };
             });
             const { error: termijnFout } = await supabase.from("borg_termijnen").insert(rows);
@@ -777,9 +773,8 @@ function App() {
             .select("id").eq("naam_medewerker", m.medewerker).eq("status","In gebruik").limit(1);
           const heeftFiets = fietsen && fietsen.length > 0;
           // Bereken termijnen
-          const nu2 = new Date();
-          const startWeek = (() => { const d=new Date(); const j=new Date(Date.UTC(d.getFullYear(),0,1)); return Math.ceil((((d-j)/86400000)+j.getDay()+1)/7)+1; })();
-          const startJaar = nu2.getFullYear();
+          // Startweek = 2 weken na de kalenderweek van aankomst (niet het moment van verwerken van de melding).
+          const { week: startWeek, jaar: startJaar } = berekenStartWeekVanAankomst(m.datum);
           const termijnData = [];
           if (sleutels === 1) {
             termijnData.push({omschrijving:"Borg sleutel (week 1/2)",bedrag:50});
@@ -811,8 +806,7 @@ function App() {
             }]).select().single();
             if (plan2) {
               const rows = termijnData.map((termijn,i) => {
-                let week = startWeek + i; let jaar = startJaar;
-                if (week > 52) { week -= 52; jaar++; }
+                const { week, jaar } = weekPlusN(startWeek, startJaar, i);
                 return { plan_id: plan2.id, naam_medewerker: m.medewerker, week_nummer: week, jaar, bedrag: termijn.bedrag, type: "inhouden", omschrijving: termijn.omschrijving, status: "open" };
               });
               await supabase.from("borg_termijnen").insert(rows);

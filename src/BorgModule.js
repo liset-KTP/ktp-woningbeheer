@@ -45,6 +45,24 @@ function getMaandagVanWeek(week, jaar) {
   return d;
 }
 
+// Telt n weken op bij een week/jaar-combinatie. Rekent via een echte datum (i.p.v. "week + n, evt -52")
+// zodat jaargrenzen en 53-weekse jaren altijd goed gaan.
+export function weekPlusN(week, jaar, n) {
+  const maandag = getMaandagVanWeek(week, jaar);
+  maandag.setDate(maandag.getDate() + n * 7);
+  return { week: getWeekNr(maandag), jaar: maandag.getFullYear() };
+}
+
+// Bepaalt de startweek voor een borgplan: 2 kalenderweken na de week van aankomst.
+// Los van het moment waarop de melding/het plan daadwerkelijk in het systeem wordt verwerkt —
+// dat kan later zijn dan de aankomst zelf, en mag de inhoudingsweek niet beïnvloeden.
+// Zonder aankomstdatum (zou niet moeten voorkomen) valt terug op "huidige week + 2".
+const WEKEN_MARGE_NA_AANKOMST = 2;
+export function berekenStartWeekVanAankomst(aankomstDatum) {
+  const basis = aankomstDatum ? new Date(aankomstDatum) : new Date();
+  return weekPlusN(getWeekNr(basis), basis.getFullYear(), WEKEN_MARGE_NA_AANKOMST);
+}
+
 // Termijnen o.b.v. aantal sleutels (los herbruikbaar, ook bij wijzigen van een bestaand plan)
 function berekenSleutelTermijnen(sleutels) {
   if (sleutels === 1) {
@@ -120,9 +138,8 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
 
   async function maakPlanAan(data) {
     const { termijnen: t, totaal } = berekenBorgPlan(data.sleutels, data.heeft_fiets);
-    const nu = new Date();
-    const startWeek = getWeekNr(nu); // Huidige week
-    const startJaar = nu.getFullYear();
+    // Startweek = week ná de kalenderweek van aankomst (niet het moment van aanmaken in het systeem).
+    const { week: startWeek, jaar: startJaar } = berekenStartWeekVanAankomst(data.aankomst_datum);
 
     // Plan aanmaken
     const { data: plan, error } = await supabase.from("borg_plannen").insert([{
@@ -142,9 +159,7 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
 
     // Termijnen aanmaken
     const termijnRows = t.map((term, i) => {
-      let week = startWeek + i;
-      let jaar = startJaar;
-      if (week > 52) { week -= 52; jaar++; }
+      const { week, jaar } = weekPlusN(startWeek, startJaar, i);
       return {
         plan_id: plan.id,
         naam_medewerker: data.naam_medewerker,
