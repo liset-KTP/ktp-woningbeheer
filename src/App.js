@@ -674,6 +674,29 @@ function App() {
   async function updateMeldingStatus(id, newStatus, notitie="") {
     const m = meldingen.find(m=>m.id===id);
     const huis = houses.find(h=>h.id===m?.woning_id);
+
+    // Check (2026-08-10): vertrek afhandelen mag niet stilzwijgend voorbijgaan aan een
+    // nog ACTIEF borgplan — anders blijft de medewerker in de wekelijkse borginhoudingen
+    // staan terwijl hij al weg is, en wordt de borg nooit teruggeboekt (zie Karbowski-case).
+    if ((newStatus==="verwerkt"||newStatus==="afgehandeld") && m?.type==="vertrek" && m?.medewerker) {
+      const { data: openBorgplannen } = await supabase
+        .from("borg_plannen")
+        .select("id,totaal_borg,ingehouden,status")
+        .eq("naam_medewerker", m.medewerker)
+        .eq("status", "actief");
+      if (openBorgplannen && openBorgplannen.length > 0) {
+        const plan = openBorgplannen[0];
+        const resterend = Number(plan.totaal_borg) - Number(plan.ingehouden);
+        const doorgaan = window.confirm(
+          `⚠️ ${m.medewerker} heeft nog een ACTIEF borgplan: €${Number(plan.ingehouden).toFixed(2)} ingehouden van €${Number(plan.totaal_borg).toFixed(2)}, nog €${resterend.toFixed(2)} niet verwerkt.\n\n` +
+          `Als je deze vertrekmelding nu afhandelt zonder het borgplan af te sluiten, blijft ${m.medewerker} in de wekelijkse borginhoudingen staan en wordt de borg niet teruggeboekt.\n\n` +
+          `Ga naar Borg → Alle plannen → sluit het plan van ${m.medewerker} af (archiveren of terugbetalen), en registreer zo nodig een terugbetaling via "Extra post".\n\n` +
+          `OK = toch nu afhandelen (bijv. als je het borgplan al apart regelt)\nAnnuleren = eerst het borgplan regelen`
+        );
+        if (!doorgaan) return;
+      }
+    }
+
     const { error } = await supabase.from("meldingen").update({status:newStatus,afgehandeld_door:gebruiker.naam,afgehandeld_op:new Date().toISOString(),notitie:notitie||null}).eq("id",id);
     if (error) showToast("Fout bij updaten","err");
     else {
