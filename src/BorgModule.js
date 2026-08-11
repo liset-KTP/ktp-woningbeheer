@@ -1256,7 +1256,7 @@ function Archief({ plannen, termijnen, extras, houses }) {
         const huis = houses.find(h=>h.id===plan.woning_id);
         const t = termijnen.filter(t=>t.plan_id===plan.id);
         return (
-          <div key={plan.id} style={{background:"white",border:`1px solid ${C.border}`,borderLeft:`4px solid ${plan.status==="terugbetaald"?C.groen:C.muted}`,borderRadius:10,padding:"14px 18px",opacity:.8}}>
+          <div key={plan.id} style={{background:"white",border:`1px solid ${C.border}`,borderLeft:`4px solid ${plan.status==="terugbetaald"?C.groen:plan.status==="geannuleerd"?C.rood:C.muted}`,borderRadius:10,padding:"14px 18px",opacity:.8}}>
             <div style={{display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:8}}>
               <div>
                 <div style={{fontWeight:700,fontSize:14,color:C.text}}>{plan.naam_medewerker}</div>
@@ -1264,8 +1264,8 @@ function Archief({ plannen, termijnen, extras, houses }) {
                 <div style={{fontSize:12,color:C.muted}}>🔑 {plan.sleutels} sleutel{plan.sleutels>1?"s":""}{plan.heeft_fiets?" · 🚲 Fiets":""}</div>
               </div>
               <div style={{textAlign:"right"}}>
-                <div style={{fontWeight:700,color:plan.status==="terugbetaald"?C.groen:C.muted}}>
-                  {plan.status==="terugbetaald"?"💶 Terugbetaald":"Afgesloten"}
+                <div style={{fontWeight:700,color:plan.status==="terugbetaald"?C.groen:plan.status==="geannuleerd"?C.rood:C.muted}}>
+                  {plan.status==="terugbetaald"?"💶 Terugbetaald":plan.status==="geannuleerd"?"✕ Geannuleerd":"Afgesloten"}
                 </div>
                 <div style={{fontSize:12,color:C.muted}}>€{Number(plan.totaal_borg).toFixed(2)} totaal</div>
               </div>
