@@ -3307,6 +3307,189 @@ function ReserveringAnnuleren({ houses, meldingen, gebruiker, onUpdateWoning, on
   );
 }
 
+
+// ─── AANKOMST ANNULEREN ───────────────────────────────────────────────────────
+// Voor situaties waarin een aankomst ten onrechte is bevestigd/verwerkt (bijv.
+// iemand is nooit daadwerkelijk komen wonen, of vertrekt weer voordat de aankomst-
+// administratie was afgerond — zie Ciszek/Rogalsk, Am Busch 43-5, 06/07-08-2026).
+// Annuleert in 1 actie: de aankomstmelding, een eventueel gekoppeld borgplan (+
+// openstaande termijnen) en nog openstaande aankomst-taken. Kamerstatus wordt
+// teruggezet naar Beschikbaar als de kamer nog op naam van deze medewerker staat.
+function AankomstAnnuleren({ houses, meldingen, taken, gebruiker, showToast, onTerug }) {
+  const [zoek, setZoek] = useState("");
+  const [bezig, setBezig] = useState(null);
+  const [redenModal, setRedenModal] = useState(null); // melding waarvoor annuleer-bevestiging open staat
+  const [reden, setReden] = useState("");
+
+  const kandidaten = meldingen
+    .filter(m => m.type === "aankomst" && m.status !== "geannuleerd")
+    .filter(m => !zoek.trim() || m.medewerker?.toLowerCase().includes(zoek.toLowerCase()))
+    .sort((a,b) => new Date(b.created_at||0) - new Date(a.created_at||0))
+    .slice(0, 100);
+
+  function openBevestiging(melding) {
+    setReden("");
+    setRedenModal(melding);
+  }
+
+  async function bevestigAnnuleren() {
+    const melding = redenModal;
+    if (!melding) return;
+    if (!reden.trim()) { alert("Vul een korte reden in (bijv. 'nooit in de woning geweest')."); return; }
+    setBezig(melding.id);
+    setRedenModal(null);
+
+    const huis = houses.find(h => h.id === melding.woning_id);
+    const datumNu = new Date().toLocaleDateString("nl-NL");
+    let borgGeannuleerd = null;
+    let aantalTakenGesloten = 0;
+
+    // 1. Gekoppeld actief borgplan zoeken en annuleren
+    const { data: planData } = await supabase.from("borg_plannen")
+      .select("*").eq("naam_medewerker", melding.medewerker).eq("status", "actief")
+      .eq("woning_id", melding.woning_id).eq("kamer", melding.kamer)
+      .order("created_at", { ascending: false }).limit(1);
+    const plan = planData?.[0];
+    if (plan) {
+      await supabase.from("borg_plannen").update({
+        status: "geannuleerd",
+        opmerkingen: `${plan.opmerkingen ? plan.opmerkingen + " | " : ""}[Geannuleerd door ${gebruiker.naam} op ${datumNu}] ${reden.trim()}`,
+      }).eq("id", plan.id);
+      await supabase.from("borg_termijnen").update({ status: "geannuleerd" }).eq("plan_id", plan.id).eq("status", "open");
+      await supabase.from("activiteiten").insert([{
+        type: "borg_geannuleerd",
+        omschrijving: `Borgplan geannuleerd: ${plan.naam_medewerker} — €${plan.totaal_borg} (${reden.trim()})`,
+        gedaan_door: gebruiker.naam,
+        extra: { borg_plan_id: plan.id, naam: plan.naam_medewerker, bedrag: plan.totaal_borg },
+      }]);
+      borgGeannuleerd = plan;
+    }
+
+    // 2. Openstaande, aan deze melding gekoppelde taken afsluiten
+    const { data: openTaken } = await supabase.from("taken")
+      .select("id").eq("melding_id", melding.id).neq("status", "gedaan");
+    if (openTaken && openTaken.length > 0) {
+      await supabase.from("taken").update({
+        status: "gedaan",
+        afgehandeld_door: "Automatisch (annulering reservering)",
+        afgehandeld_op: new Date().toISOString(),
+        notitie: `Automatisch afgesloten — annulering reservering: ${melding.medewerker} komt niet meer. Geannuleerd door ${gebruiker.naam}: ${reden.trim()}`,
+      }).in("id", openTaken.map(t => t.id));
+      aantalTakenGesloten = openTaken.length;
+    }
+
+    // 3. Kamerstatus terugzetten als kamer nog op naam van deze medewerker staat
+    if (huis && melding.kamer) {
+      const kamer = huis.kamers.find(k => k.k === melding.kamer);
+      if (kamer && kamer.naam === melding.medewerker && (kamer.status === "Bezet" || kamer.status === "Gereserveerd")) {
+        await patchKamer(huis.id, { [melding.kamer]: { status: "Beschikbaar", naam: "", bedrijf: "" } });
+      }
+    }
+
+    // 4. Aankomstmelding zelf annuleren
+    await supabase.from("meldingen").update({
+      status: "geannuleerd",
+      afgehandeld_door: gebruiker.naam,
+      afgehandeld_op: new Date().toISOString(),
+      notitie: `Aankomst geannuleerd: ${reden.trim()}`,
+    }).eq("id", melding.id);
+
+    const delen = [`melding`];
+    if (borgGeannuleerd) delen.push(`borgplan €${borgGeannuleerd.totaal_borg}`);
+    if (aantalTakenGesloten > 0) delen.push(`${aantalTakenGesloten} taak/taken`);
+    showToast(`✓ Aankomst van ${melding.medewerker} geannuleerd (${delen.join(" · ")})`);
+    setBezig(null);
+  }
+
+  return (
+    <div style={{maxWidth:720}}>
+      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
+        <button onClick={onTerug}
+          style={{background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,padding:"7px 14px",fontSize:13,cursor:"pointer",fontFamily:"inherit",color:C.muted}}>
+          ← Terug
+        </button>
+        <h3 style={{fontSize:16,fontWeight:800,color:C.blauw,margin:0}}>✕ Aankomst annuleren</h3>
+      </div>
+      <div style={{fontSize:12,color:C.muted,marginBottom:16}}>
+        Voor aankomsten die ten onrechte zijn ingediend of bevestigd — bijv. iemand die uiteindelijk
+        niet is komen wonen. Annuleert de melding, een eventueel gekoppeld borgplan (incl. openstaande
+        termijnen) en nog openstaande aankomst-taken in één keer.
+      </div>
+      <input value={zoek} onChange={e=>setZoek(e.target.value)} placeholder="🔍 Zoek op naam"
+        style={{width:"100%",boxSizing:"border-box",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"9px 14px",fontSize:13,outline:"none",fontFamily:"inherit",marginBottom:16}}/>
+
+      {kandidaten.length === 0 ? (
+        <div style={{textAlign:"center",padding:60,color:C.muted}}>
+          <div style={{fontSize:40,marginBottom:12}}>✕</div>
+          <div style={{fontWeight:700,fontSize:15}}>Geen aankomsten gevonden</div>
+        </div>
+      ) : (
+        <div style={{display:"grid",gap:12}}>
+          {kandidaten.map(m => {
+            const huis = houses.find(h => h.id === m.woning_id);
+            const isBezig = bezig === m.id;
+            const openTakenCount = taken.filter(t => t.melding_id === m.id && t.status !== "gedaan").length;
+            return (
+              <div key={m.id} style={{background:"white",border:"1.5px solid #fecaca",borderLeft:"4px solid #ef4444",borderRadius:12,padding:20,display:"flex",alignItems:"center",gap:16,flexWrap:"wrap"}}>
+                <div style={{flex:1,minWidth:200}}>
+                  <div style={{fontWeight:800,fontSize:14,color:C.text,marginBottom:4}}>
+                    {m.medewerker}
+                  </div>
+                  <div style={{fontSize:13,color:C.muted}}>
+                    {huis ? `${huis.adres}, ${huis.stad}` : "—"}{m.kamer ? ` — Kamer ${m.kamer}` : ""}
+                  </div>
+                  <div style={{fontSize:12,color:"#b45309",marginTop:4}}>
+                    📅 Aankomst: {m.datum ? new Date(m.datum).toLocaleDateString("nl-NL") : "—"}
+                    {" · "}Status: {m.status}
+                    {openTakenCount > 0 ? ` · ${openTakenCount} open taak/taken` : ""}
+                  </div>
+                </div>
+                <button
+                  onClick={() => openBevestiging(m)}
+                  disabled={!!bezig}
+                  style={{background:isBezig?"#fecaca":"#fee2e2",color:"#991b1b",border:"2px solid #ef4444",
+                    borderRadius:8,padding:"10px 20px",fontSize:13,fontWeight:700,
+                    cursor:bezig?"not-allowed":"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
+                  {isBezig ? "⏳ Bezig..." : "✕ Annuleer aankomst"}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {redenModal && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.4)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:20}}
+          onClick={() => setRedenModal(null)}>
+          <div style={{background:"white",borderRadius:12,padding:24,maxWidth:440,width:"100%"}} onClick={e=>e.stopPropagation()}>
+            <h4 style={{margin:"0 0 8px",fontSize:15,fontWeight:800,color:C.text}}>
+              Aankomst van {redenModal.medewerker} annuleren?
+            </h4>
+            <div style={{fontSize:13,color:C.muted,marginBottom:14}}>
+              Dit sluit de melding, een eventueel gekoppeld actief borgplan én nog openstaande
+              aankomst-taken af. Dit kan niet ongedaan worden gemaakt via de app — geef daarom een
+              korte reden op voor de audit trail.
+            </div>
+            <textarea value={reden} onChange={e=>setReden(e.target.value)} rows={3} autoFocus
+              placeholder="Bijv. 'nooit in de woning geweest, aankomst ten onrechte bevestigd'"
+              style={{width:"100%",boxSizing:"border-box",border:`1.5px solid ${C.border}`,borderRadius:8,padding:10,fontSize:13,fontFamily:"inherit",resize:"vertical",marginBottom:14}}/>
+            <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
+              <button onClick={()=>setRedenModal(null)}
+                style={{background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,padding:"9px 16px",fontSize:13,cursor:"pointer",fontFamily:"inherit",color:C.muted}}>
+                Annuleer
+              </button>
+              <button onClick={bevestigAnnuleren} disabled={!reden.trim()}
+                style={{background:reden.trim()?"#ef4444":"#fecaca",color:"white",border:"none",borderRadius:8,padding:"9px 16px",fontSize:13,fontWeight:700,cursor:reden.trim()?"pointer":"not-allowed",fontFamily:"inherit"}}>
+                ✕ Ja, annuleren
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, onUpdateTaak, onAddMelding, onUpdateMelding, onUpdateWoning, showToast, taal="nl" }) {
   const rol = gebruiker?.rol;
   const isBackoffice = rol === "backoffice";
@@ -3472,6 +3655,10 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
                 style={{background:"white",color:"#b45309",border:"2px solid #f59e0b",borderRadius:8,padding:"10px 20px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
                 📅 Reservering annuleren
               </button>
+              <button onClick={()=>setSubTab("aankomst_annuleer")}
+                style={{background:"white",color:"#991b1b",border:"2px solid #ef4444",borderRadius:8,padding:"10px 20px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+                ✕ Aankomst annuleren
+              </button>
             </div>
           )}
           {(isBackoffice||isHuismeester) && (
@@ -3483,6 +3670,10 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
               <button onClick={()=>setSubTab("annuleer")}
                 style={{background:"white",color:"#b45309",border:"2px solid #f59e0b",borderRadius:8,padding:"10px 20px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
                 📅 Reservering annuleren
+              </button>
+              <button onClick={()=>setSubTab("aankomst_annuleer")}
+                style={{background:"white",color:"#991b1b",border:"2px solid #ef4444",borderRadius:8,padding:"10px 20px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+                ✕ Aankomst annuleren
               </button>
             </div>
           )}
@@ -3568,6 +3759,18 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
           gebruiker={gebruiker}
           onUpdateWoning={onUpdateWoning}
           onUpdateMelding={onUpdateMelding}
+          showToast={showToast}
+          onTerug={()=>setSubTab("woningen")}
+        />
+      )}
+
+      {/* Aankomst annuleren */}
+      {subTab === "aankomst_annuleer" && (
+        <AankomstAnnuleren
+          houses={houses}
+          meldingen={meldingen}
+          taken={taken}
+          gebruiker={gebruiker}
           showToast={showToast}
           onTerug={()=>setSubTab("woningen")}
         />
