@@ -716,7 +716,14 @@ function WeekOverzicht({ dezeWeek, volgendeWeek, plannen, huidigeWeek, huidigJaa
             </div>
             {t.status==="verwerkt" ? (
               <div style={{display:"flex",gap:6,alignItems:"center"}}>
-                <span style={{background:"#f0fdf4",color:C.groen,fontSize:11,fontWeight:700,padding:"4px 10px",borderRadius:20,border:"1px solid #bbf7d0"}}>✓ VERWERKT</span>
+                <div style={{textAlign:"right"}}>
+                  <span style={{background:"#f0fdf4",color:C.groen,fontSize:11,fontWeight:700,padding:"4px 10px",borderRadius:20,border:"1px solid #bbf7d0"}}>✓ VERWERKT</span>
+                  {t.verwerkt_op && (
+                    <div style={{fontSize:11,color:C.muted,marginTop:3}}>
+                      {fmtDate(t.verwerkt_op)}{t.verwerkt_door ? ` · ${t.verwerkt_door}` : ""}
+                    </div>
+                  )}
+                </div>
                 {isBackoffice && <button onClick={()=>onZetTerug(t.id)} title="Terugzetten" style={{background:"white",border:`1px solid ${C.oranje}`,color:C.oranje,borderRadius:6,padding:"4px 8px",fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>↩</button>}
               </div>
             ) : isBackoffice && (
@@ -952,6 +959,11 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
                 <span style={{color:t.status==="verwerkt"?C.groen:C.muted,marginRight:8}}>{t.status==="verwerkt"?"✓":"○"}</span>
                 <span style={{color:C.text}}>{t.omschrijving}</span>
                 <span style={{color:C.muted,fontSize:11,marginLeft:8}}>Week {t.week_nummer}/{t.jaar}</span>
+                {t.status==="verwerkt" && t.verwerkt_op && (
+                  <span style={{color:C.groen,fontSize:11,marginLeft:8}}>
+                    · {fmtDate(t.verwerkt_op)}{t.verwerkt_door ? ` door ${t.verwerkt_door}` : ""}
+                  </span>
+                )}
                 {t.opmerking && <span style={{color:C.muted,fontStyle:"italic",marginLeft:8}}>"{t.opmerking}"</span>}
               </div>
               <div style={{display:"flex",gap:8,alignItems:"center"}}>
@@ -984,6 +996,11 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
                     <span style={{fontSize:11,marginLeft:8,color:e.type==="terugbetalen"?C.groen:e.type==="al_ingehouden"?C.groen:e.type==="boete"?"#dc2626":e.type==="tankbon"?"#7c3aed":"#ef4444"}}>
                       {e.type==="terugbetalen"?"↩ terug":e.type==="al_ingehouden"?"✓ al ingehouden":e.type==="boete"?"🚨 boete":e.type==="tankbon"?"⛽ tankbon":"↪ inhouden"}
                     </span>
+                    {e.status==="verwerkt" && e.verwerkt_op && (
+                      <span style={{color:C.groen,fontSize:11,marginLeft:8}}>
+                        · {fmtDate(e.verwerkt_op)}{e.verwerkt_door ? ` door ${e.verwerkt_door}` : ""}
+                      </span>
+                    )}
                   </div>
                   <div style={{display:"flex",gap:8,alignItems:"center"}}>
                     <div style={{textAlign:"right"}}>
