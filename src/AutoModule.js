@@ -489,77 +489,98 @@ const SCHADE_ZONES = [
   { key:"achter", label:"Achterkant" },
 ];
 
-function AutoSchadeSchema({ punten, setPunten }) {
-  const [actieveZone, setActieveZone] = useState(null);
-  const [nieuweOmschrijving, setNieuweOmschrijving] = useState("");
-  const [pendingPos, setPendingPos] = useState(null);
+// Eenvoudige lijnschets van de auto per aanzicht, zodat je weet waar je op klikt
+function AutoIcon({ zone }) {
+  const s = C.border, w = C.text;
+  if (zone === "boven") return (
+    <svg viewBox="0 0 200 150" style={{position:"absolute",inset:0,width:"100%",height:"100%",pointerEvents:"none"}}>
+      <rect x="55" y="15" width="90" height="120" rx="24" fill="white" stroke={s} strokeWidth="3"/>
+      <rect x="60" y="42" width="80" height="32" rx="8" fill={C.bg} stroke={s} strokeWidth="2"/>
+      <line x1="100" y1="42" x2="100" y2="74" stroke={s} strokeWidth="2"/>
+      <rect x="40" y="28" width="14" height="26" rx="4" fill={w} opacity=".45"/>
+      <rect x="146" y="28" width="14" height="26" rx="4" fill={w} opacity=".45"/>
+      <rect x="40" y="96" width="14" height="26" rx="4" fill={w} opacity=".45"/>
+      <rect x="146" y="96" width="14" height="26" rx="4" fill={w} opacity=".45"/>
+    </svg>
+  );
+  if (zone === "voor") return (
+    <svg viewBox="0 0 200 150" style={{position:"absolute",inset:0,width:"100%",height:"100%",pointerEvents:"none"}}>
+      <rect x="35" y="35" width="130" height="68" rx="18" fill="white" stroke={s} strokeWidth="3"/>
+      <rect x="55" y="14" width="90" height="34" rx="14" fill={C.bg} stroke={s} strokeWidth="2"/>
+      <ellipse cx="55" cy="65" rx="12" ry="9" fill={C.bg} stroke={s} strokeWidth="2"/>
+      <ellipse cx="145" cy="65" rx="12" ry="9" fill={C.bg} stroke={s} strokeWidth="2"/>
+      <rect x="80" y="70" width="40" height="13" rx="3" fill={C.bg} stroke={s} strokeWidth="1.5"/>
+      <rect x="28" y="96" width="26" height="16" rx="5" fill={w} opacity=".45"/>
+      <rect x="146" y="96" width="26" height="16" rx="5" fill={w} opacity=".45"/>
+    </svg>
+  );
+  return (
+    <svg viewBox="0 0 200 150" style={{position:"absolute",inset:0,width:"100%",height:"100%",pointerEvents:"none"}}>
+      <rect x="35" y="35" width="130" height="68" rx="18" fill="white" stroke={s} strokeWidth="3"/>
+      <rect x="55" y="14" width="90" height="34" rx="14" fill={C.bg} stroke={s} strokeWidth="2"/>
+      <rect x="42" y="54" width="16" height="24" rx="4" fill="#fca5a5" stroke={s} strokeWidth="2"/>
+      <rect x="142" y="54" width="16" height="24" rx="4" fill="#fca5a5" stroke={s} strokeWidth="2"/>
+      <rect x="85" y="86" width="30" height="10" rx="3" fill={C.bg} stroke={s} strokeWidth="1.5"/>
+      <rect x="28" y="96" width="26" height="16" rx="5" fill={w} opacity=".45"/>
+      <rect x="146" y="96" width="26" height="16" rx="5" fill={w} opacity=".45"/>
+    </svg>
+  );
+}
 
+function AutoSchadeSchema({ punten, setPunten }) {
+  const laatstToegevoegdeRef = useRef(null);
+
+  // Elke klik zet direct een punt neer (i.p.v. eerst een los bevestigingsvakje) —
+  // zo kun je achter elkaar meerdere plekken aanklikken zonder tussenstap.
   function klikOpZone(e, zone) {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * 100;
     const y = ((e.clientY - rect.top) / rect.height) * 100;
-    setActieveZone(zone);
-    setPendingPos({ x, y });
-    setNieuweOmschrijving("");
+    setPunten(prev => {
+      const nieuw = [...prev, { zone, x, y, omschrijving: "" }];
+      laatstToegevoegdeRef.current = nieuw.length - 1;
+      return nieuw;
+    });
   }
 
-  function bevestigPunt() {
-    if (!pendingPos || !nieuweOmschrijving.trim()) return;
-    setPunten(prev => [...prev, { zone: actieveZone, x: pendingPos.x, y: pendingPos.y, omschrijving: nieuweOmschrijving.trim() }]);
-    setPendingPos(null); setActieveZone(null); setNieuweOmschrijving("");
+  function wijzigOmschrijving(i, tekst) {
+    setPunten(prev => prev.map((p, idx) => idx === i ? { ...p, omschrijving: tekst } : p));
   }
-
   function verwijderPunt(i) {
     setPunten(prev => prev.filter((_,idx)=>idx!==i));
   }
 
   return (
     <div>
-      <label style={{...lbl,marginBottom:8}}>🚘 Schade markeren — klik op de plek op de auto</label>
+      <label style={{...lbl,marginBottom:8}}>🚘 Schade markeren — klik op de plek(ken) op de auto, je kunt er meerdere toevoegen</label>
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14}}>
         {SCHADE_ZONES.map(z => (
           <div key={z.key}>
             <div style={{fontSize:11,fontWeight:700,color:C.text,marginBottom:6,textAlign:"center"}}>{z.label}</div>
             <div onClick={e=>klikOpZone(e,z.key)}
               style={{position:"relative",background:C.bg,border:`1.5px solid ${C.border}`,borderRadius:10,height:150,cursor:"crosshair",overflow:"hidden"}}>
-              <div style={{position:"absolute",inset:"12% 20%",border:`2px solid ${C.border}`,borderRadius:z.key==="boven"?18:10,background:"white",pointerEvents:"none"}}/>
+              <AutoIcon zone={z.key}/>
               {punten.map((p,i) => p.zone===z.key && (
-                <div key={i} title={p.omschrijving}
-                  style={{position:"absolute",left:`${p.x}%`,top:`${p.y}%`,transform:"translate(-50%,-50%)",width:20,height:20,borderRadius:"50%",background:"#ef4444",color:"white",fontSize:11,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 1px 4px rgba(0,0,0,.3)",pointerEvents:"none"}}>
+                <div key={i} title={p.omschrijving||"Nog niet omschreven"}
+                  style={{position:"absolute",left:`${p.x}%`,top:`${p.y}%`,transform:"translate(-50%,-50%)",width:20,height:20,borderRadius:"50%",background:p.omschrijving.trim()?"#ef4444":"#f59e0b",color:"white",fontSize:11,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 1px 4px rgba(0,0,0,.3)",pointerEvents:"none"}}>
                   {i+1}
                 </div>
               ))}
-              {pendingPos && actieveZone===z.key && (
-                <div style={{position:"absolute",left:`${pendingPos.x}%`,top:`${pendingPos.y}%`,transform:"translate(-50%,-50%)",width:20,height:20,borderRadius:"50%",background:"#f59e0b",opacity:.8,pointerEvents:"none"}}/>
-              )}
             </div>
           </div>
         ))}
       </div>
 
-      {pendingPos && (
-        <div style={{marginTop:12,background:"#fef3c7",border:"1px solid #fcd34d",borderRadius:8,padding:12}}>
-          <div style={{fontSize:12,fontWeight:700,color:"#b45309",marginBottom:6}}>Omschrijf de bijzonderheid op deze plek</div>
-          <div style={{display:"flex",gap:8}}>
-            <input autoFocus value={nieuweOmschrijving} onChange={e=>setNieuweOmschrijving(e.target.value)}
-              onKeyDown={e=>{ if(e.key==="Enter") bevestigPunt(); }}
-              placeholder="bijv. kras 10cm, deuk, steenslag..."
-              style={{flex:1,background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,padding:"8px 12px",fontSize:13,outline:"none",fontFamily:"inherit"}}/>
-            <button onClick={bevestigPunt} disabled={!nieuweOmschrijving.trim()}
-              style={{background:C.blauw,color:"white",border:"none",borderRadius:8,padding:"8px 16px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Toevoegen</button>
-            <button onClick={()=>{setPendingPos(null);setActieveZone(null);}}
-              style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"8px 12px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>×</button>
-          </div>
-        </div>
-      )}
-
       {punten.length > 0 && (
-        <div style={{marginTop:12}}>
+        <div style={{marginTop:14}}>
+          <div style={{fontSize:11,fontWeight:700,color:C.muted,marginBottom:6,textTransform:"uppercase",letterSpacing:".6px"}}>Omschrijf elk gemarkeerd punt *</div>
           {punten.map((p,i) => (
             <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 0",borderBottom:`1px solid ${C.border}`}}>
-              <span style={{width:20,height:20,borderRadius:"50%",background:"#ef4444",color:"white",fontSize:11,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{i+1}</span>
-              <span style={{fontSize:12,color:C.muted,fontWeight:600}}>{SCHADE_ZONES.find(z=>z.key===p.zone)?.label}:</span>
-              <span style={{flex:1,fontSize:13,color:C.text}}>{p.omschrijving}</span>
+              <span style={{width:20,height:20,borderRadius:"50%",background:p.omschrijving.trim()?"#ef4444":"#f59e0b",color:"white",fontSize:11,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{i+1}</span>
+              <span style={{fontSize:11,color:C.muted,fontWeight:600,minWidth:72}}>{SCHADE_ZONES.find(z=>z.key===p.zone)?.label}</span>
+              <input autoFocus={i===laatstToegevoegdeRef.current} value={p.omschrijving} onChange={e=>wijzigOmschrijving(i,e.target.value)}
+                placeholder="bijv. kras 10cm, deuk, steenslag..."
+                style={{flex:1,background:"white",border:`1.5px solid ${p.omschrijving.trim()?C.border:"#f59e0b"}`,borderRadius:8,padding:"6px 10px",fontSize:13,outline:"none",fontFamily:"inherit"}}/>
               <button onClick={()=>verwijderPunt(i)} style={{background:"none",border:"none",color:"#ef4444",cursor:"pointer",fontSize:14}}>×</button>
             </div>
           ))}
@@ -597,6 +618,7 @@ function AutoHandoverWizard({ autos, gebruiker, actie, onSubmit, showToast }) {
   const [akkoordPrive, setAkkoordPrive] = useState(false);
   const [handtekeningKtp, setHandtekeningKtp] = useState(null);
   const [handtekeningBestuurder, setHandtekeningBestuurder] = useState(null);
+  const [toelichtingen, setToelichtingen] = useState({});
   const [laatsteUitgifte, setLaatsteUitgifte] = useState(null);
   const [zoekenUitgifte, setZoekenUitgifte] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -620,13 +642,24 @@ function AutoHandoverWizard({ autos, gebruiker, actie, onSubmit, showToast }) {
 
   function setChecklistItem(key, val) { setChecklist(prev => ({ ...prev, [key]: val })); }
 
+  // Regels van de controlelijst incl. welk antwoord een "probleem" is — op één plek
+  // gedefinieerd zodat render, validatie en de afwijkingenberekening niet uit de pas lopen.
+  const checklistRegels = [
+    { key:"__tank",   label:"⛽ Tank vol?",                            val:tankVol,           set:setTankVol,           probleem:"nee", tekst:"Tank niet vol" },
+    { key:"__schoon", label:"🧹 Auto schoon (binnen + buiten)?",       val:schoon,             set:setSchoon,            probleem:"nee", tekst:"Auto niet schoon" },
+    { key:"__ext",    label:"🚘 Exterieurschade aanwezig?",            val:exterieurSchade,    set:setExterieurSchade,   probleem:"ja",  tekst:"Exterieurschade geconstateerd" },
+    { key:"__int",    label:"🪑 Interieurschade aanwezig?",            val:interieurSchade,    set:setInterieurSchade,   probleem:"ja",  tekst:"Interieurschade geconstateerd" },
+    ...CHECKLIST_ITEMS.map(c => ({
+      key:c.key, label:c.label+" (in orde)?", val:checklist[c.key]||null, set:v=>setChecklistItem(c.key,v),
+      probleem:"nee", tekst:`${c.label.replace(/^\S+\s/,"")}: niet in orde`,
+    })),
+  ];
+
   function berekenAfwijkingen() {
     const gevonden = [];
-    if (tankVol === "nee") gevonden.push("Tank niet vol");
-    if (schoon === "nee") gevonden.push("Auto niet schoon");
-    if (exterieurSchade === "ja") gevonden.push("Exterieurschade geconstateerd");
-    if (interieurSchade === "ja") gevonden.push("Interieurschade geconstateerd");
-    CHECKLIST_ITEMS.forEach(c => { if (checklist[c.key] === "nee") gevonden.push(`${c.label.replace(/^\S+\s/,"")}: niet in orde`); });
+    checklistRegels.forEach(r => {
+      if (r.val === r.probleem) gevonden.push(toelichtingen[r.key]?.trim() ? `${r.tekst} — ${toelichtingen[r.key].trim()}` : r.tekst);
+    });
     if (actie === "inname" && laatsteUitgifte) {
       const kmUitgifte = laatsteUitgifte.kilometerstand;
       const kmInname = parseInt(kilometerstand,10);
@@ -646,12 +679,20 @@ function AutoHandoverWizard({ autos, gebruiker, actie, onSubmit, showToast }) {
       if (actie === "inname" && !locatie.trim()) { showToast("Vul de locatie van de auto in","err"); return; }
     }
     if (stap === 2) {
-      if (tankVol===null) { showToast("Geef aan of de tank vol is","err"); return; }
-      if (schoon===null) { showToast("Geef aan of de auto schoon is","err"); return; }
-      if (exterieurSchade===null) { showToast("Geef aan of er exterieurschade is","err"); return; }
-      if (interieurSchade===null) { showToast("Geef aan of er interieurschade is","err"); return; }
-      const onbeantwoord = CHECKLIST_ITEMS.some(c => !checklist[c.key]);
+      const onbeantwoord = checklistRegels.some(r => r.val===null || r.val===undefined);
       if (onbeantwoord) { showToast("Vul de volledige controlelijst in","err"); return; }
+      const missendeToelichting = checklistRegels.some(r => r.val===r.probleem && !toelichtingen[r.key]?.trim());
+      if (missendeToelichting) { showToast("Geef bij elke afwijking (rood) een korte toelichting","err"); return; }
+    }
+    if (stap === 3) {
+      const leeg = schadePunten.some(p => !p.omschrijving.trim());
+      if (leeg) { showToast("Omschrijf elk gemarkeerd schadepunt (of verwijder het met ×)","err"); return; }
+    }
+    if (stap === 4) {
+      const afwijkingen = berekenAfwijkingen();
+      if (afwijkingen.length > 0 && documenten.length === 0) {
+        showToast("Er zijn bijzonderheden gevonden — voeg minimaal 1 foto toe","err"); return;
+      }
     }
     setStap(s => Math.min(s+1, 5));
   }
@@ -682,7 +723,7 @@ function AutoHandoverWizard({ autos, gebruiker, actie, onSubmit, showToast }) {
       opmerkingen: opmerkingen || null,
       document_urls: docUrls.length > 0 ? JSON.stringify(docUrls) : null,
       handtekening_ktp: ktpUrl, handtekening_bestuurder: bestuurderUrl,
-      checklist: { ...checklist, exterieur_schade: exterieurSchade, interieur_schade: interieurSchade, akkoord_prive: akkoordPrive },
+      checklist: { ...checklist, exterieur_schade: exterieurSchade, interieur_schade: interieurSchade, akkoord_prive: akkoordPrive, toelichtingen },
       schade_punten: schadePunten,
       gekoppelde_uitgifte_id: actie === "inname" && laatsteUitgifte ? laatsteUitgifte.id : null,
       afwijking_gevonden: afwijkingen.length > 0,
@@ -697,7 +738,7 @@ function AutoHandoverWizard({ autos, gebruiker, actie, onSubmit, showToast }) {
     setKilometerstand(""); setLocatie(""); setTankVol(null); setSchoon(null);
     setChecklist({}); setExterieurSchade(null); setInterieurSchade(null); setSchadePunten([]);
     setOpmerkingen(""); setDocumenten([]); setAkkoordPrive(false);
-    setHandtekeningKtp(null); setHandtekeningBestuurder(null); setLaatsteUitgifte(null);
+    setHandtekeningKtp(null); setHandtekeningBestuurder(null); setToelichtingen({}); setLaatsteUitgifte(null);
     setSubmitted(false);
   }
 
@@ -775,26 +816,27 @@ function AutoHandoverWizard({ autos, gebruiker, actie, onSubmit, showToast }) {
       {stap === 2 && (
         <div className="card" style={{marginBottom:16}}>
           <label style={{...lbl,marginBottom:12}}>Controlelijst</label>
-          {[
-            {key:"__tank", label:"⛽ Tank vol?", val:tankVol, set:setTankVol},
-            {key:"__schoon", label:"🧹 Auto schoon (binnen + buiten)?", val:schoon, set:setSchoon},
-            {key:"__ext", label:"🚘 Exterieurschade aanwezig?", val:exterieurSchade, set:setExterieurSchade},
-            {key:"__int", label:"🪑 Interieurschade aanwezig?", val:interieurSchade, set:setInterieurSchade},
-            ...CHECKLIST_ITEMS.map(c => ({ key:c.key, label:c.label+" (in orde)?", val:checklist[c.key]||null, set:v=>setChecklistItem(c.key,v) })),
-          ].map(({key,label,val,set})=>(
-            <div key={key} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:`1px solid ${C.border}`}}>
-              <span style={{flex:1,fontSize:14,fontWeight:500,color:C.text}}>{label}</span>
-              <div style={{display:"flex",gap:8}}>
-                {["ja","nee"].map(v=>(
-                  <button key={v} onClick={()=>set(v)}
-                    style={{padding:"5px 14px",borderRadius:6,fontSize:12,fontWeight:600,border:"1.5px solid",cursor:"pointer",transition:"all .15s",
-                      borderColor:v==="ja"?C.groen:"#ef4444",
-                      color:val===v?"white":(v==="ja"?C.groen:"#ef4444"),
-                      background:val===v?(v==="ja"?C.groen:"#ef4444"):"white"}}>
-                    {v}
-                  </button>
-                ))}
+          {checklistRegels.map(({key,label,val,set,probleem})=>(
+            <div key={key} style={{padding:"8px 0",borderBottom:`1px solid ${C.border}`}}>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                <span style={{flex:1,fontSize:14,fontWeight:500,color:C.text}}>{label}</span>
+                <div style={{display:"flex",gap:8}}>
+                  {["ja","nee"].map(v=>(
+                    <button key={v} onClick={()=>set(v)}
+                      style={{padding:"5px 14px",borderRadius:6,fontSize:12,fontWeight:600,border:"1.5px solid",cursor:"pointer",transition:"all .15s",
+                        borderColor:v==="ja"?C.groen:"#ef4444",
+                        color:val===v?"white":(v==="ja"?C.groen:"#ef4444"),
+                        background:val===v?(v==="ja"?C.groen:"#ef4444"):"white"}}>
+                      {v}
+                    </button>
+                  ))}
+                </div>
               </div>
+              {val === probleem && (
+                <input value={toelichtingen[key]||""} onChange={e=>setToelichtingen(p=>({...p,[key]:e.target.value}))}
+                  placeholder="Verplicht: korte toelichting wat er aan de hand is..."
+                  style={{width:"100%",marginTop:8,background:"#fef2f2",border:`1.5px solid ${toelichtingen[key]?.trim()?"#fca5a5":"#ef4444"}`,borderRadius:8,padding:"7px 10px",fontSize:13,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
+              )}
             </div>
           ))}
           <div style={{marginTop:10,fontSize:11,color:C.muted}}>* Voer de kilometer-/vloeistofcontrole pas als laatste uit, dit voorkomt een vertekend beeld.</div>
@@ -819,6 +861,11 @@ function AutoHandoverWizard({ autos, gebruiker, actie, onSubmit, showToast }) {
       {/* Stap 4: Foto's + opmerkingen */}
       {stap === 4 && (
         <div className="card" style={{marginBottom:16}}>
+          {afwijkingenPreview.length > 0 && (
+            <div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:8,padding:"10px 14px",marginBottom:14,fontSize:12,color:"#b91c1c",fontWeight:600}}>
+              ⚠️ Er zijn bijzonderheden gevonden — voeg hieronder minimaal 1 foto toe voordat je verder kunt.
+            </div>
+          )}
           <div style={{marginBottom:16}}>
             <BijlageUploader bestanden={documenten} setBestanden={setDocumenten} label="📸 Foto's van de auto toevoegen (verplicht bij schade)"/>
           </div>
