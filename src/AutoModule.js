@@ -271,7 +271,7 @@ export function AutoModule({ gebruiker, showToast }) {
 
       {subTab==="overzicht" && <AutoOverzicht autos={autos} gebruiker={gebruiker} />}
       {subTab==="melding"   && <AutoMeldingForm autos={autos} gebruiker={gebruiker} onSubmit={addAutoMelding} showToast={showToast} />}
-      {subTab==="log"       && <AutoLog meldingen={autoMeldingen} autos={autos} onUpdate={updateAutoMelding} gebruiker={gebruiker} isBackoffice={isBackoffice} onReactie={stuurReactie} onMarkeerGelezen={markeerGelezen} />}
+      {subTab==="log"       && <AutoLog meldingen={autoMeldingen} autos={autos} onUpdate={updateAutoMelding} gebruiker={gebruiker} isBackoffice={isBackoffice} onReactie={stuurReactie} onMarkeerGelezen={markeerGelezen} showToast={showToast} />}
       {subTab==="beheer" && isBackoffice && <AutoBeheer autos={autos} gearchiveerdeAutos={gearchiveerdeAutos} onAdd={addAuto} onUpdate={updateAuto} onArchiveer={archiveerAuto} onTerugzetten={terugzetAuto} showToast={showToast} />}
       {subTab==="boete" && isBackoffice && <BoeteOpzoeken meldingen={autoMeldingen} autos={autos} />}
     </div>
@@ -1008,7 +1008,7 @@ function AutoMeldingForm({ autos, gebruiker, onSubmit, showToast }) {
 }
 
 // ─── AUTO LOG ─────────────────────────────────────────────────────────────────
-function AutoLog({ meldingen, autos, onUpdate, gebruiker, isBackoffice, onReactie, onMarkeerGelezen }) {
+function AutoLog({ meldingen, autos, onUpdate, gebruiker, isBackoffice, onReactie, onMarkeerGelezen, showToast }) {
   const [filter, setFilter] = useState("alle");
   const [notitieMap, setNotitieMap] = useState({});
   const [reactieMap, setReactieMap] = useState({});
