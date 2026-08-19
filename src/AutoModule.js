@@ -95,6 +95,25 @@ Met vriendelijke groet,
 KTP Interflex`;
 }
 
+// Herleidt dezelfde afwijkingenlijst als de wizard, maar dan achteraf uit een
+// opgeslagen auto_meldingen-rij — zodat backoffice dit later (bv. bij Log) alsnog
+// kan opvragen zonder dat de uitgifte/inname zelf net gedaan is.
+function afwijkingenUitMelding(m) {
+  const gevonden = [];
+  const toelichtingen = m.checklist?.toelichtingen || {};
+  if (m.tank_vol === "nee") gevonden.push(toelichtingen.__tank?.trim() ? `Tank niet vol — ${toelichtingen.__tank.trim()}` : "Tank niet vol");
+  if (m.schoon === "nee") gevonden.push(toelichtingen.__schoon?.trim() ? `Auto niet schoon — ${toelichtingen.__schoon.trim()}` : "Auto niet schoon");
+  if (m.checklist?.exterieur_schade === "ja") gevonden.push(toelichtingen.__ext?.trim() ? `Exterieurschade geconstateerd — ${toelichtingen.__ext.trim()}` : "Exterieurschade geconstateerd");
+  if (m.checklist?.interieur_schade === "ja") gevonden.push(toelichtingen.__int?.trim() ? `Interieurschade geconstateerd — ${toelichtingen.__int.trim()}` : "Interieurschade geconstateerd");
+  CHECKLIST_ITEMS.forEach(c => {
+    if (m.checklist?.[c.key] === "nee") {
+      const tekst = `${c.label.replace(/^\S+\s/,"")}: niet in orde`;
+      gevonden.push(toelichtingen[c.key]?.trim() ? `${tekst} — ${toelichtingen[c.key].trim()}` : tekst);
+    }
+  });
+  return gevonden;
+}
+
 function SH({titel,sub,actie}) {
   return <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:24}}>
     <div><h2 style={{fontSize:20,fontWeight:800,color:C.blauw,marginBottom:3}}>{titel}</h2>{sub&&<p style={{fontSize:13,color:C.muted}}>{sub}</p>}</div>
@@ -665,8 +684,6 @@ function AutoHandoverWizard({ autos, gebruiker, actie, onSubmit, showToast }) {
   const [zoekenUitgifte, setZoekenUitgifte] = useState(false);
   const [saving, setSaving] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [berichtTekst, setBerichtTekst] = useState("");
-  const [berichtGekopieerd, setBerichtGekopieerd] = useState(false);
 
   const kleur = actie === "uitgifte" ? C.groen : C.blauw;
   const titel = actie === "uitgifte" ? "Auto uitgifte" : "Auto inname";
@@ -774,26 +791,7 @@ function AutoHandoverWizard({ autos, gebruiker, actie, onSubmit, showToast }) {
       afwijkingen,
     });
     setSaving(false);
-    if (ok) {
-      const auto = autos.find(a => a.kenteken === kenteken);
-      setBerichtTekst(genereerBericht({
-        actie, naam: naamMedewerker.trim(), kenteken, merkModel: auto?.merk_model,
-        datumTijd, kilometerstand, tankVol, schoon, schadePunten, afwijkingen,
-        collegaNaam: gebruiker.naam,
-      }));
-      setSubmitted(true);
-    }
-  }
-
-  async function kopieerBericht() {
-    try {
-      await navigator.clipboard.writeText(berichtTekst);
-      setBerichtGekopieerd(true);
-      showToast("✓ Bericht gekopieerd — plak het in Cockpit");
-      setTimeout(()=>setBerichtGekopieerd(false), 3000);
-    } catch (e) {
-      showToast("Kopiëren mislukt — selecteer de tekst en kopieer handmatig","err");
-    }
+    if (ok) setSubmitted(true);
   }
 
   function opnieuw() {
@@ -802,26 +800,14 @@ function AutoHandoverWizard({ autos, gebruiker, actie, onSubmit, showToast }) {
     setChecklist({}); setExterieurSchade(null); setInterieurSchade(null); setSchadePunten([]);
     setOpmerkingen(""); setDocumenten([]); setAkkoordPrive(false);
     setHandtekeningKtp(null); setHandtekeningBestuurder(null); setToelichtingen({}); setLaatsteUitgifte(null);
-    setBerichtTekst(""); setBerichtGekopieerd(false);
     setSubmitted(false);
   }
 
   if (submitted) return (
-    <div>
-      <div className="card" style={{textAlign:"center",padding:"40px 40px 30px",borderTop:`4px solid ${C.groen}`,marginBottom:16}}>
-        <div style={{fontSize:56,marginBottom:12}}>✅</div>
-        <div style={{fontSize:20,fontWeight:800,color:C.groen,marginBottom:4}}>{titel} vastgelegd — inclusief handtekeningen</div>
-      </div>
-      <div className="card" style={{marginBottom:16}}>
-        <label style={lbl}>✉️ Bericht voor de medewerker — kopieer en verstuur via Cockpit</label>
-        <textarea readOnly value={berichtTekst} rows={12}
-          onClick={e=>e.target.select()}
-          style={{...inp,resize:"vertical",fontFamily:"inherit",lineHeight:1.5,background:C.bg}}/>
-        <button onClick={kopieerBericht}
-          style={{marginTop:10,width:"100%",background:berichtGekopieerd?C.groen:C.blauw,color:"white",border:"none",borderRadius:8,padding:12,fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
-          {berichtGekopieerd ? "✓ Gekopieerd" : "📋 Kopieer bericht"}
-        </button>
-      </div>
+    <div className="card" style={{textAlign:"center",padding:"60px 40px",borderTop:`4px solid ${C.groen}`}}>
+      <div style={{fontSize:64,marginBottom:16}}>✅</div>
+      <div style={{fontSize:22,fontWeight:800,color:C.groen,marginBottom:8}}>{titel} vastgelegd — inclusief handtekeningen</div>
+      <div style={{fontSize:13,color:C.muted,marginBottom:16}}>Het bericht voor de medewerker vind je terug bij Auto's → Log, bij deze melding.</div>
       <button className="btn-b" onClick={opnieuw}>Nieuwe {actie}</button>
     </div>
   );
@@ -1139,8 +1125,31 @@ function AutoLog({ meldingen, autos, onUpdate, gebruiker, isBackoffice, onReacti
   const [savingReactie, setSavingReactie] = useState({});
   const [toonDocumentMap, setToonDocumentMap] = useState({});
   const [documentMap, setDocumentMap] = useState({});
+  const [toonBerichtMap, setToonBerichtMap] = useState({});
+  const [berichtGekopieerdMap, setBerichtGekopieerdMap] = useState({});
 
   const isCollega = gebruiker?.rol === "collega";
+
+  function bereidBericht(m) {
+    const auto = autos.find(a => a.kenteken === m.kenteken);
+    return genereerBericht({
+      actie: m.actie, naam: m.naam_medewerker, kenteken: m.kenteken, merkModel: auto?.merk_model,
+      datumTijd: m.datum_tijd, kilometerstand: m.kilometerstand, tankVol: m.tank_vol, schoon: m.schoon,
+      schadePunten: m.schade_punten || [], afwijkingen: afwijkingenUitMelding(m),
+      collegaNaam: m.ingediend_door,
+    });
+  }
+
+  async function kopieerBericht(m) {
+    try {
+      await navigator.clipboard.writeText(bereidBericht(m));
+      setBerichtGekopieerdMap(p=>({...p,[m.id]:true}));
+      showToast("✓ Bericht gekopieerd — plak het in Cockpit");
+      setTimeout(()=>setBerichtGekopieerdMap(p=>({...p,[m.id]:false})), 3000);
+    } catch (e) {
+      showToast("Kopiëren mislukt — selecteer de tekst en kopieer handmatig","err");
+    }
+  }
   // Aantal ongelezen reacties voor collega
   const ongelezen = meldingen.filter(m => m.backoffice_reactie && !m.reactie_gelezen && m.ingediend_door === gebruiker?.naam).length;
 
@@ -1299,6 +1308,26 @@ function AutoLog({ meldingen, autos, onUpdate, gebruiker, isBackoffice, onReacti
                       style={{background:C.groen,color:"white",border:"none",borderRadius:8,padding:"8px 16px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
                       ✓ Verwerkt
                     </button>
+                  </div>
+                )}
+                {/* Kant-en-klaar bericht voor de medewerker, alleen bij uitgifte/inname */}
+                {(m.actie === "uitgifte" || m.actie === "inname") && (
+                  <div style={{marginBottom:10}}>
+                    <button onClick={()=>setToonBerichtMap(p=>({...p,[m.id]:!p[m.id]}))}
+                      style={{background:"white",border:`1.5px solid ${C.groen}`,color:C.groen,borderRadius:8,padding:"7px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                      ✉️ Bericht voor medewerker {toonBerichtMap[m.id]?"verbergen":"tonen"}
+                    </button>
+                    {toonBerichtMap[m.id] && (
+                      <div style={{marginTop:8,background:"#f8fafc",border:`1px solid ${C.border}`,borderRadius:10,padding:14}}>
+                        <div style={{fontSize:11,fontWeight:700,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:".6px"}}>Kopieer en verstuur via Cockpit</div>
+                        <textarea readOnly value={bereidBericht(m)} rows={12} onClick={e=>e.target.select()}
+                          style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"10px 14px",fontSize:13,outline:"none",fontFamily:"inherit",lineHeight:1.5,resize:"vertical",boxSizing:"border-box"}}/>
+                        <button onClick={()=>kopieerBericht(m)}
+                          style={{marginTop:8,background:berichtGekopieerdMap[m.id]?C.groen:C.blauw,color:"white",border:"none",borderRadius:8,padding:"8px 18px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                          {berichtGekopieerdMap[m.id] ? "✓ Gekopieerd" : "📋 Kopieer bericht"}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
                 {/* Reactie sturen naar collega */}
