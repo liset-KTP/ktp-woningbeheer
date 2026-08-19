@@ -47,6 +47,54 @@ function fmtFull(d) { if(!d) return ""; return `${fmtDate(d)} ${fmtTime(d)}`; }
 function todayISO() { return new Date().toISOString().slice(0,10); }
 function nowISO() { return new Date().toISOString().slice(0,16); }
 
+// Genereert een kant-en-klaar bericht (kopiëren/plakken in Cockpit) na uitgifte/inname,
+// zodat de medewerker altijd schriftelijk bevestigd krijgt wat er is afgesproken/getekend.
+function genereerBericht({ actie, naam, kenteken, merkModel, datumTijd, kilometerstand, tankVol, schoon, schadePunten, afwijkingen, collegaNaam }) {
+  const datum = datumTijd ? fmtDate(datumTijd) : fmtDate(new Date());
+  const tijd = datumTijd ? fmtTime(datumTijd) : fmtTime(new Date());
+  const autoOmschrijving = `${kenteken}${merkModel ? ` (${merkModel})` : ""}`;
+  const schadeRegels = (schadePunten||[]).length > 0
+    ? `\nGemarkeerde schadepunten:\n${schadePunten.map(p => `- ${SCHADE_ZONES.find(z=>z.key===p.zone)?.label || p.zone}: ${p.omschrijving}`).join("\n")}`
+    : "";
+  const afwijkingenRegels = (afwijkingen||[]).length > 0
+    ? `\nBijzonderheden:\n${afwijkingen.map(a => `- ${a}`).join("\n")}`
+    : "";
+
+  if (actie === "uitgifte") {
+    return `Beste ${naam},
+
+Hierbij bevestigen we dat je op ${datum} om ${tijd} de bedrijfsauto ${autoOmschrijving} in ontvangst hebt genomen bij KTP Interflex.
+
+Kilometerstand bij uitgifte: ${kilometerstand || "—"} km
+Tank: ${tankVol==="ja" ? "vol" : "niet vol"}
+Auto schoon: ${schoon==="ja" ? "ja" : "nee"}${schadeRegels}${afwijkingenRegels}
+
+Je hebt het digitale uitgifteformulier ondertekend, samen met ${collegaNaam} namens KTP Interflex.
+
+Let op: de auto is uitsluitend bedoeld voor woon-werkverkeer, privégebruik is niet toegestaan. Is de tank bij inlevering niet vol, dan kan dit verrekend worden.
+
+Heb je vragen? Neem gerust contact met ons op.
+
+Met vriendelijke groet,
+KTP Interflex`;
+  }
+
+  return `Beste ${naam},
+
+Hierbij bevestigen we dat op ${datum} om ${tijd} de bedrijfsauto ${autoOmschrijving} bij je is ingenomen door KTP Interflex.
+
+Kilometerstand bij inname: ${kilometerstand || "—"} km
+Tank: ${tankVol==="ja" ? "vol" : "niet vol"}
+Auto schoon: ${schoon==="ja" ? "ja" : "nee"}${schadeRegels}${afwijkingenRegels}
+
+Je hebt het digitale innameformulier mede-ondertekend, samen met ${collegaNaam} namens KTP Interflex.
+
+${(afwijkingen||[]).length > 0 ? "Er zijn bij de inname bijzonderheden geconstateerd (zie hierboven). We nemen hier zo nodig nog contact met je over op." : "Alles is in orde bevonden — bedankt voor het gebruik van de auto!"}
+
+Met vriendelijke groet,
+KTP Interflex`;
+}
+
 function SH({titel,sub,actie}) {
   return <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:24}}>
     <div><h2 style={{fontSize:20,fontWeight:800,color:C.blauw,marginBottom:3}}>{titel}</h2>{sub&&<p style={{fontSize:13,color:C.muted}}>{sub}</p>}</div>
@@ -617,6 +665,8 @@ function AutoHandoverWizard({ autos, gebruiker, actie, onSubmit, showToast }) {
   const [zoekenUitgifte, setZoekenUitgifte] = useState(false);
   const [saving, setSaving] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [berichtTekst, setBerichtTekst] = useState("");
+  const [berichtGekopieerd, setBerichtGekopieerd] = useState(false);
 
   const kleur = actie === "uitgifte" ? C.groen : C.blauw;
   const titel = actie === "uitgifte" ? "Auto uitgifte" : "Auto inname";
@@ -724,7 +774,26 @@ function AutoHandoverWizard({ autos, gebruiker, actie, onSubmit, showToast }) {
       afwijkingen,
     });
     setSaving(false);
-    if (ok) setSubmitted(true);
+    if (ok) {
+      const auto = autos.find(a => a.kenteken === kenteken);
+      setBerichtTekst(genereerBericht({
+        actie, naam: naamMedewerker.trim(), kenteken, merkModel: auto?.merk_model,
+        datumTijd, kilometerstand, tankVol, schoon, schadePunten, afwijkingen,
+        collegaNaam: gebruiker.naam,
+      }));
+      setSubmitted(true);
+    }
+  }
+
+  async function kopieerBericht() {
+    try {
+      await navigator.clipboard.writeText(berichtTekst);
+      setBerichtGekopieerd(true);
+      showToast("✓ Bericht gekopieerd — plak het in Cockpit");
+      setTimeout(()=>setBerichtGekopieerd(false), 3000);
+    } catch (e) {
+      showToast("Kopiëren mislukt — selecteer de tekst en kopieer handmatig","err");
+    }
   }
 
   function opnieuw() {
@@ -733,13 +802,26 @@ function AutoHandoverWizard({ autos, gebruiker, actie, onSubmit, showToast }) {
     setChecklist({}); setExterieurSchade(null); setInterieurSchade(null); setSchadePunten([]);
     setOpmerkingen(""); setDocumenten([]); setAkkoordPrive(false);
     setHandtekeningKtp(null); setHandtekeningBestuurder(null); setToelichtingen({}); setLaatsteUitgifte(null);
+    setBerichtTekst(""); setBerichtGekopieerd(false);
     setSubmitted(false);
   }
 
   if (submitted) return (
-    <div className="card" style={{textAlign:"center",padding:"60px 40px",borderTop:`4px solid ${C.groen}`}}>
-      <div style={{fontSize:64,marginBottom:16}}>✅</div>
-      <div style={{fontSize:22,fontWeight:800,color:C.groen,marginBottom:8}}>{titel} vastgelegd — inclusief handtekeningen</div>
+    <div>
+      <div className="card" style={{textAlign:"center",padding:"40px 40px 30px",borderTop:`4px solid ${C.groen}`,marginBottom:16}}>
+        <div style={{fontSize:56,marginBottom:12}}>✅</div>
+        <div style={{fontSize:20,fontWeight:800,color:C.groen,marginBottom:4}}>{titel} vastgelegd — inclusief handtekeningen</div>
+      </div>
+      <div className="card" style={{marginBottom:16}}>
+        <label style={lbl}>✉️ Bericht voor de medewerker — kopieer en verstuur via Cockpit</label>
+        <textarea readOnly value={berichtTekst} rows={12}
+          onClick={e=>e.target.select()}
+          style={{...inp,resize:"vertical",fontFamily:"inherit",lineHeight:1.5,background:C.bg}}/>
+        <button onClick={kopieerBericht}
+          style={{marginTop:10,width:"100%",background:berichtGekopieerd?C.groen:C.blauw,color:"white",border:"none",borderRadius:8,padding:12,fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+          {berichtGekopieerd ? "✓ Gekopieerd" : "📋 Kopieer bericht"}
+        </button>
+      </div>
       <button className="btn-b" onClick={opnieuw}>Nieuwe {actie}</button>
     </div>
   );
