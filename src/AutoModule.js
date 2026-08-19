@@ -484,9 +484,9 @@ function HandtekeningPad({ label, sub, dataUrl, onChange }) {
 
 // ─── SCHADESCHEMA (klikbaar, gebaseerd op het papieren formulier) ─────────────
 const SCHADE_ZONES = [
-  { key:"boven",  label:"Bovenaanzicht" },
-  { key:"voor",   label:"Voorkant" },
-  { key:"achter", label:"Achterkant" },
+  { key:"boven",         label:"Bovenaanzicht" },
+  { key:"zijkant_links",  label:"Zijkant links" },
+  { key:"zijkant_rechts", label:"Zijkant rechts" },
 ];
 
 // Eenvoudige lijnschets van de auto per aanzicht, zodat je weet waar je op klikt
@@ -503,26 +503,20 @@ function AutoIcon({ zone }) {
       <rect x="146" y="96" width="14" height="26" rx="4" fill={w} opacity=".45"/>
     </svg>
   );
-  if (zone === "voor") return (
-    <svg viewBox="0 0 200 150" style={{position:"absolute",inset:0,width:"100%",height:"100%",pointerEvents:"none"}}>
-      <rect x="35" y="35" width="130" height="68" rx="18" fill="white" stroke={s} strokeWidth="3"/>
-      <rect x="55" y="14" width="90" height="34" rx="14" fill={C.bg} stroke={s} strokeWidth="2"/>
-      <ellipse cx="55" cy="65" rx="12" ry="9" fill={C.bg} stroke={s} strokeWidth="2"/>
-      <ellipse cx="145" cy="65" rx="12" ry="9" fill={C.bg} stroke={s} strokeWidth="2"/>
-      <rect x="80" y="70" width="40" height="13" rx="3" fill={C.bg} stroke={s} strokeWidth="1.5"/>
-      <rect x="28" y="96" width="26" height="16" rx="5" fill={w} opacity=".45"/>
-      <rect x="146" y="96" width="26" height="16" rx="5" fill={w} opacity=".45"/>
-    </svg>
-  );
+  // Zijaanzicht — voor "zijkant_rechts" spiegelen we hetzelfde schets zodat de neus
+  // van de auto de andere kant op wijst, puur visueel ter onderscheid.
+  const spiegel = zone === "zijkant_rechts";
   return (
     <svg viewBox="0 0 200 150" style={{position:"absolute",inset:0,width:"100%",height:"100%",pointerEvents:"none"}}>
-      <rect x="35" y="35" width="130" height="68" rx="18" fill="white" stroke={s} strokeWidth="3"/>
-      <rect x="55" y="14" width="90" height="34" rx="14" fill={C.bg} stroke={s} strokeWidth="2"/>
-      <rect x="42" y="54" width="16" height="24" rx="4" fill="#fca5a5" stroke={s} strokeWidth="2"/>
-      <rect x="142" y="54" width="16" height="24" rx="4" fill="#fca5a5" stroke={s} strokeWidth="2"/>
-      <rect x="85" y="86" width="30" height="10" rx="3" fill={C.bg} stroke={s} strokeWidth="1.5"/>
-      <rect x="28" y="96" width="26" height="16" rx="5" fill={w} opacity=".45"/>
-      <rect x="146" y="96" width="26" height="16" rx="5" fill={w} opacity=".45"/>
+      <g transform={spiegel ? "translate(200,0) scale(-1,1)" : undefined}>
+        <rect x="20" y="72" width="160" height="34" rx="14" fill="white" stroke={s} strokeWidth="3"/>
+        <path d="M55,72 L70,44 Q75,38 85,38 L135,38 Q145,38 150,44 L162,72 Z" fill="white" stroke={s} strokeWidth="3"/>
+        <line x1="106" y1="38" x2="106" y2="72" stroke={s} strokeWidth="2"/>
+        <rect x="70" y="44" width="30" height="24" rx="4" fill={C.bg} stroke={s} strokeWidth="1.5"/>
+        <rect x="110" y="44" width="34" height="24" rx="4" fill={C.bg} stroke={s} strokeWidth="1.5"/>
+        <circle cx="55" cy="110" r="16" fill={w} opacity=".45"/>
+        <circle cx="150" cy="110" r="16" fill={w} opacity=".45"/>
+      </g>
     </svg>
   );
 }
