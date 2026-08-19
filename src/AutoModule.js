@@ -52,6 +52,8 @@ function nowISO() { return new Date().toISOString().slice(0,16); }
 function genereerBericht({ actie, naam, kenteken, merkModel, datumTijd, kilometerstand, tankVol, schoon, schadePunten, afwijkingen, collegaNaam }) {
   const datum = datumTijd ? fmtDate(datumTijd) : fmtDate(new Date());
   const tijd = datumTijd ? fmtTime(datumTijd) : fmtTime(new Date());
+  const naamVoluit = naam || "";
+  const naam_ = naamVoluit.trim().split(/\s+/)[0] || naamVoluit; // alleen voornaam in de aanhef
   const autoOmschrijving = `${kenteken}${merkModel ? ` (${merkModel})` : ""}`;
   const schadeRegels = (schadePunten||[]).length > 0
     ? `\nGemarkeerde schadepunten:\n${schadePunten.map(p => `- ${SCHADE_ZONES.find(z=>z.key===p.zone)?.label || p.zone}: ${p.omschrijving}`).join("\n")}`
@@ -61,7 +63,7 @@ function genereerBericht({ actie, naam, kenteken, merkModel, datumTijd, kilomete
     : "";
 
   if (actie === "uitgifte") {
-    return `Beste ${naam},
+    return `Beste ${naam_},
 
 Hierbij bevestigen we dat je op ${datum} om ${tijd} de bedrijfsauto ${autoOmschrijving} in ontvangst hebt genomen bij KTP Interflex.
 
@@ -79,7 +81,7 @@ Met vriendelijke groet,
 KTP Interflex`;
   }
 
-  return `Beste ${naam},
+  return `Beste ${naam_},
 
 Hierbij bevestigen we dat op ${datum} om ${tijd} de bedrijfsauto ${autoOmschrijving} bij je is ingenomen door KTP Interflex.
 
@@ -186,7 +188,14 @@ export function AutoModule({ gebruiker, showToast }) {
       uitgifte: "🚗 Auto uitgifte", inname: "🔑 Auto inname",
       storing: "🔧 Auto storing/schade", geannuleerd: "❌ Auto geannuleerd",
     };
-    const heeftAfwijking = !!m.afwijking_gevonden && Array.isArray(afwijkingen) && afwijkingen.length > 0;
+    const heeftKosten = m.actie === "inname" && m.kosten_inhouden !== null && m.kosten_inhouden !== undefined && Number(m.kosten_inhouden) > 0;
+    const heeftAfwijking = (!!m.afwijking_gevonden && Array.isArray(afwijkingen) && afwijkingen.length > 0) || heeftKosten;
+    const kostenRegel = heeftKosten ? `💶 Kosten in te houden bij medewerker: €${Number(m.kosten_inhouden).toFixed(2).replace(".",",")}` : null;
+    const opmerkingenDelen = [
+      (afwijkingen||[]).length > 0 ? afwijkingen.join(" · ") : null,
+      kostenRegel,
+      m.opmerkingen || null,
+    ].filter(Boolean);
     stuurMail({
       type:          heeftAfwijking ? `⚠️ ${actieTekst[m.actie] || m.actie} — bijzonderheden!` : (actieTekst[m.actie] || m.actie),
       type_icon:     heeftAfwijking ? "⚠️" : (actieTekst[m.actie]?.split(" ")[0] || "🚗"),
@@ -195,7 +204,7 @@ export function AutoModule({ gebruiker, showToast }) {
       kamer:         m.locatie ? `Locatie: ${m.locatie}` : "—",
       datum:         m.datum_tijd ? new Date(m.datum_tijd).toLocaleDateString("nl-NL") : "—",
       ingediend_door: gebruiker.naam,
-      opmerkingen:   heeftAfwijking ? `${afwijkingen.join(" · ")}${m.opmerkingen ? " · " + m.opmerkingen : ""}` : (m.opmerkingen || "—"),
+      opmerkingen:   opmerkingenDelen.length > 0 ? opmerkingenDelen.join(" · ") : "—",
     });
 
     showToast(heeftAfwijking ? "⚠️ Ingediend — bijzonderheden gemeld aan backoffice" : "✓ Auto melding ingediend");
@@ -674,6 +683,7 @@ function AutoHandoverWizard({ autos, gebruiker, actie, onSubmit, showToast }) {
   const [exterieurSchade, setExterieurSchade] = useState(null);
   const [interieurSchade, setInterieurSchade] = useState(null);
   const [schadePunten, setSchadePunten] = useState([]);
+  const [kostenInhouden, setKostenInhouden] = useState("");
   const [opmerkingen, setOpmerkingen] = useState("");
   const [documenten, setDocumenten] = useState([]);
   const [akkoordPrive, setAkkoordPrive] = useState(false);
@@ -775,6 +785,8 @@ function AutoHandoverWizard({ autos, gebruiker, actie, onSubmit, showToast }) {
     if (!ktpUrl || !bestuurderUrl) { setSaving(false); showToast("Fout bij opslaan handtekening — probeer opnieuw","err"); return; }
 
     const afwijkingen = berekenAfwijkingen();
+    const kostenBedrag = actie === "inname" && kostenInhouden.trim() !== ""
+      ? parseFloat(kostenInhouden.replace(",",".")) : null;
 
     const ok = await onSubmit({
       actie, kenteken, naam_medewerker: naamMedewerker.trim(),
@@ -786,8 +798,9 @@ function AutoHandoverWizard({ autos, gebruiker, actie, onSubmit, showToast }) {
       handtekening_ktp: ktpUrl, handtekening_bestuurder: bestuurderUrl,
       checklist: { ...checklist, exterieur_schade: exterieurSchade, interieur_schade: interieurSchade, akkoord_prive: akkoordPrive, toelichtingen },
       schade_punten: schadePunten,
+      kosten_inhouden: kostenBedrag !== null && !isNaN(kostenBedrag) ? kostenBedrag : null,
       gekoppelde_uitgifte_id: actie === "inname" && laatsteUitgifte ? laatsteUitgifte.id : null,
-      afwijking_gevonden: afwijkingen.length > 0,
+      afwijking_gevonden: afwijkingen.length > 0 || (kostenBedrag !== null && !isNaN(kostenBedrag) && kostenBedrag > 0),
       afwijkingen,
     });
     setSaving(false);
@@ -798,7 +811,7 @@ function AutoHandoverWizard({ autos, gebruiker, actie, onSubmit, showToast }) {
     setStap(1); setKenteken(""); setNaamMedewerker(""); setDatumTijd(nowISO());
     setKilometerstand(""); setLocatie(""); setTankVol(null); setSchoon(null);
     setChecklist({}); setExterieurSchade(null); setInterieurSchade(null); setSchadePunten([]);
-    setOpmerkingen(""); setDocumenten([]); setAkkoordPrive(false);
+    setKostenInhouden(""); setOpmerkingen(""); setDocumenten([]); setAkkoordPrive(false);
     setHandtekeningKtp(null); setHandtekeningBestuurder(null); setToelichtingen({}); setLaatsteUitgifte(null);
     setSubmitted(false);
   }
@@ -902,6 +915,15 @@ function AutoHandoverWizard({ autos, gebruiker, actie, onSubmit, showToast }) {
             </div>
           ))}
           <div style={{marginTop:10,fontSize:11,color:C.muted}}>* Voer de kilometer-/vloeistofcontrole pas als laatste uit, dit voorkomt een vertekend beeld.</div>
+          {actie === "inname" && (
+            <div style={{marginTop:16,paddingTop:16,borderTop:`1px solid ${C.border}`}}>
+              <label style={lbl}>💶 Kosten in te houden bij medewerker (optioneel)</label>
+              <input type="text" inputMode="decimal" value={kostenInhouden} onChange={e=>setKostenInhouden(e.target.value)}
+                placeholder="Alleen invullen als er daadwerkelijk kosten verrekend moeten worden, bv. 45,00"
+                style={{...inp,maxWidth:220}}/>
+              <div style={{marginTop:6,fontSize:11,color:C.muted}}>Dit bedrag komt automatisch in de inname-mail naar backoffice te staan. De medewerker krijgt dit bedrag niet automatisch te zien — de daadwerkelijke inhouding regel je zelf via Borg → Extra post.</div>
+            </div>
+          )}
         </div>
       )}
 
@@ -1166,12 +1188,13 @@ function AutoLog({ meldingen, autos, onUpdate, gebruiker, isBackoffice, onReacti
   const actiIcon  = { uitgifte:"🚗", inname:"🔑", storing:"🔧", geannuleerd:"❌" };
 
   function exportCSV() {
-    let csv = "Datum,Tijd,Actie,Kenteken,Medewerker,Tank vol,Schoon,Formulier,Rijbewijs,KM stand,Locatie,Door,Getekend,Afwijking,Schadepunten,Opmerkingen\n";
+    let csv = "Datum,Tijd,Actie,Kenteken,Medewerker,Tank vol,Schoon,Formulier,Rijbewijs,KM stand,Locatie,Door,Getekend,Afwijking,Schadepunten,Kosten inhouden,Opmerkingen\n";
     meldingen.forEach(m => {
       const dt = m.created_at ? new Date(m.created_at) : new Date();
       const getekend = m.handtekening_ktp && m.handtekening_bestuurder ? "ja" : "";
       const schadeAantal = (m.schade_punten||[]).length || "";
-      csv += `"${fmtDate(dt)}","${fmtTime(dt)}","${m.actie}","${m.kenteken}","${m.naam_medewerker}","${m.tank_vol||""}","${m.schoon||""}","${m.formulier_getekend||""}","${m.rijbewijs_gecontroleerd||""}","${m.kilometerstand||""}","${m.locatie||""}","${m.ingediend_door}","${getekend}","${m.afwijking_gevonden?"ja":""}","${schadeAantal}","${m.opmerkingen||""}"\n`;
+      const kosten = m.kosten_inhouden ? Number(m.kosten_inhouden).toFixed(2).replace(".",",") : "";
+      csv += `"${fmtDate(dt)}","${fmtTime(dt)}","${m.actie}","${m.kenteken}","${m.naam_medewerker}","${m.tank_vol||""}","${m.schoon||""}","${m.formulier_getekend||""}","${m.rijbewijs_gecontroleerd||""}","${m.kilometerstand||""}","${m.locatie||""}","${m.ingediend_door}","${getekend}","${m.afwijking_gevonden?"ja":""}","${schadeAantal}","${kosten}","${m.opmerkingen||""}"\n`;
     });
     const blob = new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"});
     const url = URL.createObjectURL(blob);
@@ -1249,6 +1272,9 @@ function AutoLog({ meldingen, autos, onUpdate, gebruiker, isBackoffice, onReacti
                     </span>
                     {(m.schade_punten||[]).length>0 && (
                       <span className="badge" style={{background:"#fef3c7",color:"#b45309",fontSize:11}}>🚘 {m.schade_punten.length} schadepunt(en)</span>
+                    )}
+                    {m.kosten_inhouden > 0 && (
+                      <span className="badge" style={{background:"#fef2f2",color:"#b91c1c",fontSize:11,fontWeight:700}}>💶 €{Number(m.kosten_inhouden).toFixed(2).replace(".",",")} in te houden</span>
                     )}
                   </div>
                 )}
