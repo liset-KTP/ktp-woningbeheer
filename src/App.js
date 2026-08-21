@@ -863,6 +863,23 @@ function App() {
         }
       }
 
+      // BUGFIX (2026-08-21): als een reservering wordt afgehandeld/verwerkt zonder dat
+      // daar een aparte "aankomst"-melding aan te pas kwam (bijv. direct op "Afhandelen"
+      // geklikt in Taken & Meldingen), bleef de kamerstatus voor altijd op "Gereserveerd"
+      // staan — er was nergens code die 'm daarna naar "Lopend" zette. De enige plek waar
+      // dat wél gebeurde was bij het aanmaken van een nieuwe aankomstmelding (addMelding).
+      // Zie ktp_woningbeheer_verhuizing_bug-notitie: dit is dezelfde bugklasse als eerder
+      // bij vertrek/verhuizing — een handmatige afhandelstap moet de kamerstatus altijd
+      // direct meenemen, nooit afhankelijk laten van een aparte, ontkoppelde vervolgstap.
+      // Case: Marcelo Melo Alves, Spaarnestraat 84 K3, melding #358.
+      if ((newStatus==="verwerkt"||newStatus==="afgehandeld") && m?.type==="reservering" && huis && m?.kamer) {
+        const kamer = huis.kamers.find(k=>k.k===m.kamer);
+        if (kamer && kamer.status==="Gereserveerd") {
+          await patchKamer(huis.id, { [m.kamer]: { status: "Lopend" } });
+          await loadHouses();
+        }
+      }
+
       // Bij vertrek afgehandeld: nog OPEN aankomst-taken/-melding voor dezelfde
       // medewerker+woning+kamer automatisch sluiten. Zonder deze check kon een
       // "Aankomst bevestigen"- of "Aankomst begeleiden"-taak dagen later alsnog
