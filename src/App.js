@@ -531,12 +531,12 @@ function App() {
         if (k.k===m.kamer) {
           if (m.type==="aankomst")    return {...k,naam:m.medewerker,status:"Lopend"};
           if (m.type==="reservering") return {...k,naam:m.medewerker,status:"Gereserveerd"};
-          if (m.type==="vertrek") { return {...k,status:"Controle"}; } // Altijd Controle tot huismeester heeft afgevinkt
+          if (m.type==="vertrek") { return {...k,status:"Controle",controleOp:m.datum||""}; } // Altijd Controle tot huismeester heeft afgevinkt; vertrekdatum meteen zichtbaar via STATUS_DATUM
           if (m.type==="vertrek_aankondiging") { return {...k,status:"Gereserveerd"}; } // Aankondiging = gereserveerd
           if (m.type==="verhuizing") { return {...k,naam:m.medewerker,status:"Gereserveerd"}; } // Naar-kamer reserveren
           return k;
         }
-        if (zelfdeWoningVerhuizing && k.k===m.vanKamer) return {...k,status:"Controle",naam:""};
+        if (zelfdeWoningVerhuizing && k.k===m.vanKamer) return {...k,status:"Controle",naam:"",controleOp:m.datum||""};
         return k;
       });
       await supabase.from("woningen").update({kamers:nk}).eq("id",m.huisId);
@@ -545,7 +545,7 @@ function App() {
     if (m.type==="verhuizing" && m.vanHuisId && !zelfdeWoningVerhuizing) {
       const vanHuisObj = houses.find(h=>h.id===m.vanHuisId);
       if (vanHuisObj) {
-        const nkVan = vanHuisObj.kamers.map(k=>k.k===m.vanKamer?{...k,status:"Controle",naam:""}:k);
+        const nkVan = vanHuisObj.kamers.map(k=>k.k===m.vanKamer?{...k,status:"Controle",naam:"",controleOp:m.datum||""}:k);
         await supabase.from("woningen").update({kamers:nkVan}).eq("id",vanHuisObj.id);
       }
     }
@@ -858,7 +858,7 @@ function App() {
       if ((newStatus==="verwerkt"||newStatus==="afgehandeld") && m?.type==="vertrek" && huis) {
         const kamer = huis.kamers.find(k=>k.k===m.kamer);
         if (kamer && kamer.status==="Controle") {
-          await patchKamer(huis.id, { [m.kamer]: { status: "Beschikbaar", naam: "" } });
+          await patchKamer(huis.id, { [m.kamer]: { status: "Beschikbaar", naam: "", controleOp: "" } });
           await loadHouses();
         }
       }
@@ -5383,6 +5383,19 @@ function MeldingForm({ houses, onSubmit, showToast, taal="nl" }) {
     {id:"overig",               icon:"💬", label:"OVERIG",                color:C.muted},
   ];
 
+  // Duidelijk label per meldingtype, zodat een collega altijd weet welke datum hij invult
+  // (bijv. bij "vertrek" expliciet de vertrekdatum — die datum komt direct op de kamerkaart
+  // te staan zodra de kamer op status "Controle" gaat, zie STATUS_DATUM/controleOp in App.js).
+  const datumLabels = {
+    aankomst: "Aankomstdatum",
+    reservering: "Verwachte aankomstdatum",
+    verhuizing: "Datum verhuizing",
+    vertrek_aankondiging: "Verwachte vertrekdatum",
+    vertrek: "Vertrekdatum",
+    overig: "Datum",
+  };
+  const datumLabel = datumLabels[type] || "Datum";
+
   function handleBijlage(e) {
     const files = Array.from(e.target.files||[]);
     setBijlages(prev=>[...prev,...files.map(f=>({naam:f.name,type:f.type,grootte:f.size,bestand:f}))]);
@@ -5408,7 +5421,7 @@ function MeldingForm({ houses, onSubmit, showToast, taal="nl" }) {
       </div>
       <div className="card" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}} >
         <div style={{gridColumn:"1"}}><label className="fl">Naam medewerker</label><input className="fi" value={medewerker} onChange={e=>setMedewerker(e.target.value)} placeholder="Voor- en achternaam"/></div>
-        <div style={{gridColumn:"2"}}><label className="fl">Datum</label><WeekDatePicker className="fi" value={datum} onChange={v=>setDatum(v)}/></div>
+        <div style={{gridColumn:"2"}}><label className="fl">{datumLabel}</label><WeekDatePicker className="fi" value={datum} onChange={v=>setDatum(v)}/></div>
         {type!=="verhuizing"&&<>
           <div>
             <label className="fl">Woning</label>
