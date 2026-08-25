@@ -695,6 +695,31 @@ function App() {
       }
     }
 
+    // Check (2026-08-25): een melding mag niet stilzwijgend op "afgehandeld"/"verwerkt" gezet
+    // worden terwijl een automatisch aangemaakte controletaak (bijv. "Kamer controleren na
+    // vertrek") nog open staat — anders oogt alles klaar terwijl de kamer nooit fysiek is
+    // gecontroleerd. Case: Marcelo Melo Alves, Spaarnestraat 84 K3, melding #373 (21-08-2026) —
+    // de melding werd via de "✓ Afhandelen"-knop op de meldingkaart afgehandeld, los van taak
+    // #562 die nog open stond. Zelfde patroon eerder al gesignaleerd bij de taken-audit van
+    // 07-08-2026 ("nog te onderzoeken") — dit dicht die opening voor alle meldingtypes.
+    if (newStatus==="verwerkt"||newStatus==="afgehandeld") {
+      const { data: openGekoppeldeTaken } = await supabase
+        .from("taken")
+        .select("id,titel")
+        .eq("melding_id", id)
+        .neq("status", "gedaan")
+        .in("voor_rol", ["huismeester", "collega"]);
+      if (openGekoppeldeTaken && openGekoppeldeTaken.length > 0) {
+        const takenLijst = openGekoppeldeTaken.map(t => `• ${t.titel}`).join("\n");
+        const doorgaan = window.confirm(
+          `⚠️ Bij deze melding staat nog ${openGekoppeldeTaken.length===1?"een taak":`${openGekoppeldeTaken.length} taken`} open:\n\n${takenLijst}\n\n` +
+          `Als je de melding nu afhandelt zonder de taak/taken af te ronden, oogt alles klaar terwijl bijv. de kamer nog niet gecontroleerd is.\n\n` +
+          `OK = toch nu afhandelen (taak wordt apart afgerond)\nAnnuleren = eerst de taak/taken afronden`
+        );
+        if (!doorgaan) return;
+      }
+    }
+
     const { error } = await supabase.from("meldingen").update({status:newStatus,afgehandeld_door:gebruiker.naam,afgehandeld_op:new Date().toISOString(),notitie:notitie||null}).eq("id",id);
     if (error) showToast("Fout bij updaten","err");
     else {
@@ -1305,7 +1330,7 @@ function App() {
         {tab==="autos"&&<AutoModule gebruiker={gebruiker} showToast={showToast}/>}
         {tab==="fietsen"&&<FietsModule gebruiker={gebruiker} showToast={showToast} houses={houses} onMeldingIndienen={addMelding}/>}
         {rol==="huismeester"&&tab==="dagplanning"&&<DagplanningView meldingen={meldingen} taken={taken} houses={houses} onUpdate={updateMeldingStatus} onUpdateTaak={updateTaak} naam={naam} dagplanningDB={dagplanningDB} checklistItems={checklistItems} checklists={checklists} autoMeldingen={autoMeldingenApp}/>}
-        {rol==="backoffice"&&tab==="log"&&<LogView meldingen={meldingen} houses={houses} activiteiten={activiteiten}/>}
+        {rol==="backoffice"&&tab==="log"&&<LogView meldingen={meldingen} houses={houses} activiteiten={activiteiten} taken={taken}/>}
         {tab==="huurbetalingen"&&<HuurbetalingenModule gebruiker={gebruiker} showToast={showToast} readonly={rol!=="backoffice"&&rol!=="financieel"}/>}
         {tab==="berichten"&&<BerichtenModule gebruiker={gebruiker} houses={houses} taken={taken} meldingen={meldingen} autos={[]}/>}
         {tab==="borg"&&<BorgModule gebruiker={gebruiker} houses={houses} showToast={showToast} readonly={rol!=="backoffice"}/>}
@@ -6677,7 +6702,7 @@ function ChecklistItemsBeheer({ checklistItems, showToast }) {
 }
 
 // ─── LOG VIEW ─────────────────────────────────────────────────────────────────
-function LogView({meldingen,houses,activiteiten}) {
+function LogView({meldingen,houses,activiteiten,taken=[]}) {
   const [zoek, setZoek] = useState("");
   const [typeFilter, setTypeFilter] = useState("alle");
   const [uitgeklapt, setUitgeklapt] = useState(new Set());
@@ -6718,15 +6743,22 @@ function LogView({meldingen,houses,activiteiten}) {
   const soortIcoon = { melding:"📋", activiteit:"⚡", auto:"🚗", fiets:"🚲", borg:"🔐", huur:"💰" };
 
   const alles = [
-    ...meldingen.map(m=>({
-      id:`m-${m.id}`, soort:"melding", datum:m.created_at,
-      type:m.type, naam:m.medewerker, door:m.ingediend_door,
-      adres:houses.find(h=>h.id===m.woning_id)?.adres||"",
-      kamer:m.kamer, status:m.status, notitie:m.notitie||"",
-      extra:(m.type==="aankomst"||m.type==="reservering")&&m.datum
-        ?`Verwachte aankomst: ${fmtDateJaar(m.datum)}${m.opmerkingen?` · ${m.opmerkingen}`:""}`
-        :(m.opmerkingen||""),
-    })),
+    ...meldingen.map(m=>{
+      // Signaal (2026-08-25): melding kan "afgehandeld"/"verwerkt" tonen terwijl een
+      // gekoppelde controletaak (huismeester/collega) nog open staat — zie updateMeldingStatus.
+      const controleOpen = (m.status==="afgehandeld"||m.status==="verwerkt")
+        && taken.some(t=>t.melding_id===m.id && t.status!=="gedaan" && (t.voor_rol==="huismeester"||t.voor_rol==="collega"));
+      return {
+        id:`m-${m.id}`, soort:"melding", datum:m.created_at,
+        type:m.type, naam:m.medewerker, door:m.ingediend_door,
+        adres:houses.find(h=>h.id===m.woning_id)?.adres||"",
+        kamer:m.kamer, status:m.status, notitie:m.notitie||"",
+        extra:(m.type==="aankomst"||m.type==="reservering")&&m.datum
+          ?`Verwachte aankomst: ${fmtDateJaar(m.datum)}${m.opmerkingen?` · ${m.opmerkingen}`:""}`
+          :(m.opmerkingen||""),
+        controleOpen,
+      };
+    }),
     ...activiteiten.map(a=>({
       id:`a-${a.id}`, soort:"activiteit", datum:a.created_at,
       type:a.type, naam:a.omschrijving, door:a.gedaan_door,
@@ -6839,6 +6871,7 @@ function LogView({meldingen,houses,activiteiten}) {
                   <div style={{fontWeight:600,color:C.text,marginBottom:1}}>{item.naam}</div>
                   {item.notitie&&<div style={{fontSize:11,color:C.muted}}>{item.notitie}</div>}
                   {item.status&&<span style={{fontSize:10,fontWeight:700,color:item.status==="open"||item.status==="actief"?C.blauw:C.groen}}>{item.status.toUpperCase()}</span>}
+                  {item.controleOpen&&<span title="Melding staat op afgehandeld/verwerkt, maar de gekoppelde controletaak (huismeester/collega) staat nog open" style={{marginLeft:6,fontSize:10,fontWeight:700,color:"#b45309",background:"#fef3c7",padding:"1px 6px",borderRadius:8}}>⚠️ CONTROLE OPEN</span>}
                 </div>
                 <div>
                   <div style={{color:C.muted,fontSize:11}}>{item.adres}{item.kamer?` · K${item.kamer}`:""}</div>
