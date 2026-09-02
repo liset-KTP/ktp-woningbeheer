@@ -122,6 +122,9 @@ const STATUS_DATUM = {
   "Controle": { veld:"controleOp", icon:"🔍", label:"Datum controle", kleur:"#b91c1c",
     taakTitel:(k)=>`Voer controle uit — kamer ${k.k}`,
     taakTekst:(k,h)=>`Geplande controledatum (${k.controleOp}) voor kamer ${k.k} (${h.adres}, ${h.stad}) is verstreken en de status staat nog op "Controle". Voer de controle uit en werk de status bij.` },
+  "Gereserveerd": { veld:"aankomstDatum", icon:"📅", label:"Verwachte aankomstdatum", kleur:"#b45309",
+    taakTitel:(k)=>`Controleer aankomst — ${k.naam||"kamer "+k.k}`,
+    taakTekst:(k,h)=>`${k.naam||"Bewoner"} zou aangekomen moeten zijn op ${k.aankomstDatum} in kamer ${k.k} (${h.adres}, ${h.stad}), maar de kamer staat nog op "Gereserveerd". Controleer of de aankomst heeft plaatsgevonden en werk de kamerstatus bij naar "Lopend", of pas de datum aan als de aankomst is verzet.` },
 };
 const STATUS_DATUM_VELDEN = Object.values(STATUS_DATUM).map(c=>c.veld); // alle mogelijke datumvelden, voor het opschonen bij opslaan
 
@@ -529,11 +532,11 @@ function App() {
     if (huis) {
       const nk = huis.kamers.map(k => {
         if (k.k===m.kamer) {
-          if (m.type==="aankomst")    return {...k,naam:m.medewerker,status:"Lopend"};
-          if (m.type==="reservering") return {...k,naam:m.medewerker,status:"Gereserveerd"};
+          if (m.type==="aankomst")    return {...k,naam:m.medewerker,status:"Lopend",aankomstDatum:""}; // spookdatum voorkomen als kamer eerder Gereserveerd stond
+          if (m.type==="reservering") return {...k,naam:m.medewerker,status:"Gereserveerd",aankomstDatum:m.datum||""}; // "Verwachte aankomstdatum" meteen zichtbaar via STATUS_DATUM
           if (m.type==="vertrek") { return {...k,status:"Controle",controleOp:m.datum||""}; } // Altijd Controle tot huismeester heeft afgevinkt; vertrekdatum meteen zichtbaar via STATUS_DATUM
-          if (m.type==="vertrek_aankondiging") { return {...k,status:"Gereserveerd"}; } // Aankondiging = gereserveerd
-          if (m.type==="verhuizing") { return {...k,naam:m.medewerker,status:"Gereserveerd"}; } // Naar-kamer reserveren
+          if (m.type==="vertrek_aankondiging") { return {...k,status:"Gereserveerd"}; } // Aankondiging = gereserveerd (nog geen bekende aankomstdatum voor de opvolger)
+          if (m.type==="verhuizing") { return {...k,naam:m.medewerker,status:"Gereserveerd",aankomstDatum:m.datum||""}; } // Naar-kamer reserveren, datum verhuizing = aankomstdatum
           return k;
         }
         if (zelfdeWoningVerhuizing && k.k===m.vanKamer) return {...k,status:"Controle",naam:"",controleOp:m.datum||""};
@@ -900,7 +903,7 @@ function App() {
       if ((newStatus==="verwerkt"||newStatus==="afgehandeld") && m?.type==="reservering" && huis && m?.kamer) {
         const kamer = huis.kamers.find(k=>k.k===m.kamer);
         if (kamer && kamer.status==="Gereserveerd") {
-          await patchKamer(huis.id, { [m.kamer]: { status: "Lopend" } });
+          await patchKamer(huis.id, { [m.kamer]: { status: "Lopend", aankomstDatum: "" } });
           await loadHouses();
         }
       }
@@ -5794,7 +5797,7 @@ function WoningenDetail({houses, onUpdateWoning}) {
   function startBewerk(huis, k) {
     setBewerkKamer({huisId:huis.id, kamerNr:k.k});
     setBewerkWaarden({naam:k.naam||"", bedrijf:k.bedrijf||"", status:k.status||"Beschikbaar", opmerking:k.opmerking||"",
-      vakantieTot:k.vakantieTot||"", ziekTot:k.ziekTot||"", moetWegVoor:k.moetWegVoor||"", controleOp:k.controleOp||""});
+      vakantieTot:k.vakantieTot||"", ziekTot:k.ziekTot||"", moetWegVoor:k.moetWegVoor||"", controleOp:k.controleOp||"", aankomstDatum:k.aankomstDatum||""});
   }
 
   async function slaBewerk(huis) {
@@ -6355,7 +6358,7 @@ function WoningBeheer({houses,onAdd,onUpdate,onArchiveer,showToast}) {
   const [geselecteerd,setGeselecteerd]=useState(null);
   const [nieuweWoning,setNieuweWoning]=useState({stad:"",adres:"",postcode:""});
   const [toonNieuwe,setToonNieuwe]=useState(false);
-  const [nieuweKamer,setNieuweKamer]=useState({k:"",naam:"",bedrijf:"",status:"Beschikbaar",opmerking:"",vakantieTot:"",ziekTot:"",moetWegVoor:"",controleOp:""});
+  const [nieuweKamer,setNieuweKamer]=useState({k:"",naam:"",bedrijf:"",status:"Beschikbaar",opmerking:"",vakantieTot:"",ziekTot:"",moetWegVoor:"",controleOp:"",aankomstDatum:""});
   const [bewerkKamer,setBewerkKamer]=useState(null);
   const [saving,setSaving]=useState(false);
   const huis=houses.find(h=>h.id===geselecteerd);
@@ -6373,7 +6376,7 @@ function WoningBeheer({houses,onAdd,onUpdate,onArchiveer,showToast}) {
     if(!huis) return;
     if(huis.kamers.some(k=>k.k===nieuweKamer.k)){showToast("Kamernummer bestaat al","err");return;}
     setSaving(true);await onUpdate(huis.id,{kamers:[...huis.kamers,sanitizeKamerDatums(nieuweKamer)]},huis);setSaving(false);
-    setNieuweKamer({k:"",naam:"",bedrijf:"",status:"Beschikbaar",opmerking:"",vakantieTot:"",ziekTot:"",moetWegVoor:"",controleOp:""});
+    setNieuweKamer({k:"",naam:"",bedrijf:"",status:"Beschikbaar",opmerking:"",vakantieTot:"",ziekTot:"",moetWegVoor:"",controleOp:"",aankomstDatum:""});
   }
   async function kamerOpslaan(nr,u) { if(!huis) return; const waarden = sanitizeKamerDatums(u); setSaving(true); await onUpdate(huis.id,{kamers:huis.kamers.map(k=>k.k===nr?{...k,...waarden}:k)},huis); setSaving(false); setBewerkKamer(null); }
   async function kamerVerwijderen(nr) { if(!huis||!window.confirm(`Kamer ${nr} verwijderen?`)) return; setSaving(true); await onUpdate(huis.id,{kamers:huis.kamers.filter(k=>k.k!==nr)},huis); setSaving(false); }
@@ -6471,7 +6474,7 @@ function KamerBewerken({kamer,onSave,onCancel,saving}) {
   const [bedrijf,setBedrijf]=useState(kamer.bedrijf||"");
   const [status,setStatus]=useState(kamer.status||"Beschikbaar");
   const [opmerking,setOpmerking]=useState(kamer.opmerking||"");
-  const [datums,setDatums]=useState({vakantieTot:kamer.vakantieTot||"", ziekTot:kamer.ziekTot||"", moetWegVoor:kamer.moetWegVoor||"", controleOp:kamer.controleOp||""});
+  const [datums,setDatums]=useState({vakantieTot:kamer.vakantieTot||"", ziekTot:kamer.ziekTot||"", moetWegVoor:kamer.moetWegVoor||"", controleOp:kamer.controleOp||"", aankomstDatum:kamer.aankomstDatum||""});
   const dc = STATUS_DATUM[status];
   return(
     <div style={{background:C.blauw+"08",borderRadius:8,padding:12,marginBottom:6,border:`1.5px solid ${C.blauw}`}}>
