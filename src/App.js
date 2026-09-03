@@ -6756,9 +6756,24 @@ function LogView({meldingen,houses,activiteiten,taken=[]}) {
         type:m.type, naam:m.medewerker, door:m.ingediend_door,
         adres:houses.find(h=>h.id===m.woning_id)?.adres||"",
         kamer:m.kamer, status:m.status, notitie:m.notitie||"",
-        extra:(m.type==="aankomst"||m.type==="reservering")&&m.datum
-          ?`Verwachte aankomst: ${fmtDateJaar(m.datum)}${m.opmerkingen?` · ${m.opmerkingen}`:""}`
-          :(m.opmerkingen||""),
+        // Toon de ingevulde meldingsdatum in het Log-overzicht voor ALLE typen (niet alleen
+        // aankomst/reservering) — vertrek_aankondiging, vertrek en verhuizing hadden dezelfde
+        // datum al gewoon in m.datum staan (zie MeldingForm datumLabels), maar die werd hier
+        // nooit getoond. Labels hieronder komen overeen met MeldingForm zodat het overal
+        // hetzelfde heet.
+        extra:(()=>{
+          const datumPrefix = {
+            aankomst:"Verwachte aankomst",
+            reservering:"Verwachte aankomst",
+            verhuizing:"Datum verhuizing",
+            vertrek_aankondiging:"Verwachte vertrek",
+            vertrek:"Vertrekdatum",
+            overig:"Datum",
+          }[m.type];
+          return (datumPrefix && m.datum)
+            ? `${datumPrefix}: ${fmtDateJaar(m.datum)}${m.opmerkingen?` · ${m.opmerkingen}`:""}`
+            : (m.opmerkingen||"");
+        })(),
         controleOpen,
       };
     }),
