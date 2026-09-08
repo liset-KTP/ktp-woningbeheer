@@ -52,6 +52,7 @@ export function FietsModule({ gebruiker, showToast }) {
   async function geefFietsUit() {
     if (!uitgifte.locatie) { showToast("Selecteer een locatie","err"); return; }
     if (!uitgifte.naam_medewerker.trim()) { showToast("Vul naam medewerker in","err"); return; }
+    const naam = uitgifte.naam_medewerker.trim(); // FIX 2026-09-08: trim voorkomt dat een spatie-verschil de bestaand-plan-lookup mist en een dubbel borgplan aanmaakt
 
     const beschikbaar = perLocatie[uitgifte.locatie] || [];
     if (beschikbaar.length === 0) { showToast("Geen fiets beschikbaar op die locatie","err"); return; }
@@ -60,26 +61,26 @@ export function FietsModule({ gebruiker, showToast }) {
     const fiets = beschikbaar[0]; // pak eerste beschikbare fiets van die locatie
 
     // 1. Markeer fiets als verkocht (verdwijnt uit overzicht)
-    await supabase.from("fietsen").update({ status:"Verkocht", naam_medewerker: uitgifte.naam_medewerker, datum_uitgifte: todayISO() }).eq("id", fiets.id);
+    await supabase.from("fietsen").update({ status:"Verkocht", naam_medewerker: naam, datum_uitgifte: todayISO() }).eq("id", fiets.id);
 
     // 2. Log in activiteiten (verschijnt in global Log)
     await supabase.from("activiteiten").insert([{
       type: "fiets_uitgifte",
-      omschrijving: `🚲 Fiets uitgegeven aan ${uitgifte.naam_medewerker} — locatie: ${uitgifte.locatie}`,
+      omschrijving: `🚲 Fiets uitgegeven aan ${naam} — locatie: ${uitgifte.locatie}`,
       gedaan_door: gebruiker?.naam || "?",
-      extra: { naam: uitgifte.naam_medewerker, locatie: uitgifte.locatie, fiets_id: fiets.id },
+      extra: { naam: naam, locatie: uitgifte.locatie, fiets_id: fiets.id },
     }]);
 
     // 3. Borg aanmaken of toevoegen
     const { data: bestaandPlan } = await supabase.from("borg_plannen")
-      .select("id,heeft_fiets,totaal_borg").eq("naam_medewerker", uitgifte.naam_medewerker).eq("status","actief").limit(1);
+      .select("id,heeft_fiets,totaal_borg").eq("naam_medewerker", naam).eq("status","actief").limit(1);
 
     if (!bestaandPlan || bestaandPlan.length === 0) {
       const nu = new Date();
       const j = new Date(Date.UTC(nu.getFullYear(),0,1));
       const startWeek = Math.ceil((((nu-j)/86400000)+j.getDay()+1)/7)+1;
       const { data: plan } = await supabase.from("borg_plannen").insert([{
-        naam_medewerker: uitgifte.naam_medewerker, sleutels:0, heeft_fiets:true,
+        naam_medewerker: naam, sleutels:0, heeft_fiets:true,
         totaal_borg:100, ingehouden:0, status:"actief",
         aangemaakt_door: gebruiker?.naam || "?", aankomst_datum: todayISO(),
       }]).select().single();
@@ -87,8 +88,8 @@ export function FietsModule({ gebruiker, showToast }) {
         const w2 = startWeek+1>52?1:startWeek+1;
         const jaar = nu.getFullYear();
         await supabase.from("borg_termijnen").insert([
-          { plan_id:plan.id, naam_medewerker:uitgifte.naam_medewerker, week_nummer:startWeek, jaar, bedrag:50, type:"inhouden", omschrijving:"Borg fiets (week 1/2)", status:"open" },
-          { plan_id:plan.id, naam_medewerker:uitgifte.naam_medewerker, week_nummer:w2, jaar: w2===1?jaar+1:jaar, bedrag:50, type:"inhouden", omschrijving:"Borg fiets (week 2/2)", status:"open" },
+          { plan_id:plan.id, naam_medewerker:naam, week_nummer:startWeek, jaar, bedrag:50, type:"inhouden", omschrijving:"Borg fiets (week 1/2)", status:"open" },
+          { plan_id:plan.id, naam_medewerker:naam, week_nummer:w2, jaar: w2===1?jaar+1:jaar, bedrag:50, type:"inhouden", omschrijving:"Borg fiets (week 2/2)", status:"open" },
         ]);
       }
     } else {
@@ -111,8 +112,8 @@ export function FietsModule({ gebruiker, showToast }) {
         let w2 = w1 + 1, jaar2 = jaar;
         if (w2 > 52) { w2 -= 52; jaar2++; }
         const { error: termijnFout } = await supabase.from("borg_termijnen").insert([
-          { plan_id:plan.id, naam_medewerker:uitgifte.naam_medewerker, week_nummer:w1, jaar, bedrag:50, type:"inhouden", omschrijving:"Borg fiets (week 1/2)", status:"open" },
-          { plan_id:plan.id, naam_medewerker:uitgifte.naam_medewerker, week_nummer:w2, jaar:jaar2, bedrag:50, type:"inhouden", omschrijving:"Borg fiets (week 2/2)", status:"open" },
+          { plan_id:plan.id, naam_medewerker:naam, week_nummer:w1, jaar, bedrag:50, type:"inhouden", omschrijving:"Borg fiets (week 1/2)", status:"open" },
+          { plan_id:plan.id, naam_medewerker:naam, week_nummer:w2, jaar:jaar2, bedrag:50, type:"inhouden", omschrijving:"Borg fiets (week 2/2)", status:"open" },
         ]);
         if (termijnFout) {
           showToast("Fout: fiets-borgtermijnen niet aangemaakt — borgtotaal NIET opgehoogd", "err");
@@ -123,7 +124,7 @@ export function FietsModule({ gebruiker, showToast }) {
     }
 
     setSaving(false);
-    showToast(`✓ Fiets uitgegeven aan ${uitgifte.naam_medewerker} — borg aangemaakt, gelogd`);
+    showToast(`✓ Fiets uitgegeven aan ${naam} — borg aangemaakt, gelogd`);
     setToonUitgifte(false);
     setUitgifte({ locatie:"", naam_medewerker:"" });
   }
