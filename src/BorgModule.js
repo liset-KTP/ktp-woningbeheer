@@ -29,7 +29,7 @@ function fmtDate(d) {
   return new Date(d).toLocaleDateString("nl-NL", { day:"2-digit", month:"2-digit", year:"numeric" });
 }
 
-function getWeekNr(date) {
+export function getWeekNr(date) {
   const d = new Date(date);
   d.setHours(0,0,0,0);
   d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);

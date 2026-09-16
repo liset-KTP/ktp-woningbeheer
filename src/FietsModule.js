@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "./supabaseClient";
+import { weekPlusN, getWeekNr } from "./BorgModule";
 
 const C = {
   blauw:"#1B3A6B", blauwDark:"#132b52",
@@ -9,6 +10,21 @@ const C = {
 };
 
 function todayISO() { return new Date().toISOString().slice(0,10); }
+
+// Splitst een totaalbedrag op in wekelijkse termijnen van max €50, met een kortere laatste
+// week voor het restant. Voorkomt dat een afwijkend (hoger) verkoopbedrag ooit tot een
+// verdubbelde weekinhouding leidt — zie de handmatige borg_correctie-fixes (Fischer,
+// Cosmin Dan, Gladkowski) die dit tot nu toe steeds achteraf via SQL moesten rechttrekken.
+function genereerTermijnBedragen(totaal) {
+  const bedragen = [];
+  let rest = Math.round(Number(totaal) * 100) / 100;
+  while (rest > 0.001) {
+    const deel = rest > 50 ? 50 : rest;
+    bedragen.push(Math.round(deel * 100) / 100);
+    rest = Math.round((rest - deel) * 100) / 100;
+  }
+  return bedragen.length ? bedragen : [Number(totaal)];
+}
 
 function Label({ children }) {
   return <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>{children}</label>;
@@ -22,7 +38,8 @@ export function FietsModule({ gebruiker, showToast }) {
   const [loading, setLoading] = useState(true);
   const [toonUitgifte, setToonUitgifte] = useState(false);
   const [toonToevoegen, setToonToevoegen] = useState(false);
-  const [uitgifte, setUitgifte] = useState({ locatie:"", naam_medewerker:"" });
+  const [uitgifte, setUitgifte] = useState({ locatie:"", naam_medewerker:"", nieuweNaam:"", verkoopbedrag:"" });
+  const [actievePlannen, setActievePlannen] = useState([]);
   const [nieuweLocatie, setNieuweLocatie] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -33,12 +50,25 @@ export function FietsModule({ gebruiker, showToast }) {
     setFietsen(data || []);
   }, []);
 
+  // Bestaande actieve borgplannen — gebruikt om bij fietsuitgifte een medewerker te KIEZEN
+  // i.p.v. de naam vrij te typen. Voorkomt de terugkerende bug waarbij een afwijkende
+  // naaminvoer (spatie, of extra tekst zoals "(125 euro verkoop)") de bestaand-plan-lookup
+  // mist en een dubbel, losstaand borgplan aanmaakt (zie borg_correctie-log).
+  const loadActievePlannen = useCallback(async () => {
+    const { data } = await supabase.from("borg_plannen").select("naam_medewerker").eq("status","actief").order("naam_medewerker");
+    setActievePlannen(Array.from(new Set((data || []).map(p => p.naam_medewerker).filter(Boolean))));
+  }, []);
+
   useEffect(() => {
-    async function init() { setLoading(true); await loadFietsen(); setLoading(false); }
+    async function init() { setLoading(true); await Promise.all([loadFietsen(), loadActievePlannen()]); setLoading(false); }
     init();
     const s = supabase.channel("fie2-rt").on("postgres_changes",{event:"*",schema:"public",table:"fietsen"},()=>loadFietsen()).subscribe();
     return () => supabase.removeChannel(s);
-  }, [loadFietsen]);
+  }, [loadFietsen, loadActievePlannen]);
+
+  // Ververs de medewerkerslijst elke keer als het uitgifteformulier wordt geopend,
+  // zodat net aangemaakte borgplannen ook meteen kiesbaar zijn.
+  useEffect(() => { if (toonUitgifte) loadActievePlannen(); }, [toonUitgifte, loadActievePlannen]);
 
   // Groepeer fietsen per locatie
   const perLocatie = fietsen.reduce((acc, f) => {
@@ -51,8 +81,17 @@ export function FietsModule({ gebruiker, showToast }) {
 
   async function geefFietsUit() {
     if (!uitgifte.locatie) { showToast("Selecteer een locatie","err"); return; }
-    if (!uitgifte.naam_medewerker.trim()) { showToast("Vul naam medewerker in","err"); return; }
-    const naam = uitgifte.naam_medewerker.trim(); // FIX 2026-09-08: trim voorkomt dat een spatie-verschil de bestaand-plan-lookup mist en een dubbel borgplan aanmaakt
+
+    const isNieuw = uitgifte.naam_medewerker === "__nieuw__";
+    const naam = (isNieuw ? uitgifte.nieuweNaam : uitgifte.naam_medewerker).trim();
+    if (!naam) { showToast(isNieuw ? "Vul de naam van de nieuwe medewerker in" : "Selecteer een medewerker","err"); return; }
+
+    // FIX 2026-09-16: verkoopbedrag is nu een los, expliciet veld i.p.v. tekst-in-de-naam
+    // (zoals "Naam (125 euro verkoop)") — dat laatste veroorzaakte zowel gemiste borgplan-
+    // matches als een borg die altijd op het hardcoded standaardbedrag €100 bleef staan.
+    const bedragRuw = uitgifte.verkoopbedrag.trim().replace(",", ".");
+    const bedrag = bedragRuw ? Number(bedragRuw) : 100;
+    if (!Number.isFinite(bedrag) || bedrag <= 0) { showToast("Ongeldig verkoopbedrag","err"); return; }
 
     const beschikbaar = perLocatie[uitgifte.locatie] || [];
     if (beschikbaar.length === 0) { showToast("Geen fiets beschikbaar op die locatie","err"); return; }
@@ -66,67 +105,71 @@ export function FietsModule({ gebruiker, showToast }) {
     // 2. Log in activiteiten (verschijnt in global Log)
     await supabase.from("activiteiten").insert([{
       type: "fiets_uitgifte",
-      omschrijving: `🚲 Fiets uitgegeven aan ${naam} — locatie: ${uitgifte.locatie}`,
+      omschrijving: `🚲 Fiets uitgegeven aan ${naam} — locatie: ${uitgifte.locatie}${bedrag !== 100 ? ` (verkoopprijs €${bedrag})` : ""}`,
       gedaan_door: gebruiker?.naam || "?",
-      extra: { naam: naam, locatie: uitgifte.locatie, fiets_id: fiets.id },
+      extra: { naam, locatie: uitgifte.locatie, fiets_id: fiets.id, verkoopbedrag: bedrag },
     }]);
 
-    // 3. Borg aanmaken of toevoegen
+    // 3. Borg aanmaken of toevoegen — naam komt nu ALTIJD uit de dropdown (exacte match met
+    // een bestaand plan) of is expliciet als "nieuwe medewerker" gemarkeerd, dus deze lookup
+    // kan niet meer stilzwijgend mismatchen op vrije tekst.
     const { data: bestaandPlan } = await supabase.from("borg_plannen")
       .select("id,heeft_fiets,totaal_borg").eq("naam_medewerker", naam).eq("status","actief").limit(1);
 
+    const deelbedragen = genereerTermijnBedragen(bedrag); // max €50/week, kortere laatste week voor het restant
+    let toastBorg = "borg aangemaakt";
+
     if (!bestaandPlan || bestaandPlan.length === 0) {
       const nu = new Date();
-      const j = new Date(Date.UTC(nu.getFullYear(),0,1));
-      const startWeek = Math.ceil((((nu-j)/86400000)+j.getDay()+1)/7)+1;
+      const start = weekPlusN(getWeekNr(nu), nu.getFullYear(), 1);
       const { data: plan } = await supabase.from("borg_plannen").insert([{
         naam_medewerker: naam, sleutels:0, heeft_fiets:true,
-        totaal_borg:100, ingehouden:0, status:"actief",
+        totaal_borg: bedrag, ingehouden:0, status:"actief",
         aangemaakt_door: gebruiker?.naam || "?", aankomst_datum: todayISO(),
       }]).select().single();
       if (plan) {
-        const w2 = startWeek+1>52?1:startWeek+1;
-        const jaar = nu.getFullYear();
-        await supabase.from("borg_termijnen").insert([
-          { plan_id:plan.id, naam_medewerker:naam, week_nummer:startWeek, jaar, bedrag:50, type:"inhouden", omschrijving:"Borg fiets (week 1/2)", status:"open" },
-          { plan_id:plan.id, naam_medewerker:naam, week_nummer:w2, jaar: w2===1?jaar+1:jaar, bedrag:50, type:"inhouden", omschrijving:"Borg fiets (week 2/2)", status:"open" },
-        ]);
+        const termijnen = deelbedragen.map((deel, i) => {
+          const wk = weekPlusN(start.week, start.jaar, i);
+          return { plan_id:plan.id, naam_medewerker:naam, week_nummer:wk.week, jaar:wk.jaar, bedrag:deel, type:"inhouden", omschrijving:`Borg fiets (week ${i+1}/${deelbedragen.length})`, status:"open" };
+        });
+        await supabase.from("borg_termijnen").insert(termijnen);
       }
     } else {
       const plan = bestaandPlan[0];
       if (!plan.heeft_fiets) {
         const nu = new Date();
-        const j = new Date(Date.UTC(nu.getFullYear(),0,1));
-        const sw = Math.ceil((((nu-j)/86400000)+j.getDay()+1)/7)+1;
-        let jaar = nu.getFullYear();
+        let start = weekPlusN(getWeekNr(nu), nu.getFullYear(), 1);
         // Plan fiets-termijnen ná de laatste bestaande termijn (voorkomt unieke-week-conflict → stille fout)
-        let w1 = sw;
         const { data: laatste } = await supabase.from("borg_termijnen")
           .select("week_nummer,jaar").eq("plan_id",plan.id)
           .order("jaar",{ascending:false}).order("week_nummer",{ascending:false}).limit(1);
         if (laatste && laatste.length > 0) {
-          const l = laatste[0];
-          if (l.jaar > jaar || (l.jaar === jaar && l.week_nummer >= w1)) { w1 = l.week_nummer + 1; jaar = l.jaar; }
+          const na = weekPlusN(laatste[0].week_nummer, laatste[0].jaar, 1);
+          if (na.jaar > start.jaar || (na.jaar === start.jaar && na.week > start.week)) start = na;
         }
-        if (w1 > 52) { w1 -= 52; jaar++; }
-        let w2 = w1 + 1, jaar2 = jaar;
-        if (w2 > 52) { w2 -= 52; jaar2++; }
-        const { error: termijnFout } = await supabase.from("borg_termijnen").insert([
-          { plan_id:plan.id, naam_medewerker:naam, week_nummer:w1, jaar, bedrag:50, type:"inhouden", omschrijving:"Borg fiets (week 1/2)", status:"open" },
-          { plan_id:plan.id, naam_medewerker:naam, week_nummer:w2, jaar:jaar2, bedrag:50, type:"inhouden", omschrijving:"Borg fiets (week 2/2)", status:"open" },
-        ]);
+        const termijnen = deelbedragen.map((deel, i) => {
+          const wk = weekPlusN(start.week, start.jaar, i);
+          return { plan_id:plan.id, naam_medewerker:naam, week_nummer:wk.week, jaar:wk.jaar, bedrag:deel, type:"inhouden", omschrijving:`Borg sleutel + fiets (week ${i+1}/${deelbedragen.length})`, status:"open" };
+        });
+        const { error: termijnFout } = await supabase.from("borg_termijnen").insert(termijnen);
         if (termijnFout) {
-          showToast("Fout: fiets-borgtermijnen niet aangemaakt — borgtotaal NIET opgehoogd", "err");
+          toastBorg = "LET OP: fiets-borgtermijnen niet aangemaakt — borgtotaal NIET opgehoogd, controleer handmatig";
         } else {
-          await supabase.from("borg_plannen").update({ heeft_fiets:true, totaal_borg: Number(plan.totaal_borg)+100 }).eq("id", plan.id);
+          const nieuwTotaal = Number(plan.totaal_borg) + bedrag;
+          await supabase.from("borg_plannen").update({ heeft_fiets:true, totaal_borg: nieuwTotaal }).eq("id", plan.id);
+          toastBorg = `borg opgehoogd naar €${nieuwTotaal.toFixed(0)}`;
         }
+      } else {
+        // Medewerker had al een fietsborg op dit plan (tweede fiets?) — niet stilzwijgend negeren,
+        // want dat verborg voorheen precies dit soort gevallen. Handmatig checken in "Alle plannen".
+        toastBorg = "LET OP: had al een fietsborg op dit plan — borg NIET aangepast, controleer handmatig";
       }
     }
 
     setSaving(false);
-    showToast(`✓ Fiets uitgegeven aan ${naam} — borg aangemaakt, gelogd`);
+    showToast(`✓ Fiets uitgegeven aan ${naam} — ${toastBorg}, gelogd`);
     setToonUitgifte(false);
-    setUitgifte({ locatie:"", naam_medewerker:"" });
+    setUitgifte({ locatie:"", naam_medewerker:"", nieuweNaam:"", verkoopbedrag:"" });
   }
 
   async function voegFietsToe() {
@@ -170,7 +213,7 @@ export function FietsModule({ gebruiker, showToast }) {
       {toonUitgifte && (
         <div style={{background:"white",border:`2px solid ${C.groen}`,borderRadius:12,padding:20,marginBottom:20}}>
           <div style={{fontWeight:700,fontSize:15,color:C.groen,marginBottom:16}}>🚲 Fiets uitgeven aan medewerker</div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:16}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
             <div>
               <Label>Locatie *</Label>
               <select value={uitgifte.locatie} onChange={e=>setUitgifte(p=>({...p,locatie:e.target.value}))}
@@ -183,15 +226,30 @@ export function FietsModule({ gebruiker, showToast }) {
             </div>
             <div>
               <Label>Naam medewerker *</Label>
-              <Input value={uitgifte.naam_medewerker} onChange={e=>setUitgifte(p=>({...p,naam_medewerker:e.target.value}))} placeholder="Voor- en achternaam" autoFocus/>
+              <select value={uitgifte.naam_medewerker} onChange={e=>setUitgifte(p=>({...p,naam_medewerker:e.target.value}))}
+                style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:uitgifte.naam_medewerker?C.text:C.muted,padding:"10px 14px",fontSize:14,outline:"none",fontFamily:"inherit",appearance:"none"}}>
+                <option value="">Selecteer bestaande medewerker...</option>
+                {actievePlannen.map(n => <option key={n} value={n}>{n}</option>)}
+                <option value="__nieuw__">+ Nieuwe naam (nog geen borgplan)</option>
+              </select>
+              {uitgifte.naam_medewerker === "__nieuw__" && (
+                <div style={{marginTop:8}}>
+                  <Input value={uitgifte.nieuweNaam} onChange={e=>setUitgifte(p=>({...p,nieuweNaam:e.target.value}))} placeholder="Exacte voor- en achternaam" autoFocus/>
+                  <div style={{fontSize:11,color:C.muted,marginTop:4}}>⚠️ Typ de naam exact zoals die straks bij aankomst/borgplan gebruikt wordt — anders ontstaat opnieuw een dubbel borgplan.</div>
+                </div>
+              )}
             </div>
           </div>
+          <div style={{maxWidth:260,marginBottom:16}}>
+            <Label>Afwijkend verkoopbedrag</Label>
+            <Input type="number" min="1" step="1" value={uitgifte.verkoopbedrag} onChange={e=>setUitgifte(p=>({...p,verkoopbedrag:e.target.value}))} placeholder="leeg = standaard €100"/>
+          </div>
           <div style={{display:"flex",gap:10,alignItems:"center"}}>
-            <button onClick={geefFietsUit} disabled={saving||!uitgifte.locatie||!uitgifte.naam_medewerker}
-              style={{background:saving||!uitgifte.locatie||!uitgifte.naam_medewerker?"#ccc":C.groen,color:"white",border:"none",borderRadius:8,padding:"11px 24px",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+            <button onClick={geefFietsUit} disabled={saving||!uitgifte.locatie||!uitgifte.naam_medewerker||(uitgifte.naam_medewerker==="__nieuw__"&&!uitgifte.nieuweNaam.trim())}
+              style={{background:saving||!uitgifte.locatie||!uitgifte.naam_medewerker||(uitgifte.naam_medewerker==="__nieuw__"&&!uitgifte.nieuweNaam.trim())?"#ccc":C.groen,color:"white",border:"none",borderRadius:8,padding:"11px 24px",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
               {saving?"⏳ Bezig...":"✓ Fiets uitgeven"}
             </button>
-            <span style={{fontSize:12,color:C.muted}}>Fiets wordt gelogd + borg automatisch aangemaakt</span>
+            <span style={{fontSize:12,color:C.muted}}>Fiets wordt gelogd + borg automatisch aangemaakt/opgehoogd</span>
           </div>
         </div>
       )}
