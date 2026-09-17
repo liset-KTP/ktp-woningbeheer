@@ -1196,6 +1196,8 @@ function App() {
   const rol = gebruiker?.rol;
   const openTaken = taken.filter(t=>t.status==="open" && (rol==="backoffice" ? t.voor_rol==="backoffice" : t.voor_rol==="iedereen" || t.voor_rol===rol || !t.voor_rol));
   const mijnMeldingen = meldingen.filter(m=>m.ingediend_door===gebruiker?.naam);
+  const mijnOverzichtOpen = mijnMeldingen.filter(m=>m.status!=="afgehandeld"&&m.status!=="verwerkt"&&m.status!=="geannuleerd").length
+    + taken.filter(t=>t.voor_rol==="collega"&&t.status!=="gedaan").length;
   const naam = gebruiker?.naam;
   const isLiset = ["liset","warscha"].includes(naam?.trim().toLowerCase());
 
@@ -1288,6 +1290,7 @@ function App() {
           <div style={{display:"flex",gap:2,overflowX:"auto",paddingBottom:6,scrollbarWidth:"none",msOverflowStyle:"none"}}>
             {rol==="collega" && (<>
               <button className={`tp ${tab==="taken"?"act":""}`} onClick={()=>setTab("taken")}>📋 Taken & Meldingen {(openTaken.length+mijnMeldingen.length)>0&&<Notif n={openTaken.length+mijnMeldingen.length}/>}</button>
+              <button className={`tp ${tab==="mijn_overzicht"?"act":""}`} onClick={()=>setTab("mijn_overzicht")}>📊 Mijn overzicht {mijnOverzichtOpen>0&&<Notif n={mijnOverzichtOpen}/>}</button>
               <button className={`tp ${tab==="woningen"?"act":""}`} onClick={()=>setTab("woningen")}>🏠 Woningen</button>
               <button className={`tp ${tab==="autos"?"act":""}`} onClick={()=>setTab("autos")}>🚗 Auto's {ongelzenAutoReacties>0&&<Notif n={ongelzenAutoReacties}/>}</button>
               <button className={`tp ${tab==="fietsen"?"act":""}`} onClick={()=>setTab("fietsen")}>🚲 Fietsen</button>
@@ -1314,6 +1317,7 @@ function App() {
             </>)}
             {rol==="financieel" && (<>
               <button className={`tp ${tab==="taken"?"act":""}`} onClick={()=>setTab("taken")}>📋 Taken & Meldingen {(openTaken.length+mijnMeldingen.length)>0&&<Notif n={openTaken.length+mijnMeldingen.length}/>}</button>
+              <button className={`tp ${tab==="mijn_overzicht"?"act":""}`} onClick={()=>setTab("mijn_overzicht")}>📊 Mijn overzicht {mijnOverzichtOpen>0&&<Notif n={mijnOverzichtOpen}/>}</button>
               <button className={`tp ${tab==="huurbetalingen"?"act":""}`} onClick={()=>setTab("huurbetalingen")}>💶 Huur</button>
               <button className={`tp ${tab==="woningen"?"act":""}`} onClick={()=>setTab("woningen")}>🏠 Woningen</button>
               <button className={`tp ${tab==="autos"?"act":""}`} onClick={()=>setTab("autos")}>🚗 Auto's</button>
@@ -1349,6 +1353,7 @@ function App() {
       <div style={{maxWidth:1400,margin:"0 auto",padding:"20px 12px"}}>
         {rol==="backoffice"&&tab==="dashboard"&&<DashboardView houses={houses} meldingen={meldingen} taken={taken} gebruikers={gebruikers} activiteiten={activiteiten}/>}
         {tab==="taken"&&<TakenMeldingenView taken={taken} meldingen={meldingen} houses={houses} gebruiker={gebruiker} onAddTaak={addTaak} onUpdateTaak={updateTaak} onAddMelding={addMelding} onUpdateMelding={updateMeldingStatus} onUpdateWoning={updateWoning} showToast={showToast} taal={taal}/>}
+        {(rol==="collega"||rol==="financieel")&&tab==="mijn_overzicht"&&<MijnOverzichtView meldingen={meldingen} taken={taken} houses={houses} gebruiker={gebruiker}/>}
         {tab==="woningen"&&<WoningenDetail houses={houses} onUpdateWoning={rol==="backoffice"||rol==="huismeester"?updateWoning:null}/>}
         {tab==="autos"&&<AutoModule gebruiker={gebruiker} showToast={showToast}/>}
         {tab==="fietsen"&&<FietsModule gebruiker={gebruiker} showToast={showToast} houses={houses} onMeldingIndienen={addMelding}/>}
@@ -5843,6 +5848,115 @@ function MeldingForm({ houses, meldingen=[], onSubmit, showToast, taal="nl" }) {
         )}
       </div>
       <button className="btn-b" style={{width:"100%",padding:14,fontSize:15}} onClick={handleSubmit} disabled={saving}>{saving?"⏳ Opslaan...":`✓ ${type==="verhuizing"?"Verhuizing":type.charAt(0).toUpperCase()+type.slice(1)} doorgeven`}</button>
+    </div>
+  );
+}
+
+function MijnOverzichtView({ meldingen, taken, houses, gebruiker }) {
+  const [filter, setFilter] = useState("open"); // open | alle
+  const naam = gebruiker?.naam;
+
+  const typeIcon  = {aankomst:"🚗",vertrek:"🧳",vertrek_aankondiging:"📢",reservering:"📅",verhuizing:"📦",overig:"💬"};
+  const typeLabel = {aankomst:"Aankomst",vertrek:"Vertrek",vertrek_aankondiging:"Vertrek aankondiging",reservering:"Reservering",verhuizing:"Verhuizing",overig:"Overig"};
+
+  const eigenMeldingen = meldingen
+    .filter(m => m.ingediend_door === naam)
+    .filter(m => filter==="alle" || m.status==="open" || m.status==="in_behandeling")
+    .sort((a,b) => new Date(b.created_at||0) - new Date(a.created_at||0));
+
+  // Taken met voor_rol "collega" zijn niet aan één specifieke persoon gekoppeld — dat veld
+  // bestaat niet in het datamodel. Iedereen met de rol collega ziet dus dezelfde lijst; dat
+  // wordt hieronder expliciet vermeld i.p.v. gesuggereerd dat dit puur persoonlijk is.
+  const collegaTaken = taken
+    .filter(t => t.voor_rol === "collega")
+    .filter(t => filter==="alle" || t.status!=="gedaan")
+    .sort((a,b) => new Date(a.ingepland_op||a.created_at||0) - new Date(b.ingepland_op||b.created_at||0));
+
+  function statusVoorMelding(m) {
+    if (m.status === "geannuleerd") return { label:"✕ Geannuleerd", kleur:"#6b7280", bg:"#f3f4f6" };
+    if (m.status === "afgehandeld" || m.status === "verwerkt") return { label:"✅ Afgerond", kleur:C.groen, bg:"#f0fdf4" };
+    const gekoppeld = taken.filter(t => t.melding_id === m.id);
+    if (gekoppeld.length > 0) {
+      if (gekoppeld.every(t => t.status === "gedaan")) return { label:"✅ Afgerond", kleur:C.groen, bg:"#f0fdf4" };
+      return { label:"🔄 In behandeling (huismeester/backoffice)", kleur:"#f59e0b", bg:"#fef3c7" };
+    }
+    return { label:"⏳ Nog niet opgepakt", kleur:"#ef4444", bg:"#fef2f2" };
+  }
+
+  return (
+    <div style={{maxWidth:900,margin:"0 auto"}}>
+      <SH titel="📊 Mijn overzicht" sub="Wat jij hebt ingediend en de stand van zaken daarvan, plus openstaande taken voor collega's."/>
+
+      <div style={{display:"flex",gap:6,marginBottom:20}}>
+        {[["open","Openstaand"],["alle","Alles"]].map(([v,l])=>(
+          <button key={v} onClick={()=>setFilter(v)}
+            style={{background:filter===v?C.blauw:"white",color:filter===v?"white":C.muted,border:`1.5px solid ${filter===v?C.blauw:C.border}`,borderRadius:20,padding:"6px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+            {l}
+          </button>
+        ))}
+      </div>
+
+      <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:10}}>
+        📬 Mijn meldingen ({eigenMeldingen.length})
+      </div>
+      {eigenMeldingen.length === 0 ? (
+        <div style={{textAlign:"center",padding:"30px 0",color:C.muted,fontSize:13,marginBottom:28}}>Geen {filter==="open"?"openstaande ":""}meldingen</div>
+      ) : (
+        <div style={{display:"grid",gap:10,marginBottom:28}}>
+          {eigenMeldingen.map(m => {
+            const huis = houses.find(h => h.id === m.woning_id);
+            const st = statusVoorMelding(m);
+            return (
+              <div key={m.id} style={{background:"white",border:`1.5px solid ${C.border}`,borderLeft:`4px solid ${st.kleur}`,borderRadius:12,padding:16,display:"flex",justifyContent:"space-between",alignItems:"center",gap:14,flexWrap:"wrap"}}>
+                <div style={{flex:1,minWidth:200}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+                    <span>{typeIcon[m.type]||"💬"}</span>
+                    <span style={{fontWeight:800,fontSize:14,color:C.text}}>{m.medewerker}</span>
+                    <span className="badge" style={{background:C.bg,color:C.muted}}>{typeLabel[m.type]||m.type}</span>
+                  </div>
+                  <div style={{fontSize:13,color:C.muted}}>{huis ? `${huis.adres}, ${huis.stad}` : "—"}{m.kamer ? ` — Kamer ${m.kamer}` : ""} · {m.datum ? new Date(m.datum).toLocaleDateString("nl-NL") : "—"}</div>
+                  {m.type==="vertrek" && (m.sleutel_terug || m.kamer_schoon) && (
+                    <div style={{display:"flex",gap:8,marginTop:6}}>
+                      <span className="badge" style={{background:m.sleutel_terug==="ja"?C.groen+"18":"#fef2f2",color:m.sleutel_terug==="ja"?C.groen:"#ef4444"}}>🔑 {m.sleutel_terug||"?"}</span>
+                      <span className="badge" style={{background:m.kamer_schoon==="ja"?C.groen+"18":"#fef2f2",color:m.kamer_schoon==="ja"?C.groen:"#ef4444"}}>🧹 {m.kamer_schoon||"?"}</span>
+                    </div>
+                  )}
+                </div>
+                <span className="badge" style={{background:st.bg,color:st.kleur,fontWeight:700,whiteSpace:"nowrap"}}>{st.label}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6}}>
+        🔧 Openstaande taken voor collega's ({collegaTaken.length})
+      </div>
+      <div style={{fontSize:12,color:C.muted,marginBottom:10}}>
+        Deze taken zijn niet aan één specifieke collega gekoppeld — iedereen met de rol "collega" ziet dezelfde lijst.
+      </div>
+      {collegaTaken.length === 0 ? (
+        <div style={{textAlign:"center",padding:"30px 0",color:C.muted,fontSize:13}}>Geen {filter==="open"?"openstaande ":""}taken</div>
+      ) : (
+        <div style={{display:"grid",gap:10}}>
+          {collegaTaken.map(t => {
+            const huis = houses.find(h => h.id === t.woning_id);
+            const isOpen = t.status !== "gedaan";
+            return (
+              <div key={t.id} style={{background:"white",border:`1.5px solid ${C.border}`,borderLeft:`4px solid ${isOpen?"#f59e0b":C.groen}`,borderRadius:12,padding:16}}>
+                <div style={{fontWeight:700,fontSize:14,color:C.text,marginBottom:4}}>{t.titel}</div>
+                <div style={{fontSize:13,color:C.muted}}>{huis ? `${huis.adres}, ${huis.stad}` : "—"}{t.kamer ? ` — Kamer ${t.kamer}` : ""}</div>
+                {t.omschrijving && <div style={{fontSize:12,color:C.muted,marginTop:6,fontStyle:"italic"}}>{t.omschrijving}</div>}
+                <div style={{marginTop:8}}>
+                  <span className="badge" style={{background:isOpen?"#fef3c7":"#f0fdf4",color:isOpen?"#b45309":C.groen,fontWeight:700}}>
+                    {isOpen ? "⏳ Openstaand" : "✅ Gedaan"}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
