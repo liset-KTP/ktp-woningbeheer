@@ -5857,7 +5857,7 @@ function MijnOverzichtView({ meldingen, taken, houses, gebruiker }) {
   const naam = gebruiker?.naam;
 
   const typeIcon  = {aankomst:"🚗",vertrek:"🧳",vertrek_aankondiging:"📢",reservering:"📅",verhuizing:"📦",overig:"💬"};
-  const typeLabel = {aankomst:"Aankomst",vertrek:"Vertrek",vertrek_aankondiging:"Vertrek aankondiging",reservering:"Reservering",verhuizing:"Verhuizing",overig:"Overig"};
+  const typeLabel = {aankomst:"Aankomst",vertrek:"Vertrek",vertrek_aankondiging:"Vertrek aank.",reservering:"Reservering",verhuizing:"Verhuizing",overig:"Overig"};
 
   const eigenMeldingen = meldingen
     .filter(m => m.ingediend_door === naam)
@@ -5878,10 +5878,19 @@ function MijnOverzichtView({ meldingen, taken, houses, gebruiker }) {
     const gekoppeld = taken.filter(t => t.melding_id === m.id);
     if (gekoppeld.length > 0) {
       if (gekoppeld.every(t => t.status === "gedaan")) return { label:"✅ Afgerond", kleur:C.groen, bg:"#f0fdf4" };
-      return { label:"🔄 In behandeling (huismeester/backoffice)", kleur:"#f59e0b", bg:"#fef3c7" };
+      return { label:"🔄 In behandeling", kleur:"#f59e0b", bg:"#fef3c7" };
     }
     return { label:"⏳ Nog niet opgepakt", kleur:"#ef4444", bg:"#fef2f2" };
   }
+
+  const rijStyle = kleur => ({
+    background:"white", border:`1px solid ${C.border}`, borderLeft:`3px solid ${kleur}`,
+    borderRadius:8, padding:"7px 12px", display:"flex", alignItems:"center",
+    gap:10, flexWrap:"wrap", fontSize:12.5,
+  });
+  const miniBadge = (bg,kleur,tekst) => (
+    <span style={{background:bg,color:kleur,fontWeight:700,fontSize:10.5,borderRadius:5,padding:"2px 6px",whiteSpace:"nowrap"}}>{tekst}</span>
+  );
 
   return (
     <div style={{maxWidth:900,margin:"0 auto"}}>
@@ -5896,62 +5905,57 @@ function MijnOverzichtView({ meldingen, taken, houses, gebruiker }) {
         ))}
       </div>
 
-      <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:10}}>
+      <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:8}}>
         📬 Mijn meldingen ({eigenMeldingen.length})
       </div>
       {eigenMeldingen.length === 0 ? (
-        <div style={{textAlign:"center",padding:"30px 0",color:C.muted,fontSize:13,marginBottom:28}}>Geen {filter==="open"?"openstaande ":""}meldingen</div>
+        <div style={{textAlign:"center",padding:"24px 0",color:C.muted,fontSize:13,marginBottom:24}}>Geen {filter==="open"?"openstaande ":""}meldingen</div>
       ) : (
-        <div style={{display:"grid",gap:10,marginBottom:28}}>
+        <div style={{display:"grid",gap:5,marginBottom:24}}>
           {eigenMeldingen.map(m => {
             const huis = houses.find(h => h.id === m.woning_id);
             const st = statusVoorMelding(m);
             return (
-              <div key={m.id} style={{background:"white",border:`1.5px solid ${C.border}`,borderLeft:`4px solid ${st.kleur}`,borderRadius:12,padding:16,display:"flex",justifyContent:"space-between",alignItems:"center",gap:14,flexWrap:"wrap"}}>
-                <div style={{flex:1,minWidth:200}}>
-                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
-                    <span>{typeIcon[m.type]||"💬"}</span>
-                    <span style={{fontWeight:800,fontSize:14,color:C.text}}>{m.medewerker}</span>
-                    <span className="badge" style={{background:C.bg,color:C.muted}}>{typeLabel[m.type]||m.type}</span>
-                  </div>
-                  <div style={{fontSize:13,color:C.muted}}>{huis ? `${huis.adres}, ${huis.stad}` : "—"}{m.kamer ? ` — Kamer ${m.kamer}` : ""} · {m.datum ? new Date(m.datum).toLocaleDateString("nl-NL") : "—"}</div>
-                  {m.type==="vertrek" && (m.sleutel_terug || m.kamer_schoon) && (
-                    <div style={{display:"flex",gap:8,marginTop:6}}>
-                      <span className="badge" style={{background:m.sleutel_terug==="ja"?C.groen+"18":"#fef2f2",color:m.sleutel_terug==="ja"?C.groen:"#ef4444"}}>🔑 {m.sleutel_terug||"?"}</span>
-                      <span className="badge" style={{background:m.kamer_schoon==="ja"?C.groen+"18":"#fef2f2",color:m.kamer_schoon==="ja"?C.groen:"#ef4444"}}>🧹 {m.kamer_schoon||"?"}</span>
-                    </div>
-                  )}
-                </div>
-                <span className="badge" style={{background:st.bg,color:st.kleur,fontWeight:700,whiteSpace:"nowrap"}}>{st.label}</span>
+              <div key={m.id} style={rijStyle(st.kleur)}>
+                <span style={{fontSize:14}}>{typeIcon[m.type]||"💬"}</span>
+                <span style={{fontWeight:700,color:C.text,minWidth:140}}>{m.medewerker}</span>
+                {miniBadge(C.bg, C.muted, typeLabel[m.type]||m.type)}
+                <span style={{color:C.muted,flex:1,minWidth:160}}>
+                  {huis ? huis.adres : "—"}{m.kamer ? ` K${m.kamer}` : ""} · {m.datum ? new Date(m.datum).toLocaleDateString("nl-NL") : "—"}
+                </span>
+                {m.type==="vertrek" && (m.sleutel_terug || m.kamer_schoon) && (
+                  <span style={{display:"flex",gap:4}}>
+                    {miniBadge(m.sleutel_terug==="ja"?C.groen+"18":"#fef2f2", m.sleutel_terug==="ja"?C.groen:"#ef4444", `🔑 ${m.sleutel_terug||"?"}`)}
+                    {miniBadge(m.kamer_schoon==="ja"?C.groen+"18":"#fef2f2", m.kamer_schoon==="ja"?C.groen:"#ef4444", `🧹 ${m.kamer_schoon||"?"}`)}
+                  </span>
+                )}
+                <span style={{marginLeft:"auto"}}>{miniBadge(st.bg, st.kleur, st.label)}</span>
               </div>
             );
           })}
         </div>
       )}
 
-      <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6}}>
+      <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:4}}>
         🔧 Openstaande taken voor collega's ({collegaTaken.length})
       </div>
-      <div style={{fontSize:12,color:C.muted,marginBottom:10}}>
-        Deze taken zijn niet aan één specifieke collega gekoppeld — iedereen met de rol "collega" ziet dezelfde lijst.
+      <div style={{fontSize:11.5,color:C.muted,marginBottom:8}}>
+        Niet aan één specifieke collega gekoppeld — iedereen met de rol "collega" ziet dezelfde lijst.
       </div>
       {collegaTaken.length === 0 ? (
-        <div style={{textAlign:"center",padding:"30px 0",color:C.muted,fontSize:13}}>Geen {filter==="open"?"openstaande ":""}taken</div>
+        <div style={{textAlign:"center",padding:"24px 0",color:C.muted,fontSize:13}}>Geen {filter==="open"?"openstaande ":""}taken</div>
       ) : (
-        <div style={{display:"grid",gap:10}}>
+        <div style={{display:"grid",gap:5}}>
           {collegaTaken.map(t => {
             const huis = houses.find(h => h.id === t.woning_id);
             const isOpen = t.status !== "gedaan";
             return (
-              <div key={t.id} style={{background:"white",border:`1.5px solid ${C.border}`,borderLeft:`4px solid ${isOpen?"#f59e0b":C.groen}`,borderRadius:12,padding:16}}>
-                <div style={{fontWeight:700,fontSize:14,color:C.text,marginBottom:4}}>{t.titel}</div>
-                <div style={{fontSize:13,color:C.muted}}>{huis ? `${huis.adres}, ${huis.stad}` : "—"}{t.kamer ? ` — Kamer ${t.kamer}` : ""}</div>
-                {t.omschrijving && <div style={{fontSize:12,color:C.muted,marginTop:6,fontStyle:"italic"}}>{t.omschrijving}</div>}
-                <div style={{marginTop:8}}>
-                  <span className="badge" style={{background:isOpen?"#fef3c7":"#f0fdf4",color:isOpen?"#b45309":C.groen,fontWeight:700}}>
-                    {isOpen ? "⏳ Openstaand" : "✅ Gedaan"}
-                  </span>
-                </div>
+              <div key={t.id} style={rijStyle(isOpen?"#f59e0b":C.groen)}>
+                <span style={{fontWeight:700,color:C.text,minWidth:180}}>{t.titel}</span>
+                <span style={{color:C.muted,flex:1,minWidth:160}}>
+                  {huis ? huis.adres : "—"}{t.kamer ? ` K${t.kamer}` : ""}{t.omschrijving ? ` · ${t.omschrijving}` : ""}
+                </span>
+                <span style={{marginLeft:"auto"}}>{miniBadge(isOpen?"#fef3c7":"#f0fdf4", isOpen?"#b45309":C.groen, isOpen?"⏳ Open":"✅ Gedaan")}</span>
               </div>
             );
           })}
