@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef, Component } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, Component, Fragment } from "react";
 
 class ErrorBoundary extends Component {
   constructor(props) { super(props); this.state = { error: null }; }
@@ -3572,7 +3572,17 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
     return false;
   }).filter(t => filter === "open" ? (t.status === "open" || t.status === "geaccepteerd") : filter === "gedaan" ? t.status === "gedaan" : true);
 
-  const openCount = meldingen.filter(m => { if(isBackoffice) return m.voor_rol==="backoffice"&&m.status==="open"; if(isHuismeester) return m.status==="open"||m.status==="geaccepteerd"; if(isCollega) return m.ingediend_door===gebruiker?.naam&&m.status==="open"; return false; }).length + taken.filter(t => { if(isBackoffice) return t.voor_rol==="backoffice"&&(t.status==="open"||t.status==="geaccepteerd"); if(isHuismeester) return (t.voor_rol==="huismeester"||t.voor_rol==="iedereen"||!t.voor_rol)&&(t.status==="open"||t.status==="geaccepteerd"); if(isCollega) return (t.voor_rol==="iedereen"||!t.voor_rol)&&t.status==="open"; return false; }).length;
+  // BUGFIX: deze teller telde voor de huismeester-rol status "open" én "geaccepteerd"
+  // (=ingepland) gewoon bij elkaar op onder "openstaand" — terwijl de badge bovenin de
+  // tabbalk (zie regel ~1175-1177, openTaken/openMeldingen) alleen status "open" telt.
+  // Resultaat: twee verschillende cijfers voor "hetzelfde" op één scherm (bijv. 179 in
+  // de tab-badge vs 216 hier). Nu consistent gesplitst in twee eigen tellers.
+  const magZienMelding = (m) => { if(isBackoffice) return m.voor_rol==="backoffice"; if(isHuismeester) return true; if(isCollega) return m.ingediend_door===gebruiker?.naam; return false; };
+  const magZienTaakVoorTelling = (t) => { if(isBackoffice) return t.voor_rol==="backoffice"; if(isHuismeester) return (t.voor_rol==="huismeester"||t.voor_rol==="iedereen"||!t.voor_rol); if(isCollega) return (t.voor_rol==="iedereen"||!t.voor_rol); return false; };
+  const openCountEcht = meldingen.filter(m => magZienMelding(m) && m.status==="open").length
+    + taken.filter(t => magZienTaakVoorTelling(t) && t.status==="open").length;
+  const openCountIngepland = meldingen.filter(m => magZienMelding(m) && m.status==="geaccepteerd").length
+    + taken.filter(t => magZienTaakVoorTelling(t) && t.status==="geaccepteerd").length;
 
   // Zoek filter
   function zoekFilter(item, isMelding) {
@@ -3617,6 +3627,15 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
   const gefilterdeMeldingen = sorteerItems(relevanteMeldingen.filter(m => zoekFilter(m, true)), true);
   const gefilterdetaken = sorteerItems(relevanteTaken.filter(t => zoekFilter(t, false)), false);
 
+  // Meldingen met status "geaccepteerd" (=ingepland) apart tonen van meldingen die nog
+  // geen actie hadden — voorheen stonden ze door elkaar (gesorteerd op meldingsdatum,
+  // niet op inplandatum), waardoor een al ingepland item zomaar tussen echt-open items
+  // opdook. Ingepland-groep sorteren op eerstvolgende inplandatum (wanneer pakt hij het
+  // daadwerkelijk op), i.p.v. op de oorspronkelijke meldingsdatum.
+  const meldingenNogOppakken = gefilterdeMeldingen.filter(m => m.status !== "geaccepteerd");
+  const meldingenAlIngepland = gefilterdeMeldingen.filter(m => m.status === "geaccepteerd")
+    .sort((a,b) => new Date(a.ingepland_op||a.datum||"9999-12-31") - new Date(b.ingepland_op||b.datum||"9999-12-31"));
+
   // Categoriseer taken per type
   function catTaak(t) {
     const txt = ((t.titel||"")+" "+(t.omschrijving||"")).toLowerCase();
@@ -3646,7 +3665,7 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
         <div>
           <h2 style={{fontSize:20,fontWeight:800,color:C.blauw,marginBottom:3}}>📋 Taken & Meldingen</h2>
-          <p style={{fontSize:13,color:C.muted}}>{openCount} openstaand</p>
+          <p style={{fontSize:13,color:C.muted}}>{openCountEcht} nog op te pakken{openCountIngepland>0?` · ${openCountIngepland} al ingepland`:""}</p>
         </div>
       </div>
 
@@ -3722,12 +3741,24 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
               </button>
             </div>
           )}
-          {gefilterdeMeldingen.length > 0 && (
+          {meldingenNogOppakken.length > 0 && (
             <div style={{marginBottom:24}}>
-              <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:10}}>
-                📬 Meldingen ({gefilterdeMeldingen.length})
+              <div style={{fontSize:11,fontWeight:700,color:"#ef4444",letterSpacing:".8px",textTransform:"uppercase",marginBottom:10}}>
+                🔴 Nog oppakken ({meldingenNogOppakken.length})
               </div>
-              {gefilterdeMeldingen.map(m => (
+              {meldingenNogOppakken.map(m => (
+                <MeldingKaartCombined key={m.id} melding={m} houses={houses} gebruiker={gebruiker}
+                  isBackoffice={isBackoffice} isHuismeester={isHuismeester}
+                  onUpdate={onUpdateMelding} showToast={showToast} taal={taal}/>
+              ))}
+            </div>
+          )}
+          {meldingenAlIngepland.length > 0 && (
+            <div style={{marginBottom:24}}>
+              <div style={{fontSize:11,fontWeight:700,color:"#7c3aed",letterSpacing:".8px",textTransform:"uppercase",marginBottom:10}}>
+                📅 Al ingepland ({meldingenAlIngepland.length})
+              </div>
+              {meldingenAlIngepland.map(m => (
                 <MeldingKaartCombined key={m.id} melding={m} houses={houses} gebruiker={gebruiker}
                   isBackoffice={isBackoffice} isHuismeester={isHuismeester}
                   onUpdate={onUpdateMelding} showToast={showToast} taal={taal}/>
@@ -4196,7 +4227,7 @@ function NieuwesTaakForm({ houses, gebruiker, onAdd, showToast }) {
 }
 
 // ─── TAKEN / TO-DO ────────────────────────────────────────────────────────────
-function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
+function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast, inlineMode }) {
   const [toonNieuwe, setToonNieuwe] = useState(false);
   const [filter, setFilter] = useState("open");
   const [nieuw, setNieuw] = useState({titel:"",omschrijving:"",woning_id:"",kamer:"",prioriteit:"middel",voor_rol:"iedereen"});
@@ -4220,15 +4251,33 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
   const [blokkadeMap, setBlokkadeMap] = useState({});
 
   // Filter taken op basis van rol
+  // BUGFIX: bij inlineMode (genest binnen Taken & Meldingen) heeft de ouder-component
+  // de taken al op status gefilterd (Open/Afgehandeld/Alle). Voorheen filterde deze
+  // component ER BOVENOP nogmaals met zijn eigen "filter"-state, die altijd op "open"
+  // start en nooit meesynct met de ouder — koos je bovenin "Afgehandeld", dan bleef
+  // deze lijst hier binnenshuis nog op "open" filteren en toonde dus stilzwijgend
+  // "Geen taken in deze categorie" terwijl er wel degelijk afgehandelde taken waren.
+  // Inline vertrouwen we daarom puur op de al-gefilterde `taken`-prop.
   const gefilterd = taken
     .filter(t => {
       if (t.voor_rol === "huismeester" && rolNaam !== "huismeester" && rolNaam !== "backoffice") return false;
       if (t.voor_rol === "backoffice" && rolNaam !== "backoffice") return false;
+      if (inlineMode) return true;
       if (filter === "open") return t.status === "open" || t.status === "geaccepteerd" || t.status === "bezig";
       if (filter === "geaccepteerd") return t.status === "geaccepteerd";
       if (filter === "gedaan") return t.status === "gedaan";
       return true;
     });
+
+  // Groepeer (alleen inline, en alleen als de lijst daadwerkelijk beide bevat):
+  // eerst wat nog opgepakt moet worden, dan wat al ingepland staat — gesorteerd op
+  // eerstvolgende inplandatum. Zo verdwijnt niets uit beeld, maar staat het niet
+  // langer door elkaar op basis van toevallige aanmaakdatum.
+  const takenNogOppakken = gefilterd.filter(t => t.status !== "geaccepteerd");
+  const takenAlIngepland = gefilterd.filter(t => t.status === "geaccepteerd")
+    .sort((a,b) => new Date(a.ingepland_op||a.geaccepteerd_op||"9999-12-31") - new Date(b.ingepland_op||b.geaccepteerd_op||"9999-12-31"));
+  const toonTakenGroepen = inlineMode && takenNogOppakken.length > 0 && takenAlIngepland.length > 0;
+  const takenGesorteerd = toonTakenGroepen ? [...takenNogOppakken, ...takenAlIngepland] : gefilterd;
 
   async function accepteerTaak(taak, datum, opmerking) {
     await onUpdate(taak.id, {
@@ -4337,25 +4386,36 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
         </div>
       )}
 
-      <div style={{display:"flex",gap:6,marginBottom:20}}>
-        {[["open","Open & Ingepland"],["geaccepteerd","📅 Ingepland"],["gedaan","Gedaan"],["alle","Alle"]].map(([v,l])=>(
-          <button key={v} onClick={()=>setFilter(v)}
-            style={{background:filter===v?C.blauw:"white",color:filter===v?"white":C.muted,border:`1.5px solid ${filter===v?C.blauw:C.border}`,borderRadius:20,padding:"6px 16px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-            {l} {v==="open"&&<span style={{background:"#ef444430",color:"#ef4444",borderRadius:10,padding:"1px 6px",fontSize:11,marginLeft:4}}>{taken.filter(t=>t.status==="open").length}</span>}
-          </button>
-        ))}
-      </div>
+      {/* Inline (genest in Taken & Meldingen): de ouder heeft al een Open/Afgehandeld/Alle-
+          filter, dus deze eigen knoppenrij is hier weggelaten i.p.v. een 2e, niet-gesynchte filter. */}
+      {!inlineMode && (
+        <div style={{display:"flex",gap:6,marginBottom:20}}>
+          {[["open","Open & Ingepland"],["geaccepteerd","📅 Ingepland"],["gedaan","Gedaan"],["alle","Alle"]].map(([v,l])=>(
+            <button key={v} onClick={()=>setFilter(v)}
+              style={{background:filter===v?C.blauw:"white",color:filter===v?"white":C.muted,border:`1.5px solid ${filter===v?C.blauw:C.border}`,borderRadius:20,padding:"6px 16px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+              {l} {v==="open"&&<span style={{background:"#ef444430",color:"#ef4444",borderRadius:10,padding:"1px 6px",fontSize:11,marginLeft:4}}>{taken.filter(t=>t.status==="open").length}</span>}
+            </button>
+          ))}
+        </div>
+      )}
 
       {gefilterd.length===0 ? (
         <div className="card" style={{textAlign:"center",padding:"50px 20px"}}>
           <div style={{fontSize:40,marginBottom:10}}>📭</div>
           <div style={{color:C.muted}}>Geen taken in deze categorie</div>
         </div>
-      ) : gefilterd.map(t=>{
+      ) : takenGesorteerd.map((t,idx)=>{
         const huis=houses.find(h=>h.id===t.woning_id);
         const gedaan=t.status==="gedaan";
         return (
-          <div key={t.id} className={`taak-card ${t.prioriteit==="hoog"?"urgent":""} ${gedaan?"gedaan":""}`}>
+          <Fragment key={t.id}>
+          {toonTakenGroepen && idx===0 && (
+            <div style={{fontSize:11,fontWeight:700,color:"#ef4444",letterSpacing:".6px",textTransform:"uppercase",marginBottom:8}}>🔴 Nog oppakken ({takenNogOppakken.length})</div>
+          )}
+          {toonTakenGroepen && idx===takenNogOppakken.length && (
+            <div style={{fontSize:11,fontWeight:700,color:"#7c3aed",letterSpacing:".6px",textTransform:"uppercase",marginTop:18,marginBottom:8}}>📅 Al ingepland ({takenAlIngepland.length})</div>
+          )}
+          <div className={`taak-card ${t.prioriteit==="hoog"?"urgent":""} ${gedaan?"gedaan":""}`}>
             <div style={{display:"flex",alignItems:"flex-start",gap:12}}>
               <span style={{fontSize:20,marginTop:2}}>{prioIcon[t.prioriteit]||"🟢"}</span>
               <div style={{flex:1}}>
@@ -4757,6 +4817,7 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast }) {
               )
             )}
           </div>
+          </Fragment>
         );
       })}
     </div>
