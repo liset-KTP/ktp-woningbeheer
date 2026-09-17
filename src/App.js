@@ -457,6 +457,26 @@ function App() {
         .eq("status", "open");
     }
 
+    // Bij daadwerkelijk vertrek via het overzicht (picker): de gekoppelde vertrek_aankondiging
+    // en de bijbehorende "Vertrek inplannen"-taak automatisch afsluiten. Zonder dit blijven het
+    // wezen — precies de bugklasse die al meerdere keren is opgetreden bij losse afhandelstappen
+    // die niet de actuele status van een gekoppeld record bijwerken (zie o.a. de reservering- en
+    // aankomst-annuleerflows hierboven/hieronder).
+    if (m.type === "vertrek" && m.gekoppeldeVertrekAankondigingId) {
+      await supabase.from("meldingen").update({
+        status: "afgehandeld",
+        afgehandeld_door: gebruiker.naam,
+        afgehandeld_op: new Date().toISOString(),
+        notitie: `Automatisch afgehandeld — opgevolgd door daadwerkelijk vertrek (melding #${meldingId})`,
+      }).eq("id", m.gekoppeldeVertrekAankondigingId).eq("status", "open");
+      await supabase.from("taken").update({
+        status: "gedaan",
+        afgehandeld_door: "Automatisch (vertrek verwerkt)",
+        afgehandeld_op: new Date().toISOString(),
+        notitie: `Automatisch afgesloten — vertrek is verwerkt via melding #${meldingId}`,
+      }).eq("melding_id", m.gekoppeldeVertrekAankondigingId).neq("status", "gedaan");
+    }
+
     // Bij aankomst: direct borgplan aanmaken
     if (m.type === "aankomst" && m.medewerker) {
       const { data: bestaand } = await supabase.from("borg_plannen")
@@ -3535,6 +3555,73 @@ function AankomstAnnuleren({ houses, meldingen, taken, gebruiker, showToast, onT
   );
 }
 
+function VertrekOverzicht({ houses, meldingen, taken, onTerug }) {
+  const [zoek, setZoek] = useState("");
+
+  const aankondigingen = meldingen
+    .filter(m => m.type === "vertrek_aankondiging")
+    .filter(m => !zoek.trim() || m.medewerker?.toLowerCase().includes(zoek.toLowerCase()))
+    .sort((a,b) => {
+      // Nog niet verwerkte vertrekken bovenaan, daarna op (verwachte) datum
+      if ((a.status==="open") !== (b.status==="open")) return a.status==="open" ? -1 : 1;
+      return (a.datum||"").localeCompare(b.datum||"");
+    })
+    .slice(0, 150);
+
+  return (
+    <div style={{maxWidth:760}}>
+      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
+        <button onClick={onTerug}
+          style={{background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,padding:"7px 14px",fontSize:13,cursor:"pointer",fontFamily:"inherit",color:C.muted}}>
+          ← Terug
+        </button>
+        <h3 style={{fontSize:16,fontWeight:800,color:C.blauw,margin:0}}>📢 Vertrekoverzicht</h3>
+      </div>
+      <div style={{fontSize:12,color:C.muted,marginBottom:16}}>
+        Alle aangekondigde vertrekken — met of het daadwerkelijke vertrek (kamer gecontroleerd op
+        sleutel/schoon en op Beschikbaar gezet) al is verwerkt, of nog moet gebeuren.
+      </div>
+      <input value={zoek} onChange={e=>setZoek(e.target.value)} placeholder="🔍 Zoek op naam"
+        style={{width:"100%",boxSizing:"border-box",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"9px 14px",fontSize:13,outline:"none",fontFamily:"inherit",marginBottom:16}}/>
+
+      {aankondigingen.length === 0 ? (
+        <div style={{textAlign:"center",padding:60,color:C.muted}}>
+          <div style={{fontSize:40,marginBottom:12}}>📢</div>
+          <div style={{fontWeight:700,fontSize:15}}>Geen aangekondigde vertrekken gevonden</div>
+        </div>
+      ) : (
+        <div style={{display:"grid",gap:10}}>
+          {aankondigingen.map(m => {
+            const huis = houses.find(h => h.id === m.woning_id);
+            const isOpen = m.status === "open";
+            const inplanTaak = taken.find(t => t.melding_id === m.id);
+            return (
+              <div key={m.id} style={{background:"white",border:`1.5px solid ${isOpen?"#fcd34d":"#bbf7d0"}`,borderLeft:`4px solid ${isOpen?"#f59e0b":C.groen}`,borderRadius:12,padding:16,display:"flex",justifyContent:"space-between",alignItems:"center",gap:14,flexWrap:"wrap"}}>
+                <div style={{flex:1,minWidth:200}}>
+                  <div style={{fontWeight:800,fontSize:14,color:C.text,marginBottom:4}}>{m.medewerker}</div>
+                  <div style={{fontSize:13,color:C.muted}}>{huis ? `${huis.adres}, ${huis.stad}` : "—"}{m.kamer ? ` — Kamer ${m.kamer}` : ""}</div>
+                  <div style={{fontSize:12,color:C.muted,marginTop:4}}>📅 Verwacht vertrek: {m.datum ? new Date(m.datum).toLocaleDateString("nl-NL") : "—"} · Aangemeld door: {m.ingediend_door||"—"}</div>
+                </div>
+                <div style={{textAlign:"right"}}>
+                  {isOpen ? (
+                    <span className="badge" style={{background:"#fef3c7",color:"#b45309",fontWeight:700}}>
+                      ⏳ Nog niet verwerkt{inplanTaak && inplanTaak.status!=="gedaan" ? " · inplan-taak nog open" : ""}
+                    </span>
+                  ) : (
+                    <span className="badge" style={{background:"#f0fdf4",color:C.groen,fontWeight:700}}>
+                      ✅ Verwerkt{m.afgehandeld_op?` op ${new Date(m.afgehandeld_op).toLocaleDateString("nl-NL")}`:""}{m.afgehandeld_door?` door ${m.afgehandeld_door}`:""}
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, onUpdateTaak, onAddMelding, onUpdateMelding, onUpdateWoning, showToast, taal="nl" }) {
   const rol = gebruiker?.rol;
   const isBackoffice = rol === "backoffice";
@@ -3723,6 +3810,10 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
                 style={{background:"white",color:"#991b1b",border:"2px solid #ef4444",borderRadius:8,padding:"10px 20px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
                 ✕ Aankomst annuleren
               </button>
+              <button onClick={()=>setSubTab("vertrek_overzicht")}
+                style={{background:"white",color:"#b45309",border:"2px solid #f59e0b",borderRadius:8,padding:"10px 20px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+                📢 Vertrekoverzicht
+              </button>
             </div>
           )}
           {(isBackoffice||isHuismeester) && (
@@ -3738,6 +3829,10 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
               <button onClick={()=>setSubTab("aankomst_annuleer")}
                 style={{background:"white",color:"#991b1b",border:"2px solid #ef4444",borderRadius:8,padding:"10px 20px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
                 ✕ Aankomst annuleren
+              </button>
+              <button onClick={()=>setSubTab("vertrek_overzicht")}
+                style={{background:"white",color:"#b45309",border:"2px solid #f59e0b",borderRadius:8,padding:"10px 20px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+                📢 Vertrekoverzicht
               </button>
             </div>
           )}
@@ -3819,7 +3914,7 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
 
       {/* Nieuwe melding (collega) */}
       {subTab === "nieuw" && isCollega && (
-        <MeldingForm houses={houses} onSubmit={async(d)=>{ await onAddMelding(d); setSubTab("woningen"); }} showToast={showToast} taal={taal}/>
+        <MeldingForm houses={houses} meldingen={meldingen} onSubmit={async(d)=>{ await onAddMelding(d); setSubTab("woningen"); }} showToast={showToast} taal={taal}/>
       )}
 
       {/* Nieuwe taak (backoffice/huismeester) */}
@@ -3848,6 +3943,16 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
           taken={taken}
           gebruiker={gebruiker}
           showToast={showToast}
+          onTerug={()=>setSubTab("woningen")}
+        />
+      )}
+
+      {/* Vertrekoverzicht */}
+      {subTab === "vertrek_overzicht" && (
+        <VertrekOverzicht
+          houses={houses}
+          meldingen={meldingen}
+          taken={taken}
           onTerug={()=>setSubTab("woningen")}
         />
       )}
@@ -5382,7 +5487,7 @@ function HuismeesterPlanningView({ dagplanningDB, houses, taken=[], meldingen=[]
 }
 
 
-function MeldingForm({ houses, onSubmit, showToast, taal="nl" }) {
+function MeldingForm({ houses, meldingen=[], onSubmit, showToast, taal="nl" }) {
   const [type,setType]=useState("aankomst");
   const [medewerker,setMedewerker]=useState("");
   const [datum,setDatum]=useState(todayISO());
@@ -5394,6 +5499,8 @@ function MeldingForm({ houses, onSubmit, showToast, taal="nl" }) {
   const [kamerSchoon,setKamerSchoon]=useState(null);
   const [sleutelAantal,setSleutelAantal]=useState(1);
   const [opmerkingen,setOpmerkingen]=useState("");
+  // Koppeling met een openstaande "vertrek aankondiging" — zie picker verderop
+  const [gekoppeldeAankondigingId,setGekoppeldeAankondigingId]=useState(null);
   // Verhuizing extra velden
   const [vanHuisId,setVanHuisId]=useState("");
   const [vanKamer,setVanKamer]=useState("");
@@ -5406,6 +5513,32 @@ function MeldingForm({ houses, onSubmit, showToast, taal="nl" }) {
   const selectedHouse=houses.find(h=>h.id===Number(huisId));
   const vanHuis=houses.find(h=>h.id===Number(vanHuisId));
   const naarHuis=houses.find(h=>h.id===Number(naarHuisId));
+  // Open vertrek-aankondigingen om uit te kiezen bij "Daadwerkelijk vertrek" — voorkomt dat
+  // een collega naam/woning/kamer opnieuw moet intikken terwijl die al bekend zijn.
+  const openAankondigingen = meldingen
+    .filter(x=>x.type==="vertrek_aankondiging" && x.status==="open")
+    .sort((x,y)=>(x.datum||"").localeCompare(y.datum||""));
+
+  useEffect(()=>{ if(type!=="vertrek") setGekoppeldeAankondigingId(null); },[type]);
+
+  async function kiesAankondiging(a) {
+    setGekoppeldeAankondigingId(a.id);
+    setMedewerker(a.medewerker||"");
+    setHuisId(a.woning_id||houses[0]?.id||1);
+    setKamer(a.kamer||"");
+    if (a.datum) setDatum(a.datum);
+    // Probeer het werkelijk uitgereikte aantal sleutels uit een actief borgplan te halen,
+    // zodat de controletaak het juiste aantal noemt i.p.v. altijd van 1 sleutel uit te gaan.
+    const { data: plan } = await supabase.from("borg_plannen").select("sleutels")
+      .eq("naam_medewerker", a.medewerker).eq("woning_id", a.woning_id).eq("status","actief")
+      .order("id",{ascending:false}).limit(1).maybeSingle();
+    setSleutelAantal(plan?.sleutels || 1);
+  }
+
+  function terugNaarHandmatig() {
+    setGekoppeldeAankondigingId(null);
+    setMedewerker(""); setKamer(""); setSleutelAantal(1);
+  }
 
   // Aantal sleutels automatisch op de standaard van de gekozen woning zetten (foutpreventie)
   useEffect(()=>{
@@ -5446,11 +5579,13 @@ function MeldingForm({ houses, onSubmit, showToast, taal="nl" }) {
         : opmerkingen,
       sleutel_aantal: sleutelAantal || 1,
       bijlages,
+      gekoppeldeVertrekAankondigingId: type==="vertrek" ? gekoppeldeAankondigingId : null,
     };
     await onSubmit(meldingData);
     setSaving(false);
     setMedewerker("");setOpmerkingen("");setKamer("");setSleutelTerug(null);setKamerSchoon(null);setWieRegelt("");setVoorRol("backoffice");
     setVanHuisId("");setVanKamer("");setNaarHuisId("");setNaarKamer("");setBijlages([]);
+    setGekoppeldeAankondigingId(null);setSleutelAantal(1);
     setSubmitted(true);setTimeout(()=>setSubmitted(false),2500);
   }
 
@@ -5626,6 +5761,33 @@ function MeldingForm({ houses, onSubmit, showToast, taal="nl" }) {
       )}
       {(type==="vertrek")&&(
         <div className="card" style={{marginBottom:16}}>
+          {openAankondigingen.length>0 && !gekoppeldeAankondigingId && (
+            <div style={{marginBottom:18}}>
+              <label className="fl">Wie is er vertrokken? (kies uit aangekondigde vertrekken)</label>
+              <div style={{display:"grid",gap:8,marginTop:6}}>
+                {openAankondigingen.map(a=>{
+                  const huisA=houses.find(h=>h.id===a.woning_id);
+                  return (
+                    <div key={a.id} onClick={()=>kiesAankondiging(a)}
+                      style={{border:`1.5px solid ${C.border}`,borderRadius:8,padding:"10px 14px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",gap:10}}>
+                      <div>
+                        <div style={{fontWeight:700,fontSize:13,color:C.text}}>{a.medewerker}</div>
+                        <div style={{fontSize:12,color:C.muted}}>{huisA?huisA.adres:"—"}{a.kamer?` — Kamer ${a.kamer}`:""} · Verwacht: {a.datum?new Date(a.datum).toLocaleDateString("nl-NL"):"—"}</div>
+                      </div>
+                      <span style={{fontSize:12,fontWeight:700,color:C.blauw,whiteSpace:"nowrap"}}>Kies →</span>
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{fontSize:12,color:C.muted,marginTop:8}}>Niet in dit lijstje? Vul dan hieronder handmatig naam, woning en kamer in.</div>
+            </div>
+          )}
+          {gekoppeldeAankondigingId && (
+            <div style={{background:"#eff6ff",border:`1px solid ${C.blauw}`,borderRadius:8,padding:"8px 12px",marginBottom:16,fontSize:12,color:C.blauw,display:"flex",justifyContent:"space-between",alignItems:"center",gap:10}}>
+              <span>✓ Gekoppeld aan aangekondigd vertrek van {medewerker} — bij opslaan worden die melding en de bijbehorende taak automatisch afgesloten.</span>
+              <button onClick={terugNaarHandmatig} style={{background:"none",border:"none",color:C.blauw,fontWeight:700,cursor:"pointer",fontFamily:"inherit",fontSize:12,whiteSpace:"nowrap"}}>Wijzig</button>
+            </div>
+          )}
           <label className="fl">Controlelijst bij vertrek</label>
           <div className="cr">
             <span style={{flex:1,fontSize:14,fontWeight:500}}>🔑 Sleutel(s) teruggegeven?</span>
