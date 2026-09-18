@@ -1065,6 +1065,25 @@ function App() {
         ingediend_door: updates.afgehandeld_door || gebruiker.naam,
         opmerkingen: `Taak: ${t?.titel||"?"}${updates.notitie ? `. Opmerking: ${updates.notitie}` : ""}`,
       });
+    } else {
+      // Overige taakwijzigingen (opmerking, blokkade, inplannen, opgepakt, heropenen) stuurden
+      // tot 18-09-2026 wel een e-mail vanuit de aanroepende component (TakenView/accepteerTaak),
+      // maar schreven NOOIT een activiteiten-regel: die logica zat losstaand naast onUpdate() en
+      // werd per plek makkelijk vergeten. Vanaf nu centraal in updateTaak zelf, zodat elke
+      // taakwijziging automatisch in het Log-overzicht terechtkomt, ook toekomstige call sites.
+      const huisLabel = huis ? ` — ${huis.adres}` : "";
+      const kamerLabel = t?.kamer ? ` K${t.kamer}` : "";
+      if (updates.status === "geaccepteerd") {
+        logActiviteit("taak_geaccepteerd", `📅 Taak ingepland: ${t?.titel||"?"} — gepland op ${updates.geaccepteerd_op ? new Date(updates.geaccepteerd_op).toLocaleDateString("nl-NL") : "n.t.b."} door ${updates.geaccepteerd_door||gebruiker.naam}${updates.geaccepteerd_opmerking?`. Opmerking: ${updates.geaccepteerd_opmerking}`:""}${huisLabel}${kamerLabel}`, {taak_id:id});
+      } else if (updates.status === "open" && updates.geblokkeerd) {
+        logActiviteit("taak_geblokkeerd", `🚫 Taak geblokkeerd: ${t?.titel||"?"} — ${updates.blokkade_reden||updates.huismeester_opmerking||"—"}${huisLabel}${kamerLabel}`, {taak_id:id});
+      } else if (updates.status === "bezig") {
+        logActiviteit("taak_bezig", `🔄 Taak opgepakt: ${t?.titel||"?"} door ${gebruiker.naam}${huisLabel}${kamerLabel}`, {taak_id:id});
+      } else if (updates.status === "open" && updates.afgehandeld_door === null && t?.status === "gedaan") {
+        logActiviteit("taak_heropend", `↩️ Taak heropend: ${t?.titel||"?"} door ${gebruiker.naam}${huisLabel}${kamerLabel}`, {taak_id:id});
+      } else if (!updates.status && (updates.huismeester_opmerking !== undefined || updates.ingepland_op !== undefined)) {
+        logActiviteit("taak_opmerking", `💬 Opmerking op taak: ${t?.titel||"?"}${updates.huismeester_opmerking?`. Opmerking: ${updates.huismeester_opmerking}`:""}${updates.ingepland_op?`. Ingepland op: ${new Date(updates.ingepland_op).toLocaleDateString("nl-NL")}`:""}${huisLabel}${kamerLabel}`, {taak_id:id});
+      }
     }
   }
 
