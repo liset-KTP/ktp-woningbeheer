@@ -1253,7 +1253,7 @@ function App() {
     logActiviteit("checklist", `${typeLabel} checklist opgeslagen: ${items.length} items afgevinkt${huis?` — ${huis.adres}`:""}`, {type, week, items_count: items.length});
   }
 
-  const openMeldingen = meldingen.filter(m=>m.status==="open" && (gebruiker?.rol!=="backoffice" || m.voor_rol==="backoffice"));
+  const openMeldingen = meldingen.filter(m=>m.status==="open" && (gebruiker?.rol!=="backoffice" || m.voor_rol==="backoffice") && (gebruiker?.rol!=="huismeester" || m.type!=="reservering"));
   const rol = gebruiker?.rol;
   const openTaken = taken.filter(t=>t.status==="open" && (rol==="backoffice" ? t.voor_rol==="backoffice" : t.voor_rol==="iedereen" || t.voor_rol===rol || !t.voor_rol));
   const mijnMeldingen = meldingen.filter(m=>m.ingediend_door===gebruiker?.naam);
@@ -2472,7 +2472,11 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
     return isHuidigeWeek && t.status === "open";
   });
   const openTaken = weekTaken.filter(t => t.status === "open");
-  const openMeldingen = meldingen.filter(m=>m.status==="open");
+  // reservering (nog geen bevestigde aankomst, enkel een verwachte datum) hoort hier niet
+  // tussen de meldingen waar de huismeester iets mee moet — alleen backoffice kan een
+  // reservering inplannen/afhandelen. Zonder deze uitsluiting stond "Open meldingen" hierboven
+  // vol met reserveringen die de huismeester toch niet kan/mag afhandelen.
+  const openMeldingen = meldingen.filter(m=>m.status==="open" && m.type!=="reservering");
   // Open taken altijd bovenaan (gesorteerd op ingeplande datum), afgeronde taken
   // eronder — anders bleef een net afgevinkte taak door de created_at-volgorde
   // soms nog bovenaan de lijst staan.
@@ -2654,8 +2658,11 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
             const ingeplandDag = weekTaken.filter(t => t.ingepland_op === dagISO);
             const openIngepland = ingeplandDag.filter(t => t.status === "open");
             const gedaanIngepland = ingeplandDag.filter(t => t.status === "gedaan");
+            // Alleen bevestigde aankomsten (type "aankomst") — een reservering is nog geen
+            // zekere aankomst en gaf hier eerder ruis tussen de dingen die de huismeester
+            // daadwerkelijk moet doen (sleutels uitreiken etc.).
             const aankomstenVandaag = meldingen.filter(m =>
-              (m.type === "aankomst" || m.type === "reservering") && m.datum === dagISO
+              m.type === "aankomst" && m.datum === dagISO
             );
             if (ingeplandDag.length === 0 && aankomstenVandaag.length === 0) return null;
             return (
@@ -3704,7 +3711,10 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
 
   const relevanteMeldingen = meldingen.filter(m => {
     if (isBackoffice) return m.voor_rol === "backoffice";
-    if (isHuismeester) return true; // huismeester ziet alles
+    // huismeester ziet alles, behalve reserveringen: dat zijn nog geen bevestigde
+    // aankomsten (enkel een verwachte datum) en alleen backoffice kan ze inplannen/
+    // afhandelen — voor de huismeester was dit pure ruis zonder eigen actie.
+    if (isHuismeester) return m.type !== "reservering";
     if (isCollega) return m.ingediend_door === gebruiker?.naam;
     return false;
   }).filter(m => {
@@ -3730,7 +3740,7 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
   // tabbalk (zie regel ~1175-1177, openTaken/openMeldingen) alleen status "open" telt.
   // Resultaat: twee verschillende cijfers voor "hetzelfde" op één scherm (bijv. 179 in
   // de tab-badge vs 216 hier). Nu consistent gesplitst in twee eigen tellers.
-  const magZienMelding = (m) => { if(isBackoffice) return m.voor_rol==="backoffice"; if(isHuismeester) return true; if(isCollega) return m.ingediend_door===gebruiker?.naam; return false; };
+  const magZienMelding = (m) => { if(isBackoffice) return m.voor_rol==="backoffice"; if(isHuismeester) return m.type!=="reservering"; if(isCollega) return m.ingediend_door===gebruiker?.naam; return false; };
   const magZienTaakVoorTelling = (t) => { if(isBackoffice) return t.voor_rol==="backoffice"; if(isHuismeester) return (t.voor_rol==="huismeester"||t.voor_rol==="iedereen"||!t.voor_rol); if(isCollega) return (t.voor_rol==="iedereen"||!t.voor_rol); return false; };
   const openCountEcht = meldingen.filter(m => magZienMelding(m) && m.status==="open").length
     + taken.filter(t => magZienTaakVoorTelling(t) && t.status==="open").length;
@@ -4613,6 +4623,12 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast, inlin
                     <span>
                       {t.voor_rol==="huismeester"&&<span className="badge" style={{background:"#f0fdf4",color:C.groen}}>🏠 Huismeester</span>}
                       {t.voor_rol==="backoffice"&&<span className="badge" style={{background:C.blauw+"15",color:C.blauw}}>📊 Backoffice</span>}
+                      {/* Collega-taken (bijv. "Aankomst bevestigen") zijn niet hard aan één
+                          persoon gekoppeld — elke collega kan 'm nog afvinken als vangnet —
+                          maar de melder is de bedoelde eigenaar. Dit maakt dat zichtbaar. */}
+                      {t.voor_rol==="collega"&&(t.aangemaakt_door===gebruiker?.naam
+                        ? <span className="badge" style={{background:"#fef9c3",color:"#a16207"}}>🙋 Bevestig dit zelf</span>
+                        : <span className="badge" style={{background:"#f0f4f8",color:C.muted}}>👥 Van {t.aangemaakt_door||"collega"}</span>)}
                     </span>
                   )}
                 </div>
@@ -5931,13 +5947,21 @@ function MijnOverzichtView({ meldingen, taken, houses, gebruiker }) {
     .filter(m => filter==="alle" || m.status==="open" || m.status==="in_behandeling")
     .sort((a,b) => new Date(b.created_at||0) - new Date(a.created_at||0));
 
-  // Taken met voor_rol "collega" zijn niet aan één specifieke persoon gekoppeld — dat veld
-  // bestaat niet in het datamodel. Iedereen met de rol collega ziet dus dezelfde lijst; dat
-  // wordt hieronder expliciet vermeld i.p.v. gesuggereerd dat dit puur persoonlijk is.
+  // Taken met voor_rol "collega" (bijv. "Aankomst bevestigen") zijn niet hard aan één
+  // persoon gekoppeld — dat veld bestaat niet in het datamodel, dus elke collega ziet en
+  // kan nog steeds dezelfde lijst afvinken als vangnet. Maar de melder (aangemaakt_door)
+  // is de bedoelde eigenaar: diegene had het contact met de medewerker en moet dus als
+  // eerste de aankomst bevestigen. Daarom hieronder eigen taken bovenaan gesorteerd en
+  // duidelijk gelabeld, i.p.v. één ongesorteerde gedeelde lijst.
   const collegaTaken = taken
     .filter(t => t.voor_rol === "collega")
     .filter(t => filter==="alle" || t.status!=="gedaan")
-    .sort((a,b) => new Date(a.ingepland_op||a.created_at||0) - new Date(b.ingepland_op||b.created_at||0));
+    .sort((a,b) => {
+      const aVanMij = a.aangemaakt_door === naam ? 0 : 1;
+      const bVanMij = b.aangemaakt_door === naam ? 0 : 1;
+      if (aVanMij !== bVanMij) return aVanMij - bVanMij;
+      return new Date(a.ingepland_op||a.created_at||0) - new Date(b.ingepland_op||b.created_at||0);
+    });
 
   function statusVoorMelding(m) {
     if (m.status === "geannuleerd") return { label:"✕ Geannuleerd", kleur:"#6b7280", bg:"#f3f4f6" };
@@ -6004,10 +6028,11 @@ function MijnOverzichtView({ meldingen, taken, houses, gebruiker }) {
       )}
 
       <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:4}}>
-        🔧 Openstaande taken voor collega's ({collegaTaken.length})
+        🔧 Aankomsten om te bevestigen ({collegaTaken.length})
       </div>
       <div style={{fontSize:11.5,color:C.muted,marginBottom:8}}>
-        Niet aan één specifieke collega gekoppeld — iedereen met de rol "collega" ziet dezelfde lijst.
+        Jouw eigen meldingen staan bovenaan — jij had het contact met de medewerker, dus bevestig die zelf.
+        Onderstaande van collega's kun je als vangnet ook afvinken.
       </div>
       {collegaTaken.length === 0 ? (
         <div style={{textAlign:"center",padding:"24px 0",color:C.muted,fontSize:13}}>Geen {filter==="open"?"openstaande ":""}taken</div>
@@ -6016,13 +6041,17 @@ function MijnOverzichtView({ meldingen, taken, houses, gebruiker }) {
           {collegaTaken.map(t => {
             const huis = houses.find(h => h.id === t.woning_id);
             const isOpen = t.status !== "gedaan";
+            const vanMij = t.aangemaakt_door === naam;
             return (
-              <div key={t.id} style={rijStyle(isOpen?"#f59e0b":C.groen)}>
+              <div key={t.id} style={rijStyle(isOpen?(vanMij?"#a16207":"#f59e0b"):C.groen)}>
                 <span style={{fontWeight:700,color:C.text,minWidth:180}}>{t.titel}</span>
                 <span style={{color:C.muted,flex:1,minWidth:160}}>
                   {huis ? huis.adres : "—"}{t.kamer ? ` K${t.kamer}` : ""}{t.omschrijving ? ` · ${t.omschrijving}` : ""}
                 </span>
-                <span style={{marginLeft:"auto"}}>{miniBadge(isOpen?"#fef3c7":"#f0fdf4", isOpen?"#b45309":C.groen, isOpen?"⏳ Open":"✅ Gedaan")}</span>
+                <span style={{display:"flex",gap:4,marginLeft:"auto"}}>
+                  {miniBadge(vanMij?"#fef9c3":"#f0f4f8", vanMij?"#a16207":C.muted, vanMij?"🙋 Van jou":`👥 Van ${t.aangemaakt_door||"collega"}`)}
+                  {miniBadge(isOpen?"#fef3c7":"#f0fdf4", isOpen?"#b45309":C.groen, isOpen?"⏳ Open":"✅ Gedaan")}
+                </span>
               </div>
             );
           })}
