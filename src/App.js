@@ -695,15 +695,20 @@ function App() {
       ]);
     }
 
-    // Bij vertrek aankondiging: taak voor huismeester om in te plannen
+    // Bij vertrek aankondiging: taak voor backoffice om in te plannen. NIET voor huismeester —
+    // die krijgt dit aankondigings-stadium niet meer te zien (melding is voor hem weggehaald,
+    // zie relevanteMeldingen/magZienMelding/openMeldingen) en moet alléén nog een taak krijgen
+    // bij het daadwerkelijke vertrek ("Kamer controleren na vertrek", hieronder verderop
+    // aangemaakt zodra de vertrek-melding zelf binnenkomt). Zo blijft zijn takenlijst schoon
+    // tot het echt zijn beurt is.
     if (m.type === "vertrek_aankondiging") {
       await supabase.from("taken").insert([{
         titel: `Vertrek inplannen — ${m.medewerker}`,
-        omschrijving: `${m.medewerker} gaat vertrekken op ${m.datum}. Plan de kamercontrole in en begeleid het vertrekproces.`,
+        omschrijving: `${m.medewerker} heeft een vertrek aangekondigd op ${m.datum}. Plan de daadwerkelijke vertrekdatum en kamercontrole in (de huismeester krijgt zijn eigen controletaak pas zodra het vertrek daadwerkelijk wordt gemeld).`,
         woning_id: m.huisId || null,
         kamer: m.kamer || null,
         prioriteit: "middel",
-        voor_rol: "huismeester",
+        voor_rol: "backoffice",
         status: "open",
         aangemaakt_door: gebruiker.naam,
         melding_id: meldingId,
@@ -1253,7 +1258,7 @@ function App() {
     logActiviteit("checklist", `${typeLabel} checklist opgeslagen: ${items.length} items afgevinkt${huis?` — ${huis.adres}`:""}`, {type, week, items_count: items.length});
   }
 
-  const openMeldingen = meldingen.filter(m=>m.status==="open" && (gebruiker?.rol!=="backoffice" || m.voor_rol==="backoffice") && (gebruiker?.rol!=="huismeester" || (m.type!=="reservering" && m.type!=="aankomst")));
+  const openMeldingen = meldingen.filter(m=>m.status==="open" && (gebruiker?.rol!=="backoffice" || m.voor_rol==="backoffice") && (gebruiker?.rol!=="huismeester" || (m.type!=="reservering" && m.type!=="aankomst" && m.type!=="vertrek_aankondiging")));
   const rol = gebruiker?.rol;
   const openTaken = taken.filter(t=>t.status==="open" && (rol==="backoffice" ? t.voor_rol==="backoffice" : t.voor_rol==="iedereen" || t.voor_rol===rol || !t.voor_rol));
   const mijnMeldingen = meldingen.filter(m=>m.ingediend_door===gebruiker?.naam);
@@ -2419,7 +2424,13 @@ function VertrekControleModal({ taak, onBevestig, onAnnuleer }) {
   );
 }
 
-function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naam, dagplanningDB = [], checklistItems = [], checklists = [], autoMeldingen = [] }) {
+function DagplanningView({ meldingen, taken: takenAlleRollen, houses, onUpdate, onUpdateTaak, naam, dagplanningDB = [], checklistItems = [], checklists = [], autoMeldingen = [] }) {
+  // BUGFIX (2026-09-22): dit is de "mijn dag"-pagina van de huismeester, maar de taken-prop
+  // kwam ongefilterd binnen (alle rollen door elkaar). Hierdoor bleven taken die eigenlijk
+  // voor backoffice/collega bedoeld zijn (zoals "Vertrek inplannen", sinds vandaag voor_rol
+  // backoffice) toch op zijn "Openstaande to-do's"-widget staan. Nu direct bij binnenkomst
+  // filteren op voor_rol, net als relevanteTaken in TakenMeldingenView al deed.
+  const taken = takenAlleRollen.filter(t => t.voor_rol === "huismeester" || t.voor_rol === "iedereen" || !t.voor_rol);
   const [vertrekModalTaak, setVertrekModalTaak] = useState(null);
   const bevestigVertrek = ({schoon, sleutel, opmerking}) => {
     const ei = JSON.stringify({woning_schoon:schoon, sleutel_terug:sleutel, opmerkingen:opmerking, gecontroleerd_op:new Date().toISOString()});
@@ -2472,11 +2483,13 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
     return isHuidigeWeek && t.status === "open";
   });
   const openTaken = weekTaken.filter(t => t.status === "open");
-  // reservering (nog geen bevestigde aankomst) en aankomst horen hier niet tussen de
-  // meldingen waar de huismeester zelf iets mee moet: reservering kan alleen backoffice
-  // inplannen/afhandelen, en aankomst heeft al zijn eigen taak "Aankomst begeleiden" —
-  // de melding zelf is voor de huismeester dus niet van toepassing.
-  const openMeldingen = meldingen.filter(m=>m.status==="open" && m.type!=="reservering" && m.type!=="aankomst");
+  // reservering (nog geen bevestigde aankomst), aankomst en vertrek_aankondiging horen hier
+  // niet tussen de meldingen waar de huismeester zelf iets mee moet: reservering kan alleen
+  // backoffice inplannen/afhandelen, aankomst heeft al zijn eigen taak "Aankomst begeleiden",
+  // en vertrek_aankondiging leidt nu tot een taak voor backoffice (niet meer voor hem) — hij
+  // krijgt pas een taak bij het daadwerkelijke vertrek ("Kamer controleren na vertrek"). De
+  // melding zelf is voor de huismeester dus in geen van deze 3 gevallen van toepassing.
+  const openMeldingen = meldingen.filter(m=>m.status==="open" && m.type!=="reservering" && m.type!=="aankomst" && m.type!=="vertrek_aankondiging");
   // Open taken altijd bovenaan (gesorteerd op ingeplande datum), afgeronde taken
   // eronder — anders bleef een net afgevinkte taak door de created_at-volgorde
   // soms nog bovenaan de lijst staan.
@@ -3711,11 +3724,13 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
 
   const relevanteMeldingen = meldingen.filter(m => {
     if (isBackoffice) return m.voor_rol === "backoffice";
-    // huismeester ziet alles, behalve reserveringen en aankomsten: reserveringen kan
-    // alleen backoffice inplannen/afhandelen, en een aankomst-melding is voor hem niet
-    // van toepassing — hij werkt via de automatisch aangemaakte taak "Aankomst
-    // begeleiden", niet via de melding zelf. Beide waren hier pure ruis zonder eigen actie.
-    if (isHuismeester) return m.type !== "reservering" && m.type !== "aankomst";
+    // huismeester ziet alles, behalve reserveringen, aankomsten en vertrek-aankondigingen:
+    // reserveringen kan alleen backoffice inplannen/afhandelen, een aankomst-melding is voor
+    // hem niet van toepassing — hij werkt via de automatisch aangemaakte taak "Aankomst
+    // begeleiden", niet via de melding zelf — en een vertrek-aankondiging leidt nu tot een
+    // inplan-taak voor backoffice; hij krijgt zelf pas een taak bij het daadwerkelijke vertrek.
+    // Alle drie waren hier pure ruis zonder eigen actie voor hem.
+    if (isHuismeester) return m.type !== "reservering" && m.type !== "aankomst" && m.type !== "vertrek_aankondiging";
     if (isCollega) return m.ingediend_door === gebruiker?.naam;
     return false;
   }).filter(m => {
@@ -3741,7 +3756,7 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
   // tabbalk (zie regel ~1175-1177, openTaken/openMeldingen) alleen status "open" telt.
   // Resultaat: twee verschillende cijfers voor "hetzelfde" op één scherm (bijv. 179 in
   // de tab-badge vs 216 hier). Nu consistent gesplitst in twee eigen tellers.
-  const magZienMelding = (m) => { if(isBackoffice) return m.voor_rol==="backoffice"; if(isHuismeester) return m.type!=="reservering" && m.type!=="aankomst"; if(isCollega) return m.ingediend_door===gebruiker?.naam; return false; };
+  const magZienMelding = (m) => { if(isBackoffice) return m.voor_rol==="backoffice"; if(isHuismeester) return m.type!=="reservering" && m.type!=="aankomst" && m.type!=="vertrek_aankondiging"; if(isCollega) return m.ingediend_door===gebruiker?.naam; return false; };
   const magZienTaakVoorTelling = (t) => { if(isBackoffice) return t.voor_rol==="backoffice"; if(isHuismeester) return (t.voor_rol==="huismeester"||t.voor_rol==="iedereen"||!t.voor_rol); if(isCollega) return (t.voor_rol==="iedereen"||!t.voor_rol); return false; };
   const openCountEcht = meldingen.filter(m => magZienMelding(m) && m.status==="open").length
     + taken.filter(t => magZienTaakVoorTelling(t) && t.status==="open").length;
@@ -4141,8 +4156,11 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
           {/* Huismeester kan inplannen — NIET voor aankomst: die heeft al een vaste
               datum (m.datum) en een automatisch aangemaakte taak "Aankomst begeleiden"
               in Taken & Meldingen. Dit knopje hier was dus een dubbele, overbodige
-              inplanstap voor precies het type waar hij het minst nodig heeft. */}
-          {isHuismeester && !toonNotitie && m.type !== "aankomst" && (
+              inplanstap voor precies het type waar hij het minst nodig heeft. Ook NIET voor
+              vertrek_aankondiging: de melding zelf is al weggehaald bij de huismeester (zie
+              relevanteMeldingen/magZienMelding/openMeldingen) en het inplannen is nu een taak
+              voor backoffice — hij krijgt pas zelf een taak bij het daadwerkelijke vertrek. */}
+          {isHuismeester && !toonNotitie && m.type !== "aankomst" && m.type !== "vertrek_aankondiging" && (
             toonInplannen ? (
               <div style={{width:"100%",background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:10,padding:14}}>
                 <div style={{fontWeight:700,color:C.groen,fontSize:13,marginBottom:10}}>📅 Melding inplannen</div>
