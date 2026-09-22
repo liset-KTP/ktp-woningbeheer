@@ -4137,8 +4137,11 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
 
       {isOpen && (isBackoffice || isHuismeester) && (
         <div style={{marginTop:8,display:"flex",gap:8,flexWrap:"wrap"}}>
-          {/* Huismeester kan inplannen */}
-          {isHuismeester && !toonNotitie && (
+          {/* Huismeester kan inplannen — NIET voor aankomst: die heeft al een vaste
+              datum (m.datum) en een automatisch aangemaakte taak "Aankomst begeleiden"
+              in Taken & Meldingen. Dit knopje hier was dus een dubbele, overbodige
+              inplanstap voor precies het type waar hij het minst nodig heeft. */}
+          {isHuismeester && !toonNotitie && m.type !== "aankomst" && (
             toonInplannen ? (
               <div style={{width:"100%",background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:10,padding:14}}>
                 <div style={{fontWeight:700,color:C.groen,fontSize:13,marginBottom:10}}>📅 Melding inplannen</div>
