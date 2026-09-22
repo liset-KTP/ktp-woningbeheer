@@ -56,6 +56,48 @@ async function patchKamer(woningId, wijzigingenPerKamer) {
   return true;
 }
 
+// ─── VEILIG KAMER VRIJMAKEN ────────────────────────────────────────────────
+// BUGFIX (2026-09-08, Pawel Spandel- en Golebiewski-incident): de TakenView-
+// checkbox-flow (isVertrek / isVerhuizingControle hieronder) zette een kamer
+// tot nu toe altijd BLIND op {status:"Beschikbaar", naam:""} zodra de laatste
+// checklist-stap werd afgevinkt — ook als die taak al weken open had gestaan
+// en de kamer inmiddels allang aan een NIEUWE bewoner was toegewezen.
+// updateMeldingStatus had voor hetzelfde vertrek-scenario al wél een guard
+// (kamer.status==="Controle", zie Fase 1 hierboven) — dit codepad (de weg die
+// huismeesters in de praktijk gebruiken) had 'm niet. 2x bevestigde schade:
+// een net ingetrokken bewoner verdween volledig uit het systeem.
+//
+// Deze helper leest daarom vlak vóór het schrijven vers uit Supabase wat er
+// nu in de kamer staat, en maakt 'm ALLEEN vrij als er niemand anders
+// inmiddels is ingetrokken (status "Controle", of leeg/geen naam). Staat er
+// al een andere naam in? Dan wordt de kamer NIET aangepast — er gaat een
+// bericht naar backoffice en de aanroeper krijgt {ok:false, huidigeNaam}
+// terug zodat de UI een duidelijke waarschuwing kan tonen i.p.v. de kamer
+// stilletjes leeg te maken.
+async function veiligKamerVrijmaken(woningId, kamerNr, reden) {
+  if (!woningId || !kamerNr) return { ok: false, reden: "geen_woning_of_kamer" };
+  const { data: vers, error: readErr } = await supabase.from("woningen").select("adres, kamers").eq("id", woningId).single();
+  if (readErr || !vers) { console.error("veiligKamerVrijmaken: kon woning niet vers lezen", woningId, readErr); return { ok: false, reden: "leesfout" }; }
+  const kamer = (vers.kamers || []).find(k => k.k === kamerNr);
+  const bezetDoorAnder = kamer && kamer.naam && kamer.status !== "Controle";
+  if (!bezetDoorAnder) {
+    const success = await patchKamer(woningId, { [kamerNr]: { status: "Beschikbaar", naam: "" } });
+    return { ok: success };
+  }
+  // Conflict: kamer staat al op naam van iemand anders — NIET aanpassen.
+  await supabase.from("berichten").insert([{
+    tekst: `⚠ Kamerconflict: checklist "${reden}" wilde kamer ${kamerNr} (${vers.adres||""}) vrijmaken, maar daar zit inmiddels ${kamer.naam} in (status: ${kamer.status}). Kamer NIET aangepast — controleer handmatig of de oude checklist nog klopt.`,
+    van: "Systeem",
+    aan: null,
+    onderwerp: `⚠ Kamerconflict bij vrijmaken — ${vers.adres||""} K${kamerNr}`,
+    koppeling_type: "kamerconflict",
+    koppeling_id: woningId,
+    koppeling_label: `${vers.adres||""} K${kamerNr}`,
+    gelezen_door: [],
+  }]);
+  return { ok: false, huidigeNaam: kamer.naam, huidigeStatus: kamer.status };
+}
+
 // ─── EMAILJS ──────────────────────────────────────────────────────────────────
 const EMAILJS_SERVICE  = process.env.REACT_APP_EMAILJS_SERVICE  || "";
 const EMAILJS_TEMPLATE = process.env.REACT_APP_EMAILJS_TEMPLATE || "";
@@ -4642,14 +4684,20 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast, inlin
 
                             // Bij vertrek: kamer op Beschikbaar zetten
                             if (isVertrek && t.woning_id && t.kamer) {
-                              await patchKamer(t.woning_id, { [t.kamer]: { status: "Beschikbaar", naam: "" } });
+                              const kamerResultaat = await veiligKamerVrijmaken(t.woning_id, t.kamer, t.titel);
+                              if (!kamerResultaat.ok && kamerResultaat.huidigeNaam) {
+                                showToast(`⚠ Kamer ${t.kamer} niet leeggemaakt — ${kamerResultaat.huidigeNaam} zit er al in. Backoffice is gewaarschuwd, controleer handmatig.`, "err");
+                              }
                             }
                             // Bij verhuizing (oude kamer): zodra huismeester "schoon" + "sleutel
                             // ingeleverd" afvinkt, kamer direct op Beschikbaar zetten. Voorheen gebeurde dit
                             // pas als iemand de onderliggende melding ook nog apart op "Verwerkt" zette —
                             // een stap die makkelijk vergeten werd, waardoor de kamer op "Controle" bleef hangen.
                             if (isVerhuizingControle && t.woning_id && t.kamer) {
-                              await patchKamer(t.woning_id, { [t.kamer]: { status: "Beschikbaar", naam: "" } });
+                              const kamerResultaat = await veiligKamerVrijmaken(t.woning_id, t.kamer, t.titel);
+                              if (!kamerResultaat.ok && kamerResultaat.huidigeNaam) {
+                                showToast(`⚠ Kamer ${t.kamer} niet leeggemaakt — ${kamerResultaat.huidigeNaam} zit er al in. Backoffice is gewaarschuwd, controleer handmatig.`, "err");
+                              }
                             }
                             // Bij verhuizing (nieuwe kamer): zodra huismeester sleutel(s) uitgereikt +
                             // "kamer klaar" afvinkt, kamer direct op Bezet zetten (met naam erin, voor de
