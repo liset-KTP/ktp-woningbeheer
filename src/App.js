@@ -1253,7 +1253,7 @@ function App() {
     logActiviteit("checklist", `${typeLabel} checklist opgeslagen: ${items.length} items afgevinkt${huis?` — ${huis.adres}`:""}`, {type, week, items_count: items.length});
   }
 
-  const openMeldingen = meldingen.filter(m=>m.status==="open" && (gebruiker?.rol!=="backoffice" || m.voor_rol==="backoffice") && (gebruiker?.rol!=="huismeester" || m.type!=="reservering"));
+  const openMeldingen = meldingen.filter(m=>m.status==="open" && (gebruiker?.rol!=="backoffice" || m.voor_rol==="backoffice") && (gebruiker?.rol!=="huismeester" || (m.type!=="reservering" && m.type!=="aankomst")));
   const rol = gebruiker?.rol;
   const openTaken = taken.filter(t=>t.status==="open" && (rol==="backoffice" ? t.voor_rol==="backoffice" : t.voor_rol==="iedereen" || t.voor_rol===rol || !t.voor_rol));
   const mijnMeldingen = meldingen.filter(m=>m.ingediend_door===gebruiker?.naam);
@@ -2472,11 +2472,11 @@ function DagplanningView({ meldingen, taken, houses, onUpdate, onUpdateTaak, naa
     return isHuidigeWeek && t.status === "open";
   });
   const openTaken = weekTaken.filter(t => t.status === "open");
-  // reservering (nog geen bevestigde aankomst, enkel een verwachte datum) hoort hier niet
-  // tussen de meldingen waar de huismeester iets mee moet — alleen backoffice kan een
-  // reservering inplannen/afhandelen. Zonder deze uitsluiting stond "Open meldingen" hierboven
-  // vol met reserveringen die de huismeester toch niet kan/mag afhandelen.
-  const openMeldingen = meldingen.filter(m=>m.status==="open" && m.type!=="reservering");
+  // reservering (nog geen bevestigde aankomst) en aankomst horen hier niet tussen de
+  // meldingen waar de huismeester zelf iets mee moet: reservering kan alleen backoffice
+  // inplannen/afhandelen, en aankomst heeft al zijn eigen taak "Aankomst begeleiden" —
+  // de melding zelf is voor de huismeester dus niet van toepassing.
+  const openMeldingen = meldingen.filter(m=>m.status==="open" && m.type!=="reservering" && m.type!=="aankomst");
   // Open taken altijd bovenaan (gesorteerd op ingeplande datum), afgeronde taken
   // eronder — anders bleef een net afgevinkte taak door de created_at-volgorde
   // soms nog bovenaan de lijst staan.
@@ -3711,10 +3711,11 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
 
   const relevanteMeldingen = meldingen.filter(m => {
     if (isBackoffice) return m.voor_rol === "backoffice";
-    // huismeester ziet alles, behalve reserveringen: dat zijn nog geen bevestigde
-    // aankomsten (enkel een verwachte datum) en alleen backoffice kan ze inplannen/
-    // afhandelen — voor de huismeester was dit pure ruis zonder eigen actie.
-    if (isHuismeester) return m.type !== "reservering";
+    // huismeester ziet alles, behalve reserveringen en aankomsten: reserveringen kan
+    // alleen backoffice inplannen/afhandelen, en een aankomst-melding is voor hem niet
+    // van toepassing — hij werkt via de automatisch aangemaakte taak "Aankomst
+    // begeleiden", niet via de melding zelf. Beide waren hier pure ruis zonder eigen actie.
+    if (isHuismeester) return m.type !== "reservering" && m.type !== "aankomst";
     if (isCollega) return m.ingediend_door === gebruiker?.naam;
     return false;
   }).filter(m => {
@@ -3740,7 +3741,7 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
   // tabbalk (zie regel ~1175-1177, openTaken/openMeldingen) alleen status "open" telt.
   // Resultaat: twee verschillende cijfers voor "hetzelfde" op één scherm (bijv. 179 in
   // de tab-badge vs 216 hier). Nu consistent gesplitst in twee eigen tellers.
-  const magZienMelding = (m) => { if(isBackoffice) return m.voor_rol==="backoffice"; if(isHuismeester) return m.type!=="reservering"; if(isCollega) return m.ingediend_door===gebruiker?.naam; return false; };
+  const magZienMelding = (m) => { if(isBackoffice) return m.voor_rol==="backoffice"; if(isHuismeester) return m.type!=="reservering" && m.type!=="aankomst"; if(isCollega) return m.ingediend_door===gebruiker?.naam; return false; };
   const magZienTaakVoorTelling = (t) => { if(isBackoffice) return t.voor_rol==="backoffice"; if(isHuismeester) return (t.voor_rol==="huismeester"||t.voor_rol==="iedereen"||!t.voor_rol); if(isCollega) return (t.voor_rol==="iedereen"||!t.voor_rol); return false; };
   const openCountEcht = meldingen.filter(m => magZienMelding(m) && m.status==="open").length
     + taken.filter(t => magZienTaakVoorTelling(t) && t.status==="open").length;
