@@ -557,6 +557,7 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
           huidigJaar={huidigJaar}
           isBackoffice={isBackoffice}
           onVerwerk={verwerkTermijn}
+          onSchuifWeekOp={schuifWeekOp}
           gebruiker={gebruiker}
         />
       )}
@@ -692,7 +693,7 @@ function WekenOverzicht({ termijnen, plannen, isBackoffice, onVerwerk, readonly 
 }
 
 // ─── WEEK OVERZICHT ───────────────────────────────────────────────────────────
-function WeekOverzicht({ dezeWeek, volgendeWeek, plannen, huidigeWeek, huidigJaar, isBackoffice, onVerwerk, onZetTerug }) {
+function WeekOverzicht({ dezeWeek, volgendeWeek, plannen, huidigeWeek, huidigJaar, isBackoffice, onVerwerk, onZetTerug, onSchuifWeekOp }) {
   const [opmerkingMap, setOpmerkingMap] = useState({});
   const [toonOpmerking, setToonOpmerking] = useState({});
 
@@ -727,7 +728,7 @@ function WeekOverzicht({ dezeWeek, volgendeWeek, plannen, huidigeWeek, huidigJaa
                 {isBackoffice && <button onClick={()=>onZetTerug(t.id)} title="Terugzetten" style={{background:"white",border:`1px solid ${C.oranje}`,color:C.oranje,borderRadius:6,padding:"4px 8px",fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>↩</button>}
               </div>
             ) : isBackoffice && (
-              <div>
+              <div style={{display:"flex",gap:6,alignItems:"center"}}>
                 {toonOpmerking[t.id] ? (
                   <div style={{display:"flex",gap:8,alignItems:"center"}}>
                     <input value={opmerkingMap[t.id]||""} onChange={e=>setOpmerkingMap(p=>({...p,[t.id]:e.target.value}))}
@@ -739,10 +740,24 @@ function WeekOverzicht({ dezeWeek, volgendeWeek, plannen, huidigeWeek, huidigJaa
                     </button>
                   </div>
                 ) : (
-                  <button onClick={()=>setToonOpmerking(p=>({...p,[t.id]:true}))}
-                    style={{background:C.groen,color:"white",border:"none",borderRadius:8,padding:"8px 16px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                    ✓ Verwerkt
-                  </button>
+                  <>
+                    <button onClick={()=>setToonOpmerking(p=>({...p,[t.id]:true}))}
+                      style={{background:C.groen,color:"white",border:"none",borderRadius:8,padding:"8px 16px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                      ✓ Verwerkt
+                    </button>
+                    {onSchuifWeekOp && (
+                      <button
+                        onClick={()=>{
+                          if (window.confirm(`Kan bij ${t.naam_medewerker} deze week niet ingehouden worden?\n\nAlle nog openstaande termijnen van dit plan worden 1 week opgeschoven (deze termijn → week ${t.week_nummer+1>52?1:t.week_nummer+1}).`)) {
+                            onSchuifWeekOp(t.plan_id);
+                          }
+                        }}
+                        title="Deze week niet mogelijk (niet/te weinig gewerkt) — schuif alle openstaande termijnen van dit plan 1 week door"
+                        style={{background:"white",border:`1.5px solid ${C.oranje}`,color:C.oranje,borderRadius:8,padding:"8px 12px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
+                        ⏭ Kan niet – schuif door
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
             )}
