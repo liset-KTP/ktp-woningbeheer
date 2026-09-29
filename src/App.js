@@ -2544,7 +2544,9 @@ function VertrekControleModal({ taak, onBevestig, onAnnuleer }) {
   const allesOk = schoon === "ja" && sleutel === "ja";
   // Niet alles in orde → toelichting + minimaal 1 foto verplicht (bewijs voor borginhouding)
   const toelichtingOk = opmerking.trim().length >= MIN_TOELICHTING;
-  const fotoOk = fotos.length >= 1;
+  // Foto alleen verplicht bij een probleem met de kamer zelf; een ontbrekende sleutel kun je niet fotograferen.
+  const fotoNodig = schoon !== "ja";
+  const fotoOk = !fotoNodig || fotos.length >= 1;
   const magOpslaan = allesOk || (toelichtingOk && fotoOk);
   const borgAdvies = allesOk ? "Borg teruggeven" : "Backoffice beoordeelt borg op basis van jouw toelichting + foto's";
   const borgKleur = allesOk ? "#16a34a" : schoon === "gedeeltelijk" ? "#d97706" : "#b91c1c";
@@ -2603,7 +2605,7 @@ function VertrekControleModal({ taak, onBevestig, onAnnuleer }) {
 
         <div style={{marginBottom:16}}>
           <BijlageUploader bestanden={fotos} setBestanden={setFotos}
-            label={allesOk ? "📸 Foto's (optioneel)" : "📸 Foto's (verplicht, minimaal 1)"}/>
+            label={fotoNodig ? "📸 Foto's (verplicht, minimaal 1)" : "📸 Foto's (optioneel)"}/>
           {!allesOk && !fotoOk && (
             <div style={{fontSize:11,color:"#b91c1c",marginTop:3}}>Maak minimaal 1 foto van wat er niet in orde is.</div>
           )}
@@ -2628,7 +2630,7 @@ function VertrekControleModal({ taak, onBevestig, onAnnuleer }) {
               let bijlages = [];
               if (fotos.length > 0) {
                 bijlages = await uploadBijlages(fotos, "taken");
-                if (!allesOk && bijlages.length === 0) {
+                if (fotoNodig && bijlages.length === 0) {
                   alert("Foto uploaden mislukt. Probeer het opnieuw (controleer je internetverbinding).");
                   setBezig(false);
                   return;
@@ -5253,12 +5255,13 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast, inlin
                 const notitieTxt = (notitieMap[t.id]||"").trim();
                 const aantalFotos = (fotoMap[t.id]||[]).length;
                 const bewijsNodig = ontbreekt.length > 0;
-                const magBevestigen = !bewijsNodig || (notitieTxt.length >= MIN_TOELICHTING && aantalFotos >= 1);
+                const fotoNodig = ontbreekt.includes("Kamer schoon"); // ontbrekende sleutel = geen foto nodig
+                const magBevestigen = !bewijsNodig || (notitieTxt.length >= MIN_TOELICHTING && (!fotoNodig || aantalFotos >= 1));
                 return (
                 <div style={{marginTop:12,padding:"12px",background:C.groen+"08",border:`1px solid ${C.groen}30`,borderRadius:10}}>
                   {bewijsNodig && (
                     <div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:8,padding:"8px 10px",marginBottom:10,fontSize:12,color:"#b91c1c"}}>
-                      ⚠️ Niet afgevinkt: <strong>{ontbreekt.join(", ")}</strong>. Beschrijf wat er niet in orde is en voeg minimaal 1 foto toe.
+                      ⚠️ Niet afgevinkt: <strong>{ontbreekt.join(", ")}</strong>. {fotoNodig ? "Beschrijf wat er niet in orde is en voeg minimaal 1 foto toe." : "Beschrijf wat er niet in orde is (bijv. sleutel niet ingeleverd)."}
                     </div>
                   )}
                   <label className="fl">{bewijsNodig ? "Wat is er niet in orde? (verplicht)" : "Opmerking bij afhandeling (optioneel)"}</label>
@@ -5269,7 +5272,7 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast, inlin
                     <div style={{fontSize:11,color:"#b91c1c",marginBottom:10}}>Minimaal {MIN_TOELICHTING} tekens.</div>
                   )}
                   <div style={{marginBottom:12}}>
-                    <BijlageUploader bestanden={fotoMap[t.id]||[]} setBestanden={v=>setFotoMap(p=>({...p,[t.id]:typeof v==="function"?v(p[t.id]||[]):v}))} label={bewijsNodig ? "📸 Foto's (verplicht, minimaal 1)" : "📸 Foto's toevoegen (optioneel)"}/>
+                    <BijlageUploader bestanden={fotoMap[t.id]||[]} setBestanden={v=>setFotoMap(p=>({...p,[t.id]:typeof v==="function"?v(p[t.id]||[]):v}))} label={fotoNodig ? "📸 Foto's (verplicht, minimaal 1)" : "📸 Foto's toevoegen (optioneel)"}/>
                   </div>
                   <div style={{display:"flex",gap:8}}>
                     <button className="btn-g" style={{flex:1,padding:"9px",opacity:magBevestigen?1:.5,cursor:magBevestigen?"pointer":"not-allowed"}}
@@ -5279,7 +5282,7 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast, inlin
                         const fotos = fotoMap[t.id]||[];
                         let fotoUrls = [];
                         if(fotos.length>0) fotoUrls = await uploadBijlages(fotos, "taken");
-                        if (bewijsNodig && fotoUrls.length === 0) { alert("Foto uploaden mislukt. Probeer het opnieuw."); return; }
+                        if (fotoNodig && fotoUrls.length === 0) { alert("Foto uploaden mislukt. Probeer het opnieuw."); return; }
                         onUpdate(t.id,{status:"gedaan",afgehandeld_door:gebruiker.naam,afgehandeld_op:new Date().toISOString(),notitie:notitieMap[t.id]||null,bijlages:fotoUrls.length>0?JSON.stringify(fotoUrls):null});
                         setFotoMap(p=>({...p,[t.id]:[]}));
                       }}>
