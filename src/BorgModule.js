@@ -375,12 +375,53 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
   }
 
   async function archiveerPlan(planId, reden) {
+    const plan = plannen.find(p => p.id === planId);
     await supabase.from("borg_plannen").update({
       status: "afgesloten",
-      opmerkingen: `[Gearchiveerd door ${gebruiker.naam} op ${new Date().toLocaleDateString("nl-NL")}] ${reden}`,
+      opmerkingen: `${plan?.opmerkingen ? plan.opmerkingen + "\n" : ""}[Gearchiveerd door ${gebruiker.naam} op ${new Date().toLocaleDateString("nl-NL")}] ${reden}`,
     }).eq("id", planId);
+    await supabase.from("activiteiten").insert([{
+      type: "borg_gearchiveerd",
+      omschrijving: `🗑 Borgplan gearchiveerd: ${plan?.naam_medewerker || "?"} — ${reden}`,
+      gedaan_door: gebruiker?.naam || "?",
+      extra: { borg_plan_id: planId, naam: plan?.naam_medewerker },
+    }]);
     showToast("✓ Borgplan gearchiveerd");
     await loadAll();
+  }
+
+  // Afsluiten bij vertrek: borg vervalt (niet terug) of wordt terugbetaald.
+  // Openstaande termijnen/inhoud-posten krijgen status "vervallen" zodat ze nooit meer in "Deze week" komen,
+  // maar wel zichtbaar blijven in het Archief (audit trail).
+  async function sluitAfBijVertrek(planId, keuze, reden, bedragen) {
+    if (bezigSluitenRef.current) return;
+    bezigSluitenRef.current = true;
+    try {
+      const plan = plannen.find(p => p.id === planId);
+      const datumNu = new Date().toLocaleDateString("nl-NL");
+      const ingeh = Number(bedragen?.ingehouden || 0).toFixed(2);
+      const verv = Number(bedragen?.vervallen || 0).toFixed(2);
+      const kern = keuze === "vervalt"
+        ? `Vertrokken — borg vervalt (niet terugbetalen). €${ingeh} ingehouden, €${verv} open vervallen.`
+        : `Vertrokken — borg terugbetalen: €${ingeh}. €${verv} open vervallen.`;
+      await supabase.from("borg_termijnen").update({ status: "vervallen" }).eq("plan_id", planId).eq("status", "open");
+      await supabase.from("borg_extra").update({ status: "vervallen" }).eq("plan_id", planId).eq("type", "inhouden").eq("status", "open");
+      await supabase.from("borg_plannen").update({
+        status: keuze === "vervalt" ? "vervallen" : "terugbetaald",
+        vertrek_datum: new Date().toISOString().slice(0,10),
+        opmerkingen: `${plan?.opmerkingen ? plan.opmerkingen + "\n" : ""}[${datumNu} - ${gebruiker.naam}] ${kern} Reden: ${reden}`,
+      }).eq("id", planId);
+      await supabase.from("activiteiten").insert([{
+        type: keuze === "vervalt" ? "borg_vervallen" : "borg_terugbetaald",
+        omschrijving: `${keuze === "vervalt" ? "🚪 Borg vervalt" : "💶 Borg terugbetalen"}: ${plan?.naam_medewerker || "?"} — ${kern} Reden: ${reden}`,
+        gedaan_door: gebruiker?.naam || "?",
+        extra: { borg_plan_id: planId, naam: plan?.naam_medewerker, ingehouden: Number(ingeh), vervallen: Number(verv), keuze, reden },
+      }]);
+      showToast(keuze === "vervalt" ? "✓ Afgesloten — borg vervalt" : "✓ Afgesloten — borg terugbetalen");
+      await loadAll();
+    } finally {
+      bezigSluitenRef.current = false;
+    }
   }
 
   async function sluitPlanAf(planId, terugbetalen) {
@@ -575,6 +616,7 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
           onOpmerking={voegOpmerkingToe}
           onSchuifWeekOp={schuifWeekOp}
           onArchiveer={archiveerPlan}
+          onVertrek={sluitAfBijVertrek}
           onZetTerug={zetTermijnTerug}
           onZetExtraTerug={zetExtraTerug}
           onWijzig={wijzigTermijn}
@@ -816,7 +858,7 @@ function WeekOverzicht({ dezeWeek, volgendeWeek, plannen, huidigeWeek, huidigJaa
 }
 
 // ─── PLANNEN OVERZICHT ────────────────────────────────────────────────────────
-function PlannenOverzicht({ plannen, termijnen, extras, houses, isBackoffice, onVoegExtraToe, onSluitAf, onVerwerkExtra, onVerwerk, onOpmerking, onSchuifWeekOp, onArchiveer, onZetTerug, onZetExtraTerug, onWijzig, onWijzigSleutels, readonly, showToast }) {
+function PlannenOverzicht({ plannen, termijnen, extras, houses, isBackoffice, onVoegExtraToe, onSluitAf, onVerwerkExtra, onVerwerk, onOpmerking, onSchuifWeekOp, onArchiveer, onVertrek, onZetTerug, onZetExtraTerug, onWijzig, onWijzigSleutels, readonly, showToast }) {
   // Groepeer plannen per medewerker
   const groepen = [];
   const gezien = new Set();
@@ -828,7 +870,7 @@ function PlannenOverzicht({ plannen, termijnen, extras, houses, isBackoffice, on
     }
   });
 
-  const planProps = { houses, isBackoffice, onVoegExtraToe, onSluitAf, onVerwerkExtra, onVerwerk, onOpmerking, onSchuifWeekOp, onArchiveer, onZetTerug, onZetExtraTerug, onWijzig, onWijzigSleutels, readonly };
+  const planProps = { houses, isBackoffice, onVoegExtraToe, onSluitAf, onVerwerkExtra, onVerwerk, onOpmerking, onSchuifWeekOp, onArchiveer, onVertrek, onZetTerug, onZetExtraTerug, onWijzig, onWijzigSleutels, readonly };
 
   return (
     <div style={{display:"grid",gap:16}}>
@@ -887,7 +929,7 @@ function PlannenOverzicht({ plannen, termijnen, extras, houses, isBackoffice, on
   );
 }
 
-function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraToe, onSluitAf, onVerwerkExtra, onVerwerk, onOpmerking, onSchuifWeekOp, onArchiveer, onZetTerug, onZetExtraTerug, onWijzig, onWijzigSleutels, readonly, gegroepeerd=false }) {
+function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraToe, onSluitAf, onVerwerkExtra, onVerwerk, onOpmerking, onSchuifWeekOp, onArchiveer, onVertrek, onZetTerug, onZetExtraTerug, onWijzig, onWijzigSleutels, readonly, gegroepeerd=false }) {
   const [toonDetails, setToonDetails] = useState(false);
   const [toonExtra, setToonExtra] = useState(false);
   const [toonOpmerkingForm, setToonOpmerkingForm] = useState(false);
@@ -897,6 +939,9 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
   const [extraType, setExtraType] = useState("inhouden");
   const [toonArchiveer, setToonArchiveer] = useState(false);
   const [archiveerReden, setArchiveerReden] = useState("");
+  const [toonVertrek, setToonVertrek] = useState(false);
+  const [vertrekKeuze, setVertrekKeuze] = useState("vervalt");
+  const [vertrekReden, setVertrekReden] = useState("");
   const [toonSleutelsWijzig, setToonSleutelsWijzig] = useState(false);
   const [nieuweSleutels, setNieuweSleutels] = useState(plan.sleutels ?? 0);
   const [extraBijlage, setExtraBijlage] = useState(null);
@@ -1193,7 +1238,53 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
             </button>
           )}
 
-          {/* Archiveren met reden */}
+          {/* Vertrokken – afsluiten (borg vervalt of terugbetalen) */}
+          {onVertrek && (toonVertrek ? (
+            <div style={{width:"100%",background:"#fffbeb",border:"1px solid #fde68a",borderRadius:10,padding:14,marginTop:4}}>
+              <div style={{fontWeight:700,fontSize:13,color:C.text,marginBottom:8}}>🚪 Vertrokken – borgplan afsluiten</div>
+              <div style={{fontSize:12,color:C.muted,marginBottom:10}}>
+                Ingehouden: <strong style={{color:C.groen}}>€{totaalIngehouden.toFixed(2)}</strong>
+                {" · "}Nog open (vervalt, wordt niet meer ingehouden): <strong style={{color:C.oranje}}>€{nogInTehouden.toFixed(2)}</strong>
+              </div>
+              <div style={{display:"flex",gap:10,marginBottom:10,flexWrap:"wrap"}}>
+                {[["vervalt","🔒 Borg vervalt","Niet terugbetalen"],["terugbetalen","💶 Terugbetalen",`€${totaalIngehouden.toFixed(2)} retour`]].map(([k,l,sub])=>(
+                  <div key={k} onClick={()=>setVertrekKeuze(k)}
+                    style={{flex:1,minWidth:140,border:`2px solid ${vertrekKeuze===k?C.blauw:C.border}`,borderRadius:8,padding:"8px",textAlign:"center",cursor:"pointer",background:vertrekKeuze===k?C.blauw+"10":"white"}}>
+                    <div style={{fontWeight:700,fontSize:12,color:vertrekKeuze===k?C.blauw:C.muted}}>{l}</div>
+                    <div style={{fontSize:11,color:C.muted}}>{sub}</div>
+                  </div>
+                ))}
+              </div>
+              <input value={vertrekReden} onChange={e=>setVertrekReden(e.target.value)}
+                placeholder={vertrekKeuze==="vervalt" ? "Reden (bijv. sleutel niet ingeleverd, schade kamer...)" : "Reden (bijv. controle akkoord)"}
+                style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"8px 12px",fontSize:13,outline:"none",fontFamily:"inherit",boxSizing:"border-box",marginBottom:8}}/>
+              <div style={{display:"flex",gap:8}}>
+                <button disabled={!vertrekReden.trim()}
+                  onClick={()=>{
+                    const tekst = vertrekKeuze==="vervalt"
+                      ? `Borgplan ${plan.naam_medewerker} afsluiten?\n\nBorg vervalt: €${totaalIngehouden.toFixed(2)} wordt NIET terugbetaald.\nNog open €${nogInTehouden.toFixed(2)} wordt NIET meer ingehouden.`
+                      : `Borgplan ${plan.naam_medewerker} afsluiten?\n\n€${totaalIngehouden.toFixed(2)} terugbetalen.\nNog open €${nogInTehouden.toFixed(2)} wordt NIET meer ingehouden.`;
+                    if (!window.confirm(tekst)) return;
+                    onVertrek(plan.id, vertrekKeuze, vertrekReden.trim(), { ingehouden: totaalIngehouden, vervallen: nogInTehouden });
+                    setToonVertrek(false); setVertrekReden("");
+                  }}
+                  style={{background:vertrekReden.trim()?C.blauw:C.border,color:"white",border:"none",borderRadius:8,padding:"8px 16px",fontSize:12,fontWeight:600,cursor:vertrekReden.trim()?"pointer":"not-allowed",fontFamily:"inherit"}}>
+                  ✓ Afsluiten
+                </button>
+                <button onClick={()=>{ setToonVertrek(false); setVertrekReden(""); }}
+                  style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"8px 12px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>
+                  Annuleren
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button onClick={()=>{ setVertrekKeuze("vervalt"); setToonVertrek(true); }}
+              style={{background:"white",border:`1.5px solid ${C.blauw}`,color:C.blauw,borderRadius:8,padding:"8px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+              🚪 Vertrokken – afsluiten
+            </button>
+          ))}
+
+          {/* Archiveren met reden (alleen voor test / fout ingevoerd) */}
           {toonArchiveer ? (
             <div style={{width:"100%",background:"#fef2f2",border:"1px solid #fecaca",borderRadius:10,padding:14,marginTop:4}}>
               <div style={{fontWeight:700,fontSize:13,color:C.rood,marginBottom:8}}>🗑 Borgplan archiveren</div>
@@ -1287,8 +1378,16 @@ function Archief({ plannen, termijnen, extras, houses }) {
       {plannen.map(plan=>{
         const huis = houses.find(h=>h.id===plan.woning_id);
         const t = termijnen.filter(t=>t.plan_id===plan.id);
+        const ex = extras.filter(e=>e.plan_id===plan.id);
+        const ingeh = t.filter(x=>x.status==="verwerkt").reduce((s,x)=>s+Number(x.bedrag),0)
+          + ex.filter(e=>e.type==="al_ingehouden").reduce((s,e)=>s+Number(e.bedrag),0)
+          + ex.filter(e=>e.type==="inhouden"&&e.status==="verwerkt").reduce((s,e)=>s+Number(e.bedrag),0);
+        const verv = t.filter(x=>x.status==="vervallen"||x.status==="geannuleerd").reduce((s,x)=>s+Number(x.bedrag),0)
+          + ex.filter(e=>e.type==="inhouden"&&e.status==="vervallen").reduce((s,e)=>s+Number(e.bedrag),0);
+        const kleur = plan.status==="terugbetaald"?C.groen:plan.status==="geannuleerd"?C.rood:plan.status==="vervallen"?C.oranje:C.muted;
+        const label = plan.status==="terugbetaald"?"💶 Terugbetaald":plan.status==="geannuleerd"?"✕ Geannuleerd":plan.status==="vervallen"?"🔒 Borg vervalt – niet terug":"Afgesloten";
         return (
-          <div key={plan.id} style={{background:"white",border:`1px solid ${C.border}`,borderLeft:`4px solid ${plan.status==="terugbetaald"?C.groen:plan.status==="geannuleerd"?C.rood:C.muted}`,borderRadius:10,padding:"14px 18px",opacity:.8}}>
+          <div key={plan.id} style={{background:"white",border:`1px solid ${C.border}`,borderLeft:`4px solid ${kleur}`,borderRadius:10,padding:"14px 18px",opacity:.85}}>
             <div style={{display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:8}}>
               <div>
                 <div style={{fontWeight:700,fontSize:14,color:C.text}}>{plan.naam_medewerker}</div>
@@ -1296,12 +1395,14 @@ function Archief({ plannen, termijnen, extras, houses }) {
                 <div style={{fontSize:12,color:C.muted}}>🔑 {plan.sleutels} sleutel{plan.sleutels>1?"s":""}{plan.heeft_fiets?" · 🚲 Fiets":""}</div>
               </div>
               <div style={{textAlign:"right"}}>
-                <div style={{fontWeight:700,color:plan.status==="terugbetaald"?C.groen:plan.status==="geannuleerd"?C.rood:C.muted}}>
-                  {plan.status==="terugbetaald"?"💶 Terugbetaald":plan.status==="geannuleerd"?"✕ Geannuleerd":"Afgesloten"}
-                </div>
-                <div style={{fontSize:12,color:C.muted}}>€{Number(plan.totaal_borg).toFixed(2)} totaal</div>
+                <div style={{fontWeight:700,color:kleur}}>{label}</div>
+                <div style={{fontSize:12,color:C.muted}}>€{Number(plan.totaal_borg).toFixed(2)} totaal · <span style={{color:C.groen}}>€{ingeh.toFixed(2)} ingehouden</span>{verv>0 && <> · <span style={{color:C.oranje}}>€{verv.toFixed(2)} vervallen</span></>}</div>
+                {plan.vertrek_datum && <div style={{fontSize:11,color:C.muted}}>Vertrek: {new Date(plan.vertrek_datum).toLocaleDateString("nl-NL")}</div>}
               </div>
             </div>
+            {plan.opmerkingen && (
+              <div style={{marginTop:8,fontSize:12,color:C.muted,background:"#f8fafc",borderRadius:8,padding:"8px 10px",whiteSpace:"pre-wrap"}}>💬 {plan.opmerkingen}</div>
+            )}
           </div>
         );
       })}
