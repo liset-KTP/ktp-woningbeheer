@@ -370,21 +370,29 @@ function App() {
         if (!datum || datum > vandaag) return;
         const guardKey = `${h.id}-${k.k}-${k.status}-${datum}`;
         if (statusCheckGedaan.current.has(guardKey)) return;
-        const taakTitel = dc.taakTitel(k);
-        const bestaatAl = taken.some(t =>
-          t.woning_id === h.id && t.kamer === k.k && t.status === "open" && t.titel === taakTitel
-        );
-        if (bestaatAl) { statusCheckGedaan.current.add(guardKey); return; }
         statusCheckGedaan.current.add(guardKey);
-        supabase.from("taken").insert([{
-          titel: taakTitel,
-          omschrijving: dc.taakTekst(k, h),
-          woning_id: h.id, kamer: k.k, prioriteit: "normaal", voor_rol: "huismeester",
-          status: "open", aangemaakt_door: "Systeem (statuscontrole)",
-        }]).then(({ error }) => { if (!error) loadTaken(); });
+        const taakTitel = dc.taakTitel(k);
+        // Check rechtstreeks in de database (niet in de lokale 'taken'-lijst: die is door de
+        // Supabase-limiet van 1000 rijen niet volledig). Een taak telt als "al gedaan" als hij
+        // nog open staat, óf als hij op/na de huidige statusdatum is aangemaakt (ook als hij al
+        // is afgevinkt). Zo komt een afgevinkte controle niet na elke refresh terug; pas als de
+        // datum wordt aangepast en die nieuwe datum weer verstrijkt, volgt een nieuwe taak.
+        supabase.from("taken").select("id")
+          .eq("woning_id", h.id).eq("kamer", k.k).eq("titel", taakTitel)
+          .or(`status.eq.open,created_at.gte.${datum}`)
+          .limit(1)
+          .then(({ data: bestaand, error: chkErr }) => {
+            if (chkErr || (bestaand && bestaand.length > 0)) return;
+            supabase.from("taken").insert([{
+              titel: taakTitel,
+              omschrijving: dc.taakTekst(k, h),
+              woning_id: h.id, kamer: k.k, prioriteit: "normaal", voor_rol: "huismeester",
+              status: "open", aangemaakt_door: "Systeem (statuscontrole)",
+            }]).then(({ error }) => { if (!error) loadTaken(); });
+          });
       });
     });
-  }, [houses, taken, loading, loadTaken]);
+  }, [houses, loading, loadTaken]);
 
   function showToast(msg, type="ok") { setToast({msg,type}); setTimeout(()=>setToast(null),3500); }
 
@@ -1071,6 +1079,19 @@ function App() {
   async function updateTaak(id, updates) {
     const t = taken.find(t=>t.id===id);
     const huis = houses.find(h=>h.id===t?.woning_id);
+    // Statuscontrole-taken mogen pas op "gedaan" als de kamer echt is bijgewerkt.
+    // Anders blijft de kamer op bv. "Gereserveerd" met een verlopen datum staan en is
+    // de data stil fout. Verse check in de database, niet op de lokale state.
+    if (updates.status==="gedaan" && t?.aangemaakt_door==="Systeem (statuscontrole)" && t?.woning_id) {
+      const { data: w } = await supabase.from("woningen").select("kamers").eq("id", t.woning_id).single();
+      const kamer = (w?.kamers||[]).find(k => k.k === t.kamer);
+      const dc = kamer ? STATUS_DATUM[kamer.status] : null;
+      const datum = dc ? kamer[dc.veld] : null;
+      if (dc && datum && datum <= todayISO() && dc.taakTitel(kamer) === t.titel) {
+        showToast(`Kamer ${t.kamer} staat nog op "${kamer.status}" (datum ${datum}). Werk eerst de kamerstatus bij of pas de datum aan.`, "err");
+        return;
+      }
+    }
     // Verwijder notitie uit updates als de kolom niet bestaat
     const safeUpdates = {...updates};
     const { error } = await supabase.from("taken").update(safeUpdates).eq("id",id);
