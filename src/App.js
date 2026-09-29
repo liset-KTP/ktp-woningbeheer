@@ -218,7 +218,13 @@ function App() {
       return obj && obj.token && obj.gebruiker ? obj : null;
     } catch { return null; }
   });
-  const gebruiker = sessie?.gebruiker || null;
+  const gebruikerEcht = sessie?.gebruiker || null;
+  // "Bekijk als"-modus (alleen Liset): de app toont zich zoals een andere rol hem ziet, om collega's te helpen.
+  // Alleen weergave in de browser — rechten in de database blijven die van Liset, acties worden op haar naam gelogd.
+  const kanBekijkenAls = gebruikerEcht?.naam?.trim().toLowerCase() === "liset";
+  const [bekijkAlsRol, setBekijkAlsRol] = useState(null);
+  const gebruiker = gebruikerEcht && kanBekijkenAls && bekijkAlsRol
+    ? { ...gebruikerEcht, rol: bekijkAlsRol, bekijkModus: true } : gebruikerEcht;
   const sessieToken = sessie?.token || null;
   // null = niets; { verplicht, oudePin? } = scherm "nieuwe pincode kiezen" tonen
   const [pinWijzigen, setPinWijzigen] = useState(null);
@@ -420,6 +426,7 @@ function App() {
   function login(res, oudePin) {
     const g = res.gebruiker;
     bewaarSessie({ token: res.token, gebruiker: g });
+    setBekijkAlsRol(null);
     setPinWijzigen(res.pin_moet_wijzigen ? { verplicht: true, oudePin } : null);
     setTab(g.rol==="collega"||g.rol==="financieel"?"taken":g.rol==="huismeester"?"todo":"dashboard");
     loadOngelzenAutoReacties(g.naam);
@@ -435,6 +442,7 @@ function App() {
     try { localStorage.removeItem("ktp_sessie"); localStorage.removeItem("ktp_tab"); } catch {}
     bewaarSessie(null);
     setPinWijzigen(null);
+    setBekijkAlsRol(null);
   }
 
   // Sessiecontrole: bij openen, elke 5 minuten en zodra de app weer op de voorgrond komt.
@@ -1369,7 +1377,13 @@ function App() {
   const mijnOverzichtOpen = mijnMeldingen.filter(m=>m.status!=="afgehandeld"&&m.status!=="verwerkt"&&m.status!=="geannuleerd").length
     + taken.filter(t=>t.voor_rol==="collega"&&t.status!=="gedaan").length;
   const naam = gebruiker?.naam;
-  const isLiset = ["liset","warscha"].includes(naam?.trim().toLowerCase());
+  const isLiset = ["liset","warscha"].includes(naam?.trim().toLowerCase()) && !gebruiker?.bekijkModus;
+  function wisselBekijkAls(nieuweRol) {
+    const r = nieuweRol || null;
+    setBekijkAlsRol(r);
+    const effRol = r || gebruikerEcht?.rol;
+    setTab(effRol==="collega"||effRol==="financieel"?"taken":effRol==="huismeester"?"todo":"dashboard");
+  }
   // Gebruikers & pincodes beheren (reset bij vergeten pincode): hele backoffice
   const magGebruikersBeheren = rol==="backoffice";
 
@@ -1458,10 +1472,25 @@ function App() {
                 <span style={{fontSize:12}}>{rolIcon}</span>
                 <span style={{fontSize:12,color:"white",fontWeight:600}}>{naam}</span>
               </div>
+              {kanBekijkenAls && (
+                <select value={bekijkAlsRol||""} onChange={e=>wisselBekijkAls(e.target.value)} title="Bekijk de app zoals een andere rol hem ziet"
+                  style={{background:bekijkAlsRol?"#fbbf24":"rgba(255,255,255,.15)",color:bekijkAlsRol?"#1f2937":"white",border:"none",borderRadius:7,padding:"5px 6px",fontSize:12,fontWeight:700,fontFamily:"inherit",cursor:"pointer"}}>
+                  <option value="" style={{color:"#1f2937"}}>👁 Eigen weergave</option>
+                  <option value="collega" style={{color:"#1f2937"}}>👁 Als collega</option>
+                  <option value="huismeester" style={{color:"#1f2937"}}>👁 Als huismeester</option>
+                  <option value="financieel" style={{color:"#1f2937"}}>👁 Als financieel</option>
+                </select>
+              )}
               <button style={{background:"rgba(255,255,255,.15)",border:"none",borderRadius:7,padding:"5px 10px",fontSize:12,color:"white",cursor:"pointer",fontFamily:"inherit"}} onClick={()=>setPinWijzigen({ verplicht:false })} title="Pincode wijzigen">🔑</button>
               <button style={{background:"rgba(255,255,255,.15)",border:"none",borderRadius:7,padding:"5px 10px",fontSize:12,color:"white",cursor:"pointer",fontFamily:"inherit"}} onClick={logout}>↩</button>
             </div>
           </div>
+          {gebruiker?.bekijkModus && (
+            <div style={{background:"#fbbf24",color:"#1f2937",borderRadius:8,padding:"6px 12px",margin:"0 0 6px",fontSize:12,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,flexWrap:"wrap"}}>
+              <span>👁 Je bekijkt de app als <u>{bekijkAlsRol}</u>. Wat je hier doet, wordt gewoon op jouw naam uitgevoerd en gelogd.</span>
+              <button onClick={()=>wisselBekijkAls(null)} style={{background:"#1f2937",color:"white",border:"none",borderRadius:6,padding:"4px 10px",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>↩ Terug naar eigen weergave</button>
+            </div>
+          )}
           {/* Tab navigatie — horizontaal scrollbaar op mobiel */}
           <div style={{display:"flex",gap:2,overflowX:"auto",paddingBottom:6,scrollbarWidth:"none",msOverflowStyle:"none"}}>
             {rol==="collega" && (<>

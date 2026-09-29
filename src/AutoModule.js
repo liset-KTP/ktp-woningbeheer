@@ -318,7 +318,7 @@ export function AutoModule({ gebruiker, showToast }) {
   }
 
   const openMeldingen = autoMeldingen.filter(m => m.status === "open");
-  const isLiset = gebruiker?.naam === "Liset";
+  const isLiset = gebruiker?.naam === "Liset" && !gebruiker?.bekijkModus;
   const isBackoffice = gebruiker?.rol === "backoffice";
 
   if (loading) return <div style={{textAlign:"center",padding:"60px",color:C.muted}}>⏳ Laden...</div>;
