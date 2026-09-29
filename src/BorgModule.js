@@ -401,23 +401,43 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
       const datumNu = new Date().toLocaleDateString("nl-NL");
       const ingeh = Number(bedragen?.ingehouden || 0).toFixed(2);
       const verv = Number(bedragen?.vervallen || 0).toFixed(2);
+      const terug = keuze === "vervalt" ? 0 : keuze === "terugbetalen" ? Number(ingeh) : Number(bedragen?.terug || 0);
+      const behouden = (Number(ingeh) - terug).toFixed(2);
       const kern = keuze === "vervalt"
         ? `Vertrokken — borg vervalt (niet terugbetalen). €${ingeh} ingehouden, €${verv} open vervallen.`
-        : `Vertrokken — borg terugbetalen: €${ingeh}. €${verv} open vervallen.`;
+        : keuze === "terugbetalen"
+          ? `Vertrokken — borg terugbetalen: €${ingeh}. €${verv} open vervallen.`
+          : `Vertrokken — deels terugbetalen: €${terug.toFixed(2)} terug, €${behouden} ingehouden (niet terug). €${verv} open vervallen.`;
+      // Terugbetaling klaarzetten in "Terug te betalen" (tenzij er al een staat)
+      if (terug > 0) {
+        const { data: bestaand } = await supabase.from("borg_extra").select("id").eq("plan_id", planId).eq("type", "terugbetalen");
+        if (bestaand && bestaand.length > 0) {
+          showToast("⚠️ Er staat al een terugbetaling voor dit plan — niets afgesloten. Controleer eerst 'Terug te betalen'.");
+          return;
+        }
+        await supabase.from("borg_extra").insert([{
+          plan_id: planId,
+          naam_medewerker: plan?.naam_medewerker || "—",
+          omschrijving: keuze === "gedeeltelijk" ? `Borg deels terug (van €${ingeh}) — ${reden}` : `Borg terug bij vertrek — ${reden}`,
+          bedrag: terug,
+          type: "terugbetalen",
+          status: "open",
+        }]);
+      }
       await supabase.from("borg_termijnen").update({ status: "vervallen" }).eq("plan_id", planId).eq("status", "open");
       await supabase.from("borg_extra").update({ status: "vervallen" }).eq("plan_id", planId).eq("type", "inhouden").eq("status", "open");
       await supabase.from("borg_plannen").update({
-        status: keuze === "vervalt" ? "vervallen" : "terugbetaald",
+        status: keuze === "vervalt" ? "vervallen" : keuze === "terugbetalen" ? "terugbetaald" : "deels_terugbetaald",
         vertrek_datum: new Date().toISOString().slice(0,10),
         opmerkingen: `${plan?.opmerkingen ? plan.opmerkingen + "\n" : ""}[${datumNu} - ${gebruiker.naam}] ${kern} Reden: ${reden}`,
       }).eq("id", planId);
       await supabase.from("activiteiten").insert([{
-        type: keuze === "vervalt" ? "borg_vervallen" : "borg_terugbetaald",
-        omschrijving: `${keuze === "vervalt" ? "🚪 Borg vervalt" : "💶 Borg terugbetalen"}: ${plan?.naam_medewerker || "?"} — ${kern} Reden: ${reden}`,
+        type: keuze === "vervalt" ? "borg_vervallen" : keuze === "terugbetalen" ? "borg_terugbetaald" : "borg_deels_terugbetaald",
+        omschrijving: `${keuze === "vervalt" ? "🚪 Borg vervalt" : keuze === "terugbetalen" ? "💶 Borg terugbetalen" : "💶 Borg deels terugbetalen"}: ${plan?.naam_medewerker || "?"} — ${kern} Reden: ${reden}`,
         gedaan_door: gebruiker?.naam || "?",
-        extra: { borg_plan_id: planId, naam: plan?.naam_medewerker, ingehouden: Number(ingeh), vervallen: Number(verv), keuze, reden },
+        extra: { borg_plan_id: planId, naam: plan?.naam_medewerker, ingehouden: Number(ingeh), vervallen: Number(verv), terug, keuze, reden },
       }]);
-      showToast(keuze === "vervalt" ? "✓ Afgesloten — borg vervalt" : "✓ Afgesloten — borg terugbetalen");
+      showToast(keuze === "vervalt" ? "✓ Afgesloten — borg vervalt" : `✓ Afgesloten — €${terug.toFixed(2)} klaargezet in 'Terug te betalen'`);
       await loadAll();
     } finally {
       bezigSluitenRef.current = false;
@@ -942,6 +962,7 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
   const [toonVertrek, setToonVertrek] = useState(false);
   const [vertrekKeuze, setVertrekKeuze] = useState("vervalt");
   const [vertrekReden, setVertrekReden] = useState("");
+  const [vertrekTerugBedrag, setVertrekTerugBedrag] = useState("");
   const [toonSleutelsWijzig, setToonSleutelsWijzig] = useState(false);
   const [nieuweSleutels, setNieuweSleutels] = useState(plan.sleutels ?? 0);
   const [extraBijlage, setExtraBijlage] = useState(null);
@@ -965,6 +986,11 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
   const totaalSchuld = totaalIngehouden + totaalNogOpen;
   const nogInTehouden = totaalNogOpen;
   const pct = totaalSchuld > 0 ? Math.min(100, (totaalIngehouden/totaalSchuld)*100) : 0;
+
+  // Validatie "Vertrokken – afsluiten"
+  const deelsBedrag = Number(vertrekTerugBedrag);
+  const deelsBedragOk = vertrekTerugBedrag !== "" && deelsBedrag > 0 && deelsBedrag < totaalIngehouden;
+  const vertrekKanAfsluiten = !!vertrekReden.trim() && (vertrekKeuze !== "gedeeltelijk" || deelsBedragOk);
 
   return (
     <div style={{background:"white",border:gegroepeerd?"none":`1px solid ${C.border}`,borderLeft:`4px solid ${C.blauw}`,borderRadius:gegroepeerd?0:12,padding:gegroepeerd?"14px 20px":20}}>
@@ -1247,7 +1273,7 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
                 {" · "}Nog open (vervalt, wordt niet meer ingehouden): <strong style={{color:C.oranje}}>€{nogInTehouden.toFixed(2)}</strong>
               </div>
               <div style={{display:"flex",gap:10,marginBottom:10,flexWrap:"wrap"}}>
-                {[["vervalt","🔒 Borg vervalt","Niet terugbetalen"],["terugbetalen","💶 Terugbetalen",`€${totaalIngehouden.toFixed(2)} retour`]].map(([k,l,sub])=>(
+                {[["vervalt","🔒 Borg vervalt","Niet terugbetalen"],["gedeeltelijk","➗ Deels terug","Zelf bedrag invullen"],["terugbetalen","💶 Volledig terug",`€${totaalIngehouden.toFixed(2)} retour`]].map(([k,l,sub])=>(
                   <div key={k} onClick={()=>setVertrekKeuze(k)}
                     style={{flex:1,minWidth:140,border:`2px solid ${vertrekKeuze===k?C.blauw:C.border}`,borderRadius:8,padding:"8px",textAlign:"center",cursor:"pointer",background:vertrekKeuze===k?C.blauw+"10":"white"}}>
                     <div style={{fontWeight:700,fontSize:12,color:vertrekKeuze===k?C.blauw:C.muted}}>{l}</div>
@@ -1255,23 +1281,42 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
                   </div>
                 ))}
               </div>
+              {vertrekKeuze==="gedeeltelijk" && (
+                <div style={{marginBottom:8}}>
+                  <input type="number" min="0.01" step="0.01" max={totaalIngehouden} value={vertrekTerugBedrag} onChange={e=>setVertrekTerugBedrag(e.target.value)}
+                    placeholder={`Terug te betalen bedrag (max €${totaalIngehouden.toFixed(2)})`}
+                    style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"8px 12px",fontSize:13,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
+                  {deelsBedragOk && (
+                    <div style={{fontSize:11,color:C.muted,marginTop:4}}>
+                      €{Number(vertrekTerugBedrag).toFixed(2)} terug · €{(totaalIngehouden-Number(vertrekTerugBedrag)).toFixed(2)} blijft ingehouden
+                    </div>
+                  )}
+                  {vertrekTerugBedrag !== "" && !deelsBedragOk && (
+                    <div style={{fontSize:11,color:C.rood,marginTop:4}}>Bedrag moet tussen €0,01 en €{totaalIngehouden.toFixed(2)} liggen (bij volledig: kies "Volledig terug").</div>
+                  )}
+                </div>
+              )}
               <input value={vertrekReden} onChange={e=>setVertrekReden(e.target.value)}
-                placeholder={vertrekKeuze==="vervalt" ? "Reden (bijv. sleutel niet ingeleverd, schade kamer...)" : "Reden (bijv. controle akkoord)"}
+                placeholder={vertrekKeuze==="terugbetalen" ? "Reden (bijv. controle akkoord)" : vertrekKeuze==="gedeeltelijk" ? "Reden inhouding (bijv. schoonmaakkosten €50, kapotte lamp...)" : "Reden (bijv. sleutel niet ingeleverd, schade kamer...)"}
                 style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"8px 12px",fontSize:13,outline:"none",fontFamily:"inherit",boxSizing:"border-box",marginBottom:8}}/>
               <div style={{display:"flex",gap:8}}>
-                <button disabled={!vertrekReden.trim()}
+                <button disabled={!vertrekKanAfsluiten}
                   onClick={()=>{
-                    const tekst = vertrekKeuze==="vervalt"
+                    if (!vertrekKanAfsluiten) return;
+                    const tb = Number(vertrekTerugBedrag);
+                    const tekst = vertrekKeuze==="gedeeltelijk"
+                      ? `Borgplan ${plan.naam_medewerker} afsluiten?\n\n€${tb.toFixed(2)} terugbetalen (komt in 'Terug te betalen').\n€${(totaalIngehouden-tb).toFixed(2)} blijft ingehouden.\nNog open €${nogInTehouden.toFixed(2)} wordt NIET meer ingehouden.`
+                      : vertrekKeuze==="vervalt"
                       ? `Borgplan ${plan.naam_medewerker} afsluiten?\n\nBorg vervalt: €${totaalIngehouden.toFixed(2)} wordt NIET terugbetaald.\nNog open €${nogInTehouden.toFixed(2)} wordt NIET meer ingehouden.`
                       : `Borgplan ${plan.naam_medewerker} afsluiten?\n\n€${totaalIngehouden.toFixed(2)} terugbetalen.\nNog open €${nogInTehouden.toFixed(2)} wordt NIET meer ingehouden.`;
                     if (!window.confirm(tekst)) return;
-                    onVertrek(plan.id, vertrekKeuze, vertrekReden.trim(), { ingehouden: totaalIngehouden, vervallen: nogInTehouden });
-                    setToonVertrek(false); setVertrekReden("");
+                    onVertrek(plan.id, vertrekKeuze, vertrekReden.trim(), { ingehouden: totaalIngehouden, vervallen: nogInTehouden, terug: vertrekKeuze==="gedeeltelijk" ? tb : undefined });
+                    setToonVertrek(false); setVertrekReden(""); setVertrekTerugBedrag("");
                   }}
-                  style={{background:vertrekReden.trim()?C.blauw:C.border,color:"white",border:"none",borderRadius:8,padding:"8px 16px",fontSize:12,fontWeight:600,cursor:vertrekReden.trim()?"pointer":"not-allowed",fontFamily:"inherit"}}>
+                  style={{background:vertrekKanAfsluiten?C.blauw:C.border,color:"white",border:"none",borderRadius:8,padding:"8px 16px",fontSize:12,fontWeight:600,cursor:vertrekKanAfsluiten?"pointer":"not-allowed",fontFamily:"inherit"}}>
                   ✓ Afsluiten
                 </button>
-                <button onClick={()=>{ setToonVertrek(false); setVertrekReden(""); }}
+                <button onClick={()=>{ setToonVertrek(false); setVertrekReden(""); setVertrekTerugBedrag(""); }}
                   style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"8px 12px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>
                   Annuleren
                 </button>
@@ -1384,8 +1429,10 @@ function Archief({ plannen, termijnen, extras, houses }) {
           + ex.filter(e=>e.type==="inhouden"&&e.status==="verwerkt").reduce((s,e)=>s+Number(e.bedrag),0);
         const verv = t.filter(x=>x.status==="vervallen"||x.status==="geannuleerd").reduce((s,x)=>s+Number(x.bedrag),0)
           + ex.filter(e=>e.type==="inhouden"&&e.status==="vervallen").reduce((s,e)=>s+Number(e.bedrag),0);
-        const kleur = plan.status==="terugbetaald"?C.groen:plan.status==="geannuleerd"?C.rood:plan.status==="vervallen"?C.oranje:C.muted;
-        const label = plan.status==="terugbetaald"?"💶 Terugbetaald":plan.status==="geannuleerd"?"✕ Geannuleerd":plan.status==="vervallen"?"🔒 Borg vervalt – niet terug":"Afgesloten";
+        const terugB = ex.filter(e=>e.type==="terugbetalen").reduce((s,e)=>s+Number(e.bedrag),0);
+        const terugOpen = ex.some(e=>e.type==="terugbetalen"&&e.status==="open");
+        const kleur = plan.status==="terugbetaald"||plan.status==="deels_terugbetaald"?C.groen:plan.status==="geannuleerd"?C.rood:plan.status==="vervallen"?C.oranje:C.muted;
+        const label = plan.status==="terugbetaald"?"💶 Terugbetaald":plan.status==="deels_terugbetaald"?"➗ Deels terugbetaald":plan.status==="geannuleerd"?"✕ Geannuleerd":plan.status==="vervallen"?"🔒 Borg vervalt – niet terug":"Afgesloten";
         return (
           <div key={plan.id} style={{background:"white",border:`1px solid ${C.border}`,borderLeft:`4px solid ${kleur}`,borderRadius:10,padding:"14px 18px",opacity:.85}}>
             <div style={{display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:8}}>
@@ -1397,6 +1444,7 @@ function Archief({ plannen, termijnen, extras, houses }) {
               <div style={{textAlign:"right"}}>
                 <div style={{fontWeight:700,color:kleur}}>{label}</div>
                 <div style={{fontSize:12,color:C.muted}}>€{Number(plan.totaal_borg).toFixed(2)} totaal · <span style={{color:C.groen}}>€{ingeh.toFixed(2)} ingehouden</span>{verv>0 && <> · <span style={{color:C.oranje}}>€{verv.toFixed(2)} vervallen</span></>}</div>
+                {terugB>0 && <div style={{fontSize:12,color:C.groen}}>€{terugB.toFixed(2)} terug{terugOpen?" (nog uit te betalen)":" ✓ uitbetaald"}</div>}
                 {plan.vertrek_datum && <div style={{fontSize:11,color:C.muted}}>Vertrek: {new Date(plan.vertrek_datum).toLocaleDateString("nl-NL")}</div>}
               </div>
             </div>
