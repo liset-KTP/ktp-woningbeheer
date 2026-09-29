@@ -1370,6 +1370,8 @@ function App() {
     + taken.filter(t=>t.voor_rol==="collega"&&t.status!=="gedaan").length;
   const naam = gebruiker?.naam;
   const isLiset = ["liset","warscha"].includes(naam?.trim().toLowerCase());
+  // Gebruikers & pincodes beheren (reset bij vergeten pincode): hele backoffice
+  const magGebruikersBeheren = rol==="backoffice";
 
   if (loading) return <LoadingScreen />;
   if (!gebruiker) return <LoginScreen gebruikers={gebruikers} onLogin={login} taal={taal} onTaalWissel={wisselTaal}/>;
@@ -1507,7 +1509,7 @@ function App() {
             {rol==="backoffice" && (<>
               <button className={`tp ${tab==="dashboard"?"act":""}`} onClick={()=>setTab("dashboard")}>📊 Dashboard</button>
               <button className={`tp ${tab==="taken"?"act":""}`} onClick={()=>setTab("taken")}>📋 Taken {(openTaken.length+openMeldingen.length)>0&&<Notif n={openTaken.length+openMeldingen.length}/>}</button>
-              {isLiset&&<button className={`tp ${tab==="beheer"?"act":""}`} onClick={()=>setTab("beheer")} style={{fontWeight:800}}>⚙️ Beheer</button>}
+              {(isLiset||magGebruikersBeheren)&&<button className={`tp ${tab==="beheer"?"act":""}`} onClick={()=>setTab("beheer")} style={{fontWeight:800}}>⚙️ Beheer</button>}
               <button className={`tp ${tab==="woningen"?"act":""}`} onClick={()=>setTab("woningen")}>🏠 Woningen</button>
               <button className={`tp ${tab==="autos"?"act":""}`} onClick={()=>setTab("autos")}>🚗 Auto's</button>
               <button className={`tp ${tab==="fietsen"?"act":""}`} onClick={()=>setTab("fietsen")}>🚲 Fietsen</button>
@@ -1542,7 +1544,7 @@ function App() {
         {tab==="kleding"&&<KledingModule gebruiker={gebruiker} showToast={showToast}/>}
         {tab==="medewerker360"&&<Medewerker360View houses={houses} gebruiker={gebruiker} showToast={showToast} onAddTaak={addTaak}/>}
         {tab==="huismeesterplanning"&&<HuismeesterPlanningView dagplanningDB={dagplanningDB} houses={houses} taken={taken} meldingen={meldingen} checklists={checklists} checklistItems={checklistItems}/>}
-        {rol==="backoffice"&&isLiset&&tab==="beheer"&&<BeheerView houses={houses} gearchiveerdeHouses={gearchiveerdeHouses} onAdd={addWoning} onUpdate={updateWoning} onArchiveer={archiveerWoning} onTerugzetten={terugzetWoning} showToast={showToast} gebruikers={gebruikers} onAddGebruiker={voegGebruikerToe} onUpdateGebruiker={updateGebruiker} onDeleteGebruiker={verwijderGebruiker} onIedereenUitloggen={iedereenUitloggen} checklistItems={checklistItems} dagplanningDB={dagplanningDB}/>}
+        {rol==="backoffice"&&(isLiset||magGebruikersBeheren)&&tab==="beheer"&&<BeheerView alleenGebruikers={!isLiset} houses={houses} gearchiveerdeHouses={gearchiveerdeHouses} onAdd={addWoning} onUpdate={updateWoning} onArchiveer={archiveerWoning} onTerugzetten={terugzetWoning} showToast={showToast} gebruikers={gebruikers} onAddGebruiker={voegGebruikerToe} onUpdateGebruiker={updateGebruiker} onDeleteGebruiker={verwijderGebruiker} onIedereenUitloggen={iedereenUitloggen} checklistItems={checklistItems} dagplanningDB={dagplanningDB}/>}
       </div>
     </div>
   );
@@ -2422,8 +2424,8 @@ function LoginScreen({ gebruikers, onLogin, taal="nl", onTaalWissel }) {
                 </div>
                 <div style={{fontWeight:800,fontSize:20,color:C.text}}>{geselecteerd.naam}</div>
               </div>
-              <label style={{display:"block",fontSize:11,fontWeight:700,color:C.muted,letterSpacing:"1px",textTransform:"uppercase",marginBottom:8}}>Pincode</label>
-              <input type="password" inputMode="numeric" autoComplete="current-password" value={pin} onChange={e=>{setPin(e.target.value.replace(/\D/g,""));setFout("");}} onKeyDown={e=>e.key==="Enter"&&probeerLogin()} placeholder="••••••" maxLength={8}
+              <label style={{display:"block",fontSize:11,fontWeight:700,color:C.muted,letterSpacing:"1px",textTransform:"uppercase",marginBottom:8}}>Pincode of wachtwoord</label>
+              <input type="password" autoComplete="current-password" value={pin} onChange={e=>{setPin(e.target.value.replace(/\s/g,""));setFout("");}} onKeyDown={e=>e.key==="Enter"&&probeerLogin()} placeholder="••••••" maxLength={64}
                 style={{width:"100%",background:C.bg,border:`2px solid ${fout?"#ef4444":C.border}`,borderRadius:10,color:C.text,padding:"16px",fontSize:26,outline:"none",letterSpacing:10,textAlign:"center",marginBottom:10,transition:"border .2s"}}/>
               {fout&&<div style={{color:"#ef4444",fontSize:13,marginBottom:12,textAlign:"center",fontWeight:500}}>⚠ {fout}</div>}
               <button onClick={probeerLogin} disabled={!pin||bezig}
@@ -2439,6 +2441,16 @@ function LoginScreen({ gebruikers, onLogin, taal="nl", onTaalWissel }) {
   );
 }
 
+// Toegestaan: 6-8 cijfers, óf minimaal 8 tekens met minstens één letter en één cijfer (zelfde regel als in de database)
+function wachtwoordFout(w) {
+  if (/^\d{6,8}$/.test(w)) return "";
+  if (/^\d+$/.test(w)) return "Alleen cijfers? Dan 6 tot 8 cijfers";
+  if (w.length < 8) return "Minimaal 8 tekens (of 6 cijfers)";
+  if (w.length > 64) return "Maximaal 64 tekens";
+  if (!/[A-Za-z]/.test(w) || !/\d/.test(w)) return "Gebruik minstens één letter én één cijfer";
+  return "";
+}
+
 function PinWijzigenScreen({ token, naam, verplicht, oudePin, onKlaar, onAnnuleer, onLogout }) {
   const [huidig, setHuidig] = useState("");
   const [nieuw, setNieuw] = useState("");
@@ -2446,13 +2458,14 @@ function PinWijzigenScreen({ token, naam, verplicht, oudePin, onKlaar, onAnnulee
   const [fout, setFout] = useState("");
   const [bezig, setBezig] = useState(false);
   const moetHuidigVragen = !oudePin;
-  const alleenCijfers = v => v.replace(/\D/g, "");
+  const schoon = v => v.replace(/\s/g, "");
 
   async function opslaan() {
     setFout("");
     const oud = oudePin || huidig;
     if (!oud) { setFout("Vul je huidige pincode in"); return; }
-    if (nieuw.length < 6) { setFout("Nieuwe pincode moet minimaal 6 cijfers zijn"); return; }
+    const regelFout = wachtwoordFout(nieuw);
+    if (regelFout) { setFout(regelFout); return; }
     if (nieuw !== herhaal) { setFout("De twee nieuwe pincodes zijn niet gelijk"); return; }
     setBezig(true);
     const { data, error } = await supabase.rpc("app_pin_wijzigen", { p_token: token, p_oude_pin: oud, p_nieuwe_pin: nieuw });
@@ -2462,27 +2475,30 @@ function PinWijzigenScreen({ token, naam, verplicht, oudePin, onKlaar, onAnnulee
     onKlaar();
   }
 
-  const veld = { width:"100%", background:C.bg, border:`2px solid ${C.border}`, borderRadius:10, color:C.text, padding:"14px", fontSize:22, outline:"none", letterSpacing:8, textAlign:"center", marginBottom:12 };
+  const veld = { width:"100%", background:C.bg, border:`2px solid ${C.border}`, borderRadius:10, color:C.text, padding:"14px", fontSize:22, outline:"none", letterSpacing:4, textAlign:"center", marginBottom:12 };
   const label = { display:"block", fontSize:11, fontWeight:700, color:C.muted, letterSpacing:"1px", textTransform:"uppercase", marginBottom:6 };
   return (
     <div style={{minHeight:"100vh",background:`linear-gradient(135deg,${C.blauw} 0%,${C.blauwDark} 60%,${C.dark} 100%)`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",fontFamily:"'Inter',sans-serif",padding:20}}>
       <div style={{width:"100%",maxWidth:420,background:"white",borderRadius:20,boxShadow:"0 40px 80px rgba(0,0,0,.4)",overflow:"hidden"}}>
         <div style={{background:C.groen,padding:"16px 28px"}}>
-          <div style={{fontSize:14,fontWeight:700,color:"white"}}>🔑 {verplicht ? "Kies een nieuwe pincode" : "Pincode wijzigen"} — {naam}</div>
+          <div style={{fontSize:14,fontWeight:700,color:"white"}}>🔑 {verplicht ? "Kies een nieuwe pincode of wachtwoord" : "Pincode / wachtwoord wijzigen"} — {naam}</div>
         </div>
         <div style={{padding:"24px 28px 28px"}}>
           {verplicht && <div style={{fontSize:13,color:C.text,background:"#fef3c7",border:"1px solid #f59e0b",borderRadius:10,padding:"10px 14px",marginBottom:18,lineHeight:1.5}}>
             Voor de veiligheid kiest iedereen een nieuwe, persoonlijke pincode. Deel deze met niemand.
           </div>}
-          <div style={{fontSize:12,color:C.muted,marginBottom:16,lineHeight:1.5}}>6 tot 8 cijfers. Niet je oude pincode en geen reeksen zoals 123456 of 111111.</div>
+          <div style={{fontSize:12,color:C.muted,marginBottom:16,lineHeight:1.5}}>
+            Kies <b>6 tot 8 cijfers</b> óf een wachtwoord van <b>minimaal 8 tekens met letters en cijfers</b>.<br/>
+            Niet je oude pincode en geen reeksen zoals 123456 of 111111. Hoofdletters tellen mee.
+          </div>
           {moetHuidigVragen && <>
             <label style={label}>Huidige pincode</label>
-            <input type="password" inputMode="numeric" autoComplete="current-password" value={huidig} maxLength={8} onChange={e=>{setHuidig(alleenCijfers(e.target.value));setFout("");}} style={veld}/>
+            <input type="password" autoComplete="current-password" value={huidig} maxLength={64} onChange={e=>{setHuidig(schoon(e.target.value));setFout("");}} style={veld}/>
           </>}
           <label style={label}>Nieuwe pincode</label>
-          <input type="password" inputMode="numeric" autoComplete="new-password" value={nieuw} maxLength={8} onChange={e=>{setNieuw(alleenCijfers(e.target.value));setFout("");}} style={veld}/>
+          <input type="password" autoComplete="new-password" value={nieuw} maxLength={64} onChange={e=>{setNieuw(schoon(e.target.value));setFout("");}} style={veld}/>
           <label style={label}>Herhaal nieuwe pincode</label>
-          <input type="password" inputMode="numeric" autoComplete="new-password" value={herhaal} maxLength={8} onChange={e=>{setHerhaal(alleenCijfers(e.target.value));setFout("");}} onKeyDown={e=>e.key==="Enter"&&opslaan()} style={veld}/>
+          <input type="password" autoComplete="new-password" value={herhaal} maxLength={64} onChange={e=>{setHerhaal(schoon(e.target.value));setFout("");}} onKeyDown={e=>e.key==="Enter"&&opslaan()} style={veld}/>
           {fout && <div style={{color:"#ef4444",fontSize:13,marginBottom:12,textAlign:"center",fontWeight:500}}>⚠ {fout}</div>}
           <button onClick={opslaan} disabled={bezig}
             style={{width:"100%",background:C.blauw,color:"white",border:"none",borderRadius:10,padding:14,fontSize:15,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
@@ -7013,13 +7029,16 @@ function DashboardView({ houses, meldingen, taken, gebruikers, activiteiten }) {
 }
 
 
-function BeheerView({houses,gearchiveerdeHouses=[],onAdd,onUpdate,onArchiveer,onTerugzetten,showToast,gebruikers,onAddGebruiker,onUpdateGebruiker,onDeleteGebruiker,onIedereenUitloggen,checklistItems,dagplanningDB}) {
-  const [subTab,setSubTab]=useState("woningen");
+function BeheerView({alleenGebruikers=false,houses,gearchiveerdeHouses=[],onAdd,onUpdate,onArchiveer,onTerugzetten,showToast,gebruikers,onAddGebruiker,onUpdateGebruiker,onDeleteGebruiker,onIedereenUitloggen,checklistItems,dagplanningDB}) {
+  const [subTabKeuze,setSubTab]=useState("woningen");
+  const subTab = alleenGebruikers ? "gebruikers" : subTabKeuze;
+  const tabs = [["woningen","🏠 Woningen & kamers"],["gearchiveerd","🗃 Gearchiveerd"],["gebruikers","👥 Gebruikers & pincodes"],["checklists","✅ Checklists"],["dagplanning","📅 Dagplanning huismeester"]]
+    .filter(([v])=>!alleenGebruikers||v==="gebruikers");
   return(
     <div>
-      <SH titel="⚙️ Beheer" sub="Alleen beschikbaar voor Liset"/>
+      <SH titel="⚙️ Beheer" sub={alleenGebruikers?"Gebruikers & pincodes":"Alleen beschikbaar voor Liset"}/>
       <div style={{display:"flex",gap:6,marginBottom:24,borderBottom:`2px solid ${C.border}`,paddingBottom:0}}>
-        {[["woningen","🏠 Woningen & kamers"],["gearchiveerd","🗃 Gearchiveerd"],["gebruikers","👥 Gebruikers & pincodes"],["checklists","✅ Checklists"],["dagplanning","📅 Dagplanning huismeester"]].map(([v,l])=>(
+        {tabs.map(([v,l])=>(
           <button key={v} onClick={()=>setSubTab(v)}
             style={{background:"none",border:"none",padding:"10px 20px",fontSize:14,fontWeight:700,color:subTab===v?C.blauw:C.muted,borderBottom:subTab===v?`3px solid ${C.blauw}`:"3px solid transparent",marginBottom:-2,cursor:"pointer",fontFamily:"inherit"}}>
             {l}
@@ -7028,7 +7047,7 @@ function BeheerView({houses,gearchiveerdeHouses=[],onAdd,onUpdate,onArchiveer,on
       </div>
       {subTab==="woningen"&&<WoningBeheer houses={houses} onAdd={onAdd} onUpdate={onUpdate} onArchiveer={onArchiveer} showToast={showToast}/>}
       {subTab==="gearchiveerd"&&<GearchiveerdeBeheer houses={gearchiveerdeHouses} onTerugzetten={onTerugzetten} showToast={showToast}/>}
-      {subTab==="gebruikers"&&<GebruikersBeheer gebruikers={gebruikers} onAdd={onAddGebruiker} onUpdate={onUpdateGebruiker} onDelete={onDeleteGebruiker} onIedereenUitloggen={onIedereenUitloggen} showToast={showToast}/>}
+      {subTab==="gebruikers"&&<GebruikersBeheer hoofdbeheerder={!alleenGebruikers} gebruikers={gebruikers} onAdd={onAddGebruiker} onUpdate={onUpdateGebruiker} onDelete={onDeleteGebruiker} onIedereenUitloggen={onIedereenUitloggen} showToast={showToast}/>}
       {subTab==="checklists"&&<ChecklistItemsBeheer checklistItems={checklistItems} showToast={showToast}/>}
       {subTab==="dagplanning"&&<DagplanningBeheer dagplanningDB={dagplanningDB} showToast={showToast} houses={houses}/>}
     </div>
@@ -7366,14 +7385,14 @@ function KamerBewerken({kamer,onSave,onCancel,saving}) {
   );
 }
 
-function GebruikersBeheer({gebruikers,onAdd,onUpdate,onDelete,onIedereenUitloggen,showToast}) {
+function GebruikersBeheer({hoofdbeheerder=true,gebruikers,onAdd,onUpdate,onDelete,onIedereenUitloggen,showToast}) {
   const [nieuw,setNieuw]=useState({naam:"",pin:"",rol:"collega"});
   const [bewerk,setBewerk]=useState(null);
   const [saving,setSaving]=useState(false);
 
   async function voegToe() {
     if(!nieuw.naam.trim()){showToast("Vul een naam in","err");return;}
-    if(nieuw.pin.length<6){showToast("Tijdelijke pincode moet minimaal 6 cijfers zijn","err");return;}
+    if(wachtwoordFout(nieuw.pin)){showToast("Tijdelijke pincode: "+wachtwoordFout(nieuw.pin),"err");return;}
     if(gebruikers.some(g=>g.naam.toLowerCase()===nieuw.naam.toLowerCase())){showToast("Naam bestaat al","err");return;}
     setSaving(true);
     const ok = await onAdd({naam:nieuw.naam.trim(),pin:nieuw.pin,rol:nieuw.rol});
@@ -7388,7 +7407,7 @@ function GebruikersBeheer({gebruikers,onAdd,onUpdate,onDelete,onIedereenUitlogge
   }
 
   async function slaBewerk(g, updates) {
-    if (updates.pin && updates.pin.length<6) { showToast("Tijdelijke pincode moet minimaal 6 cijfers zijn","err"); return; }
+    if (updates.pin && wachtwoordFout(updates.pin)) { showToast("Tijdelijke pincode: "+wachtwoordFout(updates.pin),"err"); return; }
     setSaving(true);
     const ok = await onUpdate(g.id, updates);
     setSaving(false);
@@ -7411,20 +7430,20 @@ function GebruikersBeheer({gebruikers,onAdd,onUpdate,onDelete,onIedereenUitlogge
         <div style={{fontWeight:700,fontSize:14,color:C.groen,marginBottom:16}}>+ Nieuwe gebruiker toevoegen</div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 120px 160px",gap:12,marginBottom:12}}>
           <div><label className="fl">Naam</label><input className="fi" value={nieuw.naam} onChange={e=>setNieuw(p=>({...p,naam:e.target.value}))} placeholder="Voornaam"/></div>
-          <div><label className="fl">Tijdelijke pincode</label><input className="fi" value={nieuw.pin} onChange={e=>setNieuw(p=>({...p,pin:e.target.value.replace(/\D/g,"")}))} placeholder="6 cijfers" maxLength={8} inputMode="numeric" autoComplete="off"/></div>
+          <div><label className="fl">Tijdelijke pincode</label><input className="fi" value={nieuw.pin} onChange={e=>setNieuw(p=>({...p,pin:e.target.value.replace(/\s/g,"")}))} placeholder="6 cijfers" maxLength={64} autoComplete="off"/></div>
           <div><label className="fl">Rol</label><select className="fs" value={nieuw.rol} onChange={e=>setNieuw(p=>({...p,rol:e.target.value}))}><option value="collega">👤 Collega</option><option value="huismeester">🏠 Huismeester</option><option value="financieel">💶 Financieel</option><option value="backoffice">📊 Backoffice</option></select></div>
         </div>
         <div style={{fontSize:12,color:C.muted,marginBottom:12}}>De nieuwe gebruiker moet deze tijdelijke pincode bij de eerste login vervangen door een eigen pincode.</div>
         <button className="btn-g" style={{padding:"10px 24px"}} onClick={voegToe} disabled={saving}>{saving?"⏳ Opslaan...":"✓ Toevoegen"}</button>
       </div>
-      <div className="card" style={{marginBottom:20,borderTop:"3px solid #ef4444"}}>
+      {hoofdbeheerder&&<div className="card" style={{marginBottom:20,borderTop:"3px solid #ef4444"}}>
         <div style={{fontWeight:700,fontSize:14,color:"#ef4444",marginBottom:8}}>🔒 Beveiliging</div>
         <div style={{fontSize:13,color:C.text,marginBottom:12,lineHeight:1.5}}>
           Iemand uit dienst? Verwijder die persoon hieronder: de sessie wordt direct beëindigd op alle apparaten.<br/>
           Vermoed je dat pincodes bekend zijn geworden? Log dan iedereen uit en laat iedereen een nieuwe pincode kiezen.
         </div>
         <button className="btn-r" style={{padding:"8px 18px",fontSize:13}} onClick={allesUitloggen} disabled={saving}>Iedereen uitloggen + nieuwe pincode verplicht</button>
-      </div>
+      </div>}
       <div className="card">
         <div style={{fontWeight:700,fontSize:14,color:C.blauw,marginBottom:16}}>Alle gebruikers ({gebruikers.length})</div>
         {gebruikers.map(g=>(
@@ -7452,7 +7471,7 @@ function GebruikerBewerken({g,onSave,onCancel}) {
       <div style={{fontSize:12,fontWeight:700,color:C.blauw,marginBottom:12}}>{g.naam} bewerken</div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 120px 160px",gap:10,marginBottom:10}}>
         <div><label className="fl">Naam</label><input className="fi" value={naam} onChange={e=>setNaam(e.target.value)} style={{fontSize:13}}/></div>
-        <div><label className="fl">Nieuwe tijdelijke pin</label><input className="fi" value={pin} onChange={e=>setPin(e.target.value.replace(/\D/g,""))} placeholder="leeg = ongewijzigd" inputMode="numeric" autoComplete="off" maxLength={8} style={{fontSize:13}}/></div>
+        <div><label className="fl">Nieuwe tijdelijke pin</label><input className="fi" value={pin} onChange={e=>setPin(e.target.value.replace(/\s/g,""))} placeholder="leeg = ongewijzigd" autoComplete="off" maxLength={64} style={{fontSize:13}}/></div>
         <div><label className="fl">Rol</label><select className="fs" value={rol} onChange={e=>setRol(e.target.value)} style={{fontSize:13}}><option value="collega">👤 Collega</option><option value="huismeester">🏠 Huismeester</option><option value="financieel">💶 Financieel</option><option value="backoffice">📊 Backoffice</option></select></div>
       </div>
       <div style={{display:"flex",gap:8}}>
