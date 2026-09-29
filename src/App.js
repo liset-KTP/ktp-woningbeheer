@@ -208,9 +208,20 @@ function dagVanDeWeek() { return ["zo","ma","di","wo","do","vr","za"][new Date()
 
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 function App() {
-  const [gebruiker, setGebruiker] = useState(() => {
-    try { const g = localStorage.getItem("ktp_sessie"); return g ? JSON.parse(g) : null; } catch { return null; }
+  // Sessie = { token, gebruiker:{id,naam,rol} }. Het token wordt door de database gecontroleerd
+  // (app_sessie_check). De oude sleutel "ktp_sessie" (zonder token) wordt genegeerd en opgeruimd.
+  const [sessie, setSessie] = useState(() => {
+    try {
+      localStorage.removeItem("ktp_sessie");
+      const s = localStorage.getItem("ktp_sessie_v2");
+      const obj = s ? JSON.parse(s) : null;
+      return obj && obj.token && obj.gebruiker ? obj : null;
+    } catch { return null; }
   });
+  const gebruiker = sessie?.gebruiker || null;
+  const sessieToken = sessie?.token || null;
+  // null = niets; { verplicht, oudePin? } = scherm "nieuwe pincode kiezen" tonen
+  const [pinWijzigen, setPinWijzigen] = useState(null);
   const [taal, setTaal] = useState(() => { try { return localStorage.getItem("ktp_taal")||"nl"; } catch { return "nl"; } });
   const [gebruikers, setGebruikers] = useState([]);
   const [houses, setHouses] = useState([]);
@@ -297,7 +308,8 @@ function App() {
   }, []);
 
   const loadGebruikers = useCallback(async () => {
-    const { data, error } = await supabase.from("gebruikers").select("*").eq("actief", true).order("rol").order("naam");
+    // Alleen niet-gevoelige kolommen: pincodes worden nooit meer naar de browser gestuurd
+    const { data, error } = await supabase.from("gebruikers").select("id,naam,rol,actief").eq("actief", true).order("rol").order("naam");
     if (error) { console.error("gebruikers:", error); return; }
     setGebruikers(data || []);
   }, []);
@@ -399,9 +411,16 @@ function App() {
 
   function showToast(msg, type="ok") { setToast({msg,type}); setTimeout(()=>setToast(null),3500); }
 
-  function login(g) {
-    try { localStorage.setItem("ktp_sessie", JSON.stringify(g)); } catch {}
-    setGebruiker(g);
+  function bewaarSessie(s) {
+    try { if (s) localStorage.setItem("ktp_sessie_v2", JSON.stringify(s)); else localStorage.removeItem("ktp_sessie_v2"); } catch {}
+    setSessie(s);
+  }
+
+  // res = antwoord van app_login: { token, gebruiker, pin_moet_wijzigen }
+  function login(res, oudePin) {
+    const g = res.gebruiker;
+    bewaarSessie({ token: res.token, gebruiker: g });
+    setPinWijzigen(res.pin_moet_wijzigen ? { verplicht: true, oudePin } : null);
     setTab(g.rol==="collega"||g.rol==="financieel"?"taken":g.rol==="huismeester"?"todo":"dashboard");
     loadOngelzenAutoReacties(g.naam);
     loadOngelzenBerichten(g.naam);
@@ -412,25 +431,65 @@ function App() {
     try { localStorage.setItem("ktp_taal", nieuweTaal); } catch {}
   }
   function logout() {
+    if (sessieToken) supabase.rpc("app_logout", { p_token: sessieToken }).then(()=>{}, ()=>{});
     try { localStorage.removeItem("ktp_sessie"); localStorage.removeItem("ktp_tab"); } catch {}
-    setGebruiker(null);
+    bewaarSessie(null);
+    setPinWijzigen(null);
+  }
+
+  // Sessiecontrole: bij openen, elke 5 minuten en zodra de app weer op de voorgrond komt.
+  // Gedeactiveerde gebruiker, verlopen sessie of "iedereen uitloggen" => direct uitgelogd.
+  useEffect(() => {
+    if (!sessieToken) return;
+    let actief = true;
+    const check = async () => {
+      const { data, error } = await supabase.rpc("app_sessie_check", { p_token: sessieToken });
+      if (!actief || error) return; // netwerkfout: niet uitloggen, volgende keer opnieuw
+      if (!data?.ok) {
+        try { localStorage.removeItem("ktp_sessie_v2"); localStorage.removeItem("ktp_tab"); } catch {}
+        setSessie(null); setPinWijzigen(null);
+        setToast({ msg: "Je bent uitgelogd. Log opnieuw in.", type: "err" }); setTimeout(()=>setToast(null), 5000);
+        return;
+      }
+      if (data.pin_moet_wijzigen) setPinWijzigen(p => p || { verplicht: true });
+      setSessie(prev => {
+        if (!prev || prev.token !== sessieToken) return prev;
+        const g = data.gebruiker;
+        if (g && (g.naam !== prev.gebruiker.naam || g.rol !== prev.gebruiker.rol)) {
+          const nieuw = { ...prev, gebruiker: g };
+          try { localStorage.setItem("ktp_sessie_v2", JSON.stringify(nieuw)); } catch {}
+          return nieuw;
+        }
+        return prev;
+      });
+    };
+    check();
+    const iv = setInterval(check, 5 * 60 * 1000);
+    const opVoorgrond = () => { if (document.visibilityState === "visible") check(); };
+    document.addEventListener("visibilitychange", opVoorgrond);
+    window.addEventListener("focus", opVoorgrond);
+    return () => { actief = false; clearInterval(iv); document.removeEventListener("visibilitychange", opVoorgrond); window.removeEventListener("focus", opVoorgrond); };
+  }, [sessieToken]);
+  // Gebruikersbeheer loopt via beveiligde databasefuncties (alleen backoffice, gecontroleerd op sessie)
+  async function gebruikerRpc(fn, params, okTekst) {
+    const { data, error } = await supabase.rpc(fn, { p_token: sessieToken, ...params });
+    if (error || !data?.ok) { showToast(data?.fout || "Actie mislukt (geen rechten of sessie verlopen)", "err"); return false; }
+    if (okTekst) showToast(okTekst);
+    await loadGebruikers(); return true;
   }
   async function voegGebruikerToe(g) {
-    const { error } = await supabase.from("gebruikers").insert([g]);
-    if (error) { showToast("Fout bij toevoegen gebruiker", "err"); return false; }
-    showToast(`✓ ${g.naam} toegevoegd`); await loadGebruikers(); return true;
+    return gebruikerRpc("app_gebruiker_opslaan", { p_id: null, p_naam: g.naam, p_rol: g.rol, p_tijdelijke_pin: g.pin }, `✓ ${g.naam} toegevoegd — geef de tijdelijke pincode persoonlijk door`);
   }
-
   async function updateGebruiker(id, updates) {
-    const { error } = await supabase.from("gebruikers").update(updates).eq("id", id);
-    if (error) { showToast("Fout bij opslaan", "err"); return false; }
-    showToast("✓ Opgeslagen"); await loadGebruikers(); return true;
+    return gebruikerRpc("app_gebruiker_opslaan", { p_id: id, p_naam: updates.naam, p_rol: updates.rol, p_tijdelijke_pin: updates.pin || null },
+      updates.pin ? "✓ Opgeslagen — tijdelijke pincode ingesteld, bestaande sessies uitgelogd" : "✓ Opgeslagen");
   }
-
   async function verwijderGebruiker(id) {
-    const { error } = await supabase.from("gebruikers").update({ actief: false }).eq("id", id);
-    if (error) { showToast("Fout bij verwijderen", "err"); return false; }
-    showToast("✓ Gebruiker verwijderd"); await loadGebruikers(); return true;
+    return gebruikerRpc("app_gebruiker_deactiveren", { p_id: id }, "✓ Gebruiker verwijderd en direct uitgelogd");
+  }
+  async function iedereenUitloggen(nieuwePinVerplicht) {
+    return gebruikerRpc("app_iedereen_uitloggen", { p_nieuwe_pin_verplicht: nieuwePinVerplicht },
+      nieuwePinVerplicht ? "✓ Iedereen wordt uitgelogd en moet een nieuwe pincode kiezen" : "✓ Iedereen wordt uitgelogd");
   }
 
   async function addMelding(m) {
@@ -1314,6 +1373,8 @@ function App() {
 
   if (loading) return <LoadingScreen />;
   if (!gebruiker) return <LoginScreen gebruikers={gebruikers} onLogin={login} taal={taal} onTaalWissel={wisselTaal}/>;
+  if (pinWijzigen) return <PinWijzigenScreen token={sessieToken} naam={gebruiker.naam} verplicht={pinWijzigen.verplicht} oudePin={pinWijzigen.oudePin}
+    onKlaar={()=>{ setPinWijzigen(null); showToast("✓ Nieuwe pincode opgeslagen"); }} onAnnuleer={()=>setPinWijzigen(null)} onLogout={logout}/>;
 
   const rolIcon = rol==="backoffice"?"📊":rol==="huismeester"?"🏠":rol==="financieel"?"💶":"👤";
   const totalNotifs = openMeldingen.length + openTaken.length;
@@ -1395,6 +1456,7 @@ function App() {
                 <span style={{fontSize:12}}>{rolIcon}</span>
                 <span style={{fontSize:12,color:"white",fontWeight:600}}>{naam}</span>
               </div>
+              <button style={{background:"rgba(255,255,255,.15)",border:"none",borderRadius:7,padding:"5px 10px",fontSize:12,color:"white",cursor:"pointer",fontFamily:"inherit"}} onClick={()=>setPinWijzigen({ verplicht:false })} title="Pincode wijzigen">🔑</button>
               <button style={{background:"rgba(255,255,255,.15)",border:"none",borderRadius:7,padding:"5px 10px",fontSize:12,color:"white",cursor:"pointer",fontFamily:"inherit"}} onClick={logout}>↩</button>
             </div>
           </div>
@@ -1480,7 +1542,7 @@ function App() {
         {tab==="kleding"&&<KledingModule gebruiker={gebruiker} showToast={showToast}/>}
         {tab==="medewerker360"&&<Medewerker360View houses={houses} gebruiker={gebruiker} showToast={showToast} onAddTaak={addTaak}/>}
         {tab==="huismeesterplanning"&&<HuismeesterPlanningView dagplanningDB={dagplanningDB} houses={houses} taken={taken} meldingen={meldingen} checklists={checklists} checklistItems={checklistItems}/>}
-        {rol==="backoffice"&&isLiset&&tab==="beheer"&&<BeheerView houses={houses} gearchiveerdeHouses={gearchiveerdeHouses} onAdd={addWoning} onUpdate={updateWoning} onArchiveer={archiveerWoning} onTerugzetten={terugzetWoning} showToast={showToast} gebruikers={gebruikers} onAddGebruiker={voegGebruikerToe} onUpdateGebruiker={updateGebruiker} onDeleteGebruiker={verwijderGebruiker} checklistItems={checklistItems} dagplanningDB={dagplanningDB}/>}
+        {rol==="backoffice"&&isLiset&&tab==="beheer"&&<BeheerView houses={houses} gearchiveerdeHouses={gearchiveerdeHouses} onAdd={addWoning} onUpdate={updateWoning} onArchiveer={archiveerWoning} onTerugzetten={terugzetWoning} showToast={showToast} gebruikers={gebruikers} onAddGebruiker={voegGebruikerToe} onUpdateGebruiker={updateGebruiker} onDeleteGebruiker={verwijderGebruiker} onIedereenUitloggen={iedereenUitloggen} checklistItems={checklistItems} dagplanningDB={dagplanningDB}/>}
       </div>
     </div>
   );
@@ -2281,10 +2343,15 @@ function LoginScreen({ gebruikers, onLogin, taal="nl", onTaalWissel }) {
   const gefilterd = rolFilter ? gebruikers.filter(g=>g.rol===rolFilter) : [];
   const rolKleur  = { backoffice:C.blauw, huismeester:C.groen, collega:C.muted };
 
-  function probeerLogin() {
-    if (!geselecteerd) return;
-    if (pin===geselecteerd.pin) { onLogin(geselecteerd); }
-    else { setFout(vertaal("fout_pin",taal)+", probeer opnieuw"); setPin(""); }
+  const [bezig, setBezig] = useState(false);
+  async function probeerLogin() {
+    if (!geselecteerd || !pin || bezig) return;
+    setBezig(true);
+    const { data, error } = await supabase.rpc("app_login", { p_gebruiker_id: geselecteerd.id, p_pin: pin });
+    setBezig(false);
+    if (error) { setFout("Geen verbinding, probeer opnieuw"); return; }
+    if (data?.ok) { onLogin(data, pin); return; }
+    setFout(data?.fout === "Verkeerde pincode" ? vertaal("fout_pin",taal)+", probeer opnieuw" : (data?.fout || "Inloggen mislukt")); setPin("");
   }
 
   return (
@@ -2356,18 +2423,77 @@ function LoginScreen({ gebruikers, onLogin, taal="nl", onTaalWissel }) {
                 <div style={{fontWeight:800,fontSize:20,color:C.text}}>{geselecteerd.naam}</div>
               </div>
               <label style={{display:"block",fontSize:11,fontWeight:700,color:C.muted,letterSpacing:"1px",textTransform:"uppercase",marginBottom:8}}>Pincode</label>
-              <input type="password" value={pin} onChange={e=>{setPin(e.target.value);setFout("");}} onKeyDown={e=>e.key==="Enter"&&probeerLogin()} placeholder="••••" maxLength={8}
+              <input type="password" inputMode="numeric" autoComplete="current-password" value={pin} onChange={e=>{setPin(e.target.value.replace(/\D/g,""));setFout("");}} onKeyDown={e=>e.key==="Enter"&&probeerLogin()} placeholder="••••••" maxLength={8}
                 style={{width:"100%",background:C.bg,border:`2px solid ${fout?"#ef4444":C.border}`,borderRadius:10,color:C.text,padding:"16px",fontSize:26,outline:"none",letterSpacing:10,textAlign:"center",marginBottom:10,transition:"border .2s"}}/>
               {fout&&<div style={{color:"#ef4444",fontSize:13,marginBottom:12,textAlign:"center",fontWeight:500}}>⚠ {fout}</div>}
-              <button onClick={probeerLogin} disabled={!pin}
+              <button onClick={probeerLogin} disabled={!pin||bezig}
                 style={{width:"100%",background:pin?C.blauw:C.border,color:"white",border:"none",borderRadius:10,padding:14,fontSize:15,fontWeight:700,cursor:pin?"pointer":"not-allowed",fontFamily:"inherit",transition:"background .2s"}}>
-                Inloggen →
+                {bezig ? "⏳ Controleren..." : "Inloggen →"}
               </button>
             </>
           )}
         </div>
       </div>
       <div style={{marginTop:20,fontSize:12,color:"rgba(255,255,255,.4)"}}>KTP Interflex · Woningbeheer systeem</div>
+    </div>
+  );
+}
+
+function PinWijzigenScreen({ token, naam, verplicht, oudePin, onKlaar, onAnnuleer, onLogout }) {
+  const [huidig, setHuidig] = useState("");
+  const [nieuw, setNieuw] = useState("");
+  const [herhaal, setHerhaal] = useState("");
+  const [fout, setFout] = useState("");
+  const [bezig, setBezig] = useState(false);
+  const moetHuidigVragen = !oudePin;
+  const alleenCijfers = v => v.replace(/\D/g, "");
+
+  async function opslaan() {
+    setFout("");
+    const oud = oudePin || huidig;
+    if (!oud) { setFout("Vul je huidige pincode in"); return; }
+    if (nieuw.length < 6) { setFout("Nieuwe pincode moet minimaal 6 cijfers zijn"); return; }
+    if (nieuw !== herhaal) { setFout("De twee nieuwe pincodes zijn niet gelijk"); return; }
+    setBezig(true);
+    const { data, error } = await supabase.rpc("app_pin_wijzigen", { p_token: token, p_oude_pin: oud, p_nieuwe_pin: nieuw });
+    setBezig(false);
+    if (error) { setFout("Geen verbinding, probeer opnieuw"); return; }
+    if (!data?.ok) { setFout(data?.fout || "Opslaan mislukt"); if (data?.fout?.startsWith("Sessie")) onLogout(); return; }
+    onKlaar();
+  }
+
+  const veld = { width:"100%", background:C.bg, border:`2px solid ${C.border}`, borderRadius:10, color:C.text, padding:"14px", fontSize:22, outline:"none", letterSpacing:8, textAlign:"center", marginBottom:12 };
+  const label = { display:"block", fontSize:11, fontWeight:700, color:C.muted, letterSpacing:"1px", textTransform:"uppercase", marginBottom:6 };
+  return (
+    <div style={{minHeight:"100vh",background:`linear-gradient(135deg,${C.blauw} 0%,${C.blauwDark} 60%,${C.dark} 100%)`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",fontFamily:"'Inter',sans-serif",padding:20}}>
+      <div style={{width:"100%",maxWidth:420,background:"white",borderRadius:20,boxShadow:"0 40px 80px rgba(0,0,0,.4)",overflow:"hidden"}}>
+        <div style={{background:C.groen,padding:"16px 28px"}}>
+          <div style={{fontSize:14,fontWeight:700,color:"white"}}>🔑 {verplicht ? "Kies een nieuwe pincode" : "Pincode wijzigen"} — {naam}</div>
+        </div>
+        <div style={{padding:"24px 28px 28px"}}>
+          {verplicht && <div style={{fontSize:13,color:C.text,background:"#fef3c7",border:"1px solid #f59e0b",borderRadius:10,padding:"10px 14px",marginBottom:18,lineHeight:1.5}}>
+            Voor de veiligheid kiest iedereen een nieuwe, persoonlijke pincode. Deel deze met niemand.
+          </div>}
+          <div style={{fontSize:12,color:C.muted,marginBottom:16,lineHeight:1.5}}>6 tot 8 cijfers. Niet je oude pincode en geen reeksen zoals 123456 of 111111.</div>
+          {moetHuidigVragen && <>
+            <label style={label}>Huidige pincode</label>
+            <input type="password" inputMode="numeric" autoComplete="current-password" value={huidig} maxLength={8} onChange={e=>{setHuidig(alleenCijfers(e.target.value));setFout("");}} style={veld}/>
+          </>}
+          <label style={label}>Nieuwe pincode</label>
+          <input type="password" inputMode="numeric" autoComplete="new-password" value={nieuw} maxLength={8} onChange={e=>{setNieuw(alleenCijfers(e.target.value));setFout("");}} style={veld}/>
+          <label style={label}>Herhaal nieuwe pincode</label>
+          <input type="password" inputMode="numeric" autoComplete="new-password" value={herhaal} maxLength={8} onChange={e=>{setHerhaal(alleenCijfers(e.target.value));setFout("");}} onKeyDown={e=>e.key==="Enter"&&opslaan()} style={veld}/>
+          {fout && <div style={{color:"#ef4444",fontSize:13,marginBottom:12,textAlign:"center",fontWeight:500}}>⚠ {fout}</div>}
+          <button onClick={opslaan} disabled={bezig}
+            style={{width:"100%",background:C.blauw,color:"white",border:"none",borderRadius:10,padding:14,fontSize:15,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+            {bezig ? "⏳ Opslaan..." : "✓ Pincode opslaan"}
+          </button>
+          <button onClick={verplicht ? onLogout : onAnnuleer}
+            style={{width:"100%",background:"none",border:"none",color:C.muted,fontSize:13,marginTop:12,cursor:"pointer",fontFamily:"inherit"}}>
+            {verplicht ? "↩ Uitloggen" : "Annuleren"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -6884,7 +7010,7 @@ function DashboardView({ houses, meldingen, taken, gebruikers, activiteiten }) {
 }
 
 
-function BeheerView({houses,gearchiveerdeHouses=[],onAdd,onUpdate,onArchiveer,onTerugzetten,showToast,gebruikers,onAddGebruiker,onUpdateGebruiker,onDeleteGebruiker,checklistItems,dagplanningDB}) {
+function BeheerView({houses,gearchiveerdeHouses=[],onAdd,onUpdate,onArchiveer,onTerugzetten,showToast,gebruikers,onAddGebruiker,onUpdateGebruiker,onDeleteGebruiker,onIedereenUitloggen,checklistItems,dagplanningDB}) {
   const [subTab,setSubTab]=useState("woningen");
   return(
     <div>
@@ -6899,7 +7025,7 @@ function BeheerView({houses,gearchiveerdeHouses=[],onAdd,onUpdate,onArchiveer,on
       </div>
       {subTab==="woningen"&&<WoningBeheer houses={houses} onAdd={onAdd} onUpdate={onUpdate} onArchiveer={onArchiveer} showToast={showToast}/>}
       {subTab==="gearchiveerd"&&<GearchiveerdeBeheer houses={gearchiveerdeHouses} onTerugzetten={onTerugzetten} showToast={showToast}/>}
-      {subTab==="gebruikers"&&<GebruikersBeheer gebruikers={gebruikers} onAdd={onAddGebruiker} onUpdate={onUpdateGebruiker} onDelete={onDeleteGebruiker} showToast={showToast}/>}
+      {subTab==="gebruikers"&&<GebruikersBeheer gebruikers={gebruikers} onAdd={onAddGebruiker} onUpdate={onUpdateGebruiker} onDelete={onDeleteGebruiker} onIedereenUitloggen={onIedereenUitloggen} showToast={showToast}/>}
       {subTab==="checklists"&&<ChecklistItemsBeheer checklistItems={checklistItems} showToast={showToast}/>}
       {subTab==="dagplanning"&&<DagplanningBeheer dagplanningDB={dagplanningDB} showToast={showToast} houses={houses}/>}
     </div>
@@ -7237,32 +7363,40 @@ function KamerBewerken({kamer,onSave,onCancel,saving}) {
   );
 }
 
-function GebruikersBeheer({gebruikers,onAdd,onUpdate,onDelete,showToast}) {
+function GebruikersBeheer({gebruikers,onAdd,onUpdate,onDelete,onIedereenUitloggen,showToast}) {
   const [nieuw,setNieuw]=useState({naam:"",pin:"",rol:"collega"});
   const [bewerk,setBewerk]=useState(null);
   const [saving,setSaving]=useState(false);
 
   async function voegToe() {
     if(!nieuw.naam.trim()){showToast("Vul een naam in","err");return;}
-    if(nieuw.pin.length<4){showToast("Pincode moet minimaal 4 cijfers zijn","err");return;}
+    if(nieuw.pin.length<6){showToast("Tijdelijke pincode moet minimaal 6 cijfers zijn","err");return;}
     if(gebruikers.some(g=>g.naam.toLowerCase()===nieuw.naam.toLowerCase())){showToast("Naam bestaat al","err");return;}
     setSaving(true);
-    await onAdd({naam:nieuw.naam.trim(),pin:nieuw.pin,rol:nieuw.rol,actief:true});
+    const ok = await onAdd({naam:nieuw.naam.trim(),pin:nieuw.pin,rol:nieuw.rol});
     setSaving(false);
-    setNieuw({naam:"",pin:"",rol:"collega"});
+    if (ok) setNieuw({naam:"",pin:"",rol:"collega"});
   }
 
   async function verwijder(g) {
     if(g.naam==="Liset"){showToast("Liset kan niet verwijderd worden","err");return;}
-    if(!window.confirm(`${g.naam} verwijderen?`)) return;
+    if(!window.confirm(`${g.naam} verwijderen?\n\n${g.naam} wordt direct op alle apparaten uitgelogd en kan niet meer inloggen.`)) return;
     await onDelete(g.id);
   }
 
   async function slaBewerk(g, updates) {
+    if (updates.pin && updates.pin.length<6) { showToast("Tijdelijke pincode moet minimaal 6 cijfers zijn","err"); return; }
     setSaving(true);
-    await onUpdate(g.id, updates);
+    const ok = await onUpdate(g.id, updates);
     setSaving(false);
-    setBewerk(null);
+    if (ok) setBewerk(null);
+  }
+
+  async function allesUitloggen() {
+    if(!window.confirm("Iedereen uitloggen (behalve jijzelf) en iedereen verplichten bij de volgende login een nieuwe pincode te kiezen?")) return;
+    setSaving(true);
+    await onIedereenUitloggen(true);
+    setSaving(false);
   }
 
   const rk={backoffice:C.blauw,huismeester:C.groen,collega:C.muted,financieel:"#f59e0b"};
@@ -7274,10 +7408,19 @@ function GebruikersBeheer({gebruikers,onAdd,onUpdate,onDelete,showToast}) {
         <div style={{fontWeight:700,fontSize:14,color:C.groen,marginBottom:16}}>+ Nieuwe gebruiker toevoegen</div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 120px 160px",gap:12,marginBottom:12}}>
           <div><label className="fl">Naam</label><input className="fi" value={nieuw.naam} onChange={e=>setNieuw(p=>({...p,naam:e.target.value}))} placeholder="Voornaam"/></div>
-          <div><label className="fl">Pincode</label><input className="fi" value={nieuw.pin} onChange={e=>setNieuw(p=>({...p,pin:e.target.value.replace(/\D/g,"")}))} placeholder="1234" maxLength={8} type="password"/></div>
+          <div><label className="fl">Tijdelijke pincode</label><input className="fi" value={nieuw.pin} onChange={e=>setNieuw(p=>({...p,pin:e.target.value.replace(/\D/g,"")}))} placeholder="6 cijfers" maxLength={8} inputMode="numeric" autoComplete="off"/></div>
           <div><label className="fl">Rol</label><select className="fs" value={nieuw.rol} onChange={e=>setNieuw(p=>({...p,rol:e.target.value}))}><option value="collega">👤 Collega</option><option value="huismeester">🏠 Huismeester</option><option value="financieel">💶 Financieel</option><option value="backoffice">📊 Backoffice</option></select></div>
         </div>
+        <div style={{fontSize:12,color:C.muted,marginBottom:12}}>De nieuwe gebruiker moet deze tijdelijke pincode bij de eerste login vervangen door een eigen pincode.</div>
         <button className="btn-g" style={{padding:"10px 24px"}} onClick={voegToe} disabled={saving}>{saving?"⏳ Opslaan...":"✓ Toevoegen"}</button>
+      </div>
+      <div className="card" style={{marginBottom:20,borderTop:"3px solid #ef4444"}}>
+        <div style={{fontWeight:700,fontSize:14,color:"#ef4444",marginBottom:8}}>🔒 Beveiliging</div>
+        <div style={{fontSize:13,color:C.text,marginBottom:12,lineHeight:1.5}}>
+          Iemand uit dienst? Verwijder die persoon hieronder: de sessie wordt direct beëindigd op alle apparaten.<br/>
+          Vermoed je dat pincodes bekend zijn geworden? Log dan iedereen uit en laat iedereen een nieuwe pincode kiezen.
+        </div>
+        <button className="btn-r" style={{padding:"8px 18px",fontSize:13}} onClick={allesUitloggen} disabled={saving}>Iedereen uitloggen + nieuwe pincode verplicht</button>
       </div>
       <div className="card">
         <div style={{fontWeight:700,fontSize:14,color:C.blauw,marginBottom:16}}>Alle gebruikers ({gebruikers.length})</div>
@@ -7300,13 +7443,13 @@ function GebruikersBeheer({gebruikers,onAdd,onUpdate,onDelete,showToast}) {
 }
 
 function GebruikerBewerken({g,onSave,onCancel}) {
-  const [naam,setNaam]=useState(g.naam);const [pin,setPin]=useState(g.pin);const [rol,setRol]=useState(g.rol);
+  const [naam,setNaam]=useState(g.naam);const [pin,setPin]=useState("");const [rol,setRol]=useState(g.rol);
   return(
     <div style={{background:C.blauw+"08",border:`1.5px solid ${C.blauw}`,borderRadius:10,padding:14,marginBottom:8}}>
       <div style={{fontSize:12,fontWeight:700,color:C.blauw,marginBottom:12}}>{g.naam} bewerken</div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 120px 160px",gap:10,marginBottom:10}}>
         <div><label className="fl">Naam</label><input className="fi" value={naam} onChange={e=>setNaam(e.target.value)} style={{fontSize:13}}/></div>
-        <div><label className="fl">Pincode</label><input className="fi" value={pin} onChange={e=>setPin(e.target.value.replace(/\D/g,""))} type="text" maxLength={8} style={{fontSize:13}}/></div>
+        <div><label className="fl">Nieuwe tijdelijke pin</label><input className="fi" value={pin} onChange={e=>setPin(e.target.value.replace(/\D/g,""))} placeholder="leeg = ongewijzigd" inputMode="numeric" autoComplete="off" maxLength={8} style={{fontSize:13}}/></div>
         <div><label className="fl">Rol</label><select className="fs" value={rol} onChange={e=>setRol(e.target.value)} style={{fontSize:13}}><option value="collega">👤 Collega</option><option value="huismeester">🏠 Huismeester</option><option value="financieel">💶 Financieel</option><option value="backoffice">📊 Backoffice</option></select></div>
       </div>
       <div style={{display:"flex",gap:8}}>
