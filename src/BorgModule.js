@@ -1545,40 +1545,108 @@ function Archief({ plannen, termijnen, extras, houses }) {
   );
   return (
     <div style={{display:"grid",gap:12}}>
-      {plannen.map(plan=>{
-        const huis = houses.find(h=>h.id===plan.woning_id);
-        const t = termijnen.filter(t=>t.plan_id===plan.id);
-        const ex = extras.filter(e=>e.plan_id===plan.id);
-        const ingeh = t.filter(x=>x.status==="verwerkt").reduce((s,x)=>s+Number(x.bedrag),0)
-          + ex.filter(e=>e.type==="al_ingehouden").reduce((s,e)=>s+Number(e.bedrag),0)
-          + ex.filter(e=>e.type==="inhouden"&&e.status==="verwerkt").reduce((s,e)=>s+Number(e.bedrag),0);
-        const verv = t.filter(x=>x.status==="vervallen"||x.status==="geannuleerd").reduce((s,x)=>s+Number(x.bedrag),0)
-          + ex.filter(e=>e.type==="inhouden"&&e.status==="vervallen").reduce((s,e)=>s+Number(e.bedrag),0);
-        const terugB = ex.filter(e=>e.type==="terugbetalen").reduce((s,e)=>s+Number(e.bedrag),0);
-        const terugOpen = ex.some(e=>e.type==="terugbetalen"&&e.status==="open");
-        const kleur = plan.status==="terugbetaald"||plan.status==="deels_terugbetaald"?C.groen:plan.status==="geannuleerd"?C.rood:plan.status==="vervallen"?C.oranje:C.muted;
-        const label = plan.status==="terugbetaald"?"💶 Terugbetaald":plan.status==="deels_terugbetaald"?"➗ Deels terugbetaald":plan.status==="geannuleerd"?"✕ Geannuleerd":plan.status==="vervallen"?"🔒 Borg vervalt – niet terug":"Afgesloten";
-        return (
-          <div key={plan.id} style={{background:"white",border:`1px solid ${C.border}`,borderLeft:`4px solid ${kleur}`,borderRadius:10,padding:"14px 18px",opacity:.85}}>
-            <div style={{display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:8}}>
-              <div>
-                <div style={{fontWeight:700,fontSize:14,color:C.text}}>{plan.naam_medewerker}</div>
-                <div style={{fontSize:12,color:C.muted}}>{huis?`${huis.adres}`:""}{plan.kamer?` K${plan.kamer}`:""}</div>
-                <div style={{fontSize:12,color:C.muted}}>🔑 {plan.sleutels} sleutel{plan.sleutels>1?"s":""}{plan.heeft_fiets?" · 🚲 Fiets":""}</div>
+      {plannen.map(plan=>(
+        <ArchiefKaart key={plan.id} plan={plan}
+          termijnen={termijnen.filter(t=>t.plan_id===plan.id)}
+          extras={extras.filter(e=>e.plan_id===plan.id)}
+          huis={houses.find(h=>h.id===plan.woning_id)}/>
+      ))}
+    </div>
+  );
+}
+
+// Alleen-lezen kaart: archief is audit trail, dus geen actieknoppen.
+function ArchiefKaart({ plan, termijnen, extras, huis }) {
+  const [open, setOpen] = useState(false);
+  const t = [...termijnen].sort((a,b)=>(a.jaar-b.jaar)||(a.week_nummer-b.week_nummer));
+  const ex = extras;
+  const ingeh = t.filter(x=>x.status==="verwerkt").reduce((s,x)=>s+Number(x.bedrag),0)
+    + ex.filter(e=>e.type==="al_ingehouden").reduce((s,e)=>s+Number(e.bedrag),0)
+    + ex.filter(e=>e.type==="inhouden"&&e.status==="verwerkt").reduce((s,e)=>s+Number(e.bedrag),0);
+  const verv = t.filter(x=>x.status==="vervallen"||x.status==="geannuleerd").reduce((s,x)=>s+Number(x.bedrag),0)
+    + ex.filter(e=>e.type==="inhouden"&&e.status==="vervallen").reduce((s,e)=>s+Number(e.bedrag),0);
+  const terugB = ex.filter(e=>e.type==="terugbetalen").reduce((s,e)=>s+Number(e.bedrag),0);
+  const terugOpen = ex.some(e=>e.type==="terugbetalen"&&e.status==="open");
+  const kleur = plan.status==="terugbetaald"||plan.status==="deels_terugbetaald"?C.groen:plan.status==="geannuleerd"?C.rood:plan.status==="vervallen"?C.oranje:C.muted;
+  const label = plan.status==="terugbetaald"?"💶 Terugbetaald":plan.status==="deels_terugbetaald"?"➗ Deels terugbetaald":plan.status==="geannuleerd"?"✕ Geannuleerd":plan.status==="vervallen"?"🔒 Borg vervalt – niet terug":"Afgesloten";
+  const aantalIngeh = t.filter(x=>x.status==="verwerkt").length;
+
+  const termStatus = (st) => st==="verwerkt"
+    ? { icoon:"✓", kleur:C.groen, tekst:"ingehouden" }
+    : st==="vervallen"||st==="geannuleerd"
+      ? { icoon:"✕", kleur:C.oranje, tekst:st==="vervallen"?"vervallen":"geannuleerd" }
+      : { icoon:"○", kleur:C.muted, tekst:"niet verwerkt" };
+
+  return (
+    <div style={{background:"white",border:`1px solid ${C.border}`,borderLeft:`4px solid ${kleur}`,borderRadius:10,padding:"14px 18px",opacity:open?1:.85}}>
+      <div style={{display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:8}}>
+        <div>
+          <div style={{fontWeight:700,fontSize:14,color:C.text}}>{plan.naam_medewerker}</div>
+          <div style={{fontSize:12,color:C.muted}}>{huis?`${huis.adres}`:""}{plan.kamer?` K${plan.kamer}`:""}</div>
+          <div style={{fontSize:12,color:C.muted}}>🔑 {plan.sleutels} sleutel{plan.sleutels>1?"s":""}{plan.heeft_fiets?" · 🚲 Fiets":""}</div>
+        </div>
+        <div style={{textAlign:"right"}}>
+          <div style={{fontWeight:700,color:kleur}}>{label}</div>
+          <div style={{fontSize:12,color:C.muted}}>€{Number(plan.totaal_borg).toFixed(2)} totaal · <span style={{color:C.groen}}>€{ingeh.toFixed(2)} ingehouden</span>{verv>0 && <> · <span style={{color:C.oranje}}>€{verv.toFixed(2)} vervallen</span></>}</div>
+          {terugB>0 && <div style={{fontSize:12,color:C.groen}}>€{terugB.toFixed(2)} terug{terugOpen?" (nog uit te betalen)":" ✓ uitbetaald"}</div>}
+          {plan.vertrek_datum && <div style={{fontSize:11,color:C.muted}}>Vertrek: {new Date(plan.vertrek_datum).toLocaleDateString("nl-NL")}</div>}
+        </div>
+      </div>
+      {plan.opmerkingen && (
+        <div style={{marginTop:8,fontSize:12,color:C.muted,background:"#f8fafc",borderRadius:8,padding:"8px 10px",whiteSpace:"pre-wrap"}}>💬 {plan.opmerkingen}</div>
+      )}
+
+      {(t.length>0 || ex.length>0) && (
+        <button onClick={()=>setOpen(!open)}
+          style={{background:"none",border:"none",color:C.blauw,fontSize:13,cursor:"pointer",fontFamily:"inherit",padding:"8px 0 0",fontWeight:600}}>
+          {open?"▲":"▼"} Termijnen bekijken ({aantalIngeh} van {t.length} ingehouden{ex.length>0?` · ${ex.length} extra post${ex.length>1?"en":""}`:""})
+        </button>
+      )}
+
+      {open && (
+        <div style={{marginTop:8}}>
+          {t.length===0 && <div style={{fontSize:12,color:C.muted,padding:"6px 0"}}>Geen termijnen.</div>}
+          {t.map(x=>{
+            const st = termStatus(x.status);
+            return (
+              <div key={x.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:`1px solid ${C.border}`,fontSize:13,gap:8}}>
+                <div>
+                  <span style={{color:st.kleur,marginRight:8,fontWeight:700}}>{st.icoon}</span>
+                  <span style={{fontWeight:600,color:C.text}}>Week {x.week_nummer}/{x.jaar}</span>
+                  {x.omschrijving && <span style={{color:C.muted,marginLeft:8}}>{x.omschrijving}</span>}
+                  <span style={{color:st.kleur,fontSize:11,marginLeft:8}}>
+                    {st.tekst}{x.status==="verwerkt" && x.verwerkt_op ? ` · ${fmtDate(x.verwerkt_op)}${x.verwerkt_door?` door ${x.verwerkt_door}`:""}` : ""}
+                  </span>
+                  {x.opmerking && <span style={{color:C.muted,fontStyle:"italic",marginLeft:8}}>"{x.opmerking}"</span>}
+                </div>
+                <span style={{fontWeight:700,color:st.kleur,textDecoration:x.status==="verwerkt"||x.status==="open"?"none":"line-through",whiteSpace:"nowrap"}}>€{Number(x.bedrag).toFixed(2)}</span>
               </div>
-              <div style={{textAlign:"right"}}>
-                <div style={{fontWeight:700,color:kleur}}>{label}</div>
-                <div style={{fontSize:12,color:C.muted}}>€{Number(plan.totaal_borg).toFixed(2)} totaal · <span style={{color:C.groen}}>€{ingeh.toFixed(2)} ingehouden</span>{verv>0 && <> · <span style={{color:C.oranje}}>€{verv.toFixed(2)} vervallen</span></>}</div>
-                {terugB>0 && <div style={{fontSize:12,color:C.groen}}>€{terugB.toFixed(2)} terug{terugOpen?" (nog uit te betalen)":" ✓ uitbetaald"}</div>}
-                {plan.vertrek_datum && <div style={{fontSize:11,color:C.muted}}>Vertrek: {new Date(plan.vertrek_datum).toLocaleDateString("nl-NL")}</div>}
-              </div>
+            );
+          })}
+
+          {ex.length>0 && (
+            <div style={{marginTop:10}}>
+              <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".6px",textTransform:"uppercase",marginBottom:4}}>Extra posten</div>
+              {ex.map(e=>(
+                <div key={e.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:`1px solid ${C.border}`,fontSize:13,gap:8}}>
+                  <div>
+                    <span style={{color:e.status==="verwerkt"?C.groen:C.muted,marginRight:8}}>{e.status==="verwerkt"?"✓":"○"}</span>
+                    <span style={{color:C.text}}>{e.omschrijving}</span>
+                    <span style={{fontSize:11,marginLeft:8,color:e.type==="terugbetalen"||e.type==="al_ingehouden"?C.groen:C.rood}}>
+                      {e.type==="terugbetalen"?"↩ terug":e.type==="al_ingehouden"?"✓ al ingehouden":e.type==="boete"?"🚨 boete":e.type==="tankbon"?"⛽ tankbon":"↪ inhouden"}
+                    </span>
+                    {e.status && e.status!=="verwerkt" && <span style={{fontSize:11,color:C.muted,marginLeft:6}}>({e.status})</span>}
+                    {e.status==="verwerkt" && e.verwerkt_op && (
+                      <span style={{color:C.groen,fontSize:11,marginLeft:8}}>· {fmtDate(e.verwerkt_op)}{e.verwerkt_door?` door ${e.verwerkt_door}`:""}</span>
+                    )}
+                  </div>
+                  <span style={{fontWeight:700,whiteSpace:"nowrap",color:e.type==="terugbetalen"||e.type==="al_ingehouden"?C.groen:C.rood}}>€{Number(e.bedrag).toFixed(2)}</span>
+                </div>
+              ))}
             </div>
-            {plan.opmerkingen && (
-              <div style={{marginTop:8,fontSize:12,color:C.muted,background:"#f8fafc",borderRadius:8,padding:"8px 10px",whiteSpace:"pre-wrap"}}>💬 {plan.opmerkingen}</div>
-            )}
-          </div>
-        );
-      })}
+          )}
+        </div>
+      )}
     </div>
   );
 }
