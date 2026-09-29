@@ -949,6 +949,123 @@ function PlannenOverzicht({ plannen, termijnen, extras, houses, isBackoffice, on
   );
 }
 
+// ─── VERTREK-INFO (wat huismeester/melder zei bij vertrek) ────────────────────
+// Zoekt de vertrekmelding + controletaak bij dit borgplan. Koppeling gaat via
+// woning + kamer + datum (na aankomst); naam wordt gebruikt om te kiezen, maar
+// niet hard vereist omdat namen soms net anders gespeld zijn (bv. Kansk/Kansky).
+function parseBijlages(b) {
+  if (!b) return [];
+  if (Array.isArray(b)) return b;
+  try { const x = JSON.parse(b); return Array.isArray(x) ? x : []; } catch { return []; }
+}
+const normNaam = n => (n || "").toLowerCase().replace(/\s+/g, " ").trim();
+const fmtD = d => d ? new Date(d).toLocaleDateString("nl-NL") : "";
+const fmtDT = d => d ? new Date(d).toLocaleString("nl-NL", { day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit" }) : "";
+const CONTROLE_LABEL = { ja:"✓ ja", nee:"✗ nee", controle:"huismeester controleert" };
+
+function VertrekInfo({ plan, onNeemOver }) {
+  const [info, setInfo] = useState(null);
+  const [laden, setLaden] = useState(true);
+
+  useEffect(() => {
+    let actief = true;
+    (async () => {
+      setLaden(true);
+      let q = supabase.from("meldingen").select("*").eq("type", "vertrek")
+        .eq("woning_id", plan.woning_id).eq("kamer", plan.kamer)
+        .order("created_at", { ascending: false });
+      if (plan.aankomst_datum) q = q.gte("datum", plan.aankomst_datum);
+      const { data: meldingen } = await q;
+      const naam = normNaam(plan.naam_medewerker);
+      const opNaam = (meldingen || []).find(m => {
+        const mn = normNaam(m.medewerker);
+        return mn === naam || naam.startsWith(mn) || mn.startsWith(naam);
+      });
+      const melding = opNaam || (meldingen || [])[0] || null;
+      const naamAfwijkend = !!melding && !opNaam;
+
+      let taak = null, logs = [];
+      if (melding) {
+        const { data: taken } = await supabase.from("taken").select("*")
+          .eq("melding_id", melding.id).ilike("titel", "%controleren na vertrek%")
+          .order("created_at", { ascending: false }).limit(1);
+        taak = taken?.[0] || null;
+        if (taak) {
+          const { data: acts } = await supabase.from("activiteiten").select("*")
+            .eq("extra->>taak_id", String(taak.id)).order("created_at", { ascending: true });
+          logs = acts || [];
+        }
+      }
+      if (actief) { setInfo({ melding, taak, logs, naamAfwijkend }); setLaden(false); }
+    })();
+    return () => { actief = false; };
+  }, [plan.id, plan.woning_id, plan.kamer, plan.aankomst_datum, plan.naam_medewerker]);
+
+  const box = { background:"white", border:`1px solid ${C.border}`, borderRadius:8, padding:"10px 12px", marginBottom:10, fontSize:12, color:C.text };
+  if (laden) return <div style={box}>⏳ Vertrekgegevens ophalen…</div>;
+  const { melding, taak, logs, naamAfwijkend } = info || {};
+  if (!melding) return (
+    <div style={{...box, borderColor:"#fecaca", background:"#fef2f2"}}>
+      ⚠️ Geen vertrekmelding gevonden voor deze kamer. Controleer eerst of het vertrek wel is gemeld en gecontroleerd.
+    </div>
+  );
+
+  const hmOpmerking = taak?.huismeester_opmerking || taak?.notitie?.replace(/\[✓ [a-z0-9_]+\]/g, "").trim() || "";
+  const bijlages = [...parseBijlages(melding.bijlages), ...parseBijlages(taak?.bijlages)];
+  const redenTekst = [
+    taak?.afgehandeld_door ? `Controle ${taak.afgehandeld_door} ${fmtD(taak.afgehandeld_op)}` : "Controle huismeester",
+    hmOpmerking ? `"${hmOpmerking}"` : null,
+  ].filter(Boolean).join(": ");
+
+  return (
+    <div style={box}>
+      <div style={{fontWeight:700,marginBottom:6}}>📋 Info vertrek</div>
+      {naamAfwijkend && (
+        <div style={{color:C.oranje,marginBottom:6}}>⚠️ Gevonden op kamer, maar naam in melding wijkt af: "{melding.medewerker}". Controleer of dit de juiste is.</div>
+      )}
+      <div style={{color:C.muted,marginBottom:6}}>
+        Vertrekdatum <strong style={{color:C.text}}>{fmtD(melding.datum)}</strong>
+        {" · "}gemeld door {melding.ingediend_door || "?"}
+        {" · "}sleutel terug: {CONTROLE_LABEL[melding.sleutel_terug] || melding.sleutel_terug || "—"}
+        {" · "}kamer schoon: {CONTROLE_LABEL[melding.kamer_schoon] || melding.kamer_schoon || "—"}
+      </div>
+      {melding.opmerkingen && <div style={{marginBottom:6}}>💬 Melder: <em>"{melding.opmerkingen}"</em></div>}
+
+      {taak ? (
+        <div style={{borderTop:`1px solid ${C.border}`,paddingTop:6,marginTop:6}}>
+          <div style={{fontWeight:600,marginBottom:4}}>
+            🧹 Controle huismeester — {taak.status === "gedaan"
+              ? <span style={{color:C.groen}}>afgerond door {taak.afgehandeld_door} op {fmtD(taak.afgehandeld_op)}</span>
+              : <span style={{color:C.rood}}>NOG NIET afgerond</span>}
+          </div>
+          {hmOpmerking && <div style={{fontSize:13,fontWeight:600,color:C.text,background:"#fffbeb",borderRadius:6,padding:"6px 8px",marginBottom:6}}>"{hmOpmerking}"</div>}
+          {taak.geblokkeerd && taak.blokkade_reden && <div style={{color:C.rood,marginBottom:4}}>⛔ Blokkade: {taak.blokkade_reden}</div>}
+          {logs.length > 0 && (
+            <div style={{color:C.muted}}>
+              {logs.map(l => (
+                <div key={l.id} style={{marginBottom:2}}>• {fmtDT(l.created_at)} — {l.gedaan_door}: {l.omschrijving}</div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div style={{color:C.rood,marginTop:6}}>⚠️ Geen controletaak huismeester gevonden bij deze vertrekmelding.</div>
+      )}
+
+      {bijlages.length > 0
+        ? <BijlageWeergave bijlages={bijlages}/>
+        : <div style={{color:C.oranje,marginTop:6}}>📷 Geen foto's bij melding of controle.</div>}
+
+      {onNeemOver && hmOpmerking && (
+        <button onClick={()=>onNeemOver(redenTekst)}
+          style={{marginTop:8,background:"white",border:`1.5px solid ${C.blauw}`,color:C.blauw,borderRadius:8,padding:"5px 10px",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+          ↳ Neem opmerking huismeester over als reden
+        </button>
+      )}
+    </div>
+  );
+}
+
 function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraToe, onSluitAf, onVerwerkExtra, onVerwerk, onOpmerking, onSchuifWeekOp, onArchiveer, onVertrek, onZetTerug, onZetExtraTerug, onWijzig, onWijzigSleutels, readonly, gegroepeerd=false }) {
   const [toonDetails, setToonDetails] = useState(false);
   const [toonExtra, setToonExtra] = useState(false);
@@ -1272,6 +1389,7 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
                 Ingehouden: <strong style={{color:C.groen}}>€{totaalIngehouden.toFixed(2)}</strong>
                 {" · "}Nog open (vervalt, wordt niet meer ingehouden): <strong style={{color:C.oranje}}>€{nogInTehouden.toFixed(2)}</strong>
               </div>
+              <VertrekInfo plan={plan} onNeemOver={tekst=>setVertrekReden(tekst)}/>
               <div style={{display:"flex",gap:10,marginBottom:10,flexWrap:"wrap"}}>
                 {[["vervalt","🔒 Borg vervalt","Niet terugbetalen"],["gedeeltelijk","➗ Deels terug","Zelf bedrag invullen"],["terugbetalen","💶 Volledig terug",`€${totaalIngehouden.toFixed(2)} retour`]].map(([k,l,sub])=>(
                   <div key={k} onClick={()=>setVertrekKeuze(k)}
