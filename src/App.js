@@ -161,7 +161,9 @@ const STATUS_DATUM = {
   "Moet weg": { veld:"moetWegVoor", icon:"📦", label:"Uiterlijke vertrekdatum", kleur:"#9f1239",
     taakTitel:(k)=>`Controleer vertrek — ${k.naam||"kamer "+k.k}`,
     taakTekst:(k,h)=>`${k.naam||"Bewoner"} moest voor ${k.moetWegVoor} weg zijn uit kamer ${k.k} (${h.adres}, ${h.stad}). Controleer of dit is gebeurd en werk de kamerstatus bij.` },
-  "Controle": { veld:"controleOp", icon:"🔍", label:"Datum controle", kleur:"#b91c1c",
+  // geenTaak: Controle-status krijgt GEEN automatische taak meer. De echte controle loopt al via de
+  // vertrek-/verhuizingstaak (met checklist); een extra "Voer controle uit"-taak was dubbel werk.
+  "Controle": { veld:"controleOp", icon:"🔍", label:"Datum controle", kleur:"#b91c1c", geenTaak:true,
     taakTitel:(k)=>`Voer controle uit — kamer ${k.k}`,
     taakTekst:(k,h)=>`Geplande controledatum (${k.controleOp}) voor kamer ${k.k} (${h.adres}, ${h.stad}) is verstreken en de status staat nog op "Controle". Voer de controle uit en werk de status bij.` },
   "Gereserveerd": { veld:"aankomstDatum", icon:"📅", label:"Verwachte aankomstdatum", kleur:"#b45309",
@@ -365,7 +367,7 @@ function App() {
     houses.forEach(h => {
       (h.kamers || []).forEach(k => {
         const dc = STATUS_DATUM[k.status];
-        if (!dc) return;
+        if (!dc || dc.geenTaak) return;
         const datum = k[dc.veld];
         if (!datum || datum > vandaag) return;
         const guardKey = `${h.id}-${k.k}-${k.status}-${datum}`;
@@ -1087,7 +1089,7 @@ function App() {
       const kamer = (w?.kamers||[]).find(k => k.k === t.kamer);
       const dc = kamer ? STATUS_DATUM[kamer.status] : null;
       const datum = dc ? kamer[dc.veld] : null;
-      if (dc && datum && datum <= todayISO() && dc.taakTitel(kamer) === t.titel) {
+      if (dc && !dc.geenTaak && datum && datum <= todayISO() && dc.taakTitel(kamer) === t.titel) {
         showToast(`Kamer ${t.kamer} staat nog op "${kamer.status}" (datum ${datum}). Werk eerst de kamerstatus bij of pas de datum aan.`, "err");
         return;
       }
