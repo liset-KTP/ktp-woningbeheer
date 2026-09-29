@@ -408,6 +408,9 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
         : keuze === "terugbetalen"
           ? `Vertrokken — borg terugbetalen: €${ingeh}. €${verv} open vervallen.`
           : `Vertrokken — deels terugbetalen: €${terug.toFixed(2)} terug, €${behouden} ingehouden (niet terug). €${verv} open vervallen.`;
+      const kernMetUitbetaling = terug > 0
+        ? `${kern} ${bedragen?.direct ? "Terugbetaling direct verwerkt in verloning." : "Terugbetaling nog te verwerken."}`
+        : kern;
       // Terugbetaling klaarzetten in "Terug te betalen" (tenzij er al een staat)
       if (terug > 0) {
         const { data: bestaand } = await supabase.from("borg_extra").select("id").eq("plan_id", planId).eq("type", "terugbetalen");
@@ -421,7 +424,10 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
           omschrijving: keuze === "gedeeltelijk" ? `Borg deels terug (van €${ingeh}) — ${reden}` : `Borg terug bij vertrek — ${reden}`,
           bedrag: terug,
           type: "terugbetalen",
-          status: "open",
+          // Direct verwerkt in verloning -> meteen afgevinkt, komt niet in "Terug te betalen"
+          status: bedragen?.direct ? "verwerkt" : "open",
+          verwerkt_door: bedragen?.direct ? gebruiker.naam : null,
+          verwerkt_op: bedragen?.direct ? new Date().toISOString() : null,
         }]);
       }
       await supabase.from("borg_termijnen").update({ status: "vervallen" }).eq("plan_id", planId).eq("status", "open");
@@ -429,15 +435,17 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
       await supabase.from("borg_plannen").update({
         status: keuze === "vervalt" ? "vervallen" : keuze === "terugbetalen" ? "terugbetaald" : "deels_terugbetaald",
         vertrek_datum: new Date().toISOString().slice(0,10),
-        opmerkingen: `${plan?.opmerkingen ? plan.opmerkingen + "\n" : ""}[${datumNu} - ${gebruiker.naam}] ${kern} Reden: ${reden}`,
+        opmerkingen: `${plan?.opmerkingen ? plan.opmerkingen + "\n" : ""}[${datumNu} - ${gebruiker.naam}] ${kernMetUitbetaling} Reden: ${reden}`,
       }).eq("id", planId);
       await supabase.from("activiteiten").insert([{
         type: keuze === "vervalt" ? "borg_vervallen" : keuze === "terugbetalen" ? "borg_terugbetaald" : "borg_deels_terugbetaald",
-        omschrijving: `${keuze === "vervalt" ? "🚪 Borg vervalt" : keuze === "terugbetalen" ? "💶 Borg terugbetalen" : "💶 Borg deels terugbetalen"}: ${plan?.naam_medewerker || "?"} — ${kern} Reden: ${reden}`,
+        omschrijving: `${keuze === "vervalt" ? "🚪 Borg vervalt" : keuze === "terugbetalen" ? "💶 Borg terugbetalen" : "💶 Borg deels terugbetalen"}: ${plan?.naam_medewerker || "?"} — ${kernMetUitbetaling} Reden: ${reden}`,
         gedaan_door: gebruiker?.naam || "?",
-        extra: { borg_plan_id: planId, naam: plan?.naam_medewerker, ingehouden: Number(ingeh), vervallen: Number(verv), terug, keuze, reden },
+        extra: { borg_plan_id: planId, naam: plan?.naam_medewerker, ingehouden: Number(ingeh), vervallen: Number(verv), terug, keuze, reden, direct_verwerkt: !!bedragen?.direct },
       }]);
-      showToast(keuze === "vervalt" ? "✓ Afgesloten — borg vervalt" : `✓ Afgesloten — €${terug.toFixed(2)} klaargezet in 'Terug te betalen'`);
+      showToast(keuze === "vervalt" ? "✓ Afgesloten — borg vervalt"
+        : bedragen?.direct ? `✓ Afgesloten — €${terug.toFixed(2)} terugbetaald (verwerkt in verloning)`
+        : `✓ Afgesloten — €${terug.toFixed(2)} klaargezet in 'Terug te betalen'`);
       await loadAll();
     } finally {
       bezigSluitenRef.current = false;
@@ -1087,6 +1095,7 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
   const [vertrekKeuze, setVertrekKeuze] = useState("vervalt");
   const [vertrekReden, setVertrekReden] = useState("");
   const [vertrekTerugBedrag, setVertrekTerugBedrag] = useState("");
+  const [vertrekUitbetaling, setVertrekUitbetaling] = useState(""); // "direct" | "later"
   const [toonSleutelsWijzig, setToonSleutelsWijzig] = useState(false);
   const [nieuweSleutels, setNieuweSleutels] = useState(plan.sleutels ?? 0);
   const [extraBijlage, setExtraBijlage] = useState(null);
@@ -1114,7 +1123,8 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
   // Validatie "Vertrokken – afsluiten"
   const deelsBedrag = Number(vertrekTerugBedrag);
   const deelsBedragOk = vertrekTerugBedrag !== "" && deelsBedrag > 0 && deelsBedrag < totaalIngehouden;
-  const vertrekKanAfsluiten = !!vertrekReden.trim() && (vertrekKeuze !== "gedeeltelijk" || deelsBedragOk);
+  const vertrekHeeftTerug = vertrekKeuze !== "vervalt";
+  const vertrekKanAfsluiten = !!vertrekReden.trim() && (vertrekKeuze !== "gedeeltelijk" || deelsBedragOk) && (!vertrekHeeftTerug || !!vertrekUitbetaling);
 
   return (
     <div style={{background:"white",border:gegroepeerd?"none":`1px solid ${C.border}`,borderLeft:`4px solid ${C.blauw}`,borderRadius:gegroepeerd?0:12,padding:gegroepeerd?"14px 20px":20}}>
@@ -1421,6 +1431,20 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
                   )}
                 </div>
               )}
+              {vertrekHeeftTerug && (
+                <div style={{marginBottom:10}}>
+                  <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".6px",textTransform:"uppercase",marginBottom:6}}>Terugbetaling *</div>
+                  <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+                    {[["direct","✓ Direct verwerkt in verloning","Wordt meteen afgevinkt"],["later","⏳ Nog niet verwerkt","Komt in 'Terug te betalen'"]].map(([k,l,sub])=>(
+                      <div key={k} onClick={()=>setVertrekUitbetaling(k)}
+                        style={{flex:1,minWidth:140,border:`2px solid ${vertrekUitbetaling===k?C.groen:C.border}`,borderRadius:8,padding:"8px",textAlign:"center",cursor:"pointer",background:vertrekUitbetaling===k?C.groen+"10":"white"}}>
+                        <div style={{fontWeight:700,fontSize:12,color:vertrekUitbetaling===k?C.groen:C.muted}}>{l}</div>
+                        <div style={{fontSize:11,color:C.muted}}>{sub}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               <input value={vertrekReden} onChange={e=>setVertrekReden(e.target.value)}
                 placeholder={vertrekKeuze==="terugbetalen" ? "Reden (bijv. controle akkoord)" : vertrekKeuze==="gedeeltelijk" ? "Reden inhouding (bijv. schoonmaakkosten €50, kapotte lamp...)" : "Reden (bijv. sleutel niet ingeleverd, schade kamer...)"}
                 style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"8px 12px",fontSize:13,outline:"none",fontFamily:"inherit",boxSizing:"border-box",marginBottom:8}}/>
@@ -1430,25 +1454,25 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
                     if (!vertrekKanAfsluiten) return;
                     const tb = Number(vertrekTerugBedrag);
                     const tekst = vertrekKeuze==="gedeeltelijk"
-                      ? `Borgplan ${plan.naam_medewerker} afsluiten?\n\n€${tb.toFixed(2)} terugbetalen (komt in 'Terug te betalen').\n€${(totaalIngehouden-tb).toFixed(2)} blijft ingehouden.\nNog open €${nogInTehouden.toFixed(2)} wordt NIET meer ingehouden.`
+                      ? `Borgplan ${plan.naam_medewerker} afsluiten?\n\n€${tb.toFixed(2)} terugbetalen (${vertrekUitbetaling==="direct"?"DIRECT verwerkt in verloning":"komt in 'Terug te betalen'"}).\n€${(totaalIngehouden-tb).toFixed(2)} blijft ingehouden.\nNog open €${nogInTehouden.toFixed(2)} wordt NIET meer ingehouden.`
                       : vertrekKeuze==="vervalt"
                       ? `Borgplan ${plan.naam_medewerker} afsluiten?\n\nBorg vervalt: €${totaalIngehouden.toFixed(2)} wordt NIET terugbetaald.\nNog open €${nogInTehouden.toFixed(2)} wordt NIET meer ingehouden.`
-                      : `Borgplan ${plan.naam_medewerker} afsluiten?\n\n€${totaalIngehouden.toFixed(2)} terugbetalen.\nNog open €${nogInTehouden.toFixed(2)} wordt NIET meer ingehouden.`;
+                      : `Borgplan ${plan.naam_medewerker} afsluiten?\n\n€${totaalIngehouden.toFixed(2)} terugbetalen (${vertrekUitbetaling==="direct"?"DIRECT verwerkt in verloning":"komt in 'Terug te betalen'"}).\nNog open €${nogInTehouden.toFixed(2)} wordt NIET meer ingehouden.`;
                     if (!window.confirm(tekst)) return;
-                    onVertrek(plan.id, vertrekKeuze, vertrekReden.trim(), { ingehouden: totaalIngehouden, vervallen: nogInTehouden, terug: vertrekKeuze==="gedeeltelijk" ? tb : undefined });
-                    setToonVertrek(false); setVertrekReden(""); setVertrekTerugBedrag("");
+                    onVertrek(plan.id, vertrekKeuze, vertrekReden.trim(), { ingehouden: totaalIngehouden, vervallen: nogInTehouden, terug: vertrekKeuze==="gedeeltelijk" ? tb : undefined, direct: vertrekHeeftTerug && vertrekUitbetaling==="direct" });
+                    setToonVertrek(false); setVertrekReden(""); setVertrekTerugBedrag(""); setVertrekUitbetaling("");
                   }}
                   style={{background:vertrekKanAfsluiten?C.blauw:C.border,color:"white",border:"none",borderRadius:8,padding:"8px 16px",fontSize:12,fontWeight:600,cursor:vertrekKanAfsluiten?"pointer":"not-allowed",fontFamily:"inherit"}}>
                   ✓ Afsluiten
                 </button>
-                <button onClick={()=>{ setToonVertrek(false); setVertrekReden(""); setVertrekTerugBedrag(""); }}
+                <button onClick={()=>{ setToonVertrek(false); setVertrekReden(""); setVertrekTerugBedrag(""); setVertrekUitbetaling(""); }}
                   style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"8px 12px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>
                   Annuleren
                 </button>
               </div>
             </div>
           ) : (
-            <button onClick={()=>{ setVertrekKeuze("vervalt"); setToonVertrek(true); }}
+            <button onClick={()=>{ setVertrekKeuze("vervalt"); setVertrekUitbetaling(""); setToonVertrek(true); }}
               style={{background:"white",border:`1.5px solid ${C.blauw}`,color:C.blauw,borderRadius:8,padding:"8px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
               🚪 Vertrokken – afsluiten
             </button>
