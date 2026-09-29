@@ -401,7 +401,7 @@ function App() {
   function login(g) {
     try { localStorage.setItem("ktp_sessie", JSON.stringify(g)); } catch {}
     setGebruiker(g);
-    setTab(g.rol==="collega"||g.rol==="financieel"?"taken":g.rol==="huismeester"?"dagplanning":"dashboard");
+    setTab(g.rol==="collega"||g.rol==="financieel"?"taken":g.rol==="huismeester"?"todo":"dashboard");
     loadOngelzenAutoReacties(g.naam);
     loadOngelzenBerichten(g.naam);
   }
@@ -1295,6 +1295,7 @@ function App() {
 
   const rolIcon = rol==="backoffice"?"📊":rol==="huismeester"?"🏠":rol==="financieel"?"💶":"👤";
   const totalNotifs = openMeldingen.length + openTaken.length;
+  const todoAantal = rol==="huismeester" ? huismeesterTodoItems(taken, meldingen).length : 0;
 
   return (
     <div style={{minHeight:"100vh",background:C.bg,color:C.text,fontFamily:"'Inter','Segoe UI',sans-serif"}}>
@@ -1392,6 +1393,7 @@ function App() {
               <button className={`tp ${tab==="kleding"?"act":""}`} onClick={()=>setTab("kleding")}>👕 Kleding</button>
             </>)}
             {rol==="huismeester" && (<>
+              <button className={`tp ${tab==="todo"?"act":""}`} onClick={()=>setTab("todo")} style={{fontWeight:800}}>✅ To-do {todoAantal>0&&<Notif n={todoAantal}/>}</button>
               <button className={`tp ${tab==="dagplanning"?"act":""}`} onClick={()=>setTab("dagplanning")}>📅 Mijn dag {totalNotifs>0&&<Notif n={totalNotifs}/>}</button>
               <button className={`tp ${tab==="taken"?"act":""}`} onClick={()=>setTab("taken")}>📋 Taken & Meldingen {(openTaken.length+openMeldingen.filter(m=>m.voor_rol==="huismeester"||!m.voor_rol).length)>0&&<Notif n={openTaken.length+openMeldingen.filter(m=>m.voor_rol==="huismeester"||!m.voor_rol).length}/>}</button>
               <button className={`tp ${tab==="woningen"?"act":""}`} onClick={()=>setTab("woningen")}>🏠 Woningen</button>
@@ -1446,6 +1448,7 @@ function App() {
         {tab==="woningen"&&<WoningenDetail houses={houses} onUpdateWoning={rol==="backoffice"||rol==="huismeester"?updateWoning:null}/>}
         {tab==="autos"&&<AutoModule gebruiker={gebruiker} showToast={showToast}/>}
         {tab==="fietsen"&&<FietsModule gebruiker={gebruiker} showToast={showToast} houses={houses} onMeldingIndienen={addMelding}/>}
+        {rol==="huismeester"&&tab==="todo"&&<HuismeesterTodoView taken={taken} meldingen={meldingen} houses={houses} gebruiker={gebruiker} onAddTaak={addTaak} onUpdateTaak={updateTaak} onUpdateMelding={updateMeldingStatus} showToast={showToast} taal={taal}/>}
         {rol==="huismeester"&&tab==="dagplanning"&&<DagplanningView meldingen={meldingen} taken={taken} houses={houses} onUpdate={updateMeldingStatus} onUpdateTaak={updateTaak} naam={naam} dagplanningDB={dagplanningDB} checklistItems={checklistItems} checklists={checklists} autoMeldingen={autoMeldingenApp}/>}
         {rol==="backoffice"&&tab==="log"&&<LogView meldingen={meldingen} houses={houses} activiteiten={activiteiten} taken={taken}/>}
         {tab==="huurbetalingen"&&<HuurbetalingenModule gebruiker={gebruiker} showToast={showToast} readonly={rol!=="backoffice"&&rol!=="financieel"}/>}
@@ -2868,6 +2871,121 @@ function DagplanningView({ meldingen, taken: takenAlleRollen, houses, onUpdate, 
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── HUISMEESTER TO-DO (2026-09-29) ─────────────────────────────────────────
+// Eén lijst met ALLES wat de huismeester nog moet doen, geordend op urgentie.
+// Aanleiding: op "Mijn dag" stond de to-do-lijst rechtsonder, afgekapt op 8 items,
+// en toonde alleen status "open" — taken met status "geaccepteerd" (ingepland) of
+// "bezig" waren daar onzichtbaar, en een ingeplande taak uit een vorige week viel
+// er stil af. "Bezig" was bovendien ook in Taken & Meldingen onzichtbaar (filter
+// open = open|geaccepteerd). Hier dus: open + geaccepteerd + bezig, zonder limiet.
+// De kaarten zelf zijn de bestaande TakenView/MeldingKaartCombined — alle
+// afvinklogica (kamer vrijmaken, borg, berichten) blijft daardoor op één plek.
+function huismeesterTodoItems(taken, meldingen) {
+  const t = taken.filter(t =>
+    (t.voor_rol === "huismeester" || t.voor_rol === "iedereen" || !t.voor_rol) &&
+    (t.status === "open" || t.status === "geaccepteerd" || t.status === "bezig"));
+  const m = meldingen.filter(m =>
+    (m.voor_rol === "huismeester" || m.voor_rol === "iedereen" || !m.voor_rol) &&
+    (m.status === "open" || m.status === "geaccepteerd") &&
+    m.type !== "reservering" && m.type !== "aankomst" && m.type !== "vertrek_aankondiging");
+  return [...t.map(x => ({ soort: "taak", item: x })), ...m.map(x => ({ soort: "melding", item: x }))];
+}
+
+function HuismeesterTodoView({ taken, meldingen, houses, gebruiker, onAddTaak, onUpdateTaak, onUpdateMelding, showToast, taal="nl" }) {
+  const lokaalISO = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  const nu = new Date();
+  const vandaag = lokaalISO(nu);
+  const zondag = new Date(nu); zondag.setDate(nu.getDate() + (7 - ((nu.getDay() + 6) % 7) - 1));
+  const eindWeek = lokaalISO(zondag);
+
+  // Plandatum: taak = ingepland_op of geaccepteerd_op (datum die bij "Oppakken" is gekozen),
+  // melding = ingepland_op. Géén m.datum: bij "overig" is dat de meldingsdatum, geen deadline.
+  const planDatum = ({ soort, item }) => {
+    const d = soort === "taak" ? (item.ingepland_op || item.geaccepteerd_op) : item.ingepland_op;
+    return d ? String(d).slice(0, 10) : null;
+  };
+  const prioRang = p => p === "hoog" ? 0 : p === "laag" ? 2 : 1;
+
+  const groepen = [
+    { key: "telaat",  titel: "🔴 Te laat",               kleur: "#dc2626", uitleg: "Plandatum is verstreken — eerst doen of opnieuw inplannen" },
+    { key: "vandaag", titel: "📍 Vandaag",               kleur: C.groen,   uitleg: "" },
+    { key: "week",    titel: "📅 Rest van deze week",    kleur: C.blauw,   uitleg: "" },
+    { key: "later",   titel: "🗓️ Later",                 kleur: C.muted,   uitleg: "" },
+    { key: "geen",    titel: "⚪ Nog inplannen",          kleur: "#b45309", uitleg: "Nog geen datum — pak op en kies een dag" },
+  ];
+  const groepVan = x => {
+    const d = planDatum(x);
+    if (!d) return "geen";
+    if (d < vandaag) return "telaat";
+    if (d === vandaag) return "vandaag";
+    if (d <= eindWeek) return "week";
+    return "later";
+  };
+  const sorteer = (a, b) => {
+    const pa = prioRang(a.item.prioriteit), pb = prioRang(b.item.prioriteit);
+    if (pa !== pb) return pa - pb;
+    const da = planDatum(a) || "", db = planDatum(b) || "";
+    if (da !== db) return da.localeCompare(db);
+    return new Date(a.item.created_at || 0) - new Date(b.item.created_at || 0);
+  };
+
+  const alles = huismeesterTodoItems(taken, meldingen);
+  const perGroep = Object.fromEntries(groepen.map(g => [g.key, alles.filter(x => groepVan(x) === g.key).sort(sorteer)]));
+  const [verborgen, setVerborgen] = useState({ later: true });
+
+  return (
+    <div style={{maxWidth:900,margin:"0 auto"}}>
+      <SH titel="✅ Mijn to-do" sub={`${alles.length} openstaand · van boven naar beneden afwerken`}/>
+
+      {/* Samenvatting */}
+      <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:20}}>
+        {groepen.map(g => (
+          <div key={g.key} style={{flex:"1 1 120px",background:"white",border:`1px solid ${C.border}`,borderTop:`3px solid ${g.kleur}`,borderRadius:10,padding:"10px 12px"}}>
+            <div style={{fontSize:22,fontWeight:800,color:perGroep[g.key].length?g.kleur:C.muted}}>{perGroep[g.key].length}</div>
+            <div style={{fontSize:12,color:C.muted}}>{g.titel}</div>
+          </div>
+        ))}
+      </div>
+
+      {alles.length === 0 && (
+        <div className="card" style={{textAlign:"center",padding:"50px 20px"}}>
+          <div style={{fontSize:40,marginBottom:10}}>🎉</div>
+          <div style={{color:C.muted}}>Alles is gedaan!</div>
+        </div>
+      )}
+
+      {groepen.map(g => {
+        const items = perGroep[g.key];
+        if (items.length === 0) return null;
+        const dicht = !!verborgen[g.key];
+        const groepTaken = items.filter(x => x.soort === "taak").map(x => x.item);
+        const groepMeldingen = items.filter(x => x.soort === "melding").map(x => x.item);
+        return (
+          <div key={g.key} style={{marginBottom:28}}>
+            <div onClick={()=>setVerborgen(v=>({...v,[g.key]:!dicht}))}
+              style={{display:"flex",alignItems:"baseline",gap:10,cursor:"pointer",borderBottom:`2px solid ${g.kleur}`,paddingBottom:6,marginBottom:12}}>
+              <span style={{fontSize:15,fontWeight:800,color:g.kleur}}>{g.titel} ({items.length})</span>
+              {g.uitleg && <span style={{fontSize:12,color:C.muted}}>{g.uitleg}</span>}
+              <span style={{marginLeft:"auto",fontSize:12,color:C.muted}}>{dicht?"▸ tonen":"▾ verbergen"}</span>
+            </div>
+            {!dicht && (<>
+              {groepMeldingen.map(m => (
+                <MeldingKaartCombined key={"m"+m.id} melding={m} houses={houses} gebruiker={gebruiker}
+                  isBackoffice={false} isHuismeester={true}
+                  onUpdate={onUpdateMelding} showToast={showToast} taal={taal}/>
+              ))}
+              {groepTaken.length > 0 && (
+                <TakenView taken={groepTaken} houses={houses} gebruiker={gebruiker} onAdd={onAddTaak}
+                  onUpdate={onUpdateTaak} showToast={showToast} inlineMode verbergKop/>
+              )}
+            </>)}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -4453,7 +4571,7 @@ function NieuwesTaakForm({ houses, gebruiker, onAdd, showToast }) {
 }
 
 // ─── TAKEN / TO-DO ────────────────────────────────────────────────────────────
-function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast, inlineMode }) {
+function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast, inlineMode, verbergKop }) {
   const [toonNieuwe, setToonNieuwe] = useState(false);
   const [filter, setFilter] = useState("open");
   const [nieuw, setNieuw] = useState({titel:"",omschrijving:"",woning_id:"",kamer:"",prioriteit:"middel",voor_rol:"iedereen"});
@@ -4502,7 +4620,7 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast, inlin
   const takenNogOppakken = gefilterd.filter(t => t.status !== "geaccepteerd");
   const takenAlIngepland = gefilterd.filter(t => t.status === "geaccepteerd")
     .sort((a,b) => new Date(a.ingepland_op||a.geaccepteerd_op||"9999-12-31") - new Date(b.ingepland_op||b.geaccepteerd_op||"9999-12-31"));
-  const toonTakenGroepen = inlineMode && takenNogOppakken.length > 0 && takenAlIngepland.length > 0;
+  const toonTakenGroepen = inlineMode && !verbergKop && takenNogOppakken.length > 0 && takenAlIngepland.length > 0;
   const takenGesorteerd = toonTakenGroepen ? [...takenNogOppakken, ...takenAlIngepland] : gefilterd;
 
   async function accepteerTaak(taak, datum, opmerking) {
@@ -4556,8 +4674,8 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast, inlin
 
   return (
     <div>
-      <SH titel="📌 To-do lijst" sub="Meld problemen of klusjes per woning/kamer"
-        actie={<button className="btn-b" style={{padding:"9px 18px",fontSize:13}} onClick={()=>setToonNieuwe(!toonNieuwe)}>+ Taak toevoegen</button>} />
+      {!verbergKop && <SH titel="📌 To-do lijst" sub="Meld problemen of klusjes per woning/kamer"
+        actie={<button className="btn-b" style={{padding:"9px 18px",fontSize:13}} onClick={()=>setToonNieuwe(!toonNieuwe)}>+ Taak toevoegen</button>} />}
 
       {toonNieuwe && (
         <div className="card" style={{marginBottom:20,borderTop:`3px solid ${C.groen}`}}>
