@@ -1010,7 +1010,11 @@ function VertrekInfo({ plan, onNeemOver }) {
     </div>
   );
 
-  const hmOpmerking = taak?.huismeester_opmerking || taak?.notitie?.replace(/\[✓ [a-z0-9_]+\]/g, "").trim() || "";
+  let ei = {};
+  try { ei = taak?.extra_info ? JSON.parse(taak.extra_info) : {}; } catch { ei = {}; }
+  const notitieSchoon = (taak?.notitie || "").replace(/\[✓ [a-z0-9_]+\]/g, "").trim();
+  const hmOpmerking = [ei.opmerkingen, notitieSchoon, taak?.huismeester_opmerking]
+    .filter((x, i, a) => x && a.indexOf(x) === i).join(" — ");
   const bijlages = [...parseBijlages(melding.bijlages), ...parseBijlages(taak?.bijlages)];
   const redenTekst = [
     taak?.afgehandeld_door ? `Controle ${taak.afgehandeld_door} ${fmtD(taak.afgehandeld_op)}` : "Controle huismeester",
@@ -1038,6 +1042,9 @@ function VertrekInfo({ plan, onNeemOver }) {
               ? <span style={{color:C.groen}}>afgerond door {taak.afgehandeld_door} op {fmtD(taak.afgehandeld_op)}</span>
               : <span style={{color:C.rood}}>NOG NIET afgerond</span>}
           </div>
+          {(ei.woning_schoon || ei.sleutel_terug) && (
+            <div style={{marginBottom:4}}>🧹 Schoon: <strong>{ei.woning_schoon || "—"}</strong> · 🔑 Sleutel terug: <strong>{ei.sleutel_terug || "—"}</strong></div>
+          )}
           {hmOpmerking && <div style={{fontSize:13,fontWeight:600,color:C.text,background:"#fffbeb",borderRadius:6,padding:"6px 8px",marginBottom:6}}>"{hmOpmerking}"</div>}
           {taak.geblokkeerd && taak.blokkade_reden && <div style={{color:C.rood,marginBottom:4}}>⛔ Blokkade: {taak.blokkade_reden}</div>}
           {logs.length > 0 && (

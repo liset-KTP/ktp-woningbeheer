@@ -2392,13 +2392,35 @@ function isVertrekTaak(titel) {
   return t.includes("vertrek") || t.includes("kamer controleren");
 }
 
+// ─── HELPER: welke controlepunten zijn NIET afgevinkt bij een kamercontrole? ──
+// Alleen voor "Kamer controleren na vertrek/verhuizing". Sleutel 2 telt alleen
+// mee als er volgens de taak 2 sleutels verwacht worden.
+function controleOntbreekt(t) {
+  const titel = t?.titel || "";
+  if (!titel.includes("Kamer controleren")) return [];
+  const n = t.notitie || "";
+  const tweeSleutels = /2 sleutels/.test(`${t.omschrijving||""} ${t.huismeester_opmerking||""}`);
+  const punten = [["schoon","Kamer schoon"],["sleutel1","Sleutel 1 ingeleverd"]];
+  if (tweeSleutels) punten.push(["sleutel2","Sleutel 2 ingeleverd"]);
+  return punten.filter(([k]) => !n.includes(`[✓ ${k}]`)).map(([,l]) => l);
+}
+
 // ─── VERTREK CONTROLE MODAL ───────────────────────────────────────────────────
+// Minimale lengte van de verplichte toelichting als er iets niet in orde is.
+const MIN_TOELICHTING = 10;
+
 function VertrekControleModal({ taak, onBevestig, onAnnuleer }) {
   const [schoon, setSchoon] = useState("ja");
   const [sleutel, setSleutel] = useState("ja");
   const [opmerking, setOpmerking] = useState("");
+  const [fotos, setFotos] = useState([]);
+  const [bezig, setBezig] = useState(false);
   const allesOk = schoon === "ja" && sleutel === "ja";
-  const borgAdvies = allesOk ? "Borg teruggeven" : schoon === "gedeeltelijk" ? "Borg gedeeltelijk inhouden" : "Borg inhouden — nader beoordelen";
+  // Niet alles in orde → toelichting + minimaal 1 foto verplicht (bewijs voor borginhouding)
+  const toelichtingOk = opmerking.trim().length >= MIN_TOELICHTING;
+  const fotoOk = fotos.length >= 1;
+  const magOpslaan = allesOk || (toelichtingOk && fotoOk);
+  const borgAdvies = allesOk ? "Borg teruggeven" : "Backoffice beoordeelt borg op basis van jouw toelichting + foto's";
   const borgKleur = allesOk ? "#16a34a" : schoon === "gedeeltelijk" ? "#d97706" : "#b91c1c";
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.55)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
@@ -2441,11 +2463,24 @@ function VertrekControleModal({ taak, onBevestig, onAnnuleer }) {
         </div>
 
         <div style={{marginBottom:16}}>
-          <div style={{fontSize:13,fontWeight:700,marginBottom:6}}>💬 Opmerkingen (optioneel)</div>
+          <div style={{fontSize:13,fontWeight:700,marginBottom:6}}>
+            💬 {allesOk ? "Opmerkingen (optioneel)" : "Wat is er niet in orde? (verplicht)"}
+          </div>
           <textarea value={opmerking} onChange={e=>setOpmerking(e.target.value)}
-            placeholder="Bijv. schade aan raam, borg gedeeltelijk inhouden..."
-            style={{width:"100%",borderRadius:8,border:"1px solid #e5e7eb",padding:"8px 10px",
+            placeholder={allesOk ? "Bijv. alles netjes achtergelaten" : "Beschrijf concreet: welke ruimte, wat is vies/kapot, ontbrekende sleutel..."}
+            style={{width:"100%",borderRadius:8,border:`1px solid ${!allesOk && !toelichtingOk ? "#fca5a5" : "#e5e7eb"}`,padding:"8px 10px",
               fontSize:12,fontFamily:"inherit",resize:"vertical",minHeight:60,boxSizing:"border-box"}}/>
+          {!allesOk && !toelichtingOk && (
+            <div style={{fontSize:11,color:"#b91c1c",marginTop:3}}>Minimaal {MIN_TOELICHTING} tekens — beschrijf wat er mis is.</div>
+          )}
+        </div>
+
+        <div style={{marginBottom:16}}>
+          <BijlageUploader bestanden={fotos} setBestanden={setFotos}
+            label={allesOk ? "📸 Foto's (optioneel)" : "📸 Foto's (verplicht, minimaal 1)"}/>
+          {!allesOk && !fotoOk && (
+            <div style={{fontSize:11,color:"#b91c1c",marginTop:3}}>Maak minimaal 1 foto van wat er niet in orde is.</div>
+          )}
         </div>
 
         <div style={{background:allesOk?"#f0fdf4":schoon==="gedeeltelijk"?"#fffbeb":"#fff1f2",
@@ -2460,11 +2495,26 @@ function VertrekControleModal({ taak, onBevestig, onAnnuleer }) {
               background:"white",cursor:"pointer",fontSize:13,fontFamily:"inherit"}}>
             Annuleren
           </button>
-          <button onClick={()=>onBevestig({schoon,sleutel,opmerking})}
+          <button disabled={!magOpslaan || bezig}
+            onClick={async()=>{
+              if (!magOpslaan || bezig) return;
+              setBezig(true);
+              let bijlages = [];
+              if (fotos.length > 0) {
+                bijlages = await uploadBijlages(fotos, "taken");
+                if (!allesOk && bijlages.length === 0) {
+                  alert("Foto uploaden mislukt. Probeer het opnieuw (controleer je internetverbinding).");
+                  setBezig(false);
+                  return;
+                }
+              }
+              await onBevestig({schoon, sleutel, opmerking: opmerking.trim(), bijlages});
+              setBezig(false);
+            }}
             style={{flex:2,padding:"10px",borderRadius:8,border:"none",
-              background:"#16a34a",color:"white",cursor:"pointer",
+              background:magOpslaan && !bezig ? "#16a34a" : "#d1d5db",color:"white",cursor:magOpslaan && !bezig ? "pointer" : "not-allowed",
               fontSize:13,fontWeight:700,fontFamily:"inherit"}}>
-            ✓ Afvinken & opslaan
+            {bezig ? "⏳ Opslaan…" : "✓ Afvinken & opslaan"}
           </button>
         </div>
       </div>
@@ -2480,9 +2530,10 @@ function DagplanningView({ meldingen, taken: takenAlleRollen, houses, onUpdate, 
   // filteren op voor_rol, net als relevanteTaken in TakenMeldingenView al deed.
   const taken = takenAlleRollen.filter(t => t.voor_rol === "huismeester" || t.voor_rol === "iedereen" || !t.voor_rol);
   const [vertrekModalTaak, setVertrekModalTaak] = useState(null);
-  const bevestigVertrek = ({schoon, sleutel, opmerking}) => {
+  const bevestigVertrek = async ({schoon, sleutel, opmerking, bijlages=[]}) => {
     const ei = JSON.stringify({woning_schoon:schoon, sleutel_terug:sleutel, opmerkingen:opmerking, gecontroleerd_op:new Date().toISOString()});
-    onUpdateTaak(vertrekModalTaak.id, {status:"gedaan", afgehandeld_door:naam, afgehandeld_op:new Date().toISOString(), extra_info:ei});
+    await onUpdateTaak(vertrekModalTaak.id, {status:"gedaan", afgehandeld_door:naam, afgehandeld_op:new Date().toISOString(), extra_info:ei,
+      ...(opmerking ? {notitie:opmerking} : {}), ...(bijlages.length>0 ? {bijlages:JSON.stringify(bijlages)} : {})});
     setVertrekModalTaak(null);
   };
   const dag = dagVanDeWeek();
@@ -3059,9 +3110,10 @@ function HuismeesterTodoView({ taken, meldingen, houses, gebruiker, onAddTaak, o
 function WoningKaartDag({ huis, kleur, hTaken, hMeldingen, checklistItems, checklists, naam, onUpdateTaak, onUpdateMelding, gekozenDag, weekJaar: weekJaarProp, weekOffset=0 }) {
   const [open, setOpen] = useState(false);
   const [vertrekModalTaak, setVertrekModalTaak] = useState(null);
-  const bevestigVertrekWKD = ({schoon, sleutel, opmerking}) => {
+  const bevestigVertrekWKD = async ({schoon, sleutel, opmerking, bijlages=[]}) => {
     const ei = JSON.stringify({woning_schoon:schoon, sleutel_terug:sleutel, opmerkingen:opmerking, gecontroleerd_op:new Date().toISOString()});
-    onUpdateTaak(vertrekModalTaak.id, {status:"gedaan", afgehandeld_door:naam, afgehandeld_op:new Date().toISOString(), extra_info:ei});
+    await onUpdateTaak(vertrekModalTaak.id, {status:"gedaan", afgehandeld_door:naam, afgehandeld_op:new Date().toISOString(), extra_info:ei,
+      ...(opmerking ? {notitie:opmerking} : {}), ...(bijlages.length>0 ? {bijlages:JSON.stringify(bijlages)} : {})});
     setVertrekModalTaak(null);
   };
   const [checklistTab, setChecklistTab] = useState("wekelijks");
@@ -5069,20 +5121,39 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast, inlin
             </div>
             {!gedaan&&(
               bevestigMap[t.id] ? (
+                (()=>{
+                // Vertrek-/verhuiscontrole met niet-afgevinkte punten → toelichting + foto verplicht
+                const ontbreekt = controleOntbreekt(t);
+                const notitieTxt = (notitieMap[t.id]||"").trim();
+                const aantalFotos = (fotoMap[t.id]||[]).length;
+                const bewijsNodig = ontbreekt.length > 0;
+                const magBevestigen = !bewijsNodig || (notitieTxt.length >= MIN_TOELICHTING && aantalFotos >= 1);
+                return (
                 <div style={{marginTop:12,padding:"12px",background:C.groen+"08",border:`1px solid ${C.groen}30`,borderRadius:10}}>
-                  <label className="fl">Opmerking bij afhandeling (optioneel)</label>
+                  {bewijsNodig && (
+                    <div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:8,padding:"8px 10px",marginBottom:10,fontSize:12,color:"#b91c1c"}}>
+                      ⚠️ Niet afgevinkt: <strong>{ontbreekt.join(", ")}</strong>. Beschrijf wat er niet in orde is en voeg minimaal 1 foto toe.
+                    </div>
+                  )}
+                  <label className="fl">{bewijsNodig ? "Wat is er niet in orde? (verplicht)" : "Opmerking bij afhandeling (optioneel)"}</label>
                   <input className="fi" value={notitieMap[t.id]||""} onChange={e=>setNotitieMap(p=>({...p,[t.id]:e.target.value}))}
-                    placeholder="bijv. Lamp vervangen, kraan gerepareerd..." style={{marginBottom:10}}
+                    placeholder={bewijsNodig ? "bijv. badkamer vies, vlekken op matras, sleutel 2 niet ingeleverd..." : "bijv. Lamp vervangen, kraan gerepareerd..."} style={{marginBottom:bewijsNodig && notitieTxt.length < MIN_TOELICHTING ? 2 : 10}}
                     autoFocus/>
+                  {bewijsNodig && notitieTxt.length < MIN_TOELICHTING && (
+                    <div style={{fontSize:11,color:"#b91c1c",marginBottom:10}}>Minimaal {MIN_TOELICHTING} tekens.</div>
+                  )}
                   <div style={{marginBottom:12}}>
-                    <BijlageUploader bestanden={fotoMap[t.id]||[]} setBestanden={v=>setFotoMap(p=>({...p,[t.id]:typeof v==="function"?v(p[t.id]||[]):v}))} label="📸 Foto's toevoegen (optioneel)"/>
+                    <BijlageUploader bestanden={fotoMap[t.id]||[]} setBestanden={v=>setFotoMap(p=>({...p,[t.id]:typeof v==="function"?v(p[t.id]||[]):v}))} label={bewijsNodig ? "📸 Foto's (verplicht, minimaal 1)" : "📸 Foto's toevoegen (optioneel)"}/>
                   </div>
                   <div style={{display:"flex",gap:8}}>
-                    <button className="btn-g" style={{flex:1,padding:"9px"}}
+                    <button className="btn-g" style={{flex:1,padding:"9px",opacity:magBevestigen?1:.5,cursor:magBevestigen?"pointer":"not-allowed"}}
+                      disabled={!magBevestigen}
                       onClick={async()=>{
+                        if (!magBevestigen) return;
                         const fotos = fotoMap[t.id]||[];
                         let fotoUrls = [];
                         if(fotos.length>0) fotoUrls = await uploadBijlages(fotos, "taken");
+                        if (bewijsNodig && fotoUrls.length === 0) { alert("Foto uploaden mislukt. Probeer het opnieuw."); return; }
                         onUpdate(t.id,{status:"gedaan",afgehandeld_door:gebruiker.naam,afgehandeld_op:new Date().toISOString(),notitie:notitieMap[t.id]||null,bijlages:fotoUrls.length>0?JSON.stringify(fotoUrls):null});
                         setFotoMap(p=>({...p,[t.id]:[]}));
                       }}>
@@ -5091,6 +5162,8 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast, inlin
                     <button className="btn-out" style={{padding:"9px 14px"}} onClick={()=>setBevestigMap(p=>({...p,[t.id]:false}))}>Annuleren</button>
                   </div>
                 </div>
+                );
+                })()
               ) : toonAccepteerMap[t.id] ? (
                 <div style={{marginTop:12,padding:"14px",background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:10}}>
                   <div style={{fontWeight:700,fontSize:13,color:C.groen,marginBottom:12}}>📅 Taak accepteren & inplannen</div>
