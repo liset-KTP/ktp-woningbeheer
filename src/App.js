@@ -2927,57 +2927,101 @@ function HuismeesterTodoView({ taken, meldingen, houses, gebruiker, onAddTaak, o
 
   const alles = huismeesterTodoItems(taken, meldingen);
   const perGroep = Object.fromEntries(groepen.map(g => [g.key, alles.filter(x => groepVan(x) === g.key).sort(sorteer)]));
-  const [verborgen, setVerborgen] = useState({ later: true });
+  // Klikbare tegels: één groep tegelijk in beeld. Standaard de eerste groep met items
+  // (dus normaal "Te laat"), zodat hij altijd bovenaan de urgentie begint.
+  const eersteMetItems = (groepen.find(g => perGroep[g.key].length > 0) || groepen[0]).key;
+  const [gekozen, setGekozen] = useState(null);
+  const [soortFilter, setSoortFilter] = useState("alle");
+  const actief = gekozen || eersteMetItems;
+  const actieveGroep = groepen.find(g => g.key === actief);
+  const actieveItems = perGroep[actief];
+  const aantalMeldingen = actieveItems.filter(x => x.soort === "melding").length;
+  const aantalTaken = actieveItems.filter(x => x.soort === "taak").length;
+  const zichtbaar = actieveItems.filter(x => soortFilter === "alle" || x.soort === soortFilter);
+  const zichtbareMeldingen = zichtbaar.filter(x => x.soort === "melding").map(x => x.item);
+  const zichtbareTaken = zichtbaar.filter(x => x.soort === "taak").map(x => x.item);
+  const volgendeGroep = groepen.find(g => g.key !== actief && perGroep[g.key].length > 0);
+  const kies = key => { setGekozen(key); setSoortFilter("alle"); };
 
   return (
     <div style={{maxWidth:900,margin:"0 auto"}}>
-      <SH titel="✅ Mijn to-do" sub={`${alles.length} openstaand · van boven naar beneden afwerken`}/>
+      <SH titel="✅ Mijn to-do" sub={`${alles.length} openstaand · klik op een blok om die lijst te zien`}/>
 
-      {/* Samenvatting */}
+      {/* Klikbare tegels */}
       <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:20}}>
-        {groepen.map(g => (
-          <div key={g.key} style={{flex:"1 1 120px",background:"white",border:`1px solid ${C.border}`,borderTop:`3px solid ${g.kleur}`,borderRadius:10,padding:"10px 12px"}}>
-            <div style={{fontSize:22,fontWeight:800,color:perGroep[g.key].length?g.kleur:C.muted}}>{perGroep[g.key].length}</div>
-            <div style={{fontSize:12,color:C.muted}}>{g.titel}</div>
-          </div>
-        ))}
+        {groepen.map(g => {
+          const n = perGroep[g.key].length;
+          const isActief = g.key === actief;
+          return (
+            <button key={g.key} onClick={()=>kies(g.key)}
+              style={{flex:"1 1 120px",textAlign:"left",cursor:"pointer",fontFamily:"inherit",
+                background:isActief?g.kleur:"white",
+                border:`2px solid ${isActief?g.kleur:C.border}`,borderTop:`4px solid ${g.kleur}`,
+                borderRadius:10,padding:"10px 12px",
+                boxShadow:isActief?"0 4px 12px rgba(0,0,0,.15)":"none",
+                transform:isActief?"translateY(-2px)":"none",transition:"all .15s"}}>
+              <div style={{fontSize:24,fontWeight:800,color:isActief?"white":n?g.kleur:C.muted}}>{n}</div>
+              <div style={{fontSize:12,fontWeight:isActief?700:500,color:isActief?"white":C.muted}}>{g.titel}</div>
+            </button>
+          );
+        })}
       </div>
 
-      {alles.length === 0 && (
+      {alles.length === 0 ? (
         <div className="card" style={{textAlign:"center",padding:"50px 20px"}}>
           <div style={{fontSize:40,marginBottom:10}}>🎉</div>
           <div style={{color:C.muted}}>Alles is gedaan!</div>
         </div>
-      )}
-
-      {groepen.map(g => {
-        const items = perGroep[g.key];
-        if (items.length === 0) return null;
-        const dicht = !!verborgen[g.key];
-        const groepTaken = items.filter(x => x.soort === "taak").map(x => x.item);
-        const groepMeldingen = items.filter(x => x.soort === "melding").map(x => x.item);
-        return (
-          <div key={g.key} style={{marginBottom:28}}>
-            <div onClick={()=>setVerborgen(v=>({...v,[g.key]:!dicht}))}
-              style={{display:"flex",alignItems:"baseline",gap:10,cursor:"pointer",borderBottom:`2px solid ${g.kleur}`,paddingBottom:6,marginBottom:12}}>
-              <span style={{fontSize:15,fontWeight:800,color:g.kleur}}>{g.titel} ({items.length})</span>
-              {g.uitleg && <span style={{fontSize:12,color:C.muted}}>{g.uitleg}</span>}
-              <span style={{marginLeft:"auto",fontSize:12,color:C.muted}}>{dicht?"▸ tonen":"▾ verbergen"}</span>
-            </div>
-            {!dicht && (<>
-              {groepMeldingen.map(m => (
-                <MeldingKaartCombined key={"m"+m.id} melding={m} houses={houses} gebruiker={gebruiker}
-                  isBackoffice={false} isHuismeester={true}
-                  onUpdate={onUpdateMelding} showToast={showToast} taal={taal}/>
-              ))}
-              {groepTaken.length > 0 && (
-                <TakenView taken={groepTaken} houses={houses} gebruiker={gebruiker} onAdd={onAddTaak}
-                  onUpdate={onUpdateTaak} showToast={showToast} inlineMode verbergKop/>
-              )}
-            </>)}
+      ) : (
+        <div>
+          {/* Kop van de gekozen groep */}
+          <div style={{display:"flex",alignItems:"baseline",gap:10,flexWrap:"wrap",borderBottom:`2px solid ${actieveGroep.kleur}`,paddingBottom:6,marginBottom:12}}>
+            <span style={{fontSize:16,fontWeight:800,color:actieveGroep.kleur}}>{actieveGroep.titel} ({actieveItems.length})</span>
+            {actieveGroep.uitleg && <span style={{fontSize:12,color:C.muted}}>{actieveGroep.uitleg}</span>}
           </div>
-        );
-      })}
+
+          {/* Meldingen / taken filter — alleen als de groep beide bevat */}
+          {aantalMeldingen > 0 && aantalTaken > 0 && (
+            <div style={{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap"}}>
+              {[["alle",`Alles (${actieveItems.length})`],["melding",`📝 Meldingen (${aantalMeldingen})`],["taak",`🔧 Taken (${aantalTaken})`]].map(([v,l])=>(
+                <button key={v} onClick={()=>setSoortFilter(v)}
+                  style={{background:soortFilter===v?C.blauw:"white",color:soortFilter===v?"white":C.muted,border:`1.5px solid ${soortFilter===v?C.blauw:C.border}`,borderRadius:20,padding:"6px 14px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                  {l}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {actieveItems.length === 0 ? (
+            <div className="card" style={{textAlign:"center",padding:"36px 20px"}}>
+              <div style={{fontSize:32,marginBottom:8}}>✅</div>
+              <div style={{color:C.muted,marginBottom:volgendeGroep?14:0}}>Niets meer in deze lijst</div>
+              {volgendeGroep && (
+                <button onClick={()=>kies(volgendeGroep.key)}
+                  style={{background:volgendeGroep.kleur,color:"white",border:"none",borderRadius:8,padding:"9px 18px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+                  Door naar {volgendeGroep.titel} ({perGroep[volgendeGroep.key].length}) →
+                </button>
+              )}
+            </div>
+          ) : (<>
+            {zichtbareMeldingen.length > 0 && soortFilter === "alle" && zichtbareTaken.length > 0 && (
+              <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:8}}>📝 Meldingen ({zichtbareMeldingen.length})</div>
+            )}
+            {zichtbareMeldingen.map(m => (
+              <MeldingKaartCombined key={"m"+m.id} melding={m} houses={houses} gebruiker={gebruiker}
+                isBackoffice={false} isHuismeester={true}
+                onUpdate={onUpdateMelding} showToast={showToast} taal={taal}/>
+            ))}
+            {zichtbareTaken.length > 0 && soortFilter === "alle" && zichtbareMeldingen.length > 0 && (
+              <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",margin:"18px 0 8px"}}>🔧 Taken ({zichtbareTaken.length})</div>
+            )}
+            {zichtbareTaken.length > 0 && (
+              <TakenView taken={zichtbareTaken} houses={houses} gebruiker={gebruiker} onAdd={onAddTaak}
+                onUpdate={onUpdateTaak} showToast={showToast} inlineMode verbergKop/>
+            )}
+          </>)}
+        </div>
+      )}
     </div>
   );
 }
