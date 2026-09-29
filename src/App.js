@@ -166,7 +166,8 @@ const STATUS_DATUM = {
   "Controle": { veld:"controleOp", icon:"🔍", label:"Datum controle", kleur:"#b91c1c", geenTaak:true,
     taakTitel:(k)=>`Voer controle uit — kamer ${k.k}`,
     taakTekst:(k,h)=>`Geplande controledatum (${k.controleOp}) voor kamer ${k.k} (${h.adres}, ${h.stad}) is verstreken en de status staat nog op "Controle". Voer de controle uit en werk de status bij.` },
-  "Gereserveerd": { veld:"aankomstDatum", icon:"📅", label:"Verwachte aankomstdatum", kleur:"#b45309",
+  // rol: aankomsten zijn werk van de collega's, niet van de huismeester (29-09-2026)
+  "Gereserveerd": { veld:"aankomstDatum", icon:"📅", label:"Verwachte aankomstdatum", kleur:"#b45309", rol:"collega",
     taakTitel:(k)=>`Controleer aankomst — ${k.naam||"kamer "+k.k}`,
     taakTekst:(k,h)=>`${k.naam||"Bewoner"} zou aangekomen moeten zijn op ${k.aankomstDatum} in kamer ${k.k} (${h.adres}, ${h.stad}), maar de kamer staat nog op "Gereserveerd". Controleer of de aankomst heeft plaatsgevonden en werk de kamerstatus bij naar "Lopend", of pas de datum aan als de aankomst is verzet.` },
 };
@@ -194,7 +195,7 @@ const DAGPLANNING = {
   di: { label: "Dinsdag", kleur: "#7c3aed",  icon: "🔧", focus: "Kleine klusjes – Noord omgeving", taken: ["Lamp vervangen indien gemeld", "Rookmelders controleren", "Kleine reparaties afhandelen", "Woningen: Coevorden, De Krim, Rijssen"] },
   wo: { label: "Woensdag", kleur: C.groen,   icon: "🔧", focus: "Kleine klusjes – Midden omgeving", taken: ["Lamp vervangen indien gemeld", "Lekkages/vocht controleren", "Kleine reparaties afhandelen", "Woningen: Goor, Rijssen"] },
   do: { label: "Donderdag", kleur: "#f59e0b", icon: "🔧", focus: "Kleine klusjes – Zuid omgeving", taken: ["Lamp vervangen indien gemeld", "Sloten en deuren controleren", "Kleine reparaties afhandelen", "Woningen: Almelo, Enschede"] },
-  vr: { label: "Vrijdag", kleur: "#ef4444",  icon: "✅", focus: "Controles & administratie", taken: ["Wekelijkse checklist afvinken", "Meldingen afsluiten in de app", "Weekrapportage bijwerken", "Nieuwe aankomsten voorbereiden voor volgende week"] },
+  vr: { label: "Vrijdag", kleur: "#ef4444",  icon: "✅", focus: "Controles & administratie", taken: ["Wekelijkse checklist afvinken", "Meldingen afsluiten in de app", "Weekrapportage bijwerken"] },
 };
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
@@ -388,7 +389,7 @@ function App() {
             supabase.from("taken").insert([{
               titel: taakTitel,
               omschrijving: dc.taakTekst(k, h),
-              woning_id: h.id, kamer: k.k, prioriteit: "normaal", voor_rol: "huismeester",
+              woning_id: h.id, kamer: k.k, prioriteit: "normaal", voor_rol: dc.rol || "huismeester",
               status: "open", aangemaakt_door: "Systeem (statuscontrole)",
             }]).then(({ error }) => { if (!error) loadTaken(); });
           });
@@ -456,17 +457,20 @@ function App() {
     // event op meerdere schermen los moet afvinken.
     const meldingId = nieuweMelding?.id || null;
 
-    // Bij aankomst: taak voor huismeester (sleutel uitreiken) en backoffice (verwerken)
+    // Bij aankomst: taak voor de collega (begeleiden + bevestigen) en backoffice (verwerken).
+    // Sinds 29-09-2026 doet de collega die de aankomst aanmaakt (belt met de medewerker) ook
+    // de begeleiding/sleuteluitgifte. De vroegere losse taken "Aankomst begeleiden" (huismeester)
+    // en "Aankomst bevestigen" (collega) zijn samengevoegd tot één taak: één gebeurtenis, één vinkje.
     if (m.type === "aankomst" && m.medewerker) {
       const sleutels = m.sleutelAantal || 1;
       await supabase.from("taken").insert([
         {
-          titel: `Aankomst begeleiden — ${m.medewerker}`,
-          omschrijving: `${m.medewerker} komt aan op ${m.datum}. Reik ${sleutels} sleutel${sleutels>1?"s":""} uit en begeleid de aankomst.`,
+          titel: `Aankomst begeleiden & bevestigen — ${m.medewerker}`,
+          omschrijving: `${m.medewerker} komt aan op ${m.datum}. Reik ${sleutels} sleutel${sleutels>1?"s":""} uit, begeleid de aankomst en vink af zodra de medewerker daadwerkelijk is aangekomen.`,
           woning_id: m.huisId || null,
           kamer: m.kamer || null,
           prioriteit: "hoog",
-          voor_rol: "huismeester",
+          voor_rol: "collega",
           status: "open",
           aangemaakt_door: gebruiker.naam,
           melding_id: meldingId,
@@ -482,17 +486,6 @@ function App() {
           aangemaakt_door: gebruiker.naam,
           melding_id: meldingId,
         },
-        {
-          titel: `Aankomst bevestigen — ${m.medewerker}`,
-          omschrijving: `Bevestig dat ${m.medewerker} daadwerkelijk is aangekomen op ${m.datum} (bijv. telefonisch contact met de medewerker of terugkoppeling van de huismeester).`,
-          woning_id: m.huisId || null,
-          kamer: m.kamer || null,
-          prioriteit: "middel",
-          voor_rol: "collega",
-          status: "open",
-          aangemaakt_door: gebruiker.naam,
-          melding_id: meldingId,
-        }
       ]);
     }
 
@@ -689,14 +682,14 @@ function App() {
           aangemaakt_door: gebruiker.naam,
           melding_id: meldingId,
         },
-        // Taak 3: Huismeester — sleutel uitreiken bij nieuwe kamer
+        // Taak 3: Collega — sleutel uitreiken bij nieuwe kamer (was huismeester, sinds 29-09-2026 collega)
         {
           titel: `Verhuizing voltooid — sleutel uitreiken ${m.medewerker}`,
           omschrijving: `${m.medewerker} trekt in bij ${naarHuisVerh?.adres||""} K${m.kamer}. Reik sleutel(s) uit en controleer of alles klaar is.`,
           woning_id: m.huisId || null,
           kamer: m.kamer || null,
           prioriteit: "hoog",
-          voor_rol: "huismeester",
+          voor_rol: "collega",
           status: "open",
           aangemaakt_door: gebruiker.naam,
           huismeester_opmerking: `Sleutels uitreiken bij nieuwe kamer. Noteer hoeveel sleutels (1 of 2).`,
@@ -2700,9 +2693,8 @@ function DagplanningView({ meldingen, taken: takenAlleRollen, houses, onUpdate, 
             // Alleen bevestigde aankomsten (type "aankomst") — een reservering is nog geen
             // zekere aankomst en gaf hier eerder ruis tussen de dingen die de huismeester
             // daadwerkelijk moet doen (sleutels uitreiken etc.).
-            const aankomstenVandaag = meldingen.filter(m =>
-              m.type === "aankomst" && m.datum === dagISO
-            );
+            // Sinds 29-09-2026 geen aankomsten meer bij de huismeester — die doen de collega's.
+            const aankomstenVandaag = [];
             if (ingeplandDag.length === 0 && aankomstenVandaag.length === 0) return null;
             return (
               <div style={{marginBottom:16}}>
@@ -3898,7 +3890,7 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
   // Resultaat: twee verschillende cijfers voor "hetzelfde" op één scherm (bijv. 179 in
   // de tab-badge vs 216 hier). Nu consistent gesplitst in twee eigen tellers.
   const magZienMelding = (m) => { if(isBackoffice) return m.voor_rol==="backoffice"; if(isHuismeester) return m.type!=="reservering" && m.type!=="aankomst" && m.type!=="vertrek_aankondiging"; if(isCollega) return m.ingediend_door===gebruiker?.naam; return false; };
-  const magZienTaakVoorTelling = (t) => { if(isBackoffice) return t.voor_rol==="backoffice"; if(isHuismeester) return (t.voor_rol==="huismeester"||t.voor_rol==="iedereen"||!t.voor_rol); if(isCollega) return (t.voor_rol==="iedereen"||!t.voor_rol); return false; };
+  const magZienTaakVoorTelling = (t) => { if(isBackoffice) return t.voor_rol==="backoffice"; if(isHuismeester) return (t.voor_rol==="huismeester"||t.voor_rol==="iedereen"||!t.voor_rol); if(isCollega) return (t.voor_rol==="iedereen"||t.voor_rol==="collega"||!t.voor_rol); return false; };
   const openCountEcht = meldingen.filter(m => magZienMelding(m) && m.status==="open").length
     + taken.filter(t => magZienTaakVoorTelling(t) && t.status==="open").length;
   const openCountIngepland = meldingen.filter(m => magZienMelding(m) && m.status==="geaccepteerd").length
@@ -4818,7 +4810,7 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast, inlin
                   </div>
                 )}
                 {/* Controle checkboxes voor verhuizing taken */}
-                {(t.titel?.includes("Kamer controleren") || t.titel?.includes("Verhuizing voltooid")) && isHuismeester && !gedaan && (
+                {((t.titel?.includes("Kamer controleren") && isHuismeester) || (t.titel?.includes("Verhuizing voltooid") && (isHuismeester || isCollega || isBackoffice))) && !gedaan && (
                   <div style={{marginTop:10,background:"#fffbeb",border:"1px solid #fcd34d",borderRadius:10,padding:"12px 14px"}}>
                     <div style={{fontSize:12,fontWeight:700,color:"#b45309",marginBottom:10}}>✅ Controlepunten afvinken</div>
                     {(t.titel?.includes("Verhuizing voltooid") ? [
@@ -6191,11 +6183,11 @@ function MijnOverzichtView({ meldingen, taken, houses, gebruiker }) {
       )}
 
       <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:4}}>
-        🔧 Aankomsten om te bevestigen ({collegaTaken.length})
+        🔑 Aankomsten & sleuteluitgifte ({collegaTaken.length})
       </div>
       <div style={{fontSize:11.5,color:C.muted,marginBottom:8}}>
-        Jouw eigen meldingen staan bovenaan — jij had het contact met de medewerker, dus bevestig die zelf.
-        Onderstaande van collega's kun je als vangnet ook afvinken.
+        Jouw eigen meldingen staan bovenaan — jij had het contact met de medewerker, dus begeleid en bevestig die zelf.
+        Onderstaande van collega's kun je als vangnet ook oppakken. Afvinken doe je in Taken &amp; Meldingen.
       </div>
       {collegaTaken.length === 0 ? (
         <div style={{textAlign:"center",padding:"24px 0",color:C.muted,fontSize:13}}>Geen {filter==="open"?"openstaande ":""}taken</div>
