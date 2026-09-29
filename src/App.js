@@ -594,28 +594,25 @@ function App() {
     // ÉÉN write verwerken. Alleen bij een verhuizing naar een ANDER pand blijven het twee aparte
     // (onafhankelijke) records/writes.
     const zelfdeWoningVerhuizing = m.type==="verhuizing" && m.vanHuisId && m.vanHuisId===m.huisId;
-    if (huis) {
-      const nk = huis.kamers.map(k => {
-        if (k.k===m.kamer) {
-          if (m.type==="aankomst")    return {...k,naam:m.medewerker,status:"Lopend",aankomstDatum:""}; // spookdatum voorkomen als kamer eerder Gereserveerd stond
-          if (m.type==="reservering") return {...k,naam:m.medewerker,status:"Gereserveerd",aankomstDatum:m.datum||""}; // "Verwachte aankomstdatum" meteen zichtbaar via STATUS_DATUM
-          if (m.type==="vertrek") { return {...k,status:"Controle",controleOp:m.datum||""}; } // Altijd Controle tot huismeester heeft afgevinkt; vertrekdatum meteen zichtbaar via STATUS_DATUM
-          if (m.type==="vertrek_aankondiging") { return {...k,status:"Gereserveerd"}; } // Aankondiging = gereserveerd (nog geen bekende aankomstdatum voor de opvolger)
-          if (m.type==="verhuizing") { return {...k,naam:m.medewerker,status:"Gereserveerd",aankomstDatum:m.datum||""}; } // Naar-kamer reserveren, datum verhuizing = aankomstdatum
-          return k;
-        }
-        if (zelfdeWoningVerhuizing && k.k===m.vanKamer) return {...k,status:"Controle",naam:"",controleOp:m.datum||""};
-        return k;
-      });
-      await supabase.from("woningen").update({kamers:nk}).eq("id",m.huisId);
+    // BUGFIX (29-09-2026, Dawid Pawlowski, Am Busch 43-1): hier werd de VOLLEDIGE kamers-array
+    // uit de lokale `houses`-snapshot teruggeschreven. Twee aankomsten in hetzelfde pand kort na
+    // elkaar (Pawlowski K1.2 en Dobies K2, 20 sec. uit elkaar) → de 2e write overschreef de 1e met
+    // de oude status "Gereserveerd". Nu via patchKamer(): verse read, alleen de betreffende kamer(s).
+    if (huis && m.kamer) {
+      let naarPatch = null;
+      if (m.type==="aankomst")                 naarPatch = {naam:m.medewerker,status:"Lopend",aankomstDatum:""}; // spookdatum voorkomen als kamer eerder Gereserveerd stond
+      else if (m.type==="reservering")         naarPatch = {naam:m.medewerker,status:"Gereserveerd",aankomstDatum:m.datum||""}; // "Verwachte aankomstdatum" meteen zichtbaar via STATUS_DATUM
+      else if (m.type==="vertrek")             naarPatch = {status:"Controle",controleOp:m.datum||""}; // Altijd Controle tot huismeester heeft afgevinkt
+      else if (m.type==="vertrek_aankondiging") naarPatch = {status:"Gereserveerd"}; // Aankondiging = gereserveerd
+      else if (m.type==="verhuizing")          naarPatch = {naam:m.medewerker,status:"Gereserveerd",aankomstDatum:m.datum||""}; // Naar-kamer reserveren tot verhuizing is afgerond
+      const patch = {};
+      if (naarPatch) patch[m.kamer] = naarPatch;
+      if (zelfdeWoningVerhuizing && m.vanKamer) patch[m.vanKamer] = {status:"Controle",naam:"",controleOp:m.datum||""};
+      await patchKamer(m.huisId, patch);
     }
-    // Bij verhuizing naar een ANDER pand: van-kamer apart bijwerken (ander record, geen race).
-    if (m.type==="verhuizing" && m.vanHuisId && !zelfdeWoningVerhuizing) {
-      const vanHuisObj = houses.find(h=>h.id===m.vanHuisId);
-      if (vanHuisObj) {
-        const nkVan = vanHuisObj.kamers.map(k=>k.k===m.vanKamer?{...k,status:"Controle",naam:"",controleOp:m.datum||""}:k);
-        await supabase.from("woningen").update({kamers:nkVan}).eq("id",vanHuisObj.id);
-      }
+    // Bij verhuizing naar een ANDER pand: van-kamer apart bijwerken (ander record).
+    if (m.type==="verhuizing" && m.vanHuisId && m.vanKamer && !zelfdeWoningVerhuizing) {
+      await patchKamer(m.vanHuisId, { [m.vanKamer]: {status:"Controle",naam:"",controleOp:m.datum||""} });
     }
 
     // ── E-mail sturen ──────────────────────────────────────────────────────
@@ -1021,22 +1018,26 @@ function App() {
       // van-kamer in dezelfde woning liggen, in 1 write combineren, anders overschrijft de 2e call
       // de 1e (zie uitgebreide toelichting bij addMelding, zelfde incident).
       if ((newStatus==="verwerkt"||newStatus==="afgehandeld") && m?.type==="verhuizing") {
-        const zelfdeWoningAfhandelen = huis && m.van_woning_id && huis.id===m.van_woning_id;
-        if (huis && m.kamer) {
-          const nkNaar = huis.kamers.map(k => {
-            if (k.k===m.kamer) return {...k,naam:m.medewerker,status:"Bezet"};
-            if (zelfdeWoningAfhandelen && k.k===m.van_kamer) return {...k,status:"Controle",naam:""};
-            return k;
-          });
-          await supabase.from("woningen").update({kamers:nkNaar}).eq("id",huis.id);
+        // BUGFIX (29-09-2026): naar-kamer werd "Bezet" (oude status, telt niet als bewoond) i.p.v.
+        // "Lopend", en aankomstDatum bleef staan. Nu Lopend + datum leeg, via patchKamer (verse read).
+        // Van-kamer: alleen naar Controle als die NIET al is vrijgegeven/opnieuw bewoond door iemand anders.
+        const { data: versNaar } = await supabase.from("woningen").select("kamers").eq("id", m.woning_id).maybeSingle();
+        const naarKamerNu = (versNaar?.kamers||[]).find(k=>k.k===m.kamer);
+        const patchNaar = {};
+        if (m.kamer && (!naarKamerNu || naarKamerNu.status==="Gereserveerd" || naarKamerNu.status==="Bezet" || naarKamerNu.naam===m.medewerker)) {
+          patchNaar[m.kamer] = {naam:m.medewerker,status:"Lopend",aankomstDatum:""};
         }
-        // Van-kamer in een ANDERE woning: apart bijwerken (ander record, geen race).
+        const zelfdeWoningAfhandelen = m.van_woning_id && m.woning_id===m.van_woning_id;
+        const vanPatch = (vk) => (vk && (vk.naam===m.medewerker || !vk.naam) && vk.status!=="Beschikbaar") ? {status:"Controle",naam:""} : null;
+        if (zelfdeWoningAfhandelen && m.van_kamer) {
+          const vp = vanPatch((versNaar?.kamers||[]).find(k=>k.k===m.van_kamer));
+          if (vp) patchNaar[m.van_kamer] = vp;
+        }
+        if (m.woning_id) await patchKamer(m.woning_id, patchNaar);
         if (m.van_woning_id && m.van_kamer && !zelfdeWoningAfhandelen) {
-          const vanHuisObj = houses.find(h=>h.id===m.van_woning_id);
-          if (vanHuisObj) {
-            const nkVan = vanHuisObj.kamers.map(k=>k.k===m.van_kamer?{...k,status:"Controle",naam:""}:k);
-            await supabase.from("woningen").update({kamers:nkVan}).eq("id",vanHuisObj.id);
-          }
+          const { data: versVan } = await supabase.from("woningen").select("kamers").eq("id", m.van_woning_id).maybeSingle();
+          const vp = vanPatch((versVan?.kamers||[]).find(k=>k.k===m.van_kamer));
+          if (vp) await patchKamer(m.van_woning_id, { [m.van_kamer]: vp });
         }
         await loadHouses();
       }
@@ -1056,7 +1057,7 @@ function App() {
   // werkdag, Weekplanning) omdat die schermen allemaal dezelfde data tonen.
   async function cascadeMeldingAfhandelen(meldingId) {
     if (!meldingId) return;
-    const { data: melding } = await supabase.from("meldingen").select("id,status").eq("id", meldingId).maybeSingle();
+    const { data: melding } = await supabase.from("meldingen").select("id,status,type,medewerker,woning_id,kamer").eq("id", meldingId).maybeSingle();
     if (!melding || melding.status !== "open") return;
     const { data: nogOpen } = await supabase.from("taken").select("id")
       .eq("melding_id", meldingId).in("voor_rol", ["huismeester", "collega"]).neq("status", "gedaan");
@@ -1067,6 +1068,18 @@ function App() {
         afgehandeld_op: new Date().toISOString(),
         notitie: "Automatisch afgehandeld: gekoppelde huismeester-taak is afgevinkt",
       }).eq("id", meldingId);
+      // BUGFIX (29-09-2026, Julian Guzowski / Martyna Baraniecka): deze automatische afhandeling
+      // liep buiten updateMelding om, dus de naar-kamer van een verhuizing bleef eeuwig op
+      // "Gereserveerd" staan → dagelijks nieuwe "Controleer aankomst"-taken. Nu: naar-kamer
+      // van verhuizing/reservering direct op Lopend, mits die kamer nog bij deze medewerker hoort.
+      if ((melding.type==="verhuizing" || melding.type==="reservering") && melding.woning_id && melding.kamer) {
+        const { data: w } = await supabase.from("woningen").select("kamers").eq("id", melding.woning_id).maybeSingle();
+        const k = (w?.kamers||[]).find(x=>x.k===melding.kamer);
+        if (k && k.status==="Gereserveerd" && k.naam===melding.medewerker) {
+          await patchKamer(melding.woning_id, { [melding.kamer]: { status:"Lopend", aankomstDatum:"" } });
+          await loadHouses();
+        }
+      }
       await loadMeldingen();
     }
   }
@@ -1083,8 +1096,24 @@ function App() {
       const dc = kamer ? STATUS_DATUM[kamer.status] : null;
       const datum = dc ? kamer[dc.veld] : null;
       if (dc && !dc.geenTaak && datum && datum <= todayISO() && dc.taakTitel(kamer) === t.titel) {
+        // "Controleer aankomst" (Gereserveerd): afvinken = bevestigen dat de medewerker er is.
+        // Dan meteen de kamer op Lopend zetten i.p.v. blokkeren (29-09-2026, Julian Guzowski:
+        // taak kwam 9x terug omdat afvinken de kamerstatus niet meenam).
+        if (kamer.status === "Gereserveerd") {
+          const ok = window.confirm(
+            `Is ${kamer.naam||"de medewerker"} aangekomen in kamer ${t.kamer}?\n\n` +
+            `OK = kamer op "Lopend" zetten en taak afsluiten\n` +
+            `Annuleren = niet aangekomen (pas dan de verwachte aankomstdatum aan in het woningoverzicht)`
+          );
+          if (!ok) return;
+          const gelukt = await patchKamer(t.woning_id, { [t.kamer]: { status: "Lopend", aankomstDatum: "" } });
+          if (!gelukt) { showToast("Kamer bijwerken mislukt — taak niet afgesloten", "err"); return; }
+          logActiviteit("kamer_status", `🏠 ${huis?.adres||"?"} K${t.kamer} — ${kamer.naam||"?"}: Gereserveerd → Lopend (aankomst bevestigd via taak)`, {taak_id:id});
+          await loadHouses();
+        } else {
         showToast(`Kamer ${t.kamer} staat nog op "${kamer.status}" (datum ${datum}). Werk eerst de kamerstatus bij of pas de datum aan.`, "err");
         return;
+        }
       }
     }
     // Verwijder notitie uit updates als de kolom niet bestaat
@@ -5057,7 +5086,7 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast, inlin
                         onUpdate(t.id,{status:"gedaan",afgehandeld_door:gebruiker.naam,afgehandeld_op:new Date().toISOString(),notitie:notitieMap[t.id]||null,bijlages:fotoUrls.length>0?JSON.stringify(fotoUrls):null});
                         setFotoMap(p=>({...p,[t.id]:[]}));
                       }}>
-                      ✓ Bevestig als gedaan
+                      {t.aangemaakt_door==="Systeem (statuscontrole)" && t.titel?.startsWith("Controleer aankomst") ? "✓ Is aangekomen — zet kamer op Lopend" : "✓ Bevestig als gedaan"}
                     </button>
                     <button className="btn-out" style={{padding:"9px 14px"}} onClick={()=>setBevestigMap(p=>({...p,[t.id]:false}))}>Annuleren</button>
                   </div>
