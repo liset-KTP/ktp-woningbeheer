@@ -28,6 +28,7 @@ import { BorgModule, berekenStartWeekVanAankomst, weekPlusN } from "./BorgModule
 import { HandleidingModule } from "./HandleidingModule";
 import { KledingModule, KledingUitgifteInline } from "./KledingModule";
 import WeekDatePicker from "./WeekDatePicker";
+import { MedewerkerKiezer, naamProbleem, normaliseerNaam, vernieuwMedewerkerNamen } from "./MedewerkerKiezer";
 
 // ─── KAMER-WRITES: race-vrije helper ───────────────────────────────────────
 // BUGFIX (2026-08-07, zie commit 009d81b): elke plek die een kamerstatus
@@ -6084,6 +6085,23 @@ function MeldingForm({ houses, meldingen=[], onSubmit, showToast, taal="nl" }) {
 
   useEffect(()=>{ if(type!=="vertrek") setGekoppeldeAankondigingId(null); },[type]);
 
+  // Bij vertrek(-aankondiging) en verhuizing is de medewerker al bewoner: naam automatisch
+  // overnemen uit de gekozen kamer (exact zoals in de app), zodat er niets getypt hoeft te worden.
+  // Alleen invullen als het veld leeg is of nog de vorige automatische waarde bevat.
+  const autoNaamRef = useRef("");
+  useEffect(()=>{
+    let bron = null;
+    if ((type==="vertrek"||type==="vertrek_aankondiging") && !gekoppeldeAankondigingId)
+      bron = selectedHouse?.kamers?.find(k=>String(k.k)===String(kamer));
+    if (type==="verhuizing")
+      bron = vanHuis?.kamers?.find(k=>String(k.k)===String(vanKamer));
+    const naam = normaliseerNaam(bron?.naam);
+    if (naam && (!medewerker.trim() || medewerker===autoNaamRef.current)) {
+      autoNaamRef.current = naam;
+      setMedewerker(naam);
+    }
+  },[type,huisId,kamer,vanHuisId,vanKamer]); // eslint-disable-line
+
   async function kiesAankondiging(a) {
     setGekoppeldeAankondigingId(a.id);
     setMedewerker(a.medewerker||"");
@@ -6112,7 +6130,8 @@ function MeldingForm({ houses, meldingen=[], onSubmit, showToast, taal="nl" }) {
   },[naarHuisId,type]); // eslint-disable-line
 
   async function handleSubmit() {
-    if(!medewerker.trim()){showToast("Vul naam medewerker in","err");return;}
+    const naamFout = naamProbleem(medewerker);
+    if(naamFout){showToast(naamFout,"err");return;}
     if(type==="verhuizing"){
       if(!vanHuisId||!vanKamer){showToast("Vul de huidige woning/kamer in","err");return;}
       if(!naarHuisId||!naarKamer){showToast("Vul de nieuwe woning/kamer in","err");return;}
@@ -6131,7 +6150,7 @@ function MeldingForm({ houses, meldingen=[], onSubmit, showToast, taal="nl" }) {
       overig: voorRol,
     };
     const meldingData = {
-      type, medewerker:medewerker.trim(), datum,
+      type, medewerker:normaliseerNaam(medewerker), datum,
       huisId: type==="verhuizing" ? Number(naarHuisId) : Number(huisId),
       kamer: type==="verhuizing" ? naarKamer : kamer,
       vanHuisId: type==="verhuizing" ? Number(vanHuisId) : null,
@@ -6145,7 +6164,9 @@ function MeldingForm({ houses, meldingen=[], onSubmit, showToast, taal="nl" }) {
       gekoppeldeVertrekAankondigingId: type==="vertrek" ? gekoppeldeAankondigingId : null,
     };
     await onSubmit(meldingData);
+    vernieuwMedewerkerNamen();
     setSaving(false);
+    autoNaamRef.current="";
     setMedewerker("");setOpmerkingen("");setKamer("");setSleutelTerug(null);setKamerSchoon(null);setWieRegelt("");setVoorRol("backoffice");
     setVanHuisId("");setVanKamer("");setNaarHuisId("");setNaarKamer("");setBijlages([]);
     setGekoppeldeAankondigingId(null);setSleutelAantal(1);
@@ -6207,7 +6228,10 @@ function MeldingForm({ houses, meldingen=[], onSubmit, showToast, taal="nl" }) {
         </div>
       </div>
       <div className="card" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}} >
-        <div style={{gridColumn:"1"}}><label className="fl">Naam medewerker</label><input className="fi" value={medewerker} onChange={e=>setMedewerker(e.target.value)} placeholder="Voor- en achternaam"/></div>
+        <div style={{gridColumn:"1"}}><label className="fl">Naam medewerker</label>
+          <MedewerkerKiezer value={medewerker} onChange={setMedewerker} houses={houses}
+            nieuwToegestaan={type==="aankomst"||type==="reservering"||type==="overig"}
+            placeholder={type==="aankomst"||type==="reservering"?"Voor- en achternaam (typ om te zoeken)":"Kies de medewerker (of kies eerst de kamer)"}/></div>
         <div style={{gridColumn:"2"}}><label className="fl">{datumLabel}</label><WeekDatePicker className="fi" value={datum} onChange={v=>setDatum(v)}/></div>
         {type!=="verhuizing"&&<>
           <div>
