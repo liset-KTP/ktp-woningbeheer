@@ -77,22 +77,26 @@ function lijktOp(getypt, bekend) {
 
 // Namenlijst één keer per 5 min ophalen en delen tussen alle invoervelden.
 // Bewoners komen ook uit de database, zodat modules zonder `houses`-prop (auto, kleding,
-// huur) dezelfde lijst krijgen. Resultaat: [{ naam, info }].
+// huur) dezelfde lijst krijgen. Resultaat: [{ naam, info }], info = adres (straat +
+// huisnummer), anders kenteken als ze alleen een auto hebben, anders leeg.
+// Volgorde van de lijst = voorrang: eerste info per naam wint.
 let cache = null, cacheTijd = 0;
 async function laadDbNamen() {
   if (cache && Date.now() - cacheTijd < 5 * 60 * 1000) return cache;
-  const [woningen, borg, huur] = await Promise.all([
+  const [woningen, autos, borg, huur] = await Promise.all([
     supabase.from("woningen").select("adres, kamers").neq("gearchiveerd", true),
+    supabase.from("autos").select("kenteken, naam_medewerker").neq("gearchiveerd", true).not("naam_medewerker", "is", null),
     supabase.from("borg_plannen").select("naam_medewerker").eq("status", "actief"),
     supabase.from("huurschulden").select("naam_medewerker").eq("actief", true),
   ]);
   const bewoners = [];
   (woningen.data || []).forEach(h => (h.kamers || []).forEach(k => {
-    if (k?.naam) bewoners.push({ naam: k.naam, info: `${h.adres} K${k.k}` });
+    if (k?.naam) bewoners.push({ naam: k.naam, info: h.adres || "" });
   }));
   cache = [
     ...bewoners,
-    ...[...(borg.data || []), ...(huur.data || [])].map(r => ({ naam: r.naam_medewerker, info: "borg/huur" })),
+    ...(autos.data || []).map(r => ({ naam: r.naam_medewerker, info: r.kenteken || "" })),
+    ...[...(borg.data || []), ...(huur.data || [])].map(r => ({ naam: r.naam_medewerker, info: "" })),
   ];
   cacheTijd = Date.now();
   return cache;
@@ -125,7 +129,7 @@ export function MedewerkerKiezer({
     const map = new Map();
     houses.forEach(h => (h.kamers || []).forEach(k => {
       const n = normaliseerNaam(k.naam);
-      if (n && !map.has(n)) map.set(n, `${h.adres} K${k.k}`);
+      if (n && !map.has(n)) map.set(n, h.adres || "");
     }));
     dbNamen.forEach(d => { const n = normaliseerNaam(d.naam); if (n && !map.has(n)) map.set(n, d.info); });
     return [...map.entries()].map(([naam, info]) => ({ naam, info })).sort((a, b) => a.naam.localeCompare(b.naam));
@@ -182,7 +186,7 @@ export function MedewerkerKiezer({
 
       {/* Status onder het veld */}
       {exact && (
-        <div style={{ fontSize: 11, color: KLEUR.groen, marginTop: 4, fontWeight: 600 }}>✓ Bestaande medewerker ({exact.info})</div>
+        <div style={{ fontSize: 11, color: KLEUR.groen, marginTop: 4, fontWeight: 600 }}>✓ Bestaande medewerker{exact.info ? ` (${exact.info})` : ""}</div>
       )}
       {!exact && waarde.trim() && lijkend.length > 0 && (
         <div style={{ fontSize: 12, marginTop: 6, background: "#fef3c7", border: "1px solid #fcd34d", borderRadius: 6, padding: "6px 10px", color: KLEUR.oranje }}>
