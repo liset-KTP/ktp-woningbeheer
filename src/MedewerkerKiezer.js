@@ -75,15 +75,25 @@ function lijktOp(getypt, bekend) {
   return g.every(p => b.some(q => deelLijkt(p, q)));
 }
 
-// Namenlijst één keer per sessie ophalen en delen tussen alle invoervelden.
+// Namenlijst één keer per 5 min ophalen en delen tussen alle invoervelden.
+// Bewoners komen ook uit de database, zodat modules zonder `houses`-prop (auto, kleding,
+// huur) dezelfde lijst krijgen. Resultaat: [{ naam, info }].
 let cache = null, cacheTijd = 0;
 async function laadDbNamen() {
   if (cache && Date.now() - cacheTijd < 5 * 60 * 1000) return cache;
-  const [borg, huur] = await Promise.all([
+  const [woningen, borg, huur] = await Promise.all([
+    supabase.from("woningen").select("adres, kamers").neq("gearchiveerd", true),
     supabase.from("borg_plannen").select("naam_medewerker").eq("status", "actief"),
     supabase.from("huurschulden").select("naam_medewerker").eq("actief", true),
   ]);
-  cache = [...(borg.data || []), ...(huur.data || [])].map(r => r.naam_medewerker);
+  const bewoners = [];
+  (woningen.data || []).forEach(h => (h.kamers || []).forEach(k => {
+    if (k?.naam) bewoners.push({ naam: k.naam, info: `${h.adres} K${k.k}` });
+  }));
+  cache = [
+    ...bewoners,
+    ...[...(borg.data || []), ...(huur.data || [])].map(r => ({ naam: r.naam_medewerker, info: "borg/huur" })),
+  ];
   cacheTijd = Date.now();
   return cache;
 }
@@ -110,14 +120,14 @@ export function MedewerkerKiezer({
     return () => document.removeEventListener("mousedown", klikBuiten);
   }, []);
 
-  // Bekende namen met herkomst (bewoner op adres/kamer heeft voorrang als label)
+  // Bekende namen met herkomst. `houses` (live in App) gaat voor op de database-cache.
   const bekend = useMemo(() => {
     const map = new Map();
     houses.forEach(h => (h.kamers || []).forEach(k => {
       const n = normaliseerNaam(k.naam);
       if (n && !map.has(n)) map.set(n, `${h.adres} K${k.k}`);
     }));
-    dbNamen.forEach(n0 => { const n = normaliseerNaam(n0); if (n && !map.has(n)) map.set(n, "borg/huur"); });
+    dbNamen.forEach(d => { const n = normaliseerNaam(d.naam); if (n && !map.has(n)) map.set(n, d.info); });
     return [...map.entries()].map(([naam, info]) => ({ naam, info })).sort((a, b) => a.naam.localeCompare(b.naam));
   }, [houses, dbNamen]);
 

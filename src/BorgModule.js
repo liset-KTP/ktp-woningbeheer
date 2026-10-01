@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "./supabaseClient";
 import { BijlageUploader, BijlageWeergave, uploadBijlages } from "./BijlageUploader";
 import WeekDatePicker from "./WeekDatePicker";
+import { MedewerkerKiezer, naamProbleem, normaliseerNaam, vernieuwMedewerkerNamen } from "./MedewerkerKiezer";
 
 const C = {
   blauw:"#1B3A6B", blauwLight:"#2a52a0",
@@ -1693,7 +1694,8 @@ function LosseInhoudingForm({ onSubmit, onAnnuleer }) {
   const donderdag = new Date(maandag); donderdag.setDate(maandag.getDate() + 3);
 
   async function handleSubmit() {
-    if (!naam.trim()) { alert("Vul naam in"); return; }
+    const naamFout = naamProbleem(naam);
+    if (naamFout) { alert(naamFout); return; }
     if (!bedrag || Number(bedrag) <= 0) { alert("Vul een geldig bedrag in"); return; }
     if (!omschrijving.trim()) { alert("Vul een omschrijving in"); return; }
     setSaving(true);
@@ -1701,7 +1703,8 @@ function LosseInhoudingForm({ onSubmit, onAnnuleer }) {
     if (bijlages.length > 0) {
       bijlageUrls = await uploadBijlages(bijlages, "inhoudingen");
     }
-    await onSubmit({ naam_medewerker: naam.trim(), bedrag, omschrijving: omschrijving.trim(), week, bijlages: bijlageUrls });
+    await onSubmit({ naam_medewerker: normaliseerNaam(naam), bedrag, omschrijving: omschrijving.trim(), week, bijlages: bijlageUrls });
+    vernieuwMedewerkerNamen();
     setSaving(false);
   }
 
@@ -1713,8 +1716,7 @@ function LosseInhoudingForm({ onSubmit, onAnnuleer }) {
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
         <div>
           <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Naam medewerker *</label>
-          <input value={naam} onChange={e=>setNaam(e.target.value)} placeholder="Voor- en achternaam" autoFocus
-            style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"10px 14px",fontSize:14,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
+          <MedewerkerKiezer value={naam} onChange={setNaam} autoFocus placeholder="Voor- en achternaam (typ om te zoeken)"/>
         </div>
         <div>
           <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Bedrag (€) *</label>
@@ -1784,10 +1786,12 @@ function NieuwBorgPlan({ houses, onSubmit, onAnnuleer }) {
   const geselecteerdeHuis = houses.find(h=>h.id===Number(woningId));
 
   async function handleSubmit() {
-    if (!naam.trim()) return;
+    const naamFout = naamProbleem(naam);
+    if (naamFout) { alert(naamFout); return; }
     if (sleutels === null && !heeftFiets) { alert("Selecteer minimaal 1 sleutel of fiets"); return; }
     setSaving(true);
-    await onSubmit({ naam_medewerker: naam.trim(), woning_id: woningId ? Number(woningId) : null, kamer, aankomst_datum: aankomst || null, sleutels: sleutels !== null ? Number(sleutels) : 0, heeft_fiets: heeftFiets });
+    await onSubmit({ naam_medewerker: normaliseerNaam(naam), woning_id: woningId ? Number(woningId) : null, kamer, aankomst_datum: aankomst || null, sleutels: sleutels !== null ? Number(sleutels) : 0, heeft_fiets: heeftFiets });
+    vernieuwMedewerkerNamen();
     setSaving(false);
   }
 
@@ -1797,8 +1801,7 @@ function NieuwBorgPlan({ houses, onSubmit, onAnnuleer }) {
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
         <div>
           <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Naam medewerker *</label>
-          <input value={naam} onChange={e=>setNaam(e.target.value)} placeholder="Voor- en achternaam"
-            style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"10px 14px",fontSize:14,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
+          <MedewerkerKiezer value={naam} onChange={setNaam} houses={houses} placeholder="Voor- en achternaam (typ om te zoeken)"/>
         </div>
         <div>
           <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Aankomstdatum</label>

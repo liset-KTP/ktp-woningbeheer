@@ -3614,12 +3614,12 @@ function AutoTabInTaken({ gebruiker, showToast }) {
 
   async function submit() {
     if (!kenteken) { showToast("Selecteer een auto","err"); return; }
-    if (actie !== "storing" && !naam.trim()) { showToast("Vul de naam van de medewerker in","err"); return; }
+    if (actie !== "storing") { const naamFout = naamProbleem(naam); if (naamFout) { showToast(naamFout,"err"); return; } }
     setSaving(true);
     const auto = autos.find(a=>a.kenteken===kenteken);
     const nieuweStatus = actie==="uitgifte"?"Lopend":actie==="inname"?"Beschikbaar":auto?.status||"Lopend";
     const updates = { status: nieuweStatus };
-    if (actie==="uitgifte") { updates.naam_medewerker = naam.trim(); updates.datum_uitgifte = new Date().toISOString().slice(0,10); }
+    if (actie==="uitgifte") { updates.naam_medewerker = normaliseerNaam(naam); updates.datum_uitgifte = new Date().toISOString().slice(0,10); }
     if (actie==="inname")   { updates.naam_medewerker = null; }
 
     // Update auto
@@ -3629,7 +3629,7 @@ function AutoTabInTaken({ gebruiker, showToast }) {
     // Log melding
     await supabase.from("auto_meldingen").insert([{
       kenteken, actie,
-      naam_medewerker: naam.trim() || auto?.naam_medewerker || "",
+      naam_medewerker: normaliseerNaam(naam) || auto?.naam_medewerker || "",
       omschrijving: omschrijving || null,
       ingediend_door: gebruiker.naam,
       status: actie==="storing" ? "open" : "afgehandeld",
@@ -3686,7 +3686,7 @@ function AutoTabInTaken({ gebruiker, showToast }) {
             <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>
               {actie==="uitgifte"?"Naam medewerker (krijgt auto) *":"Naam medewerker (geeft auto terug) *"}
             </label>
-            <input value={naam} onChange={e=>setNaam(e.target.value)} placeholder="Voor- en achternaam" style={inp}/>
+            <MedewerkerKiezer value={naam} onChange={setNaam} placeholder="Voor- en achternaam (typ om te zoeken)"/>
           </div>
         )}
 
@@ -3719,18 +3719,20 @@ function FietsTabInTaken({ gebruiker, showToast, onAddTaak }) {
 
   async function submit() {
     if (!locatie) { showToast("Selecteer een locatie","err"); return; }
-    if (!naam.trim()) { showToast("Vul de naam van de medewerker in","err"); return; }
+    const naamFout = naamProbleem(naam);
+    if (naamFout) { showToast(naamFout,"err"); return; }
+    const naamSchoon = normaliseerNaam(naam);
     if (!datum) { showToast("Vul een datum in","err"); return; }
     setSaving(true);
     await onAddTaak({
-      titel: `Fiets aanvragen — ${naam.trim()} (${locatie})`,
-      omschrijving: `Fiets nodig voor ${naam.trim()} in ${locatie} vanaf ${datum}.${opmerking ? " Opmerking: " + opmerking : ""}`,
+      titel: `Fiets aanvragen — ${naamSchoon} (${locatie})`,
+      omschrijving: `Fiets nodig voor ${naamSchoon} in ${locatie} vanaf ${datum}.${opmerking ? " Opmerking: " + opmerking : ""}`,
       prioriteit: "middel",
       voor_rol: "backoffice",
       status: "open",
       aangemaakt_door: gebruiker.naam,
     });
-    showToast(`✓ Fietsaanvraag ingediend voor ${naam.trim()}`);
+    showToast(`✓ Fietsaanvraag ingediend voor ${naamSchoon}`);
     setSaving(false);
     setLocatie(""); setNaam(""); setDatum(new Date().toISOString().slice(0,10)); setOpmerking("");
   }
@@ -3761,9 +3763,7 @@ function FietsTabInTaken({ gebruiker, showToast, onAddTaak }) {
         {/* Naam medewerker */}
         <div style={{marginBottom:14}}>
           <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Naam medewerker *</label>
-          <input value={naam} onChange={e=>setNaam(e.target.value)}
-            placeholder="Voor- en achternaam"
-            style={{...inp, borderColor: naam ? C.groen : C.border}}/>
+          <MedewerkerKiezer value={naam} onChange={setNaam} placeholder="Voor- en achternaam (typ om te zoeken)"/>
         </div>
 
         {/* Datum */}

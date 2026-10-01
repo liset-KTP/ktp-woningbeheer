@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { supabase } from "./supabaseClient";
 import WeekDatePicker from "./WeekDatePicker";
+import { MedewerkerKiezer, naamProbleem, normaliseerNaam } from "./MedewerkerKiezer";
 
 const C = {
   blauw:"#1B3A6B", blauwDark:"#132b52", groen:"#4A9B3C",
@@ -296,11 +297,12 @@ function UitgifteForm({ voorraad, gebruiker, onSubmit, showToast }) {
 
   async function submitAlles() {
     if (mandje.length===0) { showToast("Voeg eerst artikelen toe","err"); return; }
-    if (!medewerkerNaam.trim()) { showToast("Vul de naam van de medewerker in","err"); return; }
+    const naamFout = naamProbleem(medewerkerNaam);
+    if (naamFout) { showToast(naamFout,"err"); return; }
     setSaving(true);
     let allOk = true;
     for (const regel of mandje) {
-      const ok = await onSubmit(regel.vestiging, regel.type, regel.maat, regel.aantal, "", medewerkerNaam.trim(), actie);
+      const ok = await onSubmit(regel.vestiging, regel.type, regel.maat, regel.aantal, "", normaliseerNaam(medewerkerNaam), actie);
       if (!ok) { allOk = false; break; }
     }
     setSaving(false);
@@ -338,9 +340,7 @@ function UitgifteForm({ voorraad, gebruiker, onSubmit, showToast }) {
           <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>
             Naam medewerker * <span style={{fontSize:10,fontWeight:400}}>(wie {actie==="uitgifte"?"de kleding krijgt":"de kleding teruggeeft"})</span>
           </label>
-          <input value={medewerkerNaam} onChange={e=>setMedewerkerNaam(e.target.value)}
-            placeholder="Voor- en achternaam medewerker"
-            style={{...inp, borderColor: medewerkerNaam ? C.groen : C.border}}/>
+          <MedewerkerKiezer value={medewerkerNaam} onChange={setMedewerkerNaam} placeholder="Voor- en achternaam (typ om te zoeken)"/>
         </div>
 
         {/* Vestiging */}
