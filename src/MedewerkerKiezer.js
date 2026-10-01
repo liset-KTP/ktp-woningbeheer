@@ -75,10 +75,13 @@ function lijktOp(getypt, bekend) {
   return g.every(p => b.some(q => deelLijkt(p, q)));
 }
 
+const NIET_AANWEZIG = "niet meer aanwezig";
+
 // Namenlijst één keer per 5 min ophalen en delen tussen alle invoervelden.
 // Bewoners komen ook uit de database, zodat modules zonder `houses`-prop (auto, kleding,
 // huur) dezelfde lijst krijgen. Resultaat: [{ naam, info }], info = adres (straat +
-// huisnummer), anders kenteken als ze alleen een auto hebben, anders leeg.
+// huisnummer), anders kenteken als ze alleen een auto hebben, anders NIET_AANWEZIG
+// (alleen nog een actief borgplan/huurschuld, geen kamer en geen auto).
 // Volgorde van de lijst = voorrang: eerste info per naam wint.
 let cache = null, cacheTijd = 0;
 async function laadDbNamen() {
@@ -96,7 +99,7 @@ async function laadDbNamen() {
   cache = [
     ...bewoners,
     ...(autos.data || []).map(r => ({ naam: r.naam_medewerker, info: r.kenteken || "" })),
-    ...[...(borg.data || []), ...(huur.data || [])].map(r => ({ naam: r.naam_medewerker, info: "" })),
+    ...[...(borg.data || []), ...(huur.data || [])].map(r => ({ naam: r.naam_medewerker, info: NIET_AANWEZIG })),
   ];
   cacheTijd = Date.now();
   return cache;
@@ -172,7 +175,7 @@ export function MedewerkerKiezer({
             <div key={s.naam} onMouseDown={e => { e.preventDefault(); kies(s.naam); }}
               style={{ padding: "9px 12px", cursor: "pointer", fontSize: 14, display: "flex", justifyContent: "space-between", gap: 8, borderBottom: "1px solid #eef2f7" }}>
               <span style={{ fontWeight: 600, color: KLEUR.text }}>{s.naam}</span>
-              <span style={{ fontSize: 11, color: KLEUR.muted, whiteSpace: "nowrap" }}>{s.info}</span>
+              <span style={{ fontSize: 11, color: KLEUR.muted, whiteSpace: "nowrap", fontStyle: s.info === NIET_AANWEZIG ? "italic" : "normal" }}>{s.info}</span>
             </div>
           ))}
           {nieuwToegestaan && waarde.trim() && (
