@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "./supabaseClient";
 import { BijlageUploader, BijlageWeergave, uploadBijlages } from "./BijlageUploader";
 import WeekDatePicker from "./WeekDatePicker";
+import { MedewerkerKiezer, naamProbleem, normaliseerNaam } from "./MedewerkerKiezer";
 
 // ─── EMAILJS ─────────────────────────────────────────────────────────────────
 const EMAILJS_SERVICE  = process.env.REACT_APP_EMAILJS_SERVICE  || "";
@@ -746,7 +747,7 @@ function AutoHandoverWizard({ autos, gebruiker, actie, onSubmit, showToast }) {
   function volgende() {
     if (stap === 1) {
       if (!kenteken) { showToast("Selecteer een kenteken","err"); return; }
-      if (!naamMedewerker.trim()) { showToast("Vul naam medewerker in","err"); return; }
+      { const naamFout = naamProbleem(naamMedewerker); if (naamFout) { showToast(naamFout,"err"); return; } }
       if (actie === "inname" && !locatie.trim()) { showToast("Vul de locatie van de auto in","err"); return; }
     }
     if (stap === 2) {
@@ -789,7 +790,7 @@ function AutoHandoverWizard({ autos, gebruiker, actie, onSubmit, showToast }) {
       ? parseFloat(kostenInhouden.replace(",",".")) : null;
 
     const ok = await onSubmit({
-      actie, kenteken, naam_medewerker: naamMedewerker.trim(),
+      actie, kenteken, naam_medewerker: normaliseerNaam(naamMedewerker),
       datum_tijd: datumTijd, tank_vol: tankVol, schoon,
       formulier_getekend: "ja", rijbewijs_gecontroleerd: checklist.rijbewijs || null,
       kilometerstand: kilometerstand || null, locatie: locatie || null,
@@ -851,7 +852,7 @@ function AutoHandoverWizard({ autos, gebruiker, actie, onSubmit, showToast }) {
           </div>
           <div>
             <label style={lbl}>Naam medewerker (bestuurder) *</label>
-            <input style={inp} value={naamMedewerker} onChange={e=>setNaamMedewerker(e.target.value)} placeholder="Voor- en achternaam"/>
+            <MedewerkerKiezer value={naamMedewerker} onChange={setNaamMedewerker} placeholder="Voor- en achternaam (typ om te zoeken)"/>
           </div>
           <div>
             <label style={lbl}>Datum + Tijd *</label>
@@ -1014,12 +1015,12 @@ function AutoStoringForm({ autos, gebruiker, actie, onSubmit, showToast }) {
 
   async function handleSubmit() {
     if (!kenteken) { showToast("Selecteer een kenteken","err"); return; }
-    if (!naamMedewerker.trim()) { showToast("Vul naam medewerker in","err"); return; }
+    { const naamFout = naamProbleem(naamMedewerker); if (naamFout) { showToast(naamFout,"err"); return; } }
     setSaving(true);
     let docUrls = [];
     if (documenten.length > 0) docUrls = await uploadBijlages(documenten, "auto-documenten");
     const ok = await onSubmit({
-      actie, kenteken, naam_medewerker: naamMedewerker.trim(),
+      actie, kenteken, naam_medewerker: normaliseerNaam(naamMedewerker),
       datum_tijd: datumTijd, kilometerstand: kilometerstand || null,
       opmerkingen: opmerkingen || null,
       document_urls: docUrls.length > 0 ? JSON.stringify(docUrls) : null,
@@ -1051,7 +1052,7 @@ function AutoStoringForm({ autos, gebruiker, actie, onSubmit, showToast }) {
         </div>
         <div>
           <label style={lbl}>Naam medewerker *</label>
-          <input style={inp} value={naamMedewerker} onChange={e=>setNaamMedewerker(e.target.value)} placeholder="Voor- en achternaam"/>
+          <MedewerkerKiezer value={naamMedewerker} onChange={setNaamMedewerker} placeholder="Voor- en achternaam (typ om te zoeken)"/>
         </div>
         <div>
           <label style={lbl}>Datum + Tijd *</label>

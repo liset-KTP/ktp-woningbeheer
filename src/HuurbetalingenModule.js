@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "./supabaseClient";
 import WeekDatePicker from "./WeekDatePicker";
+import { MedewerkerKiezer, naamProbleem, normaliseerNaam, vernieuwMedewerkerNamen } from "./MedewerkerKiezer";
 
 // ─── EMAILJS ──────────────────────────────────────────────────────────────────
 const EMAILJS_SERVICE  = "service_1af258e";
@@ -795,12 +796,13 @@ function NieuweSchuld({ onSubmit, showToast }) {
   const [submitted, setSubmitted] = useState(false);
 
   async function handleSubmit() {
-    if (!naam.trim())      { showToast("Vul naam medewerker in","err"); return; }
+    const naamFout = naamProbleem(naam);
+    if (naamFout)          { showToast(naamFout,"err"); return; }
     if (!startdatum)       { showToast("Vul een startdatum in","err"); return; }
     setSaving(true);
-    const ok = await onSubmit({ naam_medewerker: naam.trim(), startdatum, einddatum, opmerkingen, beginsaldo: beginsaldo ? Number(beginsaldo) : 0, tarief_bedrag: tariefType==="handmatig" && tariefBedrag ? Number(tariefBedrag) : null });
+    const ok = await onSubmit({ naam_medewerker: normaliseerNaam(naam), startdatum, einddatum, opmerkingen, beginsaldo: beginsaldo ? Number(beginsaldo) : 0, tarief_bedrag: tariefType==="handmatig" && tariefBedrag ? Number(tariefBedrag) : null });
     setSaving(false);
-    if (ok) { setNaam(""); setStart(todayISO()); setEind(""); setOpm(""); setSubmitted(true); setTimeout(()=>setSubmitted(false),2000); }
+    if (ok) { vernieuwMedewerkerNamen(); setNaam(""); setStart(todayISO()); setEind(""); setOpm(""); setSubmitted(true); setTimeout(()=>setSubmitted(false),2000); }
   }
 
   if (submitted) return (
@@ -819,7 +821,7 @@ function NieuweSchuld({ onSubmit, showToast }) {
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
         <div style={{gridColumn:"1/-1"}}>
           <Label>Naam medewerker *</Label>
-          <Input value={naam} onChange={e=>setNaam(e.target.value)} placeholder="Voor- en achternaam"/>
+          <MedewerkerKiezer value={naam} onChange={setNaam} placeholder="Voor- en achternaam (typ om te zoeken)"/>
         </div>
         <div>
           <Label>Startdatum (eerste dag niet werken) *</Label>
