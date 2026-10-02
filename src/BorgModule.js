@@ -453,30 +453,6 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
     }
   }
 
-  async function sluitPlanAf(planId, terugbetalen) {
-    if (bezigSluitenRef.current) return;
-    bezigSluitenRef.current = true;
-    try {
-    await supabase.from("borg_plannen").update({
-      status: terugbetalen ? "terugbetaald" : "afgesloten",
-      vertrek_datum: new Date().toISOString().slice(0,10),
-    }).eq("id", planId);
-    // Log de actie in activiteiten zodat het in het Log verschijnt
-    const plan = plannen.find(p => p.id === planId);
-    const label = terugbetalen ? "💶 Borg terugbetaald" : "Borgplan afgesloten";
-    await supabase.from("activiteiten").insert([{
-      type: terugbetalen ? "borg_terugbetaald" : "borg_afgesloten",
-      omschrijving: `${label}: ${plan?.naam_medewerker || "?"} — €${plan?.totaal_borg || 0} (ingehouden: €${plan?.ingehouden || 0})`,
-      gedaan_door: gebruiker?.naam || "?",
-      extra: { borg_plan_id: planId, naam: plan?.naam_medewerker, bedrag: plan?.totaal_borg },
-    }]);
-    showToast(terugbetalen ? "✓ Borg terugbetaald" : "✓ Plan afgesloten");
-    await loadAll();
-    } finally {
-      bezigSluitenRef.current = false;
-    }
-  }
-
   async function voegOpmerkingToe(planId, tekst) {
     const plan = plannen.find(p => p.id === planId);
     const huidig = plan?.opmerkingen || "";
@@ -639,7 +615,6 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
           houses={houses}
           isBackoffice={isBackoffice}
           onVoegExtraToe={voegExtraToe}
-          onSluitAf={sluitPlanAf}
           onVerwerkExtra={verwerkExtra}
           onVerwerk={verwerkTermijn}
           onOpmerking={voegOpmerkingToe}
@@ -887,7 +862,7 @@ function WeekOverzicht({ dezeWeek, volgendeWeek, plannen, huidigeWeek, huidigJaa
 }
 
 // ─── PLANNEN OVERZICHT ────────────────────────────────────────────────────────
-function PlannenOverzicht({ plannen, termijnen, extras, houses, isBackoffice, onVoegExtraToe, onSluitAf, onVerwerkExtra, onVerwerk, onOpmerking, onSchuifWeekOp, onArchiveer, onVertrek, onZetTerug, onZetExtraTerug, onWijzig, onWijzigSleutels, readonly, showToast }) {
+function PlannenOverzicht({ plannen, termijnen, extras, houses, isBackoffice, onVoegExtraToe, onVerwerkExtra, onVerwerk, onOpmerking, onSchuifWeekOp, onArchiveer, onVertrek, onZetTerug, onZetExtraTerug, onWijzig, onWijzigSleutels, readonly, showToast }) {
   // Groepeer plannen per medewerker
   const groepen = [];
   const gezien = new Set();
@@ -899,7 +874,7 @@ function PlannenOverzicht({ plannen, termijnen, extras, houses, isBackoffice, on
     }
   });
 
-  const planProps = { houses, isBackoffice, onVoegExtraToe, onSluitAf, onVerwerkExtra, onVerwerk, onOpmerking, onSchuifWeekOp, onArchiveer, onVertrek, onZetTerug, onZetExtraTerug, onWijzig, onWijzigSleutels, readonly };
+  const planProps = { houses, isBackoffice, onVoegExtraToe, onVerwerkExtra, onVerwerk, onOpmerking, onSchuifWeekOp, onArchiveer, onVertrek, onZetTerug, onZetExtraTerug, onWijzig, onWijzigSleutels, readonly };
 
   return (
     <div style={{display:"grid",gap:16}}>
@@ -1082,7 +1057,7 @@ function VertrekInfo({ plan, onNeemOver }) {
   );
 }
 
-function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraToe, onSluitAf, onVerwerkExtra, onVerwerk, onOpmerking, onSchuifWeekOp, onArchiveer, onVertrek, onZetTerug, onZetExtraTerug, onWijzig, onWijzigSleutels, readonly, gegroepeerd=false }) {
+function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraToe, onVerwerkExtra, onVerwerk, onOpmerking, onSchuifWeekOp, onArchiveer, onVertrek, onZetTerug, onZetExtraTerug, onWijzig, onWijzigSleutels, readonly, gegroepeerd=false }) {
   const [toonDetails, setToonDetails] = useState(false);
   const [toonExtra, setToonExtra] = useState(false);
   const [toonOpmerkingForm, setToonOpmerkingForm] = useState(false);
@@ -1502,15 +1477,6 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
               style={{background:"white",border:`1.5px solid ${C.rood}`,color:C.rood,borderRadius:8,padding:"8px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
               🗑 Archiveren
             </button>
-          )}
-
-          {pct >= 100 && (
-            <>
-              <button onClick={()=>{ if(window.confirm(`Borg terugbetalen aan ${plan.naam_medewerker}?`)) onSluitAf(plan.id, true); }}
-                style={{background:C.groen,color:"white",border:"none",borderRadius:8,padding:"8px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                💶 Borg terugbetalen
-              </button>
-            </>
           )}
         </div>
       )}
