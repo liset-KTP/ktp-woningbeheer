@@ -1195,6 +1195,19 @@ function App() {
       if (error2) { showToast("Fout","err"); return; }
     }
     showToast("✓ Opgeslagen"); await loadTaken();
+    // BUGFIX (02-10-2026, Maciej Fischer + 6 andere kamers): een controletaak na vertrek/verhuizing
+    // kon op 3 manieren op "gedaan" komen (checklist, "Bevestig als gedaan"-knop, pop-up in de
+    // dagplanning), maar alleen de checklist maakte de kamer vrij. Kamer bleef dan eeuwig op
+    // "Controle" staan. Nu centraal hier, zodat élke route naar "gedaan" de kamer vrijmaakt —
+    // via veiligKamerVrijmaken, dus nooit als er intussen een nieuwe bewoner in zit.
+    if (updates.status==="gedaan" && t?.status!=="gedaan" && t?.woning_id && t?.kamer &&
+        (t.titel?.includes("Kamer controleren na vertrek") || t.titel?.includes("Kamer controleren na verhuizing"))) {
+      const kamerResultaat = await veiligKamerVrijmaken(t.woning_id, t.kamer, t.titel);
+      if (!kamerResultaat.ok && kamerResultaat.huidigeNaam) {
+        showToast(`⚠ Kamer ${t.kamer} niet leeggemaakt — ${kamerResultaat.huidigeNaam} zit er al in. Backoffice is gewaarschuwd, controleer handmatig.`, "err");
+      }
+      await loadHouses();
+    }
     if (updates.status==="gedaan" && t?.melding_id) {
       await cascadeMeldingAfhandelen(t.melding_id);
     }
@@ -5139,7 +5152,10 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast, inlin
                           // en er moet een guard zijn tegen herhaald vuren: zonder wasAlAfgevinkt-check vuurde dit
                           // blok (bericht + mail + borg-terugbetaling) een 2e keer zodra een extra checkbox werd
                           // aangevinkt nadat de set al compleet was — zie dubbel bericht bij Wojciech Karbowski.
-                          const alleKeys = t.titel?.includes("Verhuizing voltooid") ? ["sleutel1","kamer_klaar"] : ["schoon","sleutel1","sleutel2"];
+                          // BUGFIX (02-10-2026): sleutel2 was altijd verplicht, ook bij 1 sleutel -> checklist werd nooit
+                          // compleet en de kamer bleef op "Controle". Nu alleen verplicht als de taak 2+ sleutels noemt.
+                          const aantalSleutels = parseInt(((t.omschrijving||"").match(/(\d+)\s*sleutel/i)||[])[1]||"1", 10);
+                          const alleKeys = t.titel?.includes("Verhuizing voltooid") ? ["sleutel1","kamer_klaar"] : (aantalSleutels >= 2 ? ["schoon","sleutel1","sleutel2"] : ["schoon","sleutel1"]);
                           const wasAlAfgevinkt = alleKeys.every(k => (t.notitie||"").includes("[✓ "+k+"]"));
                           const alleAfgevinkt = alleKeys.every(k => nieuwNotitie.includes("[✓ "+k+"]"));
                           if (alleAfgevinkt && !wasAlAfgevinkt) {
