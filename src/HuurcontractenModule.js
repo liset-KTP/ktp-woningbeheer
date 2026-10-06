@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "./supabaseClient";
+import { SJABLOON_TALEN, WERKGEVER_JURIDISCH, contractWaarden, vulSjabloon, haalSjabloon, uploadSjabloon, controleerSjabloon, aanwezigeSjablonen, bewaarBestand } from "./huurcontractWord";
 
 // ─── HUURCONTRACTEN (backoffice) ─────────────────────────────────────────────
 // Overzicht per bewoner: moet er nog een huurovereenkomst gemaakt/getekend worden,
@@ -93,22 +94,25 @@ function huurbevestigingTekst(c, huis) {
     `Plaats: ${[huis?.postcode, huis?.stad].filter(Boolean).join(" ") || "?"}`,
     `Kamernummer: ${c.kamer || "?"}`,
     `Huurprijs: ${c.huurprijs!=null ? geld(c.huurprijs) : "?"} per week`,
-    `Afspraken facturatie: Via salaris te innen`,
+    `Afspraken facturatie: via salaris`,
     `Waarborgsom: ${c.borg!=null ? geld(c.borg) : "?"}`,
     `Begindatum: ${fmt(c.begindatum)}`,
     `Einddatum: ${fmt(eind)}`,
-    `Werkgever: ${WERKGEVER_TEKST[c.werkgever] || "?"}`,
+    `Werkgever: ${WERKGEVER_JURIDISCH[c.werkgever] || "?"}`,
     `Max. aantal bewoners woning (informatieblad): ${huis?.kamers?.length ?? "?"}`,
   ].join("\n");
 }
 
-function ContractDetail({ c, huis, gebruiker, onOpslaan, onLog, showToast, bezig }) {
+function ContractDetail({ c, huis, gebruiker, onOpslaan, onLog, showToast, bezig, sjablonen }) {
   const [f, setF] = useState(() => ({
     werkgever: c.werkgever || "", huurprijs: c.huurprijs ?? "", borg: c.borg ?? "", taal: c.taal || "",
     begindatum: c.begindatum || "", eerste_aankomst: c.eerste_aankomst || "", einddatum: c.einddatum || "",
     einddatum_handmatig: !!c.einddatum_handmatig, uit_dienst_datum: c.uit_dienst_datum || "", opmerking: c.opmerking || "",
   }));
   const [tekenDatum, setTekenDatum] = useState(vandaag());
+  // Alleen voor het Word-document; wordt bewust niet opgeslagen (privacy)
+  const [extra, setExtra] = useState({ geboorteplaats:"", geboortedatum:"", telefoon:"", documentnummer:"", bijzonderheden:"geen bijzonderheden" });
+  const [maakt, setMaakt] = useState(false);
   const zet = (k, v) => setF(p => {
     const n = { ...p, [k]: v };
     // Bij aankomst/bestaand is eerste aankomst = begindatum
@@ -135,9 +139,19 @@ function ContractDetail({ c, huis, gebruiker, onOpslaan, onLog, showToast, bezig
   const brief = f.uit_dienst_datum ? "brief 6 (einde arbeids- én huurovereenkomst)" : "brief 7 (einde huurovereenkomst) — of brief 5 bij verhuizing";
   const sjabloon = f.taal ? `Huurovereenkomst ${TAAL_LABEL[f.taal]} + Informatieblad ${TAAL_LABEL[f.taal]}` : "kies taal";
 
-  async function kopieer() {
-    try { await navigator.clipboard.writeText(huurbevestigingTekst({ ...c, ...naarDb() }, huis)); showToast("📋 Huurbevestiging gekopieerd"); }
-    catch { showToast("Kopiëren lukt niet in deze browser", "err"); }
+  async function downloadWord() {
+    if (ontbr.length) return showToast("Eerst invullen: " + ontbr.join(", "), "err");
+    if (gewijzigd && !(await onOpslaan(c, naarDb(), null))) return;
+    setMaakt(true);
+    try {
+      const sjabloon = await haalSjabloon(f.taal);
+      if (!sjabloon) return showToast(`Geen sjabloon ${TAAL_LABEL[f.taal]} — upload het eerst via 🗂️ Sjablonen`, "err");
+      const { blob } = await vulSjabloon(sjabloon, contractWaarden({ ...c, ...naarDb() }, huis, eind, extra));
+      bewaarBestand(blob, `Huurovereenkomst ${c.naam_medewerker}.docx`);
+      showToast("📄 Huurovereenkomst gedownload");
+    } catch (e) {
+      showToast("Word maken mislukt: " + e.message, "err");
+    } finally { setMaakt(false); }
   }
   async function status(nieuw) {
     if (gewijzigd) { const ok = await onOpslaan(c, naarDb(), null); if (!ok) return; }
@@ -229,14 +243,25 @@ function ContractDetail({ c, huis, gebruiker, onOpslaan, onLog, showToast, bezig
         </div>
       )}
 
-      {/* Huurbevestiging: kant-en-klaar om over te nemen in Kentro / Word */}
+      {/* Huurovereenkomst als Word: sjabloon in de juiste taal, ingevuld met de gegevens hierboven */}
       <div style={{marginTop:14,background:"white",border:`1px solid ${C.border}`,borderRadius:9,padding:12}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:8}}>
-          <div style={{fontWeight:800,fontSize:13,color:C.text}}>📄 Bijlage Huurbevestiging <span style={{fontWeight:400,color:C.muted,fontSize:12}}>· sjabloon: {sjabloon}</span></div>
-          <button style={btn(C.blauw)} onClick={kopieer}>📋 Kopieer</button>
+          <div style={{fontWeight:800,fontSize:13,color:C.text}}>📄 Huurovereenkomst <span style={{fontWeight:400,color:C.muted,fontSize:12}}>· sjabloon: {sjabloon}</span></div>
+          <button style={btn(C.blauw)} disabled={maakt || bezig} onClick={downloadWord}>{maakt ? "Bezig…" : "⬇️ Download Word"}</button>
         </div>
-        <pre style={{margin:0,fontSize:12,fontFamily:"inherit",whiteSpace:"pre-wrap",color:C.text,lineHeight:1.6}}>{huurbevestigingTekst({ ...c, ...naarDb() }, huis)}</pre>
-        <div style={{fontSize:11,color:C.muted,marginTop:6}}>Geboortedatum, telefoon en ID-nummer komen uit Cockpit/Kentro — die staan bewust niet in deze app.</div>
+        {f.taal && sjablonen && !sjablonen[f.taal] && <div style={{fontSize:12,color:C.rood,marginBottom:8}}>⚠️ Sjabloon {TAAL_LABEL[f.taal]} is nog niet geüpload (🗂️ Sjablonen, bovenaan de pagina).</div>}
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:8,marginBottom:6}}>
+          <div><span style={lbl}>Geboorteplaats</span><input style={inp} value={extra.geboorteplaats} onChange={e=>setExtra(p=>({...p,geboorteplaats:e.target.value}))} /></div>
+          <div><span style={lbl}>Geboortedatum</span><input type="date" style={inp} value={extra.geboortedatum} onChange={e=>setExtra(p=>({...p,geboortedatum:e.target.value}))} /></div>
+          <div><span style={lbl}>Telefoonnummer</span><input style={inp} value={extra.telefoon} onChange={e=>setExtra(p=>({...p,telefoon:e.target.value}))} /></div>
+          <div><span style={lbl}>Nr. ID-document</span><input style={inp} value={extra.documentnummer} onChange={e=>setExtra(p=>({...p,documentnummer:e.target.value}))} /></div>
+          <div><span style={lbl}>Bijzonderheden</span><input style={inp} value={extra.bijzonderheden} onChange={e=>setExtra(p=>({...p,bijzonderheden:e.target.value}))} /></div>
+        </div>
+        <div style={{fontSize:11,color:C.muted,marginBottom:8}}>🔒 Deze vijf velden komen alleen in het Word-bestand en worden niet opgeslagen. Leeg laten = stippellijn, met de hand invullen na printen.</div>
+        <details>
+          <summary style={{fontSize:12,color:C.muted,cursor:"pointer"}}>Controle: wat er in de Huurbevestiging komt</summary>
+          <pre style={{margin:"6px 0 0",fontSize:12,fontFamily:"inherit",whiteSpace:"pre-wrap",color:C.text,lineHeight:1.6}}>{huurbevestigingTekst({ ...c, ...naarDb() }, huis)}</pre>
+        </details>
       </div>
 
       {/* Acties */}
@@ -288,6 +313,8 @@ export default function HuurcontractenModule({ gebruiker, houses = [], showToast
   const [view, setView] = useState("te_doen");
   const [zoek, setZoek] = useState("");
   const [open, setOpen] = useState(null);
+  const [sjablonen, setSjablonen] = useState(null);
+  const [toonSjablonen, setToonSjablonen] = useState(false);
 
   // showToast is in App een nieuwe functie per render: via ref, anders draait de sync in een lus
   const toastRef = useRef(showToast);
@@ -311,6 +338,18 @@ export default function HuurcontractenModule({ gebruiker, houses = [], showToast
   }, []);
 
   useEffect(() => { laad(true); }, [laad]);
+  const laadSjablonen = useCallback(async () => setSjablonen(await aanwezigeSjablonen()), []);
+  useEffect(() => { laadSjablonen(); }, [laadSjablonen]);
+
+  async function kiesSjabloon(taal, bestand) {
+    if (!bestand) return;
+    const check = await controleerSjabloon(bestand);
+    if (!check.ok) return showToast(`Sjabloon ${TAAL_LABEL[taal]} niet bruikbaar: ${check.reden}`, "err");
+    const err = await uploadSjabloon(taal, bestand);
+    if (err) return showToast("Uploaden mislukt: " + err.message, "err");
+    showToast(`✅ Sjabloon ${TAAL_LABEL[taal]} opgeslagen`);
+    laadSjablonen();
+  }
 
   async function opslaan(c, velden, melding) {
     setBezig(true);
@@ -347,8 +386,34 @@ export default function HuurcontractenModule({ gebruiker, houses = [], showToast
           <div style={{fontSize:20,fontWeight:800,color:C.text}}>📄 Huurcontracten</div>
           <div style={{fontSize:12,color:C.muted}}>Wie moet nog tekenen, en wiens huur (max 26 weken) loopt af. Documenten: Cockpit + OneDrive.</div>
         </div>
-        <button style={btn("white", C.blauw)} onClick={()=>laad(true)} disabled={laden}>🔄 Vernieuwen</button>
+        <div style={{display:"flex",gap:6}}>
+          <button style={btn("white", C.blauw)} onClick={()=>setToonSjablonen(v=>!v)}>🗂️ Sjablonen</button>
+          <button style={btn("white", C.blauw)} onClick={()=>laad(true)} disabled={laden}>🔄 Vernieuwen</button>
+        </div>
       </div>
+
+      {toonSjablonen && (
+        <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:9,padding:12,marginBottom:12}}>
+          <div style={{fontWeight:800,fontSize:13,color:C.text,marginBottom:4}}>🗂️ Sjablonen huurovereenkomst</div>
+          <div style={{fontSize:12,color:C.muted,marginBottom:10}}>Upload per taal het Word-sjabloon (.docx, de versie met invulvelden — niet .rtf). Nieuw model? Gewoon opnieuw uploaden, het oude wordt vervangen.</div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:8}}>
+            {SJABLOON_TALEN.map(t => (
+              <div key={t} style={{border:`1px solid ${C.border}`,borderRadius:8,padding:8,display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
+                <div style={{fontSize:13}}>
+                  <b>{TAAL_LABEL[t]}</b><br/>
+                  {sjablonen == null ? <span style={{color:C.muted,fontSize:11}}>laden…</span>
+                    : sjablonen[t] ? <span style={{color:C.groen,fontSize:11}}>✅ aanwezig{typeof sjablonen[t] === "string" ? ` · ${fmt(sjablonen[t])}` : ""}</span>
+                    : <span style={{color:C.rood,fontSize:11}}>❌ ontbreekt</span>}
+                </div>
+                <label style={{...btn("white", C.blauw), border:`1px solid ${C.border}`}}>
+                  {sjablonen?.[t] ? "Vervangen" : "Uploaden"}
+                  <input type="file" accept=".docx" style={{display:"none"}} onChange={e=>{ kiesSjabloon(t, e.target.files[0]); e.target.value=""; }} />
+                </label>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {zonderBegin > 0 && (
         <div style={{background:C.rood+"12",border:`1px solid ${C.rood}40`,borderRadius:9,padding:10,fontSize:13,color:C.text,marginBottom:12}}>
@@ -392,7 +457,7 @@ export default function HuurcontractenModule({ gebruiker, houses = [], showToast
                     <span style={{color:C.muted}}>{isOpen ? "▲" : "▼"}</span>
                   </div>
                 </div>
-                {isOpen && <ContractDetail key={c.id + c.bijgewerkt_op} c={c} huis={huis} gebruiker={gebruiker} onOpslaan={opslaan} onLog={log} showToast={showToast} bezig={bezig} />}
+                {isOpen && <ContractDetail key={c.id + c.bijgewerkt_op} c={c} huis={huis} gebruiker={gebruiker} onOpslaan={opslaan} onLog={log} showToast={showToast} bezig={bezig} sjablonen={sjablonen} />}
               </div>
             );
           })}
