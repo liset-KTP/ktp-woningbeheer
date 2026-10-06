@@ -1690,11 +1690,6 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
   const [huurBedrag, setHuurBedrag] = useState("");
   const [huurDatum, setHuurDatum] = useState(new Date().toISOString().slice(0,10));
   const [huurSchuldId, setHuurSchuldId] = useState(null);
-  const [showBorgForm, setShowBorgForm] = useState(false);
-  const [borgActie, setBorgActie] = useState("inhouden");
-  const [borgBedrag, setBorgBedrag] = useState("");
-  const [borgPlanId, setBorgPlanId] = useState(null);
-  const [borgOmschr, setBorgOmschr] = useState("");
   const [showNieuweSchuld, setShowNieuweSchuld] = useState(false);
   const [nieuweSchuldBedrag, setNieuweSchuldBedrag] = useState("");
   const [nieuweSchuldTarief, setNieuweSchuldTarief] = useState("");
@@ -1778,7 +1773,7 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
 
   async function laad(naam) {
     setGekozen(naam); setLaden(true); setData(null);
-    setShowTaakForm(false); setShowHuurForm(false); setShowBorgForm(false);
+    setShowTaakForm(false); setShowHuurForm(false);
     try {
       const [autoRes, fietsRes, borgRes, huurRes, autoMeldRes, notitieRes, autoHistRes, meldHistRes, kledingRes] = await Promise.all([
         supabase.from("autos").select("*").eq("naam_medewerker", naam),
@@ -1796,8 +1791,6 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
       const huurdata = huurRes.data||[];
       const actieveSchuld = huurdata.find(h=>h.actief);
       setHuurSchuldId(actieveSchuld?.id||null);
-      const actieveBorg = (borgRes.data||[]).find(b=>b.status==="actief");
-      setBorgPlanId(actieveBorg?.id||null);
       // Laatste kamercontrole
       const { data: vertrekRaw } = await supabase.from("taken")
         .select("*").ilike("titel",`%${naam}%`)
@@ -1870,22 +1863,6 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
     laad(gekozen);
   }
 
-  async function verwerkBorg() {
-    if (!borgBedrag || !borgPlanId) return;
-    const bedrag = parseFloat(borgBedrag);
-    const plan = data?.borgPlannen?.find(b=>b.id===borgPlanId);
-    if (!plan) return;
-    const nieuwIngehouden = borgActie==="inhouden" ? (plan.ingehouden||0)+bedrag : Math.max(0,(plan.ingehouden||0)-bedrag);
-    const { error } = await supabase.from("borg_plannen").update({ ingehouden: nieuwIngehouden }).eq("id", borgPlanId);
-    if (!error) {
-      await supabase.from("activiteiten").insert([{ type:"borg_update", omschrijving:`${borgActie==="inhouden"?"💸 Ingehouden":"💚 Teruggegeven"}: €${bedrag.toFixed(2)} — ${borgOmschr||"Geen omschrijving"} (${gekozen})`, gedaan_door: gebruiker?.naam||"?" }]);
-    }
-    if (error) { showToast("Fout","err"); return; }
-    setBorgBedrag(""); setBorgOmschr(""); setShowBorgForm(false);
-    showToast(`✓ Borg ${borgActie==="inhouden"?"ingehouden":"teruggegeven"}`);
-    laad(gekozen);
-  }
-
   const S = {
     card: (kleur) => ({background:"white",border:`1px solid ${C.border}`,borderLeft:`4px solid ${kleur}`,borderRadius:10,padding:"14px 16px",marginBottom:12}),
     titel: (kleur) => ({fontSize:11,fontWeight:700,color:kleur,letterSpacing:".7px",textTransform:"uppercase",marginBottom:10}),
@@ -1946,9 +1923,8 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
               <h2 style={{fontWeight:800,fontSize:22,color:C.text}}>{gekozen}</h2>
               {!isReadonly && (
                 <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                  <button style={S.actieBtn(C.groen)} onClick={()=>{setShowTaakForm(!showTaakForm);setShowHuurForm(false);setShowBorgForm(false);}}>+ Taak huismeester</button>
-                  {huurSchuldId && <button style={S.actieBtn("#f59e0b")} onClick={()=>{setShowHuurForm(!showHuurForm);setShowTaakForm(false);setShowBorgForm(false);}}>💶 Huur afstrepen</button>}
-
+                  <button style={S.actieBtn(C.groen)} onClick={()=>{setShowTaakForm(!showTaakForm);setShowHuurForm(false);}}>+ Taak huismeester</button>
+                  {huurSchuldId && <button style={S.actieBtn("#f59e0b")} onClick={()=>{setShowHuurForm(!showHuurForm);setShowTaakForm(false);}}>💶 Huur afstrepen</button>}
                 </div>
               )}
             </div>
@@ -1986,8 +1962,6 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
                 </div>
               </div>
             )}
-
-
 
             {/* 🏠 Kamer */}
             <div style={S.card(C.blauw)}>
