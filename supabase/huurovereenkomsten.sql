@@ -1,7 +1,7 @@
 -- ============================================================
 -- KTP Interflex – Woningbeheer: HUURCONTRACTEN
 -- Tabel huurovereenkomsten + sync-functie voor de pagina "📄 Huurcontracten".
--- Dit is een kopie van wat in Supabase staat (stand 06-10-2026), zodat het
+-- Dit is een kopie van wat in Supabase staat (stand 06-10-2026, einddatumregel bijgewerkt), zodat het
 -- opnieuw op te bouwen is. Voer uit in Supabase > SQL Editor > New Query.
 -- ============================================================
 
@@ -66,7 +66,8 @@ CREATE POLICY allow_all_huurovereenkomsten ON huurovereenkomsten FOR ALL TO anon
 --    - bewoner in andere woning/kamer    -> oude regel afgesloten (verhuisd), nieuwe regel 'verhuizing'
 --                                           met dezelfde eerste aankomst/einddatum/huurprijs/borg/taal
 --    - nieuwe bewoner                    -> regel 'te_maken', voorgevuld uit aankomst-/verhuismelding en borgplan
---    Einddatum = eerste aankomst + 181 dagen (26 weken incl. begindatum).
+--    Einddatum = eerste aankomst + 6 maanden - 1 dag (afspraak KTP), maar nooit later dan
+--    26 weken incl. begindatum (+181 dagen) = maximum volgens het contract. Zelfde regel in de app (berekenEinde).
 CREATE OR REPLACE FUNCTION public.huurovereenkomsten_sync()
  RETURNS json
  LANGUAGE plpgsql
@@ -154,7 +155,7 @@ begin
     insert into huurovereenkomsten (naam_medewerker, woning_id, kamer, soort, melding_id, begindatum,
         eerste_aankomst, einddatum, borg, taal, bijgewerkt_door)
     values (r.naam, r.woning_id, r.kamer, v_soort, v_melding, v_begin, v_eerste,
-        v_eerste + 181,
+        least((v_eerste + interval '6 months')::date - 1, v_eerste + 181),
         v_borg, case when r.nat in ('PL','RO') then r.nat end, 'sync');
     n_nieuw := n_nieuw + 1;
   end loop;

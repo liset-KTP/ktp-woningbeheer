@@ -12,7 +12,7 @@ const LEEG = "..............................";
 const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 // Talen waarvoor een sjabloon in public/sjablonen staat
-export const SJABLOON_TALEN = ["NL", "EN"];
+export const SJABLOON_TALEN = ["NL", "EN", "PL", "RO"];
 // Juridische naam werkgever zoals die in het contract komt
 export const WERKGEVER_JURIDISCH = { KTP: "KTP Backoffice B.V.", FP: "Flexpedia B.V." };
 

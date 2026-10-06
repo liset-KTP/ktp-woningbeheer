@@ -21,7 +21,7 @@ TAAL_CODE = {"EN": "en-US", "PL": "pl-PL", "RO": "ro-RO"}
 
 # Vaste gegevens verhuurder
 VERHUURDER = {"naam": "KTP Backoffice B.V.", "plaats": "Enschede", "adres": "Kanaalstraat 217",
-              "kvk": "861467164", "ondertekenaar": "J. de Kruijf"}
+              "kvk": "861467164", "ondertekenaar": "H. Jager"}
 
 # Per NL-alinea: (begin van de tekst ter controle, vervanging per [..] op volgorde)
 INVULLEN = {
@@ -128,6 +128,13 @@ def vertaal_alinea(nl_p, stukken, lang, inspring, kop):
         t.set("{http://www.w3.org/XML/1998/namespace}space", "preserve")
     return p
 
+def zet_keep_next(p):
+    ppr = p.find(q("pPr"))
+    if ppr is None: ppr = etree.Element(q("pPr")); p.insert(0, ppr)
+    if ppr.find(q("keepNext")) is None:
+        kn = etree.Element(q("keepNext")); st = ppr.find(q("pStyle"))
+        st.addnext(kn) if st is not None else ppr.insert(0, kn)
+
 def maak(origineel, taal):
     zin = zipfile.ZipFile(origineel)
     doc = etree.fromstring(zin.read("word/document.xml"))
@@ -136,6 +143,9 @@ def maak(origineel, taal):
     paras = [p for p in body.iter(q("p")) if not any(a.tag == q("p") for a in p.iterancestors())]  # geen alinea's in tekstvakken
     assert len(paras) >= 142, "onverwacht sjabloon (aantal alinea's)"
     vertaling = json.load(open(os.path.join(HIER, "vertalingen", f"{taal}.json"), encoding="utf8")) if taal != "NL" else {}
+
+    # Gele markering (RDM: "maak een keuze / vul in") overal weg
+    for h in list(doc.iter(q("highlight"))): h.getparent().remove(h)
 
     # Vertalingen eerst bepalen (op de originele alinea's), dan pas invullen/aanpassen
     for i, (begin, waarden) in INVULLEN.items():
@@ -180,6 +190,18 @@ def maak(origineel, taal):
         if ppr.find(q("keepNext")) is None:
             kn = etree.Element(q("keepNext")); st = ppr.find(q("pStyle")); (st.addnext(kn) if st is not None else ppr.insert(0, kn))
         nl_p.addnext(nieuw)
+
+    # Handtekeningblok niet over twee pagina's: tabel-rijen niet splitsen, alles bij elkaar houden
+    for tbl in body.iter(q("tbl")):
+        for tr in tbl.iter(q("tr")):
+            trpr = tr.find(q("trPr"))
+            if trpr is None: trpr = etree.Element(q("trPr")); tr.insert(1 if tr.find(q("tblPrEx")) is not None else 0, trpr)
+            if trpr.find(q("cantSplit")) is None: trpr.insert(0, etree.Element(q("cantSplit")))
+        for p in list(tbl.iter(q("p")))[:-1]:
+            zet_keep_next(p)
+    for p in paras[89:91]:  # "Aldus overeengekomen ..." + witregel vóór de tabel
+        zet_keep_next(p)
+        if p.getnext() is not None and p.getnext().tag == q("p"): zet_keep_next(p.getnext())
 
     os.makedirs(UIT, exist_ok=True)
     pad = os.path.join(UIT, f"huurovereenkomst_{taal}.docx")

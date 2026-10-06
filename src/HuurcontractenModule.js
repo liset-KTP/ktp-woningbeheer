@@ -32,8 +32,19 @@ function fmt(d) { if (!d) return "—"; const [y,m,dd] = d.slice(0,10).split("-"
 function plusDagen(iso, n) { const d = new Date(iso+"T12:00:00"); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); }
 function dagenTot(iso) { if (!iso) return null; return Math.round((new Date(iso+"T12:00:00") - new Date(vandaag()+"T12:00:00"))/86400000); }
 function geld(n) { return n==null || n==="" ? "—" : "€ " + Number(n).toFixed(2).replace(".",","); }
-// 26 weken inclusief begindatum
-function berekenEinde(eerste) { return eerste ? plusDagen(eerste, 181) : null; }
+// Einde huur: 6 maanden min 1 dag na eerste aankomst (afspraak KTP), maar nooit later dan
+// 26 weken incl. begindatum (= +181 dagen) — dat is het maximum uit het contract (art. 3.1 / Huurbevestiging).
+// Zelfde regel in de database: huurovereenkomsten_sync().
+function maxEinde(eerste) { return eerste ? plusDagen(eerste, 181) : null; }
+function berekenEinde(eerste) {
+  if (!eerste) return null;
+  const [y, m, d] = eerste.split("-").map(Number);
+  const laatsteDag = new Date(Date.UTC(y, m - 1 + 6 + 1, 0)).getUTCDate();      // laatste dag van maand +6
+  const zesMnd = new Date(Date.UTC(y, m - 1 + 6, Math.min(d, laatsteDag)));      // 31-08 + 6 mnd = 28/29-02
+  zesMnd.setUTCDate(zesMnd.getUTCDate() - 1);
+  const einde = zesMnd.toISOString().slice(0, 10);
+  return einde < maxEinde(eerste) ? einde : maxEinde(eerste);
+}
 // Effectieve einde huur: vaste einddatum, of eerder als iemand eerder uit dienst gaat
 function effectiefEinde(c) {
   if (c.uit_dienst_datum && (!c.einddatum || c.uit_dienst_datum < c.einddatum)) return c.uit_dienst_datum;
@@ -225,7 +236,7 @@ function ContractDetail({ c, huis, gebruiker, onOpslaan, onLog, showToast, bezig
           <label style={{fontSize:10,color:C.muted,display:"flex",gap:4,alignItems:"center",marginTop:3}}>
             <input type="checkbox" checked={f.einddatum_handmatig} onChange={e=>zet("einddatum_handmatig", e.target.checked)} /> handmatig (korter)
           </label>
-          {f.einddatum_handmatig && f.einddatum && f.eerste_aankomst && f.einddatum > berekenEinde(f.eerste_aankomst) &&
+          {f.einddatum_handmatig && f.einddatum && f.eerste_aankomst && f.einddatum > maxEinde(f.eerste_aankomst) &&
             <div style={{fontSize:10,color:C.rood,marginTop:3}}>Langer dan 26 weken — niet toegestaan bij huur van korte duur</div>}
         </div>
         <div>
