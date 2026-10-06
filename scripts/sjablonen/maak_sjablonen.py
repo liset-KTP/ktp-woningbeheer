@@ -147,13 +147,13 @@ def zet_keep_next(p):
         st.addnext(kn) if st is not None else ppr.insert(0, kn)
 
 def voeg_handtekening_toe(zin, doc, p, bestanden):
-    """Zet handtekening_verhuurder.png als afbeelding (4,5 x 1,5 cm max) in alinea p."""
+    """Zet handtekening_verhuurder.png als afbeelding (max. 4,5 cm breed, 2,2 cm hoog) in alinea p."""
     import struct
     png = open(HANDTEKENING, "rb").read()
     assert png[:8] == b"\x89PNG\r\n\x1a\n", "handtekening moet een PNG zijn"
     bw, bh = struct.unpack(">II", png[16:24])
     emu_b = 4.5 * 360000; emu_h = emu_b * bh / bw
-    if emu_h > 1.5 * 360000: emu_h = 1.5 * 360000; emu_b = emu_h * bw / bh
+    if emu_h > 2.2 * 360000: emu_h = 2.2 * 360000; emu_b = emu_h * bw / bh
     cx, cy = int(emu_b), int(emu_h)
     R = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
     rels = etree.fromstring(zin.read("word/_rels/document.xml.rels"))
