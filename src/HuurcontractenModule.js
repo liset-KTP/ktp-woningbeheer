@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "./supabaseClient";
-import { SJABLOON_TALEN, WERKGEVER_JURIDISCH, contractWaarden, vulSjabloon, haalSjabloon, uploadSjabloon, controleerSjabloon, aanwezigeSjablonen, bewaarBestand } from "./huurcontractWord";
+import { SJABLOON_TALEN, WERKGEVER_JURIDISCH, contractWaarden, vulSjabloon, haalSjabloon, bewaarBestand } from "./huurcontractWord";
 
 // ─── HUURCONTRACTEN (backoffice) ─────────────────────────────────────────────
 // Overzicht per bewoner: moet er nog een huurovereenkomst gemaakt/getekend worden,
@@ -103,7 +103,7 @@ function huurbevestigingTekst(c, huis) {
   ].join("\n");
 }
 
-function ContractDetail({ c, huis, gebruiker, onOpslaan, onLog, showToast, bezig, sjablonen }) {
+function ContractDetail({ c, huis, gebruiker, onOpslaan, onLog, showToast, bezig }) {
   const [f, setF] = useState(() => ({
     werkgever: c.werkgever || "", huurprijs: c.huurprijs ?? "", borg: c.borg ?? "", taal: c.taal || "",
     begindatum: c.begindatum || "", eerste_aankomst: c.eerste_aankomst || "", einddatum: c.einddatum || "",
@@ -137,16 +137,17 @@ function ContractDetail({ c, huis, gebruiker, onOpslaan, onLog, showToast, bezig
   const eind = effectiefEinde({ ...c, ...naarDb() });
   const dEind = dagenTot(eind);
   const brief = f.uit_dienst_datum ? "brief 6 (einde arbeids- én huurovereenkomst)" : "brief 7 (einde huurovereenkomst) — of brief 5 bij verhuizing";
-  const sjabloon = f.taal ? `Huurovereenkomst ${TAAL_LABEL[f.taal]} + Informatieblad ${TAAL_LABEL[f.taal]}` : "kies taal";
+  const sjabloon = !f.taal ? "kies taal" : f.taal === "NL" ? "Nederlands" : `Nederlands + ${TAAL_LABEL[f.taal]}`;
 
   async function downloadWord() {
     if (ontbr.length) return showToast("Eerst invullen: " + ontbr.join(", "), "err");
     if (gewijzigd && !(await onOpslaan(c, naarDb(), null))) return;
+    if (!SJABLOON_TALEN.includes(f.taal)) return showToast(`Sjabloon ${TAAL_LABEL[f.taal]} is er nog niet`, "err");
     setMaakt(true);
     try {
       const sjabloon = await haalSjabloon(f.taal);
-      if (!sjabloon) return showToast(`Geen sjabloon ${TAAL_LABEL[f.taal]} — upload het eerst via 🗂️ Sjablonen`, "err");
-      const { blob } = await vulSjabloon(sjabloon, contractWaarden({ ...c, ...naarDb() }, huis, eind, extra));
+      if (!sjabloon) return showToast(`Sjabloon ${TAAL_LABEL[f.taal]} kon niet geladen worden`, "err");
+      const blob = await vulSjabloon(sjabloon, contractWaarden({ ...c, ...naarDb() }, huis, eind, extra));
       bewaarBestand(blob, `Huurovereenkomst ${c.naam_medewerker}.docx`);
       showToast("📄 Huurovereenkomst gedownload");
     } catch (e) {
@@ -249,7 +250,7 @@ function ContractDetail({ c, huis, gebruiker, onOpslaan, onLog, showToast, bezig
           <div style={{fontWeight:800,fontSize:13,color:C.text}}>📄 Huurovereenkomst <span style={{fontWeight:400,color:C.muted,fontSize:12}}>· sjabloon: {sjabloon}</span></div>
           <button style={btn(C.blauw)} disabled={maakt || bezig} onClick={downloadWord}>{maakt ? "Bezig…" : "⬇️ Download Word"}</button>
         </div>
-        {f.taal && sjablonen && !sjablonen[f.taal] && <div style={{fontSize:12,color:C.rood,marginBottom:8}}>⚠️ Sjabloon {TAAL_LABEL[f.taal]} is nog niet geüpload (🗂️ Sjablonen, bovenaan de pagina).</div>}
+        {f.taal && !SJABLOON_TALEN.includes(f.taal) && <div style={{fontSize:12,color:C.rood,marginBottom:8}}>⚠️ Sjabloon {TAAL_LABEL[f.taal]} is er nog niet — Word downloaden kan nu alleen in {SJABLOON_TALEN.map(t=>TAAL_LABEL[t]).join(" en ")}.</div>}
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:8,marginBottom:6}}>
           <div><span style={lbl}>Geboorteplaats</span><input style={inp} value={extra.geboorteplaats} onChange={e=>setExtra(p=>({...p,geboorteplaats:e.target.value}))} /></div>
           <div><span style={lbl}>Geboortedatum</span><input type="date" style={inp} value={extra.geboortedatum} onChange={e=>setExtra(p=>({...p,geboortedatum:e.target.value}))} /></div>
@@ -313,8 +314,6 @@ export default function HuurcontractenModule({ gebruiker, houses = [], showToast
   const [view, setView] = useState("te_doen");
   const [zoek, setZoek] = useState("");
   const [open, setOpen] = useState(null);
-  const [sjablonen, setSjablonen] = useState(null);
-  const [toonSjablonen, setToonSjablonen] = useState(false);
 
   // showToast is in App een nieuwe functie per render: via ref, anders draait de sync in een lus
   const toastRef = useRef(showToast);
@@ -338,18 +337,6 @@ export default function HuurcontractenModule({ gebruiker, houses = [], showToast
   }, []);
 
   useEffect(() => { laad(true); }, [laad]);
-  const laadSjablonen = useCallback(async () => setSjablonen(await aanwezigeSjablonen()), []);
-  useEffect(() => { laadSjablonen(); }, [laadSjablonen]);
-
-  async function kiesSjabloon(taal, bestand) {
-    if (!bestand) return;
-    const check = await controleerSjabloon(bestand);
-    if (!check.ok) return showToast(`Sjabloon ${TAAL_LABEL[taal]} niet bruikbaar: ${check.reden}`, "err");
-    const err = await uploadSjabloon(taal, bestand);
-    if (err) return showToast("Uploaden mislukt: " + err.message, "err");
-    showToast(`✅ Sjabloon ${TAAL_LABEL[taal]} opgeslagen`);
-    laadSjablonen();
-  }
 
   async function opslaan(c, velden, melding) {
     setBezig(true);
@@ -386,34 +373,8 @@ export default function HuurcontractenModule({ gebruiker, houses = [], showToast
           <div style={{fontSize:20,fontWeight:800,color:C.text}}>📄 Huurcontracten</div>
           <div style={{fontSize:12,color:C.muted}}>Wie moet nog tekenen, en wiens huur (max 26 weken) loopt af. Documenten: Cockpit + OneDrive.</div>
         </div>
-        <div style={{display:"flex",gap:6}}>
-          <button style={btn("white", C.blauw)} onClick={()=>setToonSjablonen(v=>!v)}>🗂️ Sjablonen</button>
-          <button style={btn("white", C.blauw)} onClick={()=>laad(true)} disabled={laden}>🔄 Vernieuwen</button>
-        </div>
+        <button style={btn("white", C.blauw)} onClick={()=>laad(true)} disabled={laden}>🔄 Vernieuwen</button>
       </div>
-
-      {toonSjablonen && (
-        <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:9,padding:12,marginBottom:12}}>
-          <div style={{fontWeight:800,fontSize:13,color:C.text,marginBottom:4}}>🗂️ Sjablonen huurovereenkomst</div>
-          <div style={{fontSize:12,color:C.muted,marginBottom:10}}>Upload per taal het Word-sjabloon (.docx, de versie met invulvelden — niet .rtf). Nieuw model? Gewoon opnieuw uploaden, het oude wordt vervangen.</div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:8}}>
-            {SJABLOON_TALEN.map(t => (
-              <div key={t} style={{border:`1px solid ${C.border}`,borderRadius:8,padding:8,display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
-                <div style={{fontSize:13}}>
-                  <b>{TAAL_LABEL[t]}</b><br/>
-                  {sjablonen == null ? <span style={{color:C.muted,fontSize:11}}>laden…</span>
-                    : sjablonen[t] ? <span style={{color:C.groen,fontSize:11}}>✅ aanwezig{typeof sjablonen[t] === "string" ? ` · ${fmt(sjablonen[t])}` : ""}</span>
-                    : <span style={{color:C.rood,fontSize:11}}>❌ ontbreekt</span>}
-                </div>
-                <label style={{...btn("white", C.blauw), border:`1px solid ${C.border}`}}>
-                  {sjablonen?.[t] ? "Vervangen" : "Uploaden"}
-                  <input type="file" accept=".docx" style={{display:"none"}} onChange={e=>{ kiesSjabloon(t, e.target.files[0]); e.target.value=""; }} />
-                </label>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {zonderBegin > 0 && (
         <div style={{background:C.rood+"12",border:`1px solid ${C.rood}40`,borderRadius:9,padding:10,fontSize:13,color:C.text,marginBottom:12}}>
@@ -457,7 +418,7 @@ export default function HuurcontractenModule({ gebruiker, houses = [], showToast
                     <span style={{color:C.muted}}>{isOpen ? "▲" : "▼"}</span>
                   </div>
                 </div>
-                {isOpen && <ContractDetail key={c.id + c.bijgewerkt_op} c={c} huis={huis} gebruiker={gebruiker} onOpslaan={opslaan} onLog={log} showToast={showToast} bezig={bezig} sjablonen={sjablonen} />}
+                {isOpen && <ContractDetail key={c.id + c.bijgewerkt_op} c={c} huis={huis} gebruiker={gebruiker} onOpslaan={opslaan} onLog={log} showToast={showToast} bezig={bezig} />}
               </div>
             );
           })}
