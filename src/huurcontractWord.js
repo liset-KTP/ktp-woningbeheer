@@ -16,6 +16,50 @@ export const SJABLOON_TALEN = ["NL", "EN", "PL", "RO"];
 // Juridische naam werkgever zoals die in het contract komt
 export const WERKGEVER_JURIDISCH = { KTP: "KTP Backoffice B.V.", FP: "Flexpedia B.V." };
 
+// Gedeelde voorzieningen (informatieblad), per taal. Standaard aangevinkt: de eerste vijf (RDM-tekst).
+export const VOORZIENINGEN = [
+  { k: "badkamer",   NL: "badkamer",   EN: "bathroom",      PL: "łazienka", RO: "baie",                 standaard: true },
+  { k: "keuken",     NL: "keuken",     EN: "kitchen",       PL: "kuchnia",  RO: "bucătărie",            standaard: true },
+  { k: "toilet",     NL: "toilet",     EN: "toilet",        PL: "toaleta",  RO: "toaletă",              standaard: true },
+  { k: "entree",     NL: "entree",     EN: "entrance",      PL: "wejście",  RO: "intrare",              standaard: true },
+  { k: "bergruimte", NL: "bergruimte", EN: "storage space", PL: "schowek",  RO: "spațiu de depozitare", standaard: true },
+  { k: "woonkamer",  NL: "woonkamer",  EN: "living room",   PL: "salon",    RO: "sufragerie" },
+  { k: "wasruimte",  NL: "wasruimte",  EN: "laundry room",  PL: "pralnia",  RO: "spălătorie" },
+  { k: "tuin",       NL: "tuin",       EN: "garden",        PL: "ogród",    RO: "grădină" },
+];
+const EN_WOORD = { NL: "en", EN: "and", PL: "i", RO: "și" };
+function opsomming(woorden, taal) {
+  if (woorden.length <= 1) return woorden.join("");
+  return woorden.slice(0, -1).join(", ") + ` ${EN_WOORD[taal]} ` + woorden[woorden.length - 1];
+}
+
+// Meldpunt Wet goed verhuurderschap per plaats van de woning (woningen.stad).
+// Bron: websites gemeenten (opgezocht 10-2026) — controleer bij twijfel de link.
+// Nieuwe plaats? Hier toevoegen; anders blijft het meldpunt in het informatieblad leeg.
+export const MELDPUNTEN = {
+  "Almelo":       "gemeente Almelo, www.almelo.nl/melden-aan-de-gemeente/ongewenst-verhuurgedrag-melden, tel. (0546) 54 11 11",
+  "Borne":        "gemeente Borne, www.borne.nl/wet-goed-verhuurderschap, tel. 14 074",
+  "De Krim":      "gemeente Hardenberg, www.hardenberg.nl/melden/slechte-verhuurders, tel. 14 0523",
+  "Enschede":     "gemeente Enschede, www.enschede.nl/meldpunt-slecht-verhuurderschap, handhavingsloket@enschede.nl",
+  "Goor":         "gemeente Hof van Twente, www.hofvantwente.nl/direct-regelen/wonen-en-leven/wonen/meldpunt-ongewenst-verhuurgedrag, info@hofvantwente.nl",
+  "Klazienaveen": "gemeente Emmen, gemeente.emmen.nl/meldpunt-ongewenst-verhuurgedrag, tel. 14 0591",
+  "Rijssen":      "gemeente Rijssen-Holten, www.rijssen-holten.nl/direct-regelen/wonen-verhuizen-verbouwen/wonen/wet-goed-verhuurderschap",
+  "Winterswijk":  "gemeente Winterswijk, www.winterswijk.nl/meldpunt-ongewenst-verhuurgedrag, handhaving@winterswijk.nl",
+};
+export const meldpuntVoor = stad => MELDPUNTEN[(stad || "").trim()] || null;
+
+export function informatiebladWaarden(huis, info = {}) {
+  const gekozen = VOORZIENINGEN.filter(v => (info.voorzieningen || []).includes(v.k));
+  const lijst = taal => opsomming(gekozen.map(v => v[taal]), taal);
+  return {
+    "Adres woning": huis?.adres,
+    "Plaats woning": huis?.stad,  // "U huurt de woning aan <adres>, te <plaats>"
+    "Voorzieningen": lijst("NL"), "Voorzieningen EN": lijst("EN"), "Voorzieningen PL": lijst("PL"), "Voorzieningen RO": lijst("RO"),
+    "Max bewoners": info.maxBewoners ? String(info.maxBewoners) : "",
+    "Meldpunt": meldpuntVoor(huis?.stad),
+  };
+}
+
 function datumNL(iso) { if (!iso) return ""; const [y, m, d] = iso.slice(0, 10).split("-"); return `${d}-${m}-${y}`; }
 function euro(n) { return n == null || n === "" ? "" : "€ " + Number(n).toFixed(2).replace(".", ","); }
 const xmlVeilig = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -59,8 +103,8 @@ export async function vulSjabloon(sjabloon, waarden) {
   return zip.generateAsync({ type: "blob", mimeType: DOCX_MIME, compression: "DEFLATE" });
 }
 
-export async function haalSjabloon(taal) {
-  const res = await fetch(`${process.env.PUBLIC_URL || ""}/sjablonen/huurovereenkomst_${taal}.docx`);
+export async function haalSjabloon(taal, soort = "huurovereenkomst") {
+  const res = await fetch(`${process.env.PUBLIC_URL || ""}/sjablonen/${soort}_${taal}.docx`);
   if (!res.ok) return null;
   return res.arrayBuffer();
 }

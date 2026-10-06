@@ -1,5 +1,5 @@
 """Haalt de vertaling uit een tweetalig RDM-sjabloon (NL + andere taal) en schrijft
-vertalingen/<TAAL>.json: per alinea-nummer van het Nederlandse origineel de vertaalde tekst
+vertalingen/huurovereenkomst_<TAAL>.json: per alinea-nummer van het Nederlandse origineel de vertaalde tekst
 als lijst [tekst, vet].
 
     python haal_vertaling.py EN <tweetalig EN .docx>                      (vaste koppeling, zie KOPPELING)
@@ -10,7 +10,7 @@ De RDM-sjablonen zijn per taal verschillend opgebouwd:
 - PL: per alinea "Nederlands <regeleinde> vertaling".
 - RO: Nederlandse alinea, vertaling als losse alinea eronder.
 Voor PL/RO wordt elke Nederlandse tekst opgezocht in het origineel (tekstvergelijking,
-in volgorde), dus de opbouw maakt niet uit. Controleer altijd controle_<TAAL>.txt.
+in volgorde), dus de opbouw maakt niet uit. Controleer altijd controle_huurovereenkomst_<TAAL>.txt.
 
 Het tweetalige sjabloon zet de vertaling per artikel in één blok (regels gescheiden door
 een regeleinde); die blokken worden hier per alinea opgeknipt. De koppeling hieronder
@@ -201,8 +201,8 @@ def main_tekst(taal, bron, origineel):
     for i, tekst in AANVULLING.get(taal, {}).items():
         uit[str(i)] = [[tekst, False]]
     uit = dict(sorted(uit.items(), key=lambda kv: int(kv[0])))
-    json.dump(uit, open(f"vertalingen/{taal}.json", "w", encoding="utf8"), ensure_ascii=False, indent=1)
-    with open(f"vertalingen/controle_{taal}.txt", "w", encoding="utf8") as f:
+    json.dump(uit, open(f"vertalingen/huurovereenkomst_{taal}.json", "w", encoding="utf8"), ensure_ascii=False, indent=1)
+    with open(f"vertalingen/controle_huurovereenkomst_{taal}.txt", "w", encoding="utf8") as f:
         for i, t in enumerate(nl_tekst):
             if not t.strip(): continue
             f.write(f"{i:>4} NL: {t}\n")
@@ -225,7 +225,7 @@ def main(taal, bron):
     for i, tekst in AANVULLING.get(taal, {}).items():
         uit[str(i)] = [[tekst, False]]
     uit = dict(sorted(uit.items(), key=lambda kv: int(kv[0])))
-    json.dump(uit, open(f"vertalingen/{taal}.json", "w", encoding="utf8"), ensure_ascii=False, indent=1)
+    json.dump(uit, open(f"vertalingen/huurovereenkomst_{taal}.json", "w", encoding="utf8"), ensure_ascii=False, indent=1)
     print(f"{taal}: {len(uit)} alinea's")
 
 if __name__ == "__main__":

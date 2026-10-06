@@ -1,12 +1,14 @@
-"""Maakt de Word-sjablonen voor de app (public/sjablonen/) uit het Nederlandse RDM-origineel.
+"""Maakt de Word-sjablonen voor de app (public/sjablonen/) uit de Nederlandse RDM-originelen.
 
-    python maak_sjablonen.py <origineel NL .docx>
+    python maak_sjablonen.py <origineel NL huurovereenkomst .docx> <origineel NL informatieblad .docx>
 
 - Placeholders als [NAAM] worden invulpunten {{Naam huurder}} die de app vult
   (src/huurcontractWord.js). Vaste KTP-gegevens worden direct ingevuld.
 - Per taal in vertalingen/<TAAL>.json komt onder elke Nederlandse alinea de vertaling
   (grijs, cursief, klein — zoals in de tweetalige RDM-sjablonen). NL = alleen Nederlands.
 - Kentro-ankers (#CPNhandtekening / #WNRhandtekening, wit) bij de handtekeningen.
+- Handtekening verhuurder: staat handtekening_verhuurder.png naast dit script, dan komt die
+  in de huurovereenkomst boven de streep bij "Verhuurder".
 
 Nieuwe taal? Zet een tweetalig RDM-sjabloon om met haal_vertaling.py en draai dit script opnieuw.
 """
@@ -52,6 +54,15 @@ INVULLEN = {
 }
 KENTRO = {93: "#CPNhandtekening", 94: "#WNRhandtekening"}
 EINDDATUM_LABEL = 132  # sjabloon mist het woord "Einddatum" vóór ": [DATUM]"
+HANDTEKENING_ALINEA = 95   # lege alinea in de verhuurder-cel, boven "____"
+HANDTEKENING = os.path.join(HIER, "handtekening_verhuurder.png")
+
+KTP_CONTACT = {"email": "info@ktp.nl", "telefoon": "053-7113495", "adres": "Kanaalstraat 217, 7547 AS Enschede"}
+INVULLEN_INFORMATIEBLAD = {
+    10: ("U huurt de woning", ["{{Adres woning}}", "{{Plaats woning}}", "{{Voorzieningen}}", "{{Max bewoners}}"]),
+    53: ("Indien u klachten", [KTP_CONTACT["email"], KTP_CONTACT["telefoon"], KTP_CONTACT["adres"]]),
+    55: ("Indien u samen", ["{{Meldpunt}}"]),
+}
 
 def tekst(p): return "".join(t.text or "" for t in p.iter(q("t")))
 
@@ -135,14 +146,49 @@ def zet_keep_next(p):
         kn = etree.Element(q("keepNext")); st = ppr.find(q("pStyle"))
         st.addnext(kn) if st is not None else ppr.insert(0, kn)
 
-def maak(origineel, taal):
+def voeg_handtekening_toe(zin, doc, p, bestanden):
+    """Zet handtekening_verhuurder.png als afbeelding (4,5 x 1,5 cm max) in alinea p."""
+    import struct
+    png = open(HANDTEKENING, "rb").read()
+    assert png[:8] == b"\x89PNG\r\n\x1a\n", "handtekening moet een PNG zijn"
+    bw, bh = struct.unpack(">II", png[16:24])
+    emu_b = 4.5 * 360000; emu_h = emu_b * bh / bw
+    if emu_h > 1.5 * 360000: emu_h = 1.5 * 360000; emu_b = emu_h * bw / bh
+    cx, cy = int(emu_b), int(emu_h)
+    R = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+    rels = etree.fromstring(zin.read("word/_rels/document.xml.rels"))
+    rid = "rIdHandtekening"
+    etree.SubElement(rels, "{http://schemas.openxmlformats.org/package/2006/relationships}Relationship",
+                     Id=rid, Type=R + "/image", Target="media/handtekening_verhuurder.png")
+    bestanden["word/_rels/document.xml.rels"] = etree.tostring(rels, xml_declaration=True, encoding="UTF-8", standalone=True)
+    ct = etree.fromstring(zin.read("[Content_Types].xml"))
+    CT = "http://schemas.openxmlformats.org/package/2006/content-types"
+    if not any(d.get("Extension", "").lower() == "png" for d in ct.findall("{%s}Default" % CT)):
+        etree.SubElement(ct, "{%s}Default" % CT, Extension="png", ContentType="image/png")
+    bestanden["[Content_Types].xml"] = etree.tostring(ct, xml_declaration=True, encoding="UTF-8", standalone=True)
+    bestanden["word/media/handtekening_verhuurder.png"] = png
+    tekening = f"""<w:r xmlns:w="{W}" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
+      xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"
+      xmlns:r="{R}"><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="{cx}" cy="{cy}"/>
+      <wp:docPr id="9001" name="Handtekening verhuurder"/><wp:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect="1"/></wp:cNvGraphicFramePr>
+      <a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic>
+      <pic:nvPicPr><pic:cNvPr id="9001" name="handtekening_verhuurder.png"/><pic:cNvPicPr/></pic:nvPicPr>
+      <pic:blipFill><a:blip r:embed="{rid}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>
+      <pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="{cx}" cy="{cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>
+      </pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>"""
+    p.append(etree.fromstring(tekening))
+
+def maak(origineel, taal, soort="huurovereenkomst"):
+    if soort == "informatieblad":
+        return maak_informatieblad(origineel, taal)
     zin = zipfile.ZipFile(origineel)
     doc = etree.fromstring(zin.read("word/document.xml"))
     numbering = etree.fromstring(zin.read("word/numbering.xml"))
     body = doc.find(q("body"))
     paras = [p for p in body.iter(q("p")) if not any(a.tag == q("p") for a in p.iterancestors())]  # geen alinea's in tekstvakken
     assert len(paras) >= 142, "onverwacht sjabloon (aantal alinea's)"
-    vertaling = json.load(open(os.path.join(HIER, "vertalingen", f"{taal}.json"), encoding="utf8")) if taal != "NL" else {}
+    vertaling = json.load(open(os.path.join(HIER, "vertalingen", f"huurovereenkomst_{taal}.json"), encoding="utf8")) if taal != "NL" else {}
+    bestanden = {}  # extra/gewijzigde bestanden in het docx-pakket
 
     # Gele markering (RDM: "maak een keuze / vul in") overal weg
     for h in list(doc.iter(q("highlight"))): h.getparent().remove(h)
@@ -203,14 +249,81 @@ def maak(origineel, taal):
         zet_keep_next(p)
         if p.getnext() is not None and p.getnext().tag == q("p"): zet_keep_next(p.getnext())
 
+    if os.path.exists(HANDTEKENING):
+        voeg_handtekening_toe(zin, doc, paras[HANDTEKENING_ALINEA], bestanden)
+    schrijf(zin, doc, bestanden, f"huurovereenkomst_{taal}.docx", len(vertaling))
+
+def schrijf(zin, doc, bestanden, naam, n_vertaald):
     os.makedirs(UIT, exist_ok=True)
-    pad = os.path.join(UIT, f"huurovereenkomst_{taal}.docx")
+    pad = os.path.join(UIT, naam)
+    bestanden = dict(bestanden)
+    bestanden["word/document.xml"] = etree.tostring(doc, xml_declaration=True, encoding="UTF-8", standalone=True)
     with zipfile.ZipFile(pad, "w", zipfile.ZIP_DEFLATED) as zout:
         for item in zin.infolist():
-            data = etree.tostring(doc, xml_declaration=True, encoding="UTF-8", standalone=True) if item.filename == "word/document.xml" else zin.read(item.filename)
-            zout.writestr(item, data)
-    print("gemaakt:", os.path.relpath(pad), f"({len(vertaling)} vertaalde alinea's)")
+            zout.writestr(item, bestanden.pop(item.filename, None) or zin.read(item.filename))
+        for naam_extra, data in bestanden.items():
+            zout.writestr(naam_extra, data)
+    print("gemaakt:", os.path.relpath(pad), f"({n_vertaald} vertaalde alinea's)")
+
+def plaats_vertalingen(paras, numbering, vertaling, taal, invullen):
+    for i_str, stukken in vertaling.items():
+        i = int(i_str); nl_p = paras[i]
+        genummerd = nl_p.find(q("pPr") + "/" + q("numPr")) is not None
+        stukken = [list(s) for s in stukken]
+        if genummerd and stukken:
+            stukken[0][0] = re.sub(r"^\s*(\d+(\.\d+)*\.?|[A-Za-z]\.|•)\s+", "", stukken[0][0])
+        stijl = nl_p.find(q("pPr") + "/" + q("pStyle"))
+        kop = stijl is not None and stijl.get(q("val")) in ("Kop1", "Kop2", "Heading1", "Heading2", "Title", "Titel")
+        inspring = lees_inspringing(numbering, nl_p) if genummerd else None
+        nieuw = vertaal_alinea(nl_p, stukken, TAAL_CODE[taal], inspring, kop)
+        ppr = nl_p.find(q("pPr"))
+        if ppr is None: ppr = etree.Element(q("pPr")); nl_p.insert(0, ppr)
+        sp = ppr.find(q("spacing"))
+        if sp is None:
+            sp = etree.Element(q("spacing")); st = ppr.find(q("pStyle")); (st.addnext(sp) if st is not None else ppr.insert(0, sp))
+        sp.set(q("after"), "20")
+        zet_keep_next(nl_p)
+        nl_p.addnext(nieuw)
+
+def verwijder_tekst(p, patroon):
+    """Verwijdert alle stukken tekst die op patroon passen, ook als ze over meerdere runs verdeeld staan."""
+    while True:
+        ts = list(p.iter(q("t")))
+        alles = "".join(t.text or "" for t in ts)
+        m = re.search(patroon, alles)
+        if not m: return
+        start, eind, pos = m.start(), m.end(), 0
+        for t in ts:
+            s, e = pos, pos + len(t.text or ""); pos = e
+            if e <= start or s >= eind: continue
+            oud = t.text or ""
+            t.text = oud[: max(0, start - s)] + oud[max(0, eind - s):]
+            t.set("{http://www.w3.org/XML/1998/namespace}space", "preserve")
+
+def maak_informatieblad(origineel, taal):
+    zin = zipfile.ZipFile(origineel)
+    doc = etree.fromstring(zin.read("word/document.xml"))
+    numbering = etree.fromstring(zin.read("word/numbering.xml"))
+    body = doc.find(q("body"))
+    paras = [p for p in body.iter(q("p")) if not any(a.tag == q("p") for a in p.iterancestors())]
+    assert len(paras) == 60, f"onverwacht informatieblad ({len(paras)} alinea's)"
+    vertaling = json.load(open(os.path.join(HIER, "vertalingen", f"informatieblad_{taal}.json"), encoding="utf8")) if taal != "NL" else {}
+    for h in list(doc.iter(q("highlight"))): h.getparent().remove(h)
+    for i, (begin, waarden) in INVULLEN_INFORMATIEBLAD.items():
+        assert tekst(paras[i]).lstrip().startswith(begin), f"alinea {i} begint niet met {begin!r}"
+        vervang_placeholders(paras[i], waarden)
+    # versiedatum en bestandsgrootte bij de pdf-link eruit (alinea 57)
+    verwijder_tekst(paras[57], r",\s*806 kB|,?\s*versie\s+\d{1,2}\s+\w+\s+\d{4}")
+    plaats_vertalingen(paras, numbering, vertaling, taal, INVULLEN_INFORMATIEBLAD)
+    schrijf(zin, doc, {}, f"informatieblad_{taal}.docx", len(vertaling))
+
+def talen(soort):
+    return ["NL"] + sorted(f[len(soort) + 1:-5] for f in os.listdir(os.path.join(HIER, "vertalingen"))
+                           if f.startswith(soort + "_") and f.endswith(".json"))
 
 if __name__ == "__main__":
-    for taal in ["NL"] + sorted(os.path.splitext(f)[0] for f in os.listdir(os.path.join(HIER, "vertalingen")) if f.endswith(".json")):
+    for taal in talen("huurovereenkomst"):
         maak(sys.argv[1], taal)
+    if len(sys.argv) > 2:
+        for taal in talen("informatieblad"):
+            maak(sys.argv[2], taal, "informatieblad")

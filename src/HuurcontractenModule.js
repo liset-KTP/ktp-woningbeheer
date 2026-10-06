@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "./supabaseClient";
-import { SJABLOON_TALEN, WERKGEVER_JURIDISCH, contractWaarden, vulSjabloon, haalSjabloon, bewaarBestand } from "./huurcontractWord";
+import { SJABLOON_TALEN, WERKGEVER_JURIDISCH, VOORZIENINGEN, contractWaarden, informatiebladWaarden, meldpuntVoor, vulSjabloon, haalSjabloon, bewaarBestand } from "./huurcontractWord";
 
 // ─── HUURCONTRACTEN (backoffice) ─────────────────────────────────────────────
 // Overzicht per bewoner: moet er nog een huurovereenkomst gemaakt/getekend worden,
@@ -124,6 +124,12 @@ function ContractDetail({ c, huis, gebruiker, onOpslaan, onLog, showToast, bezig
   // Alleen voor het Word-document; wordt bewust niet opgeslagen (privacy)
   const [extra, setExtra] = useState({ geboorteplaats:"", geboortedatum:"", telefoon:"", documentnummer:"", bijzonderheden:"geen bijzonderheden" });
   const [maakt, setMaakt] = useState(false);
+  // Informatieblad: per woning verschillend, (nog) niet opgeslagen — na SNF-certificering per woning vastleggen
+  const [info, setInfo] = useState(() => ({
+    voorzieningen: VOORZIENINGEN.filter(v => v.standaard).map(v => v.k),
+    maxBewoners: huis?.kamers?.length || "",
+  }));
+  const meldpunt = meldpuntVoor(huis?.stad);
   const zet = (k, v) => setF(p => {
     const n = { ...p, [k]: v };
     // Bij aankomst/bestaand is eerste aankomst = begindatum
@@ -150,17 +156,22 @@ function ContractDetail({ c, huis, gebruiker, onOpslaan, onLog, showToast, bezig
   const brief = f.uit_dienst_datum ? "brief 6 (einde arbeids- én huurovereenkomst)" : "brief 7 (einde huurovereenkomst) — of brief 5 bij verhuizing";
   const sjabloon = !f.taal ? "kies taal" : f.taal === "NL" ? "Nederlands" : `Nederlands + ${TAAL_LABEL[f.taal]}`;
 
-  async function downloadWord() {
-    if (ontbr.length) return showToast("Eerst invullen: " + ontbr.join(", "), "err");
+  async function downloadWord(soort = "huurovereenkomst") {
+    const isInfo = soort === "informatieblad";
+    if (!f.taal) return showToast("Kies eerst de taal", "err");
+    if (!isInfo && ontbr.length) return showToast("Eerst invullen: " + ontbr.join(", "), "err");
+    if (isInfo && !info.voorzieningen.length) return showToast("Vink minstens één gedeelde voorziening aan", "err");
     if (gewijzigd && !(await onOpslaan(c, naarDb(), null))) return;
     if (!SJABLOON_TALEN.includes(f.taal)) return showToast(`Sjabloon ${TAAL_LABEL[f.taal]} is er nog niet`, "err");
     setMaakt(true);
     try {
-      const sjabloon = await haalSjabloon(f.taal);
+      const sjabloon = await haalSjabloon(f.taal, soort);
       if (!sjabloon) return showToast(`Sjabloon ${TAAL_LABEL[f.taal]} kon niet geladen worden`, "err");
-      const blob = await vulSjabloon(sjabloon, contractWaarden({ ...c, ...naarDb() }, huis, eind, extra));
-      bewaarBestand(blob, `Huurovereenkomst ${c.naam_medewerker}.docx`);
-      showToast("📄 Huurovereenkomst gedownload");
+      const waarden = isInfo ? informatiebladWaarden(huis, info) : contractWaarden({ ...c, ...naarDb() }, huis, eind, extra);
+      const blob = await vulSjabloon(sjabloon, waarden);
+      const titel = isInfo ? "Informatieblad" : "Huurovereenkomst";
+      bewaarBestand(blob, `${titel} ${c.naam_medewerker}.docx`);
+      showToast(`📄 ${titel} gedownload`);
     } catch (e) {
       showToast("Word maken mislukt: " + e.message, "err");
     } finally { setMaakt(false); }
@@ -259,7 +270,7 @@ function ContractDetail({ c, huis, gebruiker, onOpslaan, onLog, showToast, bezig
       <div style={{marginTop:14,background:"white",border:`1px solid ${C.border}`,borderRadius:9,padding:12}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:8}}>
           <div style={{fontWeight:800,fontSize:13,color:C.text}}>📄 Huurovereenkomst <span style={{fontWeight:400,color:C.muted,fontSize:12}}>· sjabloon: {sjabloon}</span></div>
-          <button style={btn(C.blauw)} disabled={maakt || bezig} onClick={downloadWord}>{maakt ? "Bezig…" : "⬇️ Download Word"}</button>
+          <button style={btn(C.blauw)} disabled={maakt || bezig} onClick={()=>downloadWord()}>{maakt ? "Bezig…" : "⬇️ Download Word"}</button>
         </div>
         {f.taal && !SJABLOON_TALEN.includes(f.taal) && <div style={{fontSize:12,color:C.rood,marginBottom:8}}>⚠️ Sjabloon {TAAL_LABEL[f.taal]} is er nog niet — Word downloaden kan nu alleen in {SJABLOON_TALEN.map(t=>TAAL_LABEL[t]).join(" en ")}.</div>}
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:8,marginBottom:6}}>
@@ -274,6 +285,29 @@ function ContractDetail({ c, huis, gebruiker, onOpslaan, onLog, showToast, bezig
           <summary style={{fontSize:12,color:C.muted,cursor:"pointer"}}>Controle: wat er in de Huurbevestiging komt</summary>
           <pre style={{margin:"6px 0 0",fontSize:12,fontFamily:"inherit",whiteSpace:"pre-wrap",color:C.text,lineHeight:1.6}}>{huurbevestigingTekst({ ...c, ...naarDb() }, huis)}</pre>
         </details>
+      </div>
+
+      {/* Informatieblad (Wet goed verhuurderschap): zelfde taal, meldpunt volgt uit de plaats van de woning */}
+      <div style={{marginTop:10,background:"white",border:`1px solid ${C.border}`,borderRadius:9,padding:12}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:8}}>
+          <div style={{fontWeight:800,fontSize:13,color:C.text}}>ℹ️ Informatieblad <span style={{fontWeight:400,color:C.muted,fontSize:12}}>· {sjabloon}</span></div>
+          <button style={btn(C.blauw)} disabled={maakt || bezig} onClick={()=>downloadWord("informatieblad")}>{maakt ? "Bezig…" : "⬇️ Download Word"}</button>
+        </div>
+        <span style={lbl}>Gedeelde voorzieningen in deze woning</span>
+        <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:8}}>
+          {VOORZIENINGEN.map(v => (
+            <label key={v.k} style={{fontSize:12,display:"flex",gap:4,alignItems:"center",cursor:"pointer"}}>
+              <input type="checkbox" checked={info.voorzieningen.includes(v.k)}
+                onChange={e=>setInfo(p=>({...p, voorzieningen: e.target.checked ? [...p.voorzieningen, v.k] : p.voorzieningen.filter(x=>x!==v.k)}))} /> {v.NL}
+            </label>
+          ))}
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:8}}>
+          <div><span style={lbl}>Max. aantal bewoners</span><input style={inp} inputMode="numeric" value={info.maxBewoners} onChange={e=>setInfo(p=>({...p,maxBewoners:e.target.value.replace(/\D/g,"")}))} /></div>
+          <div style={{gridColumn:"span 2"}}><span style={lbl}>Meldpunt gemeente ({huis?.stad || "?"})</span>
+            <div style={{fontSize:12,color: meldpunt ? C.text : C.rood, paddingTop:6}}>{meldpunt || "⚠️ Geen meldpunt bekend voor deze plaats — wordt een stippellijn. Laat toevoegen in huurcontractWord.js (MELDPUNTEN)."}</div>
+          </div>
+        </div>
       </div>
 
       {/* Acties */}
