@@ -28,6 +28,7 @@ import { BorgModule, berekenStartWeekVanAankomst, weekPlusN } from "./BorgModule
 import { HandleidingModule } from "./HandleidingModule";
 import { KledingModule, KledingUitgifteInline } from "./KledingModule";
 import { CodesModule } from "./CodesModule";
+import HuurcontractenModule from "./HuurcontractenModule";
 import WeekDatePicker from "./WeekDatePicker";
 import { MedewerkerKiezer, naamProbleem, normaliseerNaam, vernieuwMedewerkerNamen } from "./MedewerkerKiezer";
 
@@ -1549,6 +1550,7 @@ function App() {
               <button className={`tp ${tab==="autos"?"act":""}`} onClick={()=>setTab("autos")}>🚗 Auto's</button>
               <button className={`tp ${tab==="fietsen"?"act":""}`} onClick={()=>setTab("fietsen")}>🚲 Fietsen</button>
               <button className={`tp ${tab==="huurbetalingen"?"act":""}`} onClick={()=>setTab("huurbetalingen")}>💶 Huur</button>
+              <button className={`tp ${tab==="huurcontracten"?"act":""}`} onClick={()=>setTab("huurcontracten")}>📄 Huurcontracten</button>
               <button className={`tp ${tab==="borg"?"act":""}`} onClick={()=>setTab("borg")}>🛡️ Inhoudingen</button>
               <button className={`tp ${tab==="log"?"act":""}`} onClick={()=>setTab("log")}>📝 Log</button>
               <button className={`tp ${tab==="huismeesterplanning"?"act":""}`} onClick={()=>setTab("huismeesterplanning")}>📅 Planning</button>
@@ -1575,6 +1577,7 @@ function App() {
         {rol==="backoffice"&&tab==="log"&&<LogView meldingen={meldingen} houses={houses} activiteiten={activiteiten} taken={taken}/>}
         {tab==="huurbetalingen"&&<HuurbetalingenModule gebruiker={gebruiker} showToast={showToast} readonly={rol!=="backoffice"&&rol!=="financieel"}/>}
         {tab==="berichten"&&<BerichtenModule gebruiker={gebruiker} houses={houses} taken={taken} meldingen={meldingen} autos={[]}/>}
+        {rol==="backoffice"&&tab==="huurcontracten"&&<HuurcontractenModule gebruiker={gebruiker} houses={houses} showToast={showToast}/>}
         {tab==="borg"&&<BorgModule gebruiker={gebruiker} houses={houses} showToast={showToast} readonly={rol!=="backoffice"}/>}
         {tab==="handleiding"&&<HandleidingModule gebruiker={gebruiker}/>}
         {tab==="kleding"&&<KledingModule gebruiker={gebruiker} showToast={showToast}/>}
