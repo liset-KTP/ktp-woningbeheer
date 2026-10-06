@@ -85,7 +85,8 @@ export function contractWaarden(c, huis, einde, extra = {}) {
     "PKS huurprijs": "n.v.t.",
     "Werkgever": WERKGEVER_JURIDISCH[c.werkgever],
     "Bijzonderheden": extra.bijzonderheden || "geen bijzonderheden",
-    // Plaats en datum ondertekening: bij het tekenen invullen
+    "Datum ondertekening": datumNL(extra.datumOndertekening),  // bij beide handtekeningen
+    // Plaats ondertekening huurder: bij het tekenen invullen
   };
 }
 

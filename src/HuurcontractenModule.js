@@ -114,7 +114,16 @@ function huurbevestigingTekst(c, huis) {
   ].join("\n");
 }
 
-function ContractDetail({ c, huis, gebruiker, onOpslaan, onLog, showToast, bezig }) {
+// Invoer voor de Word-documenten (niet opgeslagen). Staat in de pagina i.p.v. in het formulier,
+// zodat het blijft staan als het formulier na opslaan opnieuw laadt.
+function startInvoer(huis) {
+  return {
+    extra: { geboorteplaats:"", geboortedatum:"", telefoon:"", documentnummer:"", bijzonderheden:"geen bijzonderheden", datumOndertekening: vandaag() },
+    info: { voorzieningen: VOORZIENINGEN.filter(v => v.standaard).map(v => v.k), maxBewoners: huis?.kamers?.length || "" },
+  };
+}
+
+function ContractDetail({ c, huis, gebruiker, onOpslaan, onLog, showToast, bezig, invoer, setInvoer }) {
   const [f, setF] = useState(() => ({
     werkgever: c.werkgever || "", huurprijs: c.huurprijs ?? "", borg: c.borg ?? "", taal: c.taal || "",
     begindatum: c.begindatum || "", eerste_aankomst: c.eerste_aankomst || "", einddatum: c.einddatum || "",
@@ -122,13 +131,11 @@ function ContractDetail({ c, huis, gebruiker, onOpslaan, onLog, showToast, bezig
   }));
   const [tekenDatum, setTekenDatum] = useState(vandaag());
   // Alleen voor het Word-document; wordt bewust niet opgeslagen (privacy)
-  const [extra, setExtra] = useState({ geboorteplaats:"", geboortedatum:"", telefoon:"", documentnummer:"", bijzonderheden:"geen bijzonderheden" });
+  const { extra, info } = invoer || startInvoer(huis);
+  const zetDeel = deel => upd => setInvoer(s => ({ ...s, [deel]: typeof upd === "function" ? upd(s[deel]) : upd }));
+  const setExtra = zetDeel("extra"), setInfo = zetDeel("info");
   const [maakt, setMaakt] = useState(false);
   // Informatieblad: per woning verschillend, (nog) niet opgeslagen — na SNF-certificering per woning vastleggen
-  const [info, setInfo] = useState(() => ({
-    voorzieningen: VOORZIENINGEN.filter(v => v.standaard).map(v => v.k),
-    maxBewoners: huis?.kamers?.length || "",
-  }));
   const meldpunt = meldpuntVoor(huis?.stad);
   const zet = (k, v) => setF(p => {
     const n = { ...p, [k]: v };
@@ -278,9 +285,10 @@ function ContractDetail({ c, huis, gebruiker, onOpslaan, onLog, showToast, bezig
           <div><span style={lbl}>Geboortedatum</span><input type="date" style={inp} value={extra.geboortedatum} onChange={e=>setExtra(p=>({...p,geboortedatum:e.target.value}))} /></div>
           <div><span style={lbl}>Telefoonnummer</span><input style={inp} value={extra.telefoon} onChange={e=>setExtra(p=>({...p,telefoon:e.target.value}))} /></div>
           <div><span style={lbl}>Nr. ID-document</span><input style={inp} value={extra.documentnummer} onChange={e=>setExtra(p=>({...p,documentnummer:e.target.value}))} /></div>
+          <div><span style={lbl}>Datum ondertekening</span><input type="date" style={inp} value={extra.datumOndertekening} onChange={e=>setExtra(p=>({...p,datumOndertekening:e.target.value}))} /></div>
           <div><span style={lbl}>Bijzonderheden</span><input style={inp} value={extra.bijzonderheden} onChange={e=>setExtra(p=>({...p,bijzonderheden:e.target.value}))} /></div>
         </div>
-        <div style={{fontSize:11,color:C.muted,marginBottom:8}}>🔒 Deze vijf velden komen alleen in het Word-bestand en worden niet opgeslagen. Leeg laten = stippellijn, met de hand invullen na printen.</div>
+        <div style={{fontSize:11,color:C.muted,marginBottom:8}}>🔒 Deze velden komen alleen in het Word-bestand en worden niet opgeslagen. Leeg laten = stippellijn, met de hand invullen na printen.</div>
         <details>
           <summary style={{fontSize:12,color:C.muted,cursor:"pointer"}}>Controle: wat er in de Huurbevestiging komt</summary>
           <pre style={{margin:"6px 0 0",fontSize:12,fontFamily:"inherit",whiteSpace:"pre-wrap",color:C.text,lineHeight:1.6}}>{huurbevestigingTekst({ ...c, ...naarDb() }, huis)}</pre>
@@ -359,6 +367,7 @@ export default function HuurcontractenModule({ gebruiker, houses = [], showToast
   const [view, setView] = useState("te_doen");
   const [zoek, setZoek] = useState("");
   const [open, setOpen] = useState(null);
+  const [docInvoer, setDocInvoer] = useState({});  // per contract-id, alleen in het geheugen
 
   // showToast is in App een nieuwe functie per render: via ref, anders draait de sync in een lus
   const toastRef = useRef(showToast);
@@ -463,7 +472,8 @@ export default function HuurcontractenModule({ gebruiker, houses = [], showToast
                     <span style={{color:C.muted}}>{isOpen ? "▲" : "▼"}</span>
                   </div>
                 </div>
-                {isOpen && <ContractDetail key={c.id + c.bijgewerkt_op} c={c} huis={huis} gebruiker={gebruiker} onOpslaan={opslaan} onLog={log} showToast={showToast} bezig={bezig} />}
+                {isOpen && <ContractDetail key={c.id + c.bijgewerkt_op} c={c} huis={huis} gebruiker={gebruiker} onOpslaan={opslaan} onLog={log} showToast={showToast} bezig={bezig}
+                  invoer={docInvoer[c.id]} setInvoer={fn => setDocInvoer(p => ({ ...p, [c.id]: fn(p[c.id] || startInvoer(huis)) }))} />}
               </div>
             );
           })}
