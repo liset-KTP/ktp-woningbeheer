@@ -1419,6 +1419,7 @@ function App() {
         .btn-out:hover{border-color:${C.blauw};color:${C.blauw}}
         .btn-r{background:#dc2626;color:white;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600}
         .btn-r:hover{background:#b91c1c}
+        .tabnav{display:flex;gap:2px;flex-wrap:wrap;row-gap:4px;padding-bottom:6px} @media(max-width:767px){.tabnav{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none} .tabnav::-webkit-scrollbar{display:none}}
         .tp{background:none;border:none;color:rgba(255,255,255,.7);padding:6px 9px;border-radius:20px;font-size:11.5px;font-weight:500;transition:all .2s;white-space:nowrap}
         .tp.act{background:${C.groen};color:white;font-weight:700}
         .tp:hover{color:white}
@@ -1495,7 +1496,7 @@ function App() {
             </div>
           )}
           {/* Tab navigatie — horizontaal scrollbaar op mobiel */}
-          <div style={{display:"flex",gap:2,overflowX:"auto",paddingBottom:6,scrollbarWidth:"none",msOverflowStyle:"none"}}>
+          <div className="tabnav">
             {rol==="collega" && (<>
               <button className={`tp ${tab==="taken"?"act":""}`} onClick={()=>setTab("taken")}>📋 Taken & Meldingen {(openTaken.length+mijnMeldingen.length)>0&&<Notif n={openTaken.length+mijnMeldingen.length}/>}</button>
               <button className={`tp ${tab==="mijn_overzicht"?"act":""}`} onClick={()=>setTab("mijn_overzicht")}>📊 Mijn overzicht {mijnOverzichtOpen>0&&<Notif n={mijnOverzichtOpen}/>}</button>
