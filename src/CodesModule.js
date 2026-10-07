@@ -3,6 +3,8 @@ import { supabase } from "./supabaseClient";
 
 // ─── WIFI & SLEUTELKLUIS-CODES PER WONING ────────────────────────────────────
 // Iedereen ziet de codes; alleen huismeester + backoffice kunnen wijzigen.
+// De tabel is niet direct bereikbaar: alles loopt via databasefuncties die het
+// sessietoken controleren (zie supabase/woning_codes.sql).
 // "Gewijzigd op" wordt door een database-trigger gezet (servertijd), alleen als
 // type/omschrijving/code/opmerking echt veranderd is.
 // In het Log komt wél wie/wat/welke woning, maar NOOIT de code zelf.
@@ -113,7 +115,7 @@ function CodeRegel({ r, magWijzigen, onBewerk, onVerwijder, showToast }) {
   );
 }
 
-export function CodesModule({ gebruiker, houses, magWijzigen, showToast }) {
+export function CodesModule({ gebruiker, token, houses, magWijzigen, showToast }) {
   const [codes, setCodes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [zoek, setZoek] = useState("");
@@ -126,11 +128,11 @@ export function CodesModule({ gebruiker, houses, magWijzigen, showToast }) {
   const toastRef = useRef(showToast);
   toastRef.current = showToast;
   const laad = useCallback(async () => {
-    const { data, error } = await supabase.from("woning_codes").select("*").order("type").order("omschrijving");
-    if (error) toastRef.current("Fout bij laden codes: "+error.message,"err");
-    setCodes(data || []);
+    const { data, error } = await supabase.rpc("app_codes_lijst", { p_token: token });
+    if (error || !data?.ok) toastRef.current("Fout bij laden codes: "+(data?.fout || error?.message || "onbekend"),"err");
+    setCodes(data?.codes || []);
     setLoading(false);
-  }, []);
+  }, [token]);
 
   useEffect(() => { laad(); }, [laad]);
 
@@ -158,14 +160,15 @@ export function CodesModule({ gebruiker, houses, magWijzigen, showToast }) {
   async function opslaan(woning, regel, waarden, fout) {
     if (fout) { showToast(fout,"err"); return; }
     setBezig(true);
-    const wie = gebruiker?.naam || "?";
     const t = CODE_TYPES[waarden.type]?.label || waarden.type;
-    let error;
+    const { data, error: rpcFout } = await supabase.rpc("app_code_opslaan", {
+      p_token: token, p_id: regel?.id ?? null, p_woning_id: woning.id,
+      p_type: waarden.type, p_omschrijving: waarden.omschrijving, p_code: waarden.code, p_opmerking: waarden.opmerking,
+    });
+    const error = rpcFout || (!data?.ok && { message: data?.fout || "Opslaan mislukt" });
     if (regel) {
-      ({ error } = await supabase.from("woning_codes").update({ ...waarden, gewijzigd_door: wie }).eq("id", regel.id));
       if (!error) await log("code_gewijzigd", `🔑 ${t} "${waarden.omschrijving}" gewijzigd — ${woning.adres}`, { woning_id: woning.id, code_id: regel.id });
     } else {
-      ({ error } = await supabase.from("woning_codes").insert([{ ...waarden, woning_id: woning.id, aangemaakt_door: wie, gewijzigd_door: wie }]));
       if (!error) await log("code_toegevoegd", `🔑 ${t} "${waarden.omschrijving}" toegevoegd — ${woning.adres}`, { woning_id: woning.id });
     }
     setBezig(false);
@@ -176,8 +179,8 @@ export function CodesModule({ gebruiker, houses, magWijzigen, showToast }) {
   }
 
   async function verwijder(woning, regel) {
-    const { error } = await supabase.from("woning_codes").delete().eq("id", regel.id);
-    if (error) { showToast("Fout: "+error.message,"err"); return; }
+    const { data, error } = await supabase.rpc("app_code_verwijderen", { p_token: token, p_id: regel.id });
+    if (error || !data?.ok) { showToast("Fout: "+(data?.fout || error?.message || "verwijderen mislukt"),"err"); return; }
     const t = CODE_TYPES[regel.type]?.label || regel.type;
     await log("code_verwijderd", `🗑 ${t} "${regel.omschrijving}" verwijderd — ${woning.adres}`, { woning_id: woning.id, code_id: regel.id });
     showToast("Verwijderd");

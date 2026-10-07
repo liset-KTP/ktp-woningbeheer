@@ -1569,7 +1569,7 @@ function App() {
         {tab==="taken"&&<TakenMeldingenView taken={taken} meldingen={meldingen} houses={houses} gebruiker={gebruiker} onAddTaak={addTaak} onUpdateTaak={updateTaak} onAddMelding={addMelding} onUpdateMelding={updateMeldingStatus} onUpdateWoning={updateWoning} showToast={showToast} taal={taal}/>}
         {(rol==="collega"||rol==="financieel")&&tab==="mijn_overzicht"&&<MijnOverzichtView meldingen={meldingen} taken={taken} houses={houses} gebruiker={gebruiker}/>}
         {tab==="woningen"&&<WoningenDetail houses={houses} onUpdateWoning={rol==="backoffice"||rol==="huismeester"?updateWoning:null}/>}
-        {tab==="codes"&&<CodesModule gebruiker={gebruiker} houses={houses} magWijzigen={rol==="backoffice"||rol==="huismeester"} showToast={showToast}/>}
+        {tab==="codes"&&<CodesModule gebruiker={gebruiker} token={sessieToken} houses={houses} magWijzigen={rol==="backoffice"||rol==="huismeester"} showToast={showToast}/>}
         {tab==="autos"&&<AutoModule gebruiker={gebruiker} showToast={showToast}/>}
         {tab==="fietsen"&&<FietsModule gebruiker={gebruiker} showToast={showToast} houses={houses} onMeldingIndienen={addMelding}/>}
         {rol==="huismeester"&&tab==="todo"&&<HuismeesterTodoView taken={taken} meldingen={meldingen} houses={houses} gebruiker={gebruiker} onAddTaak={addTaak} onUpdateTaak={updateTaak} onUpdateMelding={updateMeldingStatus} showToast={showToast} taal={taal}/>}
