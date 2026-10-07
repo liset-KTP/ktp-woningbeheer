@@ -450,7 +450,7 @@ function App() {
     bewaarSessie({ token: res.token, gebruiker: g });
     setBekijkAlsRol(null);
     setPinWijzigen(res.pin_moet_wijzigen ? { verplicht: true, oudePin } : null);
-    setTab(g.rol==="collega"||g.rol==="financieel"?"taken":g.rol==="huismeester"?"todo":"dashboard");
+    setTab(g.rol==="collega"||g.rol==="financieel"?"taken":g.rol==="huismeester"?"todo":"taken");
     loadOngelzenAutoReacties(g.naam);
     loadOngelzenBerichten(g.naam);
   }
@@ -1442,10 +1442,12 @@ function App() {
     const r = nieuweRol || null;
     setBekijkAlsRol(r);
     const effRol = r || gebruikerEcht?.rol;
-    setTab(effRol==="collega"||effRol==="financieel"?"taken":effRol==="huismeester"?"todo":"dashboard");
+    setTab(effRol==="collega"||effRol==="financieel"?"taken":effRol==="huismeester"?"todo":"taken");
   }
   // Gebruikers & pincodes beheren (reset bij vergeten pincode): hele backoffice
   const magGebruikersBeheren = rol==="backoffice";
+  // Backoffice heeft geen Dashboard/Handleiding meer: oude opgeslagen tab omzetten naar Taken
+  useEffect(()=>{ if(rol==="backoffice"&&(tab==="dashboard"||tab==="handleiding")) setTab("taken"); },[rol,tab]);
 
   if (loading) return <LoadingScreen />;
   if (!gebruiker) return <LoginScreen gebruikers={gebruikers} onLogin={login} taal={taal} onTaalWissel={wisselTaal}/>;
@@ -1476,6 +1478,7 @@ function App() {
         .btn-out:hover{border-color:${C.blauw};color:${C.blauw}}
         .btn-r{background:#dc2626;color:white;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600}
         .btn-r:hover{background:#b91c1c}
+        .tabnav{display:flex;flex-wrap:wrap;gap:4px;padding:2px 0 8px} .tabnav .tp{background:rgba(255,255,255,.08)} .tabnav .tp.act{background:${C.groen}} @media(max-width:767px){.tabnav{display:grid;grid-template-columns:repeat(3,1fr);gap:4px} .tabnav .tp{padding:7px 4px;font-size:11px;white-space:normal;line-height:1.2;text-align:center;border-radius:10px} .appheader{position:static!important}}
         .tp{background:none;border:none;color:rgba(255,255,255,.7);padding:6px 9px;border-radius:20px;font-size:11.5px;font-weight:500;transition:all .2s;white-space:nowrap}
         .tp.act{background:${C.groen};color:white;font-weight:700}
         .tp:hover{color:white}
@@ -1510,7 +1513,7 @@ function App() {
       {toast && <div style={{position:"fixed",bottom:16,right:16,left:16,zIndex:9999,background:toast.type==="ok"?C.groen:"#dc2626",color:"white",padding:"12px 18px",borderRadius:10,fontWeight:600,fontSize:14,boxShadow:"0 8px 30px rgba(0,0,0,.2)",textAlign:"center"}}>{toast.msg}</div>}
 
       {/* TOPBAR — mobiel scrollbaar */}
-      <div style={{background:C.blauw,borderBottom:`2px solid ${C.groen}`,position:"sticky",top:0,zIndex:100,boxShadow:"0 2px 12px rgba(27,58,107,.3)"}}>
+      <div className="appheader" style={{background:C.blauw,borderBottom:`2px solid ${C.groen}`,position:"sticky",top:0,zIndex:100,boxShadow:"0 2px 12px rgba(27,58,107,.3)"}}>
         <div style={{maxWidth:1400,margin:"0 auto",padding:"0 12px"}}>
           {/* Logo + user rij */}
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",height:48,gap:8}}>
@@ -1552,7 +1555,7 @@ function App() {
             </div>
           )}
           {/* Tab navigatie — horizontaal scrollbaar op mobiel */}
-          <div style={{display:"flex",gap:2,overflowX:"auto",paddingBottom:6,scrollbarWidth:"none",msOverflowStyle:"none"}}>
+          <div className="tabnav">
             {rol==="collega" && (<>
               <button className={`tp ${tab==="taken"?"act":""}`} onClick={()=>setTab("taken")}>📋 Taken & Meldingen {(openTaken.length+mijnMeldingen.length)>0&&<Notif n={openTaken.length+mijnMeldingen.length}/>}</button>
               <button className={`tp ${tab==="mijn_overzicht"?"act":""}`} onClick={()=>setTab("mijn_overzicht")}>📊 Mijn overzicht {mijnOverzichtOpen>0&&<Notif n={mijnOverzichtOpen}/>}</button>
@@ -1599,7 +1602,6 @@ function App() {
               <button className={`tp ${tab==="kleding"?"act":""}`} onClick={()=>setTab("kleding")}>👕 Kleding</button>
             </>)}
             {rol==="backoffice" && (<>
-              <button className={`tp ${tab==="dashboard"?"act":""}`} onClick={()=>setTab("dashboard")}>📊 Dashboard</button>
               <button className={`tp ${tab==="taken"?"act":""}`} onClick={()=>setTab("taken")}>📋 Taken {(openTaken.length+openMeldingen.length)>0&&<Notif n={openTaken.length+openMeldingen.length}/>}</button>
               {(isLiset||magGebruikersBeheren)&&<button className={`tp ${tab==="beheer"?"act":""}`} onClick={()=>setTab("beheer")} style={{fontWeight:800}}>⚙️ Beheer</button>}
               <button className={`tp ${tab==="woningen"?"act":""}`} onClick={()=>setTab("woningen")}>🏠 Woningen</button>
@@ -1613,7 +1615,6 @@ function App() {
               <button className={`tp ${tab==="huismeesterplanning"?"act":""}`} onClick={()=>setTab("huismeesterplanning")}>📅 Planning</button>
               <button className={`tp ${tab==="medewerker360"?"act":""}`} onClick={()=>setTab("medewerker360")}>👤 Medewerker</button>
               <button className={`tp ${tab==="berichten"?"act":""}`} onClick={()=>setTab("berichten")}>💬 Berichten {ongelzenBerichten>0&&<Notif n={ongelzenBerichten}/>}</button>
-              <button className={`tp ${tab==="handleiding"?"act":""}`} onClick={()=>setTab("handleiding")}>📖 Handleiding</button>
               <button className={`tp ${tab==="kleding"?"act":""}`} onClick={()=>setTab("kleding")}>👕 Kleding</button>
             </>)}
           </div>
