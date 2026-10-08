@@ -527,6 +527,30 @@ function App() {
     // event op meerdere schermen los moet afvinken.
     const meldingId = nieuweMelding?.id || null;
 
+    // Activiteitenlog (08-10-2026): het AANMAKEN van een melding (ook reservering) kwam nergens
+    // in het ⚡ Activiteiten-log — alleen latere statuswijzigingen (melding_status). Daardoor was
+    // bv. de reservering van Daniel Hanc (07-10) niet terug te vinden als activiteit.
+    // LET OP: persoon bewust onder extra.persoon en NIET onder extra.naam/extra.medewerker —
+    // die twee sleutels pakt de Cockpit-sync (view cockpit_gebeurtenissen) op, en de melding
+    // zelf gaat al via bron 'meldingen' naar Cockpit. Anders krijgt de kandidaat 2 contactmomenten.
+    {
+      const logHuis = houses.find(h=>h.id===m.huisId);
+      const logVanHuis = m.vanHuisId ? houses.find(h=>h.id===m.vanHuisId) : null;
+      const typeLabel = {
+        aankomst:"🚗 Aankomst gemeld", vertrek:"🧳 Vertrek gemeld", reservering:"📅 Kamer gereserveerd",
+        verhuizing:"📦 Verhuizing gemeld", vertrek_aankondiging:"📣 Vertrek aangekondigd", overig:"💬 Melding",
+      }[m.type] || `📋 Melding (${m.type})`;
+      const waar = `${logHuis?.adres||"?"}${m.kamer?` K${m.kamer}`:""}`;
+      const van = m.type==="verhuizing" && logVanHuis ? ` (van ${logVanHuis.adres}${m.vanKamer?` K${m.vanKamer}`:""})` : "";
+      const datumTxt = m.datum ? `, datum ${fmtDateJaar(m.datum)}` : "";
+      const sleutelTxt = (m.type==="reservering"||m.type==="aankomst") && m.sleutelAantal ? `, sleutels: ${m.sleutelAantal}` : "";
+      try {
+        await logActiviteit("melding_aangemaakt",
+          `${typeLabel}: ${m.medewerker||"?"} — ${waar}${van}${datumTxt}${sleutelTxt}`,
+          { melding_id: meldingId, melding_type: m.type, persoon: m.medewerker || null });
+      } catch (e) { console.error("log melding_aangemaakt:", e); } // log mag het melden nooit blokkeren
+    }
+
     // Bij aankomst: taak voor de collega (begeleiden + bevestigen) en backoffice (verwerken).
     // Sinds 29-09-2026 doet de collega die de aankomst aanmaakt (belt met de medewerker) ook
     // de begeleiding/sleuteluitgifte. De vroegere losse taken "Aankomst begeleiden" (huismeester)
@@ -7676,7 +7700,7 @@ function LogView({meldingen,houses,activiteiten,taken=[]}) {
 
   const typeKleur = {
     aankomst:C.groen, vertrek:"#ef4444", reservering:C.blauw, verhuizing:"#7c3aed", overig:C.muted,
-    melding_status:C.groen, taak_gedaan:C.blauw, checklist:"#7c3aed", kamer_wijziging:"#f59e0b", gebruiker:C.muted,
+    melding_status:C.groen, melding_aangemaakt:C.blauw, taak_gedaan:C.blauw, checklist:"#7c3aed", kamer_wijziging:"#f59e0b", gebruiker:C.muted,
     uitgifte:"#0891b2", inname:"#0e7490", storing:"#dc2626", schade:"#b91c1c",
     fiets_uitgifte:"#059669", fiets_inname:"#047857",
     borg_plan:"#7c3aed", huurschuld:"#d97706", huurbetaling:"#16a34a",
