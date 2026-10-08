@@ -379,6 +379,25 @@ function App() {
     return () => { supabase.removeChannel(s1); supabase.removeChannel(s2); supabase.removeChannel(s3); supabase.removeChannel(s4); supabase.removeChannel(s5); supabase.removeChannel(s6); supabase.removeChannel(s7); supabase.removeChannel(s8); };
   }, [loadHouses, loadMeldingen, loadTaken, loadChecklists, loadGebruikers, loadChecklistItems, loadActiviteiten, loadDagplanning, loadOngelzenAutoReacties, loadAutoMeldingenApp]);
 
+  // Her-synchroniseren (2026-10-08): de realtime-verbinding valt weg als een laptop slaapt of
+  // een tab dagen openstaat, en gemiste wijzigingen kwamen daarna nooit meer binnen (Log liep
+  // 13 meldingen achter). Nu: bij terugkomen in de tab, focus of netwerk terug alles opnieuw
+  // ophalen — max. 1x per 30 sec om de database niet te belasten.
+  const laatsteSync = useRef(Date.now());
+  useEffect(() => {
+    const herlaad = () => {
+      if (document.visibilityState !== "visible") return;
+      if (Date.now() - laatsteSync.current < 30000) return;
+      laatsteSync.current = Date.now();
+      loadMeldingen(); loadTaken(); loadActiviteiten(); loadHouses(); loadChecklists();
+    };
+    document.addEventListener("visibilitychange", herlaad);
+    window.addEventListener("focus", herlaad);
+    window.addEventListener("online", herlaad);
+    const iv = setInterval(herlaad, 10 * 60 * 1000); // vangnet als de tab lang op de voorgrond staat
+    return () => { document.removeEventListener("visibilitychange", herlaad); window.removeEventListener("focus", herlaad); window.removeEventListener("online", herlaad); clearInterval(iv); };
+  }, [loadMeldingen, loadTaken, loadActiviteiten, loadHouses, loadChecklists]);
+
   // Statuscontrole: als het datumveld van Vakantie/Ziek/Moet weg/Controle is verstreken,
   // automatisch een taak aanmaken voor de huismeester om te controleren of de status nog klopt.
   // Dubbele taken worden voorkomen via een sessie-guard + check op reeds openstaande taken.
@@ -510,6 +529,44 @@ function App() {
         .select("id").eq("type","aankomst").eq("medewerker",m.medewerker).eq("datum",m.datum).limit(1);
       if (dubbel && dubbel.length > 0) {
         showToast(`Er bestaat al een aankomstmelding voor ${m.medewerker} op ${m.datum}`, "err");
+        return;
+      }
+    }
+    // Guard (2026-10-08): voorkom een tweede vertrekmelding voor dezelfde persoon + kamer
+    // zolang er nog één openstaat. Aanleiding: Lynn meldde Michal Kocon (Coevorderweg 135 K3)
+    // een dag later opnieuw af om een opmerking kwijt te kunnen -> 2 open meldingen + 2
+    // controletaken voor één vertrek. Nu wordt de opmerking/controle aan de bestaande melding
+    // toegevoegd en gelogd, i.p.v. een nieuwe melding met nieuwe taken.
+    if (m.type === "vertrek" && m.medewerker) {
+      const { data: bestaand } = await supabase.from("meldingen")
+        .select("id,opmerkingen,kamer_schoon,sleutel_terug,datum")
+        .eq("type","vertrek").eq("medewerker",m.medewerker)
+        .eq("woning_id",m.huisId).eq("kamer",m.kamer)
+        .not("status","in","(afgehandeld,verwerkt)")
+        .order("created_at",{ascending:false}).limit(1);
+      const ex = bestaand && bestaand[0];
+      if (ex) {
+        const stempel = `${new Date().toLocaleDateString("nl-NL")} ${gebruiker.naam}`;
+        const extraTekst = [
+          m.opmerkingen || "",
+          (m.kamerSchoon && ex.kamer_schoon && m.kamerSchoon!==ex.kamer_schoon) ? `kamer schoon: ${m.kamerSchoon}` : "",
+          (m.sleutelTerug && ex.sleutel_terug && m.sleutelTerug!==ex.sleutel_terug) ? `sleutel terug: ${m.sleutelTerug}` : "",
+        ].filter(Boolean).join(" · ");
+        const upd = {};
+        if (extraTekst) upd.opmerkingen = ex.opmerkingen ? `${ex.opmerkingen}\n[${stempel}] ${extraTekst}` : `[${stempel}] ${extraTekst}`;
+        if (!ex.kamer_schoon && m.kamerSchoon) upd.kamer_schoon = m.kamerSchoon;
+        if (!ex.sleutel_terug && m.sleutelTerug) upd.sleutel_terug = m.sleutelTerug;
+        if (Object.keys(upd).length > 0) {
+          const { error: updErr } = await supabase.from("meldingen").update(upd).eq("id", ex.id);
+          if (updErr) { showToast("Fout bij opslaan","err"); return; }
+          await logActiviteit("melding_aangevuld",
+            `📝 Vertrekmelding aangevuld: ${m.medewerker} — K${m.kamer}${extraTekst?` · ${extraTekst}`:""}`,
+            { melding_id: ex.id, naam: m.medewerker });
+          await loadMeldingen();
+          showToast(`Er stond al een vertrekmelding voor ${m.medewerker} — je opmerking is daaraan toegevoegd`);
+        } else {
+          showToast(`Er staat al een open vertrekmelding voor ${m.medewerker} (K${m.kamer}) — niets nieuws toegevoegd`, "err");
+        }
         return;
       }
     }
@@ -7654,9 +7711,21 @@ function LogView({meldingen,houses,activiteiten,taken=[]}) {
   const [huurschulden, setHuurschulden] = useState([]);
   const [huurbetalingen, setHuurbetalingen] = useState([]);
   const [extraLoading, setExtraLoading] = useState(true);
+  // Log haalt zelf ALLE activiteiten op (2026-10-08): de app-brede lijst is beperkt tot de
+  // laatste 200, waardoor oudere log-regels onvindbaar waren terwijl er "alles geladen" stond.
+  const [alleActiviteiten, setAlleActiviteiten] = useState(null);
 
   useEffect(() => {
     async function loadExtra() {
+      const acts = [];
+      for (let van = 0; ; van += 1000) {
+        const { data, error } = await supabase.from("activiteiten").select("*")
+          .order("created_at",{ascending:false}).range(van, van + 999);
+        if (error) { console.error("activiteiten (log):", error); break; }
+        acts.push(...(data||[]));
+        if (!data || data.length < 1000) break;
+      }
+      setAlleActiviteiten(acts);
       const [auto, fiets, borg, schulden, betalingen] = await Promise.all([
         supabase.from("auto_meldingen").select("*").order("created_at",{ascending:false}).limit(500),
         supabase.from("fiets_log").select("*").order("created_at",{ascending:false}).limit(500),
@@ -7716,7 +7785,12 @@ function LogView({meldingen,houses,activiteiten,taken=[]}) {
         controleOpen,
       };
     }),
-    ...activiteiten.map(a=>({
+    ...(()=>{
+      // Volledige lijst + nieuwste realtime-regels uit de app-brede (200) lijst, ontdubbeld op id
+      if (!alleActiviteiten) return activiteiten;
+      const ids = new Set(alleActiviteiten.map(a=>a.id));
+      return [...activiteiten.filter(a=>!ids.has(a.id)), ...alleActiviteiten];
+    })().map(a=>({
       id:`a-${a.id}`, soort:"activiteit", datum:a.created_at,
       type:a.type, naam:a.omschrijving, door:a.gedaan_door,
       adres:"", kamer:"", status:"", notitie:"", extra:"",
