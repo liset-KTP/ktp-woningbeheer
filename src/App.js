@@ -248,6 +248,9 @@ function App() {
   const [tab, setTabState] = useState("melding");
   function setTab(t) {
     try { localStorage.setItem("ktp_tab", t); } catch {}
+    // Nieuwe app-versie klaar? Dan bij wisselen van menu automatisch vernieuwen: het vorige scherm
+    // verdwijnt toch al, dus er gaat geen half ingevuld formulier verloren. Tab en login blijven bewaard.
+    if (nieuweVersie) { window.location.reload(); return; }
     setTabState(t);
   }
   const [toast, setToast] = useState(null);
@@ -1533,7 +1536,7 @@ function App() {
 
       {nieuweVersie && <div onClick={()=>window.location.reload()} title="Klik om de nieuwste versie te laden"
         style={{position:"sticky",top:0,zIndex:10000,background:"#f59e0b",color:"white",padding:"8px 14px",fontWeight:700,fontSize:13,textAlign:"center",cursor:"pointer"}}>
-        🔄 Er is een nieuwe versie van de app — klik hier om te vernieuwen (je gegevens blijven bewaard)
+        🔄 Er is een nieuwe versie van de app — klik hier of kies een ander menu om bij te werken (je gegevens blijven bewaard)
       </div>}
       {toast && <div style={{position:"fixed",bottom:16,right:16,left:16,zIndex:9999,background:toast.type==="ok"?C.groen:"#dc2626",color:"white",padding:"12px 18px",borderRadius:10,fontWeight:600,fontSize:14,boxShadow:"0 8px 30px rgba(0,0,0,.2)",textAlign:"center"}}>{toast.msg}</div>}
 
