@@ -370,17 +370,50 @@ function App() {
     init();
   }, [loadGebruikers, loadHouses, loadMeldingen, loadTaken, loadChecklists, loadChecklistItems, loadActiviteiten, loadAutoMeldingenApp]);
 
+  // Realtime met herverbinding (2026-10-12): de kanalen werden 1x geopend en daarna nooit meer
+  // gecontroleerd. Viel de verbinding weg (wifi, slaapstand, Supabase-timeout), dan kwamen er
+  // stil geen wijzigingen meer binnen. Nu: bij een storing opnieuw verbinden (5s, 10s, 20s ... max 60s)
+  // en zodra het kanaal weer actief is de tabel opnieuw ophalen, zodat gemiste wijzigingen binnenkomen.
   useEffect(() => {
-    const s1 = supabase.channel("mel-rt").on("postgres_changes",{event:"*",schema:"public",table:"meldingen"},()=>loadMeldingen()).subscribe();
-    const s2 = supabase.channel("won-rt").on("postgres_changes",{event:"*",schema:"public",table:"woningen"},()=>loadHouses()).subscribe();
-    const s3 = supabase.channel("tak-rt").on("postgres_changes",{event:"*",schema:"public",table:"taken"},()=>loadTaken()).subscribe();
-    const s4 = supabase.channel("chk-rt").on("postgres_changes",{event:"*",schema:"public",table:"checklists"},()=>loadChecklists()).subscribe();
-    const s5 = supabase.channel("gbr-rt").on("postgres_changes",{event:"*",schema:"public",table:"gebruikers"},()=>loadGebruikers()).subscribe();
-    const s6 = supabase.channel("chi-rt").on("postgres_changes",{event:"*",schema:"public",table:"checklist_items"},()=>loadChecklistItems()).subscribe();
-    const s7 = supabase.channel("act-rt").on("postgres_changes",{event:"*",schema:"public",table:"activiteiten"},()=>loadActiviteiten()).subscribe();
-    const s8 = supabase.channel("dag-rt").on("postgres_changes",{event:"*",schema:"public",table:"dagplanning"},()=>loadDagplanning()).subscribe();
-    return () => { supabase.removeChannel(s1); supabase.removeChannel(s2); supabase.removeChannel(s3); supabase.removeChannel(s4); supabase.removeChannel(s5); supabase.removeChannel(s6); supabase.removeChannel(s7); supabase.removeChannel(s8); };
-  }, [loadHouses, loadMeldingen, loadTaken, loadChecklists, loadGebruikers, loadChecklistItems, loadActiviteiten, loadDagplanning, loadOngelzenAutoReacties, loadAutoMeldingenApp]);
+    const tabellen = [
+      ["mel-rt","meldingen",loadMeldingen], ["won-rt","woningen",loadHouses], ["tak-rt","taken",loadTaken],
+      ["chk-rt","checklists",loadChecklists], ["gbr-rt","gebruikers",loadGebruikers], ["chi-rt","checklist_items",loadChecklistItems],
+      ["act-rt","activiteiten",loadActiviteiten], ["dag-rt","dagplanning",loadDagplanning],
+    ];
+    let gestopt = false;
+    const kanalen = {}, timers = {}, pogingen = {}, gemist = {};
+    const verbind = (naam, tabel, laad) => {
+      // Unieke naam per poging: een oud kanaal dat offline niet netjes afsluit blijft anders hergebruikt.
+      const ch = supabase.channel(`${naam}-${Date.now()}`)
+        .on("postgres_changes",{event:"*",schema:"public",table:tabel},()=>laad())
+        .subscribe(status => {
+          if (gestopt || kanalen[naam] !== ch) return;
+          if (status === "SUBSCRIBED") {
+            if (gemist[naam]) laad(); // wijzigingen tijdens de storing alsnog ophalen
+            gemist[naam] = false; pogingen[naam] = 0;
+          } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+            gemist[naam] = true;
+            if (timers[naam]) return;
+            const wacht = Math.min(60000, 5000 * 2 ** (pogingen[naam] || 0));
+            pogingen[naam] = (pogingen[naam] || 0) + 1;
+            timers[naam] = setTimeout(() => {
+              timers[naam] = null;
+              if (gestopt || ch.state === "joined") return; // supabase heeft zelf al herverbonden
+              kanalen[naam] = null;
+              supabase.removeChannel(ch).catch(()=>{});
+              verbind(naam, tabel, laad);
+            }, wacht);
+          }
+        });
+      kanalen[naam] = ch;
+    };
+    tabellen.forEach(([naam, tabel, laad]) => verbind(naam, tabel, laad));
+    return () => {
+      gestopt = true;
+      Object.values(timers).forEach(t => t && clearTimeout(t));
+      Object.values(kanalen).forEach(ch => ch && supabase.removeChannel(ch));
+    };
+  }, [loadHouses, loadMeldingen, loadTaken, loadChecklists, loadGebruikers, loadChecklistItems, loadActiviteiten, loadDagplanning]);
 
   // Her-synchroniseren (2026-10-08): de realtime-verbinding valt weg als een laptop slaapt of
   // een tab dagen openstaat, en gemiste wijzigingen kwamen daarna nooit meer binnen (Log liep
