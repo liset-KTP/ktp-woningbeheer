@@ -248,6 +248,9 @@ function App() {
   const [tab, setTabState] = useState("melding");
   function setTab(t) {
     try { localStorage.setItem("ktp_tab", t); } catch {}
+    // Nieuwe app-versie klaar? Dan bij wisselen van menu automatisch vernieuwen: het vorige scherm
+    // verdwijnt toch al, dus er gaat geen half ingevuld formulier verloren. Tab en login blijven bewaard.
+    if (nieuweVersie) { window.location.reload(); return; }
     setTabState(t);
   }
   const [toast, setToast] = useState(null);
@@ -384,19 +387,40 @@ function App() {
   // 13 meldingen achter). Nu: bij terugkomen in de tab, focus of netwerk terug alles opnieuw
   // ophalen — max. 1x per 30 sec om de database niet te belasten.
   const laatsteSync = useRef(Date.now());
+  // Nieuwe-versie-check (2026-10-12): een tabblad dat dagen openstaat draait de OUDE app-code,
+  // dus ook oude fixes ontbreken. Bij elke her-sync vergelijken we de main-JS van de server met
+  // die van dit tabblad; anders tonen we een balk "Nieuwe versie — klik om te vernieuwen".
+  const [nieuweVersie, setNieuweVersie] = useState(false);
+  const mijnBundel = useRef((document.querySelector('script[src*="/static/js/main."]')||{}).src?.match(/main\.[a-z0-9]+\.js/)?.[0]||null);
+  const checkVersie = useCallback(async () => {
+    if (!mijnBundel.current) return; // lokaal (npm start): geen hash
+    try {
+      const html = await fetch("/index.html", { cache: "no-store" }).then(r => r.text());
+      const server = html.match(/main\.[a-z0-9]+\.js/)?.[0];
+      if (server && server !== mijnBundel.current) setNieuweVersie(true);
+    } catch {}
+  }, []);
+  // Alles opnieuw ophalen (max. 1x per 30 sec). Ook aangeroepen bij wisselen van menu-tab,
+  // zodat Log/Woningen nooit oude gegevens tonen als de realtime-verbinding stil is gevallen.
+  const herlaadAlles = useCallback((forceer=false) => {
+    if (!forceer && Date.now() - laatsteSync.current < 30000) return;
+    laatsteSync.current = Date.now();
+    loadMeldingen(); loadTaken(); loadActiviteiten(); loadHouses(); loadChecklists();
+    checkVersie();
+  }, [loadMeldingen, loadTaken, loadActiviteiten, loadHouses, loadChecklists, checkVersie]);
   useEffect(() => {
     const herlaad = () => {
       if (document.visibilityState !== "visible") return;
-      if (Date.now() - laatsteSync.current < 30000) return;
-      laatsteSync.current = Date.now();
-      loadMeldingen(); loadTaken(); loadActiviteiten(); loadHouses(); loadChecklists();
+      herlaadAlles();
     };
     document.addEventListener("visibilitychange", herlaad);
     window.addEventListener("focus", herlaad);
     window.addEventListener("online", herlaad);
     const iv = setInterval(herlaad, 10 * 60 * 1000); // vangnet als de tab lang op de voorgrond staat
     return () => { document.removeEventListener("visibilitychange", herlaad); window.removeEventListener("focus", herlaad); window.removeEventListener("online", herlaad); clearInterval(iv); };
-  }, [loadMeldingen, loadTaken, loadActiviteiten, loadHouses, loadChecklists]);
+  }, [herlaadAlles]);
+  // Bij elk wisselen van menu-tab verversen (zelfde 30-sec-rem).
+  useEffect(() => { herlaadAlles(); }, [tab, herlaadAlles]);
 
   // Statuscontrole: als het datumveld van Vakantie/Ziek/Moet weg/Controle is verstreken,
   // automatisch een taak aanmaken voor de huismeester om te controleren of de status nog klopt.
@@ -1510,6 +1534,10 @@ function App() {
         }
       `}</style>
 
+      {nieuweVersie && <div onClick={()=>window.location.reload()} title="Klik om de nieuwste versie te laden"
+        style={{position:"sticky",top:0,zIndex:10000,background:"#f59e0b",color:"white",padding:"8px 14px",fontWeight:700,fontSize:13,textAlign:"center",cursor:"pointer"}}>
+        🔄 Er is een nieuwe versie van de app — klik hier of kies een ander menu om bij te werken (je gegevens blijven bewaard)
+      </div>}
       {toast && <div style={{position:"fixed",bottom:16,right:16,left:16,zIndex:9999,background:toast.type==="ok"?C.groen:"#dc2626",color:"white",padding:"12px 18px",borderRadius:10,fontWeight:600,fontSize:14,boxShadow:"0 8px 30px rgba(0,0,0,.2)",textAlign:"center"}}>{toast.msg}</div>}
 
       {/* TOPBAR — mobiel scrollbaar */}
@@ -1632,7 +1660,7 @@ function App() {
         {tab==="fietsen"&&<FietsModule gebruiker={gebruiker} showToast={showToast} houses={houses} onMeldingIndienen={addMelding}/>}
         {rol==="huismeester"&&tab==="todo"&&<HuismeesterTodoView taken={taken} meldingen={meldingen} houses={houses} gebruiker={gebruiker} onAddTaak={addTaak} onUpdateTaak={updateTaak} onUpdateMelding={updateMeldingStatus} showToast={showToast} taal={taal}/>}
         {rol==="huismeester"&&tab==="dagplanning"&&<DagplanningView meldingen={meldingen} taken={taken} houses={houses} onUpdate={updateMeldingStatus} onUpdateTaak={updateTaak} naam={naam} dagplanningDB={dagplanningDB} checklistItems={checklistItems} checklists={checklists} autoMeldingen={autoMeldingenApp}/>}
-        {rol==="backoffice"&&tab==="log"&&<LogView meldingen={meldingen} houses={houses} activiteiten={activiteiten} taken={taken}/>}
+        {rol==="backoffice"&&tab==="log"&&<LogView meldingen={meldingen} houses={houses} activiteiten={activiteiten} taken={taken} onVernieuw={()=>herlaadAlles(true)}/>}
         {tab==="huurbetalingen"&&<HuurbetalingenModule gebruiker={gebruiker} showToast={showToast} readonly={rol!=="backoffice"&&rol!=="financieel"}/>}
         {tab==="berichten"&&<BerichtenModule gebruiker={gebruiker} houses={houses} taken={taken} meldingen={meldingen} autos={[]}/>}
         {rol==="backoffice"&&tab==="huurcontracten"&&<HuurcontractenModule gebruiker={gebruiker} houses={houses} showToast={showToast}/>}
@@ -7702,7 +7730,13 @@ function ChecklistItemsBeheer({ checklistItems, showToast }) {
 }
 
 // ─── LOG VIEW ─────────────────────────────────────────────────────────────────
-function LogView({meldingen,houses,activiteiten,taken=[]}) {
+function LogView({meldingen,houses,activiteiten,taken=[],onVernieuw}) {
+  const [bijgewerkt, setBijgewerkt] = useState(new Date());
+  const [vernieuwTeller, setVernieuwTeller] = useState(0);
+  // Bij openen van Log altijd verse meldingen/woningen ophalen (2026-10-12: Log miste 5 nieuwe
+  // meldingen omdat het tabblad oude gegevens vasthield).
+  const vernieuwRef = useRef(onVernieuw);
+  useEffect(() => { vernieuwRef.current && vernieuwRef.current(); }, []);
   const [zoek, setZoek] = useState("");
   const [typeFilter, setTypeFilter] = useState("alle");
   const [uitgeklapt, setUitgeklapt] = useState(new Set());
@@ -7740,9 +7774,16 @@ function LogView({meldingen,houses,activiteiten,taken=[]}) {
       setHuurschulden(schulden.data||[]);
       setHuurbetalingen(betalingen.data||[]);
       setExtraLoading(false);
+      setBijgewerkt(new Date());
     }
     loadExtra();
-  }, []);
+  }, [vernieuwTeller]);
+
+  function vernieuw() {
+    setExtraLoading(true);
+    onVernieuw && onVernieuw();
+    setVernieuwTeller(n=>n+1);
+  }
 
   const typeKleur = {
     aankomst:C.groen, vertrek:"#ef4444", reservering:C.blauw, verhuizing:"#7c3aed", overig:C.muted,
@@ -7864,8 +7905,11 @@ function LogView({meldingen,houses,activiteiten,taken=[]}) {
 
   return (
     <div>
-      <SH titel="📝 Log" sub={`${alles.length} totaal · ${extraLoading?"laden...":"alles geladen"}`}
-        actie={<button className="btn-out" onClick={exportCSV}>⬇ Exporteer CSV</button>}/>
+      <SH titel="📝 Log" sub={`${alles.length} totaal · ${extraLoading?"laden...":`alles geladen · bijgewerkt om ${fmtTime(bijgewerkt)}`}`}
+        actie={<div style={{display:"flex",gap:6}}>
+          <button className="btn-out" onClick={vernieuw} disabled={extraLoading}>↻ Vernieuwen</button>
+          <button className="btn-out" onClick={exportCSV}>⬇ Exporteer CSV</button>
+        </div>}/>
       <div style={{display:"flex",gap:10,marginBottom:12,flexWrap:"wrap"}}>
         <input value={zoek} onChange={e=>setZoek(e.target.value)}
           placeholder="🔍 Zoek op naam, kenteken, adres, ingediend door..."
