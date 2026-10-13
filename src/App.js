@@ -643,6 +643,30 @@ function App() {
         return;
       }
     }
+    // Waarschuwing (2026-10-13): aankomstmelding terwijl er al een open verhuizing loopt.
+    // Aanleiding: Kamil Pelkowski — verhuizing Coevorderweg 135 K6 -> Krommendijk 14 K3 stond
+    // open, en er werd daarnaast een aankomstmelding voor Krommendijk K3 gemaakt -> dubbele
+    // taken (aankomst begeleiden + verwerken) naast de verhuistaken. Een verhuizing dekt de
+    // aankomst op het nieuwe adres al. Geen harde blokkade: in een uitzonderingsgeval kan het
+    // toch bewust, maar standaard (Annuleren) wordt er niets aangemaakt.
+    if (m.type === "aankomst" && m.medewerker) {
+      const { data: openVerhuizing } = await supabase.from("meldingen")
+        .select("id, datum, woning_id, kamer, van_woning_id, van_kamer")
+        .eq("type","verhuizing").ilike("medewerker", m.medewerker.trim())
+        .not("status","in","(afgehandeld,verwerkt,geannuleerd)")
+        .order("created_at",{ascending:false}).limit(1);
+      const v = openVerhuizing && openVerhuizing[0];
+      if (v) {
+        const adres = id => houses.find(h => h.id === id)?.adres || "?";
+        const ok = window.confirm(
+          `Let op: er staat al een open verhuizing voor ${m.medewerker}:\n` +
+          `${adres(v.van_woning_id)} K${v.van_kamer || "?"} → ${adres(v.woning_id)} K${v.kamer || "?"} (${v.datum || "geen datum"})\n\n` +
+          `Een verhuizing dekt de aankomst op het nieuwe adres al. Een extra aankomstmelding geeft dubbele taken.\n\n` +
+          `OK = toch een aparte aankomstmelding maken\nAnnuleren = niets aanmaken (aanbevolen)`
+        );
+        if (!ok) { showToast(`Geen aankomstmelding aangemaakt — verhuizing #${v.id} loopt al`); return; }
+      }
+    }
     // Guard (2026-10-08): voorkom een tweede vertrekmelding voor dezelfde persoon + kamer
     // zolang er nog één openstaat. Aanleiding: Lynn meldde Michal Kocon (Coevorderweg 135 K3)
     // een dag later opnieuw af om een opmerking kwijt te kunnen -> 2 open meldingen + 2
