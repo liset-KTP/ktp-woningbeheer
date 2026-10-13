@@ -77,14 +77,19 @@ async function patchKamer(woningId, wijzigingenPerKamer) {
 // bericht naar backoffice en de aanroeper krijgt {ok:false, huidigeNaam}
 // terug zodat de UI een duidelijke waarschuwing kan tonen i.p.v. de kamer
 // stilletjes leeg te maken.
-async function veiligKamerVrijmaken(woningId, kamerNr, reden) {
+// BUGFIX (13-10-2026, Marian Valentin Dirtu, Nijverheidsweg 9 K2): de kamer stond nog op naam van
+// de vertrekkende medewerker zelf, maar met status "Lopend" (teruggezet door een verhuizing-taak die
+// pas NA het vertrek werd afgevinkt). De guard zag dat als "bezet door een ander" en liet de kamer
+// staan. Nu: staat de vertrekkende zelf nog in de kamer (verwachteNaam), dan mag de kamer vrij.
+async function veiligKamerVrijmaken(woningId, kamerNr, reden, verwachteNaam) {
   if (!woningId || !kamerNr) return { ok: false, reden: "geen_woning_of_kamer" };
   const { data: vers, error: readErr } = await supabase.from("woningen").select("adres, kamers").eq("id", woningId).single();
   if (readErr || !vers) { console.error("veiligKamerVrijmaken: kon woning niet vers lezen", woningId, readErr); return { ok: false, reden: "leesfout" }; }
   const kamer = (vers.kamers || []).find(k => k.k === kamerNr);
-  const bezetDoorAnder = kamer && kamer.naam && kamer.status !== "Controle";
+  const zelfdePersoon = verwachteNaam && kamer?.naam && kamer.naam.trim().toLowerCase() === String(verwachteNaam).trim().toLowerCase();
+  const bezetDoorAnder = kamer && kamer.naam && kamer.status !== "Controle" && !zelfdePersoon;
   if (!bezetDoorAnder) {
-    const success = await patchKamer(woningId, { [kamerNr]: { status: "Beschikbaar", naam: "" } });
+    const success = await patchKamer(woningId, { [kamerNr]: { status: "Beschikbaar", naam: "", controleOp: "" } });
     return { ok: success };
   }
   // Conflict: kamer staat al op naam van iemand anders — NIET aanpassen.
@@ -99,6 +104,17 @@ async function veiligKamerVrijmaken(woningId, kamerNr, reden) {
     gelezen_door: [],
   }]);
   return { ok: false, huidigeNaam: kamer.naam, huidigeStatus: kamer.status };
+}
+
+// Is er voor deze medewerker een vertrekmelding aangemaakt NA het gegeven moment?
+// Gebruikt om te voorkomen dat een verouderde verhuizing-/aankomststap een al
+// vertrokken medewerker weer in een kamer zet (Dirtu-case, 13-10-2026).
+async function heeftVertrekNa(medewerker, sinds) {
+  if (!medewerker) return false;
+  let q = supabase.from("meldingen").select("id").eq("type", "vertrek").ilike("medewerker", medewerker.trim()).limit(1);
+  if (sinds) q = q.gt("created_at", sinds);
+  const { data } = await q;
+  return !!(data && data.length);
 }
 
 // ─── EMAILJS ──────────────────────────────────────────────────────────────────
@@ -1286,7 +1302,9 @@ function App() {
         const { data: versNaar } = await supabase.from("woningen").select("kamers").eq("id", m.woning_id).maybeSingle();
         const naarKamerNu = (versNaar?.kamers||[]).find(k=>k.k===m.kamer);
         const patchNaar = {};
-        if (m.kamer && (!naarKamerNu || naarKamerNu.status==="Gereserveerd" || naarKamerNu.status==="Bezet" || naarKamerNu.naam===m.medewerker)) {
+        // BUGFIX (13-10-2026, Dirtu): niet terugzetten op Lopend als de medewerker na deze verhuizing al vertrokken is.
+        const alVertrokken = await heeftVertrekNa(m.medewerker, m.created_at);
+        if (m.kamer && !alVertrokken && (!naarKamerNu || naarKamerNu.status==="Gereserveerd" || naarKamerNu.status==="Bezet" || naarKamerNu.naam===m.medewerker)) {
           patchNaar[m.kamer] = {naam:m.medewerker,status:"Lopend",aankomstDatum:""};
         }
         const zelfdeWoningAfhandelen = m.van_woning_id && m.woning_id===m.van_woning_id;
@@ -1341,6 +1359,13 @@ function App() {
           await patchKamer(melding.woning_id, { [melding.kamer]: { status:"Lopend", aankomstDatum:"" } });
           await loadHouses();
         }
+      }
+      // BUGFIX (13-10-2026, Dirtu): een vertrekmelding die hier automatisch dichtgaat moet de kamer
+      // ook vrijgeven — dat gebeurde alleen via updateMelding, en die route wordt hier overgeslagen.
+      if (melding.type==="vertrek" && melding.woning_id && melding.kamer) {
+        const res = await veiligKamerVrijmaken(melding.woning_id, melding.kamer, `Vertrek ${melding.medewerker} (automatisch afgehandeld)`, melding.medewerker);
+        if (!res.ok && res.huidigeNaam) showToast(`⚠ Kamer ${melding.kamer} niet leeggemaakt — ${res.huidigeNaam} zit er al in. Backoffice is gewaarschuwd.`, "err");
+        await loadHouses();
       }
       await loadMeldingen();
     }
@@ -5313,7 +5338,10 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast, inlin
                           // en er moet een guard zijn tegen herhaald vuren: zonder wasAlAfgevinkt-check vuurde dit
                           // blok (bericht + mail + borg-terugbetaling) een 2e keer zodra een extra checkbox werd
                           // aangevinkt nadat de set al compleet was — zie dubbel bericht bij Wojciech Karbowski.
-                          const alleKeys = t.titel?.includes("Verhuizing voltooid") ? ["sleutel1","kamer_klaar"] : ["schoon","sleutel1","sleutel2"];
+                          // BUGFIX (13-10-2026, Dirtu): sleutel2 is "indien van toepassing" en mag de afronding
+                          // niet blokkeren. Bij 1 sleutel werd de kamer anders nooit vrijgegeven, terwijl de taak
+                          // wél op gedaan kwam (via de gewone gedaan-knop) en de melding automatisch dichtging.
+                          const alleKeys = t.titel?.includes("Verhuizing voltooid") ? ["sleutel1","kamer_klaar"] : ["schoon","sleutel1"];
                           const wasAlAfgevinkt = alleKeys.every(k => (t.notitie||"").includes("[✓ "+k+"]"));
                           const alleAfgevinkt = alleKeys.every(k => nieuwNotitie.includes("[✓ "+k+"]"));
                           if (alleAfgevinkt && !wasAlAfgevinkt) {
@@ -5334,7 +5362,7 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast, inlin
 
                             // Bij vertrek: kamer op Beschikbaar zetten
                             if (isVertrek && t.woning_id && t.kamer) {
-                              const kamerResultaat = await veiligKamerVrijmaken(t.woning_id, t.kamer, t.titel);
+                              const kamerResultaat = await veiligKamerVrijmaken(t.woning_id, t.kamer, t.titel, medewerkerNaam);
                               if (!kamerResultaat.ok && kamerResultaat.huidigeNaam) {
                                 showToast(`⚠ Kamer ${t.kamer} niet leeggemaakt — ${kamerResultaat.huidigeNaam} zit er al in. Backoffice is gewaarschuwd, controleer handmatig.`, "err");
                               }
@@ -5358,8 +5386,15 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast, inlin
                             // nooit in de nieuwe kamer terecht en verdween hij/zij volledig uit het overzicht.
                             // Naam alleen meegeven als bekend — anders blijft de naam staan die net vers
                             // uit de database is gelezen (nooit een lokale, mogelijk verouderde k.naam).
+                            // BUGFIX (13-10-2026, Dirtu): een verhuizing-taak die pas wordt afgevinkt NA een
+                            // vertrekmelding van dezelfde medewerker mag de kamer niet opnieuw op bezet zetten.
                             if (isVerhuizingVoltooid && t.woning_id && t.kamer) {
-                              await patchKamer(t.woning_id, { [t.kamer]: { status: "Bezet", ...(medewerkerNaam ? { naam: medewerkerNaam } : {}) } });
+                              const latereVertrek = medewerkerNaam ? await heeftVertrekNa(medewerkerNaam, t.created_at) : false;
+                              if (latereVertrek) {
+                                showToast(`ℹ️ ${medewerkerNaam} is inmiddels vertrokken — kamer ${t.kamer} niet op bezet gezet.`);
+                              } else {
+                                await patchKamer(t.woning_id, { [t.kamer]: { status: "Bezet", ...(medewerkerNaam ? { naam: medewerkerNaam } : {}) } });
+                              }
                             }
 
                             // 1. Bericht naar backoffice
