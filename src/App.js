@@ -494,6 +494,60 @@ function App() {
     });
   }, [houses, loading, loadTaken]);
 
+  // Opruimen: statuscontrole-taken die niet meer kloppen met de kamer automatisch sluiten.
+  // Aanleiding 13-10-2026 (Katarzyna Bulinska): reservering geannuleerd en kamer op Beschikbaar
+  // gezet, maar "Controleer aankomst" bleef open + geblokkeerd hangen en wekte de indruk dat er
+  // nog ergens een reservering liep. Werkt voor elke oorzaak: annulering, verplaatsing, handmatige
+  // statuswijziging, andere naam op de kamer of een datum die naar de toekomst is verzet.
+  // Altijd met verse kamerdata uit de database (niet de lokale state), zodat een geldige taak
+  // nooit op basis van verouderde gegevens wordt gesloten.
+  const opruimBezig = useRef(false);
+  useEffect(() => {
+    if (loading || opruimBezig.current) return;
+    opruimBezig.current = true;
+    (async () => {
+      try {
+        const { data: open } = await supabase.from("taken")
+          .select("id, titel, woning_id, kamer, huismeester_opmerking")
+          .eq("status", "open").eq("aangemaakt_door", "Systeem (statuscontrole)");
+        if (!open || open.length === 0) return;
+        const woningIds = [...new Set(open.map(t => t.woning_id).filter(Boolean))];
+        const { data: ws, error } = await supabase.from("woningen").select("id, adres, kamers").in("id", woningIds);
+        if (error || !ws) return;
+        const vandaag = todayISO();
+        let gesloten = 0;
+        for (const t of open) {
+          const w = ws.find(x => x.id === t.woning_id);
+          if (!w) continue; // woning onbekend: niet automatisch sluiten, liever handmatig bekijken
+          const kamer = (w.kamers || []).find(k => k.k === t.kamer);
+          const dc = kamer ? STATUS_DATUM[kamer.status] : null;
+          const datum = dc ? kamer[dc.veld] : null;
+          const nogGeldig = dc && !dc.geenTaak && datum && datum <= vandaag && dc.taakTitel(kamer) === t.titel;
+          if (nogGeldig) continue;
+          const reden = !kamer ? "kamer bestaat niet meer"
+            : (!dc || dc.geenTaak) ? `kamer staat nu op "${kamer.status}"`
+            : dc.taakTitel(kamer) !== t.titel ? `kamer staat nu op naam van ${kamer.naam || "niemand"} (${kamer.status})`
+            : `datum verzet naar ${datum || "(leeg)"}`;
+          const { data: upd, error: upErr } = await supabase.from("taken").update({
+            status: "gedaan", geblokkeerd: false,
+            afgehandeld_op: new Date().toISOString(), afgehandeld_door: "Systeem (statuscontrole)",
+            huismeester_opmerking: [t.huismeester_opmerking, `Automatisch gesloten: ${reden}`].filter(Boolean).join(" | "),
+          }).eq("id", t.id).eq("status", "open").select("id");
+          if (upErr || !upd || upd.length === 0) continue; // al door een ander apparaat gesloten
+          gesloten++;
+          await supabase.from("activiteiten").insert([{
+            type: "taak_afgehandeld", gedaan_door: "Systeem (statuscontrole)",
+            omschrijving: `🧹 Taak automatisch gesloten: ${t.titel} — ${w.adres} K${t.kamer} (${reden})`,
+            extra: { taak_id: t.id },
+          }]);
+        }
+        if (gesloten > 0) { loadTaken(); loadActiviteiten(); }
+      } finally {
+        opruimBezig.current = false;
+      }
+    })();
+  }, [houses, loading, loadTaken, loadActiviteiten]);
+
   function showToast(msg, type="ok") { setToast({msg,type}); setTimeout(()=>setToast(null),3500); }
 
   function bewaarSessie(s) {
