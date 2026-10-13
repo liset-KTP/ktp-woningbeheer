@@ -6347,6 +6347,7 @@ function MeldingForm({ houses, meldingen=[], onSubmit, showToast, taal="nl" }) {
   async function handleSubmit() {
     const naamFout = naamProbleem(medewerker);
     if(naamFout){showToast(naamFout,"err");return;}
+    if(type==="aankomst" && datum && datum > todayISO()){showToast("Aankomstdatum ligt in de toekomst — meld dit als reservering","err");return;}
     if(type==="verhuizing"){
       if(!vanHuisId||!vanKamer){showToast("Vul de huidige woning/kamer in","err");return;}
       if(!naarHuisId||!naarKamer){showToast("Vul de nieuwe woning/kamer in","err");return;}
@@ -6418,6 +6419,10 @@ function MeldingForm({ houses, meldingen=[], onSubmit, showToast, taal="nl" }) {
     overig: "Datum",
   };
   const datumLabel = datumLabels[type] || "Datum";
+  // Aankomst met een datum in de toekomst = eigenlijk een reservering. Een aankomst zet de kamer
+  // direct op Lopend en start borg + huismeestertaken (Daniel Cojan, Coevorderweg 135 K8.1,
+  // 06-10-2026: aankomst ingevoerd voor 17-10 -> kamer 11 dagen te vroeg op Lopend).
+  const aankomstInToekomst = type==="aankomst" && !!datum && datum > todayISO();
 
   function handleBijlage(e) {
     const files = Array.from(e.target.files||[]);
@@ -6448,6 +6453,12 @@ function MeldingForm({ houses, meldingen=[], onSubmit, showToast, taal="nl" }) {
             nieuwToegestaan={type==="aankomst"||type==="reservering"||type==="overig"}
             placeholder={type==="aankomst"||type==="reservering"?"Voor- en achternaam (typ om te zoeken)":"Kies de medewerker (of kies eerst de kamer)"}/></div>
         <div style={{gridColumn:"2"}}><label className="fl">{datumLabel}</label><WeekDatePicker className="fi" value={datum} onChange={v=>setDatum(v)}/></div>
+        {aankomstInToekomst&&(
+          <div style={{gridColumn:"1 / -1",fontSize:13,fontWeight:600,color:"#b91c1c",background:"#fee2e2",border:"1px solid #fca5a5",borderRadius:8,padding:"10px 12px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
+            <span>⛔ Deze datum ligt in de toekomst. Iemand die nog niet is aangekomen meld je als <strong>reservering</strong>. De aankomst geef je pas door op de dag zelf.</span>
+            <button type="button" className="btn-b" style={{padding:"6px 12px",fontSize:13}} onClick={()=>setType("reservering")}>📅 Omzetten naar reservering</button>
+          </div>
+        )}
         {type!=="verhuizing"&&<>
           <div>
             <label className="fl">Woning</label>
