@@ -1611,6 +1611,10 @@ function App() {
   const rol = gebruiker?.rol;
   const openTaken = taken.filter(t=>t.status==="open" && (rol==="backoffice" ? t.voor_rol==="backoffice" : t.voor_rol==="iedereen" || t.voor_rol===rol || !t.voor_rol));
   const mijnMeldingen = meldingen.filter(m=>m.ingediend_door===gebruiker?.naam);
+  // BUGFIX 14-10-2026: badge op "Taken & Meldingen" telde voor collega's ALLE ooit ingediende
+  // meldingen (ook afgehandeld/verwerkt/geannuleerd) — bij Hans 62 terwijl er 11 openstonden.
+  // Het cijfer kon daardoor nooit omlaag. Nu alleen meldingen die nog lopen.
+  const mijnMeldingenOpenAantal = mijnMeldingen.filter(m=>m.status==="open"||m.status==="geaccepteerd"||m.status==="in_behandeling").length;
   const mijnOverzichtOpen = mijnMeldingen.filter(m=>m.status!=="afgehandeld"&&m.status!=="verwerkt"&&m.status!=="geannuleerd").length
     + taken.filter(t=>t.voor_rol==="collega"&&t.status!=="gedaan").length;
   const naam = gebruiker?.naam;
@@ -1738,7 +1742,7 @@ function App() {
           {/* Tab navigatie — horizontaal scrollbaar op mobiel */}
           <div className="tabnav">
             {rol==="collega" && (<>
-              <button className={`tp ${tab==="taken"?"act":""}`} onClick={()=>setTab("taken")}>📋 Taken & Meldingen {(openTaken.length+mijnMeldingen.length)>0&&<Notif n={openTaken.length+mijnMeldingen.length}/>}</button>
+              <button className={`tp ${tab==="taken"?"act":""}`} onClick={()=>setTab("taken")}>📋 Taken & Meldingen {(openTaken.length+mijnMeldingenOpenAantal)>0&&<Notif n={openTaken.length+mijnMeldingenOpenAantal}/>}</button>
               <button className={`tp ${tab==="mijn_overzicht"?"act":""}`} onClick={()=>setTab("mijn_overzicht")}>📊 Mijn overzicht {mijnOverzichtOpen>0&&<Notif n={mijnOverzichtOpen}/>}</button>
               <button className={`tp ${tab==="woningen"?"act":""}`} onClick={()=>setTab("woningen")}>🏠 Woningen</button>
               <button className={`tp ${tab==="codes"?"act":""}`} onClick={()=>setTab("codes")}>🔑 Codes</button>
@@ -1768,7 +1772,7 @@ function App() {
               <button className={`tp ${tab==="kleding"?"act":""}`} onClick={()=>setTab("kleding")}>👕 Kleding</button>
             </>)}
             {rol==="financieel" && (<>
-              <button className={`tp ${tab==="taken"?"act":""}`} onClick={()=>setTab("taken")}>📋 Taken & Meldingen {(openTaken.length+mijnMeldingen.length)>0&&<Notif n={openTaken.length+mijnMeldingen.length}/>}</button>
+              <button className={`tp ${tab==="taken"?"act":""}`} onClick={()=>setTab("taken")}>📋 Taken & Meldingen {(openTaken.length+mijnMeldingenOpenAantal)>0&&<Notif n={openTaken.length+mijnMeldingenOpenAantal}/>}</button>
               <button className={`tp ${tab==="mijn_overzicht"?"act":""}`} onClick={()=>setTab("mijn_overzicht")}>📊 Mijn overzicht {mijnOverzichtOpen>0&&<Notif n={mijnOverzichtOpen}/>}</button>
               <button className={`tp ${tab==="huurbetalingen"?"act":""}`} onClick={()=>setTab("huurbetalingen")}>💶 Huur</button>
               <button className={`tp ${tab==="woningen"?"act":""}`} onClick={()=>setTab("woningen")}>🏠 Woningen</button>
@@ -1806,7 +1810,7 @@ function App() {
       <div style={{maxWidth:1400,margin:"0 auto",padding:"20px 12px"}}>
         {rol==="backoffice"&&tab==="dashboard"&&<DashboardView houses={houses} meldingen={meldingen} taken={taken} gebruikers={gebruikers} activiteiten={activiteiten}/>}
         {tab==="taken"&&<TakenMeldingenView taken={taken} meldingen={meldingen} houses={houses} gebruiker={gebruiker} onAddTaak={addTaak} onUpdateTaak={updateTaak} onAddMelding={addMelding} onUpdateMelding={updateMeldingStatus} onUpdateWoning={updateWoning} showToast={showToast} taal={taal}/>}
-        {(rol==="collega"||rol==="financieel")&&tab==="mijn_overzicht"&&<MijnOverzichtView meldingen={meldingen} taken={taken} houses={houses} gebruiker={gebruiker}/>}
+        {(rol==="collega"||rol==="financieel")&&tab==="mijn_overzicht"&&<MijnOverzichtView meldingen={meldingen} taken={taken} houses={houses} gebruiker={gebruiker} onUpdateMelding={updateMeldingStatus} showToast={showToast} taal={taal}/>}
         {tab==="woningen"&&<WoningenDetail houses={houses} onUpdateWoning={rol==="backoffice"||rol==="huismeester"?updateWoning:null}/>}
         {tab==="codes"&&<CodesModule gebruiker={gebruiker} houses={houses} magWijzigen={rol==="backoffice"||rol==="huismeester"} showToast={showToast}/>}
         {tab==="autos"&&<AutoModule gebruiker={gebruiker} showToast={showToast}/>}
@@ -4465,7 +4469,11 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
   // niet op inplandatum), waardoor een al ingepland item zomaar tussen echt-open items
   // opdook. Ingepland-groep sorteren op eerstvolgende inplandatum (wanneer pakt hij het
   // daadwerkelijk op), i.p.v. op de oorspronkelijke meldingsdatum.
-  const meldingenNogOppakken = gefilterdeMeldingen.filter(m => m.status !== "geaccepteerd");
+  // BUGFIX 14-10-2026: met filter "Alle" kwamen afgehandelde/verwerkte meldingen onder het kopje
+  // "Nog oppakken" te staan (alles behalve "geaccepteerd" telde mee). Nu alleen echt openstaand;
+  // afgeronde meldingen krijgen een eigen grijze groep "Afgehandeld".
+  const meldingenNogOppakken = gefilterdeMeldingen.filter(m => m.status === "open" || m.status === "in_behandeling");
+  const meldingenAfgerond = gefilterdeMeldingen.filter(m => m.status !== "open" && m.status !== "in_behandeling" && m.status !== "geaccepteerd");
   const meldingenAlIngepland = gefilterdeMeldingen.filter(m => m.status === "geaccepteerd")
     .sort((a,b) => new Date(a.ingepland_op||a.datum||"9999-12-31") - new Date(b.ingepland_op||b.datum||"9999-12-31"));
 
@@ -4600,6 +4608,18 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
                 📅 Al ingepland ({meldingenAlIngepland.length})
               </div>
               {meldingenAlIngepland.map(m => (
+                <MeldingKaartCombined key={m.id} melding={m} houses={houses} gebruiker={gebruiker}
+                  isBackoffice={isBackoffice} isHuismeester={isHuismeester}
+                  onUpdate={onUpdateMelding} showToast={showToast} taal={taal}/>
+              ))}
+            </div>
+          )}
+          {meldingenAfgerond.length > 0 && (
+            <div style={{marginBottom:24}}>
+              <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:10}}>
+                ✓ Afgehandeld ({meldingenAfgerond.length})
+              </div>
+              {meldingenAfgerond.map(m => (
                 <MeldingKaartCombined key={m.id} melding={m} houses={houses} gebruiker={gebruiker}
                   isBackoffice={isBackoffice} isHuismeester={isHuismeester}
                   onUpdate={onUpdateMelding} showToast={showToast} taal={taal}/>
@@ -4751,12 +4771,23 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
   const [opmerkingCollega, setOpmerkingCollega] = useState("");
   const [toonBewerk, setToonBewerk] = useState(false);
   const [bewerkData, setBewerkData] = useState({});
+  const [toonZelfAf, setToonZelfAf] = useState(false);
+  const [zelfAfTekst, setZelfAfTekst] = useState("");
+  const [zelfAfBezig, setZelfAfBezig] = useState(false);
 
   const typeKleur = {aankomst:C.groen,vertrek:"#ef4444",vertrek_aankondiging:"#f59e0b",reservering:C.blauw,overig:C.oranje,verhuizing:"#0891b2"};
   const typeIcon = {aankomst:"🏠",vertrek:"🧳",vertrek_aankondiging:"📢",reservering:"📅",overig:"📝",verhuizing:"🔄"};
   const kleur = typeKleur[m.type] || C.muted;
   const isOpen = m.status === "open";
   const isIngepland = m.status === "geaccepteerd" || m.ingepland_op;
+  // 14-10-2026: collega's (bijv. Hans) mogen een lopende melding zelf afhandelen als ze het
+  // werk zelf gedaan hebben (huismeester had geen tijd). Verplichte toelichting zodat later
+  // terug te zien is wát er gedaan is en door wie. Loopt via dezelfde updateMeldingStatus als
+  // backoffice, dus alle bestaande checks (open borgplan, open controletaak) en vervolgacties
+  // (kamerstatus bij vertrek/aankomst/verhuizing, borgplan bij aankomst) blijven gelden.
+  const isCollegaRol = gebruiker?.rol === "collega" || gebruiker?.rol === "financieel";
+  const isLopend = m.status === "open" || m.status === "geaccepteerd" || m.status === "in_behandeling";
+  const zwaarType = ["aankomst","vertrek","verhuizing","reservering"].includes(m.type);
 
   return (
     <div style={{background:"white",border:`1px solid ${C.border}`,borderLeft:`4px solid ${isOpen?kleur:C.muted}`,borderRadius:10,padding:"14px 18px",marginBottom:10,opacity:isOpen?1:.8}}>
@@ -4864,6 +4895,42 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
                 ✓ Verwerkt in administratie
               </button>
             )
+          )}
+        </div>
+      )}
+      {/* Zelf afhandelen — collega */}
+      {isCollegaRol && isLopend && (
+        <div style={{marginTop:8}}>
+          {toonZelfAf ? (
+            <div style={{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:10,padding:14}}>
+              <div style={{fontWeight:700,color:C.groen,fontSize:13,marginBottom:8}}>✓ Zelf afgehandeld</div>
+              {zwaarType && (
+                <div style={{fontSize:12,color:"#b45309",background:"#fef3c7",border:"1px solid #fde68a",borderRadius:8,padding:"8px 10px",marginBottom:10}}>
+                  ⚠️ Let op: bij een {m.type?.replace("_"," ")} past afhandelen ook de kamerstatus aan
+                  {m.type==="aankomst"?" en wordt het borgplan aangemaakt":m.type==="vertrek"?" (kamer naar Controle) en wordt het borgplan gecontroleerd":""}.
+                  Doe dit alleen als het echt helemaal geregeld is.
+                </div>
+              )}
+              <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>WAT HEB JE GEDAAN? *</label>
+              <textarea value={zelfAfTekst} onChange={e=>setZelfAfTekst(e.target.value)} rows={2} autoFocus
+                placeholder="bijv. gordijnen zelf opgehangen, sleutel teruggekregen..."
+                style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"8px 12px",fontSize:13,outline:"none",fontFamily:"inherit",boxSizing:"border-box",resize:"vertical",marginBottom:10}}/>
+              <div style={{display:"flex",gap:8}}>
+                <button disabled={zelfAfBezig} onClick={async()=>{
+                  if(!zelfAfTekst.trim()){ showToast("Vul in wat je gedaan hebt","err"); return; }
+                  setZelfAfBezig(true);
+                  await onUpdate(m.id,"afgehandeld",`Zelf afgehandeld door ${gebruiker?.naam}: ${zelfAfTekst.trim()}`);
+                  setZelfAfBezig(false); setToonZelfAf(false); setZelfAfTekst("");
+                }} style={{background:C.groen,color:"white",border:"none",borderRadius:8,padding:"8px 18px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit",opacity:zelfAfBezig?.6:1}}>
+                  {zelfAfBezig?"⏳ Bezig...":"✓ Afhandelen"}
+                </button>
+                <button onClick={()=>{setToonZelfAf(false);setZelfAfTekst("");}} style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"8px 12px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>Annuleren</button>
+              </div>
+            </div>
+          ) : (
+            <button onClick={()=>setToonZelfAf(true)} style={{background:"#f0fdf4",border:`1.5px solid ${C.groen}`,color:C.groen,borderRadius:8,padding:"7px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+              ✓ Zelf afgehandeld
+            </button>
           )}
         </div>
       )}
@@ -6677,8 +6744,9 @@ function MeldingForm({ houses, meldingen=[], onSubmit, showToast, taal="nl" }) {
   );
 }
 
-function MijnOverzichtView({ meldingen, taken, houses, gebruiker }) {
+function MijnOverzichtView({ meldingen, taken, houses, gebruiker, onUpdateMelding, showToast, taal="nl" }) {
   const [filter, setFilter] = useState("open"); // open | alle
+  const [openId, setOpenId] = useState(null); // welke melding is opengeklapt
   const naam = gebruiker?.naam;
 
   const typeIcon  = {aankomst:"🚗",vertrek:"🧳",vertrek_aankondiging:"📢",reservering:"📅",verhuizing:"📦",overig:"💬"};
@@ -6686,7 +6754,7 @@ function MijnOverzichtView({ meldingen, taken, houses, gebruiker }) {
 
   const eigenMeldingen = meldingen
     .filter(m => m.ingediend_door === naam)
-    .filter(m => filter==="alle" || m.status==="open" || m.status==="in_behandeling")
+    .filter(m => filter==="alle" || m.status==="open" || m.status==="in_behandeling" || m.status==="geaccepteerd")
     .sort((a,b) => new Date(b.created_at||0) - new Date(a.created_at||0));
 
   // Taken met voor_rol "collega" (bijv. "Aankomst bevestigen") zijn niet hard aan één
@@ -6741,6 +6809,7 @@ function MijnOverzichtView({ meldingen, taken, houses, gebruiker }) {
       <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:8}}>
         📬 Mijn meldingen ({eigenMeldingen.length})
       </div>
+      <div style={{fontSize:11.5,color:C.muted,marginBottom:8}}>Klik op een melding om hem zelf af te handelen, te bewerken of een opmerking toe te voegen.</div>
       {eigenMeldingen.length === 0 ? (
         <div style={{textAlign:"center",padding:"24px 0",color:C.muted,fontSize:13,marginBottom:24}}>Geen {filter==="open"?"openstaande ":""}meldingen</div>
       ) : (
@@ -6748,8 +6817,10 @@ function MijnOverzichtView({ meldingen, taken, houses, gebruiker }) {
           {eigenMeldingen.map(m => {
             const huis = houses.find(h => h.id === m.woning_id);
             const st = statusVoorMelding(m);
+            const isOpengeklapt = openId === m.id;
             return (
-              <div key={m.id} style={rijStyle(st.kleur)}>
+              <div key={m.id}>
+              <div style={{...rijStyle(st.kleur),cursor:"pointer"}} onClick={()=>setOpenId(isOpengeklapt?null:m.id)} title="Klik om af te handelen of te bewerken">
                 <span style={{fontSize:14}}>{typeIcon[m.type]||"💬"}</span>
                 <span style={{fontWeight:700,color:C.text,minWidth:140}}>{m.medewerker}</span>
                 {miniBadge(C.bg, C.muted, typeLabel[m.type]||m.type)}
@@ -6762,7 +6833,15 @@ function MijnOverzichtView({ meldingen, taken, houses, gebruiker }) {
                     {miniBadge(m.kamer_schoon==="ja"?C.groen+"18":"#fef2f2", m.kamer_schoon==="ja"?C.groen:"#ef4444", `🧹 ${m.kamer_schoon||"?"}`)}
                   </span>
                 )}
-                <span style={{marginLeft:"auto"}}>{miniBadge(st.bg, st.kleur, st.label)}</span>
+                <span style={{marginLeft:"auto",display:"flex",gap:6,alignItems:"center"}}>{miniBadge(st.bg, st.kleur, st.label)}<span style={{color:C.muted,fontSize:11}}>{isOpengeklapt?"▲":"▼"}</span></span>
+              </div>
+              {isOpengeklapt && onUpdateMelding && (
+                <div style={{marginTop:4,marginLeft:12}}>
+                  <MeldingKaartCombined melding={m} houses={houses} gebruiker={gebruiker}
+                    isBackoffice={false} isHuismeester={false}
+                    onUpdate={onUpdateMelding} showToast={showToast} taal={taal}/>
+                </div>
+              )}
               </div>
             );
           })}
