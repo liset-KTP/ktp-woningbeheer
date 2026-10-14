@@ -32,6 +32,23 @@ import HuurcontractenModule from "./HuurcontractenModule";
 import WeekDatePicker from "./WeekDatePicker";
 import { MedewerkerKiezer, naamProbleem, normaliseerNaam, vernieuwMedewerkerNamen } from "./MedewerkerKiezer";
 
+// Kamers altijd op kamernummer tonen (1, 1.2, 2, 2.2, 3 …), ongeacht de volgorde
+// waarin ze zijn toegevoegd. Vergelijkt per deel ("1.10" komt dus na "1.9").
+// Niet-numerieke kamernamen komen achteraan, alfabetisch.
+export function vergelijkKamerNr(a, b) {
+  const delen = v => String(v ?? "").split(".").map(d => parseInt(d, 10));
+  const da = delen(a), db = delen(b);
+  const aNum = !isNaN(da[0]), bNum = !isNaN(db[0]);
+  if (aNum !== bNum) return aNum ? -1 : 1;
+  if (!aNum) return String(a).localeCompare(String(b));
+  for (let i = 0; i < Math.max(da.length, db.length); i++) {
+    const x = isNaN(da[i]) ? -1 : da[i], y = isNaN(db[i]) ? -1 : db[i];
+    if (x !== y) return x - y;
+  }
+  return 0;
+}
+export const sorteerKamers = kamers => [...(kamers || [])].sort((a, b) => vergelijkKamerNr(a?.k, b?.k));
+
 // ─── KAMER-WRITES: race-vrije helper ───────────────────────────────────────
 // BUGFIX (2026-08-07, zie commit 009d81b): elke plek die een kamerstatus
 // wijzigt deed voorheen "lees lokale houses-state -> map -> schrijf HELE
@@ -345,13 +362,13 @@ function App() {
   const loadHouses = useCallback(async () => {
     const { data, error } = await supabase.from("woningen").select("*").order("stad").order("adres").neq("gearchiveerd", true);
     if (error) { console.error(error); return; }
-    setHouses(data.map(h => ({ ...h, kamers: h.kamers || [] })));
+    setHouses(data.map(h => ({ ...h, kamers: sorteerKamers(h.kamers) })));
   }, []);
 
   const loadGearchiveerdeHouses = useCallback(async () => {
     const { data, error } = await supabase.from("woningen").select("*").order("stad").order("adres").eq("gearchiveerd", true);
     if (error) { console.error(error); return; }
-    setGearchiveerdeHouses(data.map(h => ({ ...h, kamers: h.kamers || [] })));
+    setGearchiveerdeHouses(data.map(h => ({ ...h, kamers: sorteerKamers(h.kamers) })));
   }, []);
 
   const loadMeldingen = useCallback(async () => {
@@ -7005,10 +7022,10 @@ function WoningenDetail({houses, onUpdateWoning}) {
                 <div style={{textAlign:"right",flexShrink:0,marginLeft:10}}><div style={{fontSize:22,fontWeight:800,color:C.blauw,lineHeight:1}}>{bezette}<span style={{fontSize:13,color:C.muted}}>/{h.kamers.length}</span></div><div style={{fontSize:10,color:C.muted,marginTop:2}}>bezet</div></div>
               </div>
               <div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:12}}>
-                {[...h.kamers].sort((a,b)=>parseFloat(a.k)-parseFloat(b.k)).map(k=>{const c=STATUS_MAP[k.status]||{dot:C.muted};return <div key={k.k} title={`K${k.k}: ${k.naam||"leeg"} — ${k.status}`} style={{width:12,height:12,borderRadius:3,background:c.dot+"50",border:`1.5px solid ${c.dot}`}}/>;  })}
+                {[...h.kamers].sort((a,b)=>vergelijkKamerNr(a.k,b.k)).map(k=>{const c=STATUS_MAP[k.status]||{dot:C.muted};return <div key={k.k} title={`K${k.k}: ${k.naam||"leeg"} — ${k.status}`} style={{width:12,height:12,borderRadius:3,background:c.dot+"50",border:`1.5px solid ${c.dot}`}}/>;  })}
               </div>
               <div style={{borderTop:`1px solid ${C.border}`,paddingTop:10}}>
-                {[...h.kamers].sort((a,b)=>parseFloat(a.k)-parseFloat(b.k)).map(k=>{
+                {[...h.kamers].sort((a,b)=>vergelijkKamerNr(a.k,b.k)).map(k=>{
                   const c=STATUS_MAP[k.status]||{bg:C.bg,text:C.muted,dot:C.muted};
                   const rijBg=k.status==="Controle"?"#fef2f2":k.status==="Moet aan het werk"?"#fff7ed":k.status==="Moet weg"?"#fff1f2":k.status==="Vakantie"?"#14b8a608":k.status==="Ziek"?"#eab30808":k.status==="Beschikbaar"?C.blauw+"08":"transparent";
                   const isBezig=bewerkKamer?.huisId===h.id&&bewerkKamer?.kamerNr===k.k;
@@ -7133,9 +7150,9 @@ function PlanningView({houses}) {
                 <div><div style={{fontWeight:800,fontSize:15,color:C.text}}>{h.adres}</div><div style={{fontSize:12,color:C.muted,marginTop:2}}>{h.stad} · {h.postcode}</div></div>
                 <div style={{textAlign:"right"}}><div style={{fontSize:22,fontWeight:800,color:C.blauw}}>{bezette}/{h.kamers.length}</div><div style={{fontSize:10,color:C.muted}}>bezet</div></div>
               </div>
-              <div style={{display:"flex",gap:3,flexWrap:"wrap",marginBottom:12}}>{[...h.kamers].sort((a,b)=>parseFloat(a.k)-parseFloat(b.k)).map(k=>{const c=STATUS_MAP[k.status]||{dot:C.muted};return <div key={k.k} title={`K${k.k}: ${k.naam||"leeg"}`} style={{width:10,height:10,borderRadius:3,background:c.dot+"60",border:`1.5px solid ${c.dot}`}}/>;})}</div>
+              <div style={{display:"flex",gap:3,flexWrap:"wrap",marginBottom:12}}>{[...h.kamers].sort((a,b)=>vergelijkKamerNr(a.k,b.k)).map(k=>{const c=STATUS_MAP[k.status]||{dot:C.muted};return <div key={k.k} title={`K${k.k}: ${k.naam||"leeg"}`} style={{width:10,height:10,borderRadius:3,background:c.dot+"60",border:`1.5px solid ${c.dot}`}}/>;})}</div>
               <div style={{borderTop:`1px solid ${C.border}`,paddingTop:12}}>
-                {[...h.kamers].sort((a,b)=>parseFloat(a.k)-parseFloat(b.k)).map(k=>{const c=STATUS_MAP[k.status]||{bg:C.bg,text:C.muted};return(
+                {[...h.kamers].sort((a,b)=>vergelijkKamerNr(a.k,b.k)).map(k=>{const c=STATUS_MAP[k.status]||{bg:C.bg,text:C.muted};return(
                   <div key={k.k} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 8px",borderRadius:6,marginBottom:2}}>
                     <span style={{fontSize:10,fontWeight:700,color:C.muted,minWidth:26,fontFamily:"monospace"}}>K{k.k}</span>
                     <span style={{flex:1,fontSize:13,color:k.naam?C.text:"#aab4c4",fontStyle:k.naam?"normal":"italic"}}>{k.naam||"leeg"}</span>
@@ -7540,7 +7557,7 @@ function WoningBeheer({houses,onAdd,onUpdate,onArchiveer,showToast}) {
     if(!nieuweKamer.k){showToast("Vul kamernummer in","err");return;}
     if(!huis) return;
     if(huis.kamers.some(k=>k.k===nieuweKamer.k)){showToast("Kamernummer bestaat al","err");return;}
-    setSaving(true);await onUpdate(huis.id,{kamers:[...huis.kamers,sanitizeKamerDatums(nieuweKamer)]},huis);setSaving(false);
+    setSaving(true);await onUpdate(huis.id,{kamers:sorteerKamers([...huis.kamers,sanitizeKamerDatums(nieuweKamer)])},huis);setSaving(false);
     setNieuweKamer({k:"",naam:"",bedrijf:"",status:"Beschikbaar",opmerking:"",vakantieTot:"",ziekTot:"",moetWegVoor:"",controleOp:"",aankomstDatum:""});
   }
   async function kamerOpslaan(nr,u) { if(!huis) return; const waarden = sanitizeKamerDatums(u); setSaving(true); await onUpdate(huis.id,{kamers:huis.kamers.map(k=>k.k===nr?{...k,...waarden}:k)},huis); setSaving(false); setBewerkKamer(null); }
