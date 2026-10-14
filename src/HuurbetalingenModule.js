@@ -194,6 +194,36 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
     showToast("✓ Huurschuld afgesloten"); return true;
   }
 
+  // Afschrijven = schuld is oninbaar (medewerker weg, geen inhouding mogelijk).
+  // Er wordt GEEN betaling geboekt: het bedrag blijft apart staan als "afgeschreven",
+  // zodat je aan het eind van het jaar ziet wat er aan huur gemist is.
+  // Daarnaast komt er een activiteit in de log met de naam → de dagelijkse
+  // Cockpit-sync (18:55) zet dit als intern contactmoment (Betreft: Woning) bij de kandidaat.
+  async function schrijfAf(schuld, reden) {
+    const einddatum = schuld.einddatum || todayISO();
+    const bedrag = Math.round(berekenOpenstaand({ ...schuld, einddatum }) * 100) / 100;
+    if (bedrag <= 0) { showToast("Er staat niets open om af te schrijven","err"); return false; }
+    const { error } = await supabase.from("huurschulden").update({
+      actief: false,
+      einddatum,
+      afgeschreven_bedrag: bedrag,
+      afgeschreven_op: new Date().toISOString(),
+      afgeschreven_door: gebruiker.naam,
+      afgeschreven_reden: reden,
+    }).eq("id", schuld.id);
+    if (error) { console.error(error); showToast("Fout bij afschrijven","err"); return false; }
+    const periode = `${fmtDate(schuld.startdatum)} t/m ${fmtDate(einddatum)}`;
+    const { error: logErr } = await supabase.from("activiteiten").insert([{
+      type: "huurschuld_afgeschreven",
+      omschrijving: `💸 Huurschuld afgeschreven (oninbaar): nog €${bedrag.toFixed(2)} huur open bij vertrek (periode ${periode}). Reden: ${reden}. LET OP bij terugkomst: dit bedrag eerst afspreken/verrekenen.`,
+      gedaan_door: gebruiker.naam,
+      extra: { naam: (schuld.naam_medewerker || "").trim(), schuld_id: schuld.id, bedrag },
+    }]);
+    if (logErr) console.error("Log afschrijving mislukt:", logErr);
+    showToast(`✓ €${bedrag.toFixed(2)} afgeschreven — komt vanavond in Cockpit bij ${schuld.naam_medewerker}`);
+    return true;
+  }
+
   async function addOpmerking(schuldId, tekst) {
     const schuld = schulden.find(s => s.id === schuldId);
     const huidige = schuld?.opmerkingen || "";
@@ -208,6 +238,11 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
   const actief   = schulden.filter(s => s.actief);
   const gesloten = schulden.filter(s => !s.actief);
   const totaalOpen = actief.reduce((s, d) => s + berekenOpenstaand(d), 0);
+  const afgeschreven = schulden.filter(s => Number(s.afgeschreven_bedrag) > 0);
+  const ditJaar = new Date().getFullYear();
+  const afgeschrevenDitJaar = afgeschreven
+    .filter(s => s.afgeschreven_op && new Date(s.afgeschreven_op).getFullYear() === ditJaar)
+    .reduce((t, s) => t + Number(s.afgeschreven_bedrag), 0);
 
   // Zoek + filter
   const q = zoek.toLowerCase().trim();
@@ -215,6 +250,7 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
     .filter(s => {
       if (filterStatus === "openstaand") return s.actief;
       if (filterStatus === "afgesloten") return !s.actief;
+      if (filterStatus === "afgeschreven") return Number(s.afgeschreven_bedrag) > 0;
       return true;
     })
     .filter(s => !q || (s.naam_medewerker || "").toLowerCase().includes(q) || (s.opmerkingen || "").toLowerCase().includes(q))
@@ -244,6 +280,7 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
           <p style={{fontSize:13,color:C.muted}}>
             {actief.length} openstaand · {gesloten.length} afgesloten
             {totaalOpen > 0 && <> · <strong style={{color:C.rood}}>€{totaalOpen.toFixed(2)} open</strong></>}
+            {afgeschrevenDitJaar > 0 && <> · <span style={{color:C.muted}}>💸 €{afgeschrevenDitJaar.toFixed(2)} afgeschreven in {ditJaar}</span></>}
           </p>
         </div>
         {isBackoffice && (
@@ -285,7 +322,7 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
         </select>
       </div>
       <div style={{display:"flex",gap:4,marginBottom:16,flexWrap:"wrap"}}>
-        {[["alle",`Alles (${schulden.length})`],["openstaand",`💶 Openstaand (${actief.length})`],["afgesloten",`✅ Afgesloten (${gesloten.length})`]].map(([v,l]) => (
+        {[["alle",`Alles (${schulden.length})`],["openstaand",`💶 Openstaand (${actief.length})`],["afgesloten",`✅ Afgesloten (${gesloten.length})`],["afgeschreven",`💸 Afgeschreven (${afgeschreven.length})`]].map(([v,l]) => (
           <button key={v} onClick={() => setFilterStatus(v)}
             style={{background:filterStatus===v?C.blauw:"white",color:filterStatus===v?"white":C.muted,border:`1.5px solid ${filterStatus===v?C.blauw:C.border}`,borderRadius:20,padding:"7px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
             {l}
@@ -312,7 +349,7 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
                 </div>
               )}
               {actiefGefilterd.map(s => (
-                <SchuldKaart key={s.id} schuld={s} isBackoffice={isBackoffice} onBetaling={addBetaling} onAfsluiten={sluitAf} onOpmerking={addOpmerking} showToast={showToast} readonly={readonly} gebruiker={gebruiker} />
+                <SchuldKaart key={s.id} schuld={s} isBackoffice={isBackoffice} onBetaling={addBetaling} onAfsluiten={sluitAf} onAfschrijven={schrijfAf} onOpmerking={addOpmerking} showToast={showToast} readonly={readonly} gebruiker={gebruiker} />
               ))}
             </>
           )}
@@ -356,8 +393,10 @@ function SchuldenLijst({ schulden, gebruiker, isBackoffice, onBetaling, onAfslui
 }
 
 // ─── SCHULD KAART ─────────────────────────────────────────────────────────────
-function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerking, showToast, readonly, gebruiker }) {
+function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onAfschrijven, onOpmerking, showToast, readonly, gebruiker }) {
   const [toonStopzetten, setToonStopzetten] = useState(false);
+  const [toonAfschrijven, setToonAfschrijven] = useState(false);
+  const [afschrijfReden, setAfschrijfReden] = useState("");
   const [stopDatum, setStopDatum] = useState("");
   const [toonBetalingen, setToonBetalingen] = useState(false);
   const [toonBetalingForm, setToonBetalingForm] = useState(false);
@@ -397,7 +436,9 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerkin
     setNieuweOpmerking(""); setToonOpmerkingForm(false);
   }
 
-  const kleur = openstaand === 0 ? C.groen : openstaand > 200 ? C.rood : "#f59e0b";
+  const afgeschrevenBedrag = Number(schuld.afgeschreven_bedrag) || 0;
+  const isAfgeschreven = afgeschrevenBedrag > 0;
+  const kleur = isAfgeschreven ? C.muted : openstaand === 0 ? C.groen : openstaand > 200 ? C.rood : "#f59e0b";
 
   return (
     <div style={{background:"white",border:`1px solid ${C.border}`,borderLeft:`4px solid ${kleur}`,borderRadius:12,padding:20,boxShadow:"0 1px 4px rgba(27,58,107,.06)"}}>
@@ -409,6 +450,11 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerkin
             {schuld.einddatum && schuld.actief && openstaand > 0 && (
               <span style={{marginLeft:8,fontSize:11,fontWeight:700,background:"#fef2f2",color:"#ef4444",padding:"2px 8px",borderRadius:8,border:"1px solid #fecaca"}}>
                 🛑 Gestopt — schuld loopt nog
+              </span>
+            )}
+            {isAfgeschreven && (
+              <span style={{marginLeft:8,fontSize:11,fontWeight:700,background:"#f1f5f9",color:"#475569",padding:"2px 8px",borderRadius:8,border:"1px solid #cbd5e1"}}>
+                💸 Afgeschreven — oninbaar
               </span>
             )}
             {schuld.actief && openstaand === 0 && (
@@ -430,8 +476,17 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerkin
           )}
         </div>
         <div style={{textAlign:"right"}}>
-          <div style={{fontSize:24,fontWeight:800,color:kleur}}>€{openstaand.toFixed(2)}</div>
-          <div style={{fontSize:11,color:C.muted}}>openstaand</div>
+          {isAfgeschreven ? (
+            <>
+              <div style={{fontSize:24,fontWeight:800,color:"#475569",textDecoration:"line-through"}}>€{afgeschrevenBedrag.toFixed(2)}</div>
+              <div style={{fontSize:11,color:C.muted}}>afgeschreven (gemist)</div>
+            </>
+          ) : (
+            <>
+              <div style={{fontSize:24,fontWeight:800,color:kleur}}>€{openstaand.toFixed(2)}</div>
+              <div style={{fontSize:11,color:C.muted}}>openstaand</div>
+            </>
+          )}
         </div>
       </div>
 
@@ -451,6 +506,14 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerkin
       {schuld.opmerkingen && (
         <div style={{background:C.bg,borderRadius:8,padding:"10px 14px",fontSize:13,color:C.muted,marginBottom:12,whiteSpace:"pre-wrap"}}>
           💬 {schuld.opmerkingen}
+        </div>
+      )}
+
+      {isAfgeschreven && (
+        <div style={{background:"#f1f5f9",border:"1px solid #cbd5e1",borderRadius:8,padding:"10px 14px",fontSize:13,color:"#475569",marginBottom:12}}>
+          💸 €{afgeschrevenBedrag.toFixed(2)} afgeschreven op {fmtDate(schuld.afgeschreven_op)}{schuld.afgeschreven_door ? ` door ${schuld.afgeschreven_door}` : ""}
+          {schuld.afgeschreven_reden && <> — {schuld.afgeschreven_reden}</>}
+          <div style={{fontSize:11,marginTop:4}}>Niet betaald. Staat als contactmoment in Cockpit voor als deze medewerker terugkomt.</div>
         </div>
       )}
 
@@ -589,6 +652,36 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerkin
                 </span>
               </div>
             </div>
+          ) : toonAfschrijven ? (
+            <div style={{background:"#f8fafc",border:"1px solid #cbd5e1",borderRadius:10,padding:16,marginBottom:10}}>
+              <div style={{fontWeight:700,fontSize:13,color:"#475569",marginBottom:8}}>💸 Afschrijven — wordt niet meer betaald</div>
+              <div style={{fontSize:12,color:"#475569",marginBottom:12,lineHeight:1.5}}>
+                Er wordt <strong>€{berekenOpenstaand({ ...schuld, einddatum: schuld.einddatum || todayISO() }).toFixed(2)}</strong> afgeschreven
+                {!schuld.einddatum && <> (huur stopt vandaag, {fmtDate(todayISO())})</>}.
+                Dit telt <strong>niet</strong> als betaling: het bedrag blijft zichtbaar als gemiste huur.
+                De schuld verdwijnt uit "Openstaand" en vanavond komt er een contactmoment in Cockpit bij {schuld.naam_medewerker}.
+              </div>
+              <Label>Reden *</Label>
+              <div style={{marginBottom:10}}>
+                <Input value={afschrijfReden} onChange={e=>setAfschrijfReden(e.target.value)} placeholder="bijv. vertrokken, geen loon meer om in te houden" autoFocus/>
+              </div>
+              <div style={{display:"flex",gap:8}}>
+                <button onClick={async()=>{
+                  if(!afschrijfReden.trim()){showToast("Vul een reden in","err");return;}
+                  setSaving(true);
+                  const ok = await onAfschrijven(schuld, afschrijfReden.trim());
+                  setSaving(false);
+                  if (ok) { setAfschrijfReden(""); setToonAfschrijven(false); }
+                }} disabled={saving}
+                  style={{background:"#475569",color:"white",border:"none",borderRadius:8,padding:"10px 20px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                  {saving ? "⏳" : "✓ Definitief afschrijven"}
+                </button>
+                <button onClick={()=>setToonAfschrijven(false)}
+                  style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"10px 14px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
+                  Annuleren
+                </button>
+              </div>
+            </div>
           ) : toonOpmerkingForm ? (
             <div style={{background:C.bg,border:`1px solid ${C.border}`,borderRadius:10,padding:16,marginBottom:10}}>
               <Label>Opmerking toevoegen</Label>
@@ -649,6 +742,12 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onOpmerkin
                     style={{background:"white",border:`1.5px solid ${C.oranje}`,color:C.oranje,borderRadius:8,padding:"9px 14px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
                     🛑 Stopzetten
                   </button>
+                  {openstaand > 0 && onAfschrijven && (
+                    <button onClick={()=>setToonAfschrijven(true)}
+                      style={{background:"white",border:"1.5px solid #64748b",color:"#475569",borderRadius:8,padding:"9px 14px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                      💸 Afschrijven (oninbaar)
+                    </button>
+                  )}
                   {openstaand === 0 && (
                     <button onClick={()=>{ if(window.confirm(`Schuld van ${schuld.naam_medewerker} afsluiten? Alles is betaald.`)) onAfsluiten(schuld.id); }}
                       style={{background:"#f0fdf4",border:`1.5px solid ${C.groen}`,color:C.groen,borderRadius:8,padding:"9px 14px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
