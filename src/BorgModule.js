@@ -204,9 +204,9 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
     // Duplicaatbeveiliging: voorkom dubbele terugbetaling
     if (type === "terugbetalen") {
       const { data: bestaand } = await supabase.from("borg_extra")
-        .select("id").eq("plan_id", planId).eq("type", "terugbetalen");
+        .select("id").eq("plan_id", planId).eq("type", "terugbetalen").eq("status", "open");
       if (bestaand && bestaand.length > 0) {
-        showToast("⚠️ Er is al een terugbetaling geregistreerd voor dit borgplan. Verwijder eerst de bestaande.");
+        showToast("⚠️ Er staat al een openstaande terugbetaling voor dit borgplan. Verwerk of verwijder eerst de bestaande.");
         return;
       }
     }
@@ -414,9 +414,9 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
         : kern;
       // Terugbetaling klaarzetten in "Terug te betalen" (tenzij er al een staat)
       if (terug > 0) {
-        const { data: bestaand } = await supabase.from("borg_extra").select("id").eq("plan_id", planId).eq("type", "terugbetalen");
+        const { data: bestaand } = await supabase.from("borg_extra").select("id").eq("plan_id", planId).eq("type", "terugbetalen").eq("status", "open");
         if (bestaand && bestaand.length > 0) {
-          showToast("⚠️ Er staat al een terugbetaling voor dit plan — niets afgesloten. Controleer eerst 'Terug te betalen'.");
+          showToast("⚠️ Er staat al een openstaande terugbetaling voor dit plan — niets afgesloten. Controleer eerst 'Terug te betalen'.");
           return;
         }
         await supabase.from("borg_extra").insert([{
@@ -1082,10 +1082,14 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
   const verwerktTermijnen = termijnen.filter(t=>t.status==="verwerkt");
   const heeftVerwerkteSleutelTermijn = verwerktTermijnen.some(t=>t.omschrijving?.startsWith("Borg sleutel"));
 
-  // Alles wat al ingehouden is (verwerkte termijnen + al_ingehouden extra posten + verwerkte inhoud extra)
-  const totaalIngehouden = verwerktTermijnen.reduce((s,t)=>s+Number(t.bedrag),0)
+  // Netto ingehouden = verwerkte termijnen + al_ingehouden extra posten + verwerkte inhoud extra
+  // MINUS al uitbetaalde (verwerkte) terugbetalingen, bijv. een correctie "te veel ingehouden".
+  // Zonder deze aftrek toonde de kaart het bruto bedrag en kon bij vertrek te veel worden terugbetaald.
+  const totaalTerugbetaald = extras.filter(e=>e.type==="terugbetalen"&&e.status==="verwerkt").reduce((s,e)=>s+Number(e.bedrag),0);
+  const totaalIngehouden = Math.max(0, verwerktTermijnen.reduce((s,t)=>s+Number(t.bedrag),0)
     + extras.filter(e=>e.type==="al_ingehouden").reduce((s,e)=>s+Number(e.bedrag),0)
-    + extras.filter(e=>e.type==="inhouden"&&e.status==="verwerkt").reduce((s,e)=>s+Number(e.bedrag),0);
+    + extras.filter(e=>e.type==="inhouden"&&e.status==="verwerkt").reduce((s,e)=>s+Number(e.bedrag),0)
+    - totaalTerugbetaald);
 
   // Alles wat nog open staat (open termijnen + open inhoud extra posten)
   const totaalNogOpen = openTermijnen.reduce((s,t)=>s+Number(t.bedrag),0)
@@ -1127,6 +1131,7 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
           <div style={{fontSize:22,fontWeight:800,color:C.blauw}}>€{totaalSchuld.toFixed(2)}</div>
           <div style={{fontSize:11,color:C.muted}}>totale schuld</div>
           <div style={{fontSize:13,color:C.groen,fontWeight:600,marginTop:2}}>€{totaalIngehouden.toFixed(2)} ingehouden</div>
+          {totaalTerugbetaald > 0 && <div style={{fontSize:11,color:C.muted}}>netto, na €{totaalTerugbetaald.toFixed(2)} terugbetaald</div>}
         </div>
       </div>
 
