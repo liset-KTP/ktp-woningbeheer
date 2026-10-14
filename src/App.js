@@ -4576,6 +4576,12 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
                 style={{background:C.blauw,color:"white",border:"none",borderRadius:8,padding:"10px 20px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
                 + Taak toevoegen
               </button>
+              {isBackoffice && (
+                <button onClick={()=>setSubTab("nieuw")}
+                  style={{background:"white",color:"#ef4444",border:"2px solid #ef4444",borderRadius:8,padding:"10px 20px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+                  🧳 Vertrek melden
+                </button>
+              )}
               <button onClick={()=>setSubTab("annuleer")}
                 style={{background:"white",color:"#b45309",border:"2px solid #f59e0b",borderRadius:8,padding:"10px 20px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
                 📅 Reservering annuleren
@@ -4681,6 +4687,12 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
       {/* Nieuwe melding (collega) */}
       {subTab === "nieuw" && isCollega && (
         <MeldingForm houses={houses} meldingen={meldingen} onSubmit={async(d)=>{ await onAddMelding(d); setSubTab("woningen"); }} showToast={showToast} taal={taal}/>
+      )}
+      {/* Backoffice mag (sinds 14-10-2026) alleen vertrek/vertrekaankondiging doorgeven, bv. als de
+          vestigingscollega afwezig is. Zelfde formulier + zelfde flow (controletaak huismeester). */}
+      {subTab === "nieuw" && isBackoffice && (
+        <MeldingForm houses={houses} meldingen={meldingen} toegestaneTypes={["vertrek","vertrek_aankondiging"]}
+          onSubmit={async(d)=>{ await onAddMelding(d); setSubTab("woningen"); }} showToast={showToast} taal={taal}/>
       )}
 
       {/* Nieuwe taak (backoffice/huismeester) */}
@@ -6350,8 +6362,8 @@ function HuismeesterPlanningView({ dagplanningDB, houses, taken=[], meldingen=[]
 }
 
 
-function MeldingForm({ houses, meldingen=[], onSubmit, showToast, taal="nl" }) {
-  const [type,setType]=useState("aankomst");
+function MeldingForm({ houses, meldingen=[], onSubmit, showToast, taal="nl", toegestaneTypes=null }) {
+  const [type,setType]=useState(toegestaneTypes ? toegestaneTypes[0] : "aankomst");
   const [medewerker,setMedewerker]=useState("");
   const [datum,setDatum]=useState(todayISO());
   const [huisId,setHuisId]=useState(houses[0]?.id||1);
@@ -6489,7 +6501,7 @@ function MeldingForm({ houses, meldingen=[], onSubmit, showToast, taal="nl" }) {
     {id:"vertrek_aankondiging", icon:"📢", label:"VERTREK AANKONDIGING",  color:"#f59e0b"},
     {id:"vertrek",              icon:"🧳", label:"DAADWERKELIJK VERTREK", color:"#ef4444"},
     {id:"overig",               icon:"💬", label:"OVERIG",                color:C.muted},
-  ];
+  ].filter(t => !toegestaneTypes || toegestaneTypes.includes(t.id));
 
   // Duidelijk label per meldingtype, zodat een collega altijd weet welke datum hij invult
   // (bijv. bij "vertrek" expliciet de vertrekdatum — die datum komt direct op de kamerkaart
