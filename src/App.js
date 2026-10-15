@@ -237,6 +237,18 @@ const DAGPLANNING = {
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 function fmtDate(d) { const dt = typeof d==="string"?new Date(d):d; return dt.toLocaleDateString("nl-NL",{day:"2-digit",month:"2-digit"}); }
 function fmtDateJaar(d) { if(!d) return "—"; const dt = typeof d==="string"?new Date(d):d; return dt.toLocaleDateString("nl-NL",{day:"2-digit",month:"2-digit",year:"numeric"}); }
+// 15-10-2026: reservering die 3+ dagen over de verwachte aankomstdatum is en nog open staat
+// = aankomst nooit geregistreerd (case Kamil Wozniak: woonde 4 weken op K2 zonder kamer/borg).
+// Geeft het aantal dagen over datum terug, of 0 als het (nog) geen signaal is.
+const RESERVERING_VERLOPEN_DAGEN = 3;
+function reserveringDagenOver(m) {
+  if (!m || m.type !== "reservering" || m.status !== "open" || !m.datum) return 0;
+  const nu = new Date(); const vandaag = Date.UTC(nu.getFullYear(), nu.getMonth(), nu.getDate());
+  const [y, mm, d] = String(m.datum).slice(0, 10).split("-").map(Number);
+  if (!y || !mm || !d) return 0;
+  const dagen = Math.round((vandaag - Date.UTC(y, mm - 1, d)) / 86400000);
+  return dagen >= RESERVERING_VERLOPEN_DAGEN ? dagen : 0;
+}
 function fmtTime(d) { const dt = typeof d==="string"?new Date(d):d; return dt.toLocaleTimeString("nl-NL",{hour:"2-digit",minute:"2-digit"}); }
 function fmtFull(d) { return `${fmtDate(d)} ${fmtTime(d)}`; }
 function todayISO() { return new Date().toISOString().slice(0,10); }
@@ -4472,7 +4484,13 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
   // BUGFIX 14-10-2026: met filter "Alle" kwamen afgehandelde/verwerkte meldingen onder het kopje
   // "Nog oppakken" te staan (alles behalve "geaccepteerd" telde mee). Nu alleen echt openstaand;
   // afgeronde meldingen krijgen een eigen grijze groep "Afgehandeld".
-  const meldingenNogOppakken = gefilterdeMeldingen.filter(m => m.status === "open" || m.status === "in_behandeling");
+  const meldingenNogOppakken = gefilterdeMeldingen.filter(m => (m.status === "open" || m.status === "in_behandeling") && !(reserveringDagenOver(m) > 0 && (isBackoffice || isCollega)));
+  // Verlopen reserveringen: los van voor_rol (reservering = "iedereen", viel daardoor bij backoffice
+  // buiten beeld). Backoffice ziet ze allemaal, een collega alleen de eigen ingediende.
+  const verlopenReserveringen = (isBackoffice || isCollega)
+    ? meldingen.filter(m => reserveringDagenOver(m) > 0 && (isBackoffice || m.ingediend_door === gebruiker?.naam))
+        .sort((a, b) => reserveringDagenOver(b) - reserveringDagenOver(a))
+    : [];
   const meldingenAfgerond = gefilterdeMeldingen.filter(m => m.status !== "open" && m.status !== "in_behandeling" && m.status !== "geaccepteerd");
   const meldingenAlIngepland = gefilterdeMeldingen.filter(m => m.status === "geaccepteerd")
     .sort((a,b) => new Date(a.ingepland_op||a.datum||"9999-12-31") - new Date(b.ingepland_op||b.datum||"9999-12-31"));
@@ -4594,6 +4612,21 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
                 style={{background:"white",color:"#b45309",border:"2px solid #f59e0b",borderRadius:8,padding:"10px 20px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
                 📢 Vertrekoverzicht
               </button>
+            </div>
+          )}
+          {verlopenReserveringen.length > 0 && (
+            <div style={{marginBottom:24,padding:"12px 14px",borderRadius:10,background:"#fef2f2",border:"2px solid #ef4444"}}>
+              <div style={{fontSize:12,fontWeight:800,color:"#b91c1c",letterSpacing:".6px",textTransform:"uppercase",marginBottom:4}}>
+                ⚠️ Aankomst niet geregistreerd ({verlopenReserveringen.length})
+              </div>
+              <div style={{fontSize:12,color:"#7f1d1d",marginBottom:10}}>
+                Deze reserveringen staan {RESERVERING_VERLOPEN_DAGEN}+ dagen over de aankomstdatum. Zolang de aankomst niet gemeld is staat de kamer niet goed en wordt er geen borg ingehouden.
+              </div>
+              {verlopenReserveringen.map(m => (
+                <MeldingKaartCombined key={"vr"+m.id} melding={m} houses={houses} gebruiker={gebruiker}
+                  isBackoffice={isBackoffice} isHuismeester={isHuismeester}
+                  onUpdate={onUpdateMelding} showToast={showToast} taal={taal}/>
+              ))}
             </div>
           )}
           {meldingenNogOppakken.length > 0 && (
@@ -4835,6 +4868,12 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
             {m.datum && (
               <div style={{fontSize:13,fontWeight:700,color:kleur,marginTop:3}}>
                 📅 {m.type==="aankomst"?"Aankomst":m.type==="vertrek"?"Vertrek":m.type==="reservering"?"Aankomst (reservering)":"Datum"}: {fmtDate(m.datum)}
+              </div>
+            )}
+            {reserveringDagenOver(m) > 0 && (
+              <div style={{marginTop:6,padding:"6px 10px",borderRadius:8,background:"#fef2f2",border:"1px solid #fca5a5",color:"#b91c1c",fontSize:12,fontWeight:700}}>
+                ⚠️ {reserveringDagenOver(m)} dagen over de aankomstdatum en nog geen aankomst geregistreerd.
+                <div style={{fontWeight:500,marginTop:2}}>Is hij/zij er? Meld dan de aankomst (Nieuwe melding → Aankomst). Niet gekomen? Annuleer de reservering.</div>
               </div>
             )}
             <div style={{fontSize:11,color:C.muted,marginTop:1}}>
