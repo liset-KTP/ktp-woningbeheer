@@ -9,6 +9,8 @@
 - Kentro-ankers (#CPNhandtekening / #WNRhandtekening, wit) bij de handtekeningen.
 - Handtekening verhuurder: staat handtekening_verhuurder.png naast dit script, dan komt die
   in de huurovereenkomst boven de streep bij "Verhuurder".
+- Huisstijl KTP Backoffice (uit het briefpapier): logobalk + groene hoek bovenaan elke pagina,
+  groene lijn met adresregel onder "Paraaf"/paginanummer, koppen in KTP-blauw. Afbeeldingen in huisstijl/.
 
 Nieuwe taal? Zet een tweetalig RDM-sjabloon om met haal_vertaling.py en draai dit script opnieuw.
 """
@@ -54,6 +56,7 @@ INVULLEN = {
 }
 KENTRO = {93: "#CPNhandtekening", 94: "#WNRhandtekening"}
 EINDDATUM_LABEL = 132  # sjabloon mist het woord "Einddatum" vóór ": [DATUM]"
+KOPREGELS_HUUROVEREENKOMST = [0, 1, 3, 13, 21, 107]  # titel, ondertitel, "De ondergetekenden" e.d. (directe opmaak)
 HANDTEKENING_ALINEA = 95   # lege alinea in de verhuurder-cel, boven "____"
 HANDTEKENING = os.path.join(HIER, "handtekening_verhuurder.png")
 
@@ -146,6 +149,92 @@ def zet_keep_next(p):
         kn = etree.Element(q("keepNext")); st = ppr.find(q("pStyle"))
         st.addnext(kn) if st is not None else ppr.insert(0, kn)
 
+KTP_BLAUW, KTP_GROEN = "2B3B93", "599240"
+HUISSTIJL = os.path.join(HIER, "huisstijl")
+NS_HDR = ('xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
+          'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" '
+          'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" '
+          'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" '
+          'xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"')
+
+def _afbeelding_anker(rid, naam, id_, x, y, cx, cy, omloop):
+    """Zwevende afbeelding, positie t.o.v. de pagina (EMU), zoals op het briefpapier."""
+    return f"""<w:r><w:rPr><w:noProof/></w:rPr><w:drawing><wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0"
+      relativeHeight="{251658240 + id_}" behindDoc="0" locked="0" layoutInCell="1" allowOverlap="1"><wp:simplePos x="0" y="0"/>
+      <wp:positionH relativeFrom="page"><wp:posOffset>{x}</wp:posOffset></wp:positionH>
+      <wp:positionV relativeFrom="page"><wp:posOffset>{y}</wp:posOffset></wp:positionV>
+      <wp:extent cx="{cx}" cy="{cy}"/><wp:effectExtent l="0" t="0" r="0" b="0"/>{omloop}
+      <wp:docPr id="{9100 + id_}" name="{naam}"/><wp:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect="1"/></wp:cNvGraphicFramePr>
+      <a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic>
+      <pic:nvPicPr><pic:cNvPr id="{9100 + id_}" name="{naam}"/><pic:cNvPicPr/></pic:nvPicPr>
+      <pic:blipFill><a:blip r:embed="{rid}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>
+      <pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="{cx}" cy="{cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>
+      </pic:pic></a:graphicData></a:graphic></wp:anchor></w:drawing></w:r>"""
+
+def _zorg_png(zin, bestanden):
+    CT = "http://schemas.openxmlformats.org/package/2006/content-types"
+    ct = etree.fromstring(bestanden.get("[Content_Types].xml") or zin.read("[Content_Types].xml"))
+    if not any(d.get("Extension", "").lower() == "png" for d in ct.findall("{%s}Default" % CT)):
+        etree.SubElement(ct, "{%s}Default" % CT, Extension="png", ContentType="image/png")
+    bestanden["[Content_Types].xml"] = etree.tostring(ct, xml_declaration=True, encoding="UTF-8", standalone=True)
+
+def pas_huisstijl_toe(zin, doc, bestanden, kop_alineas=()):
+    """Briefpapier KTP Backoffice: koptekst met logobalk + hoek, voettekst met groene lijn en adres,
+    koppen in KTP-blauw. Werkt op de kop-/voettekst waar de (eerste) sectie naar verwijst."""
+    R = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+    PR = "http://schemas.openxmlformats.org/package/2006/relationships"
+    rels = etree.fromstring(bestanden.get("word/_rels/document.xml.rels") or zin.read("word/_rels/document.xml.rels"))
+    doel = {r.get("Id"): r.get("Target") for r in rels}
+    sect = doc.find(".//" + q("sectPr"))
+    hdr = doel[sect.find(q("headerReference") + "[@" + q("type") + "='default']").get("{%s}id" % R)]
+    ftr = doel[sect.find(q("footerReference") + "[@" + q("type") + "='default']").get("{%s}id" % R)]
+
+    # Koptekst: logobalk (15,9 cm, zelfde plek als briefpapier) en groene hoek linksboven
+    bestanden["word/media/ktp_logobalk.png"] = open(os.path.join(HUISSTIJL, "ktp_logobalk.png"), "rb").read()
+    bestanden["word/media/ktp_hoek.png"] = open(os.path.join(HUISSTIJL, "ktp_hoek.png"), "rb").read()
+    _zorg_png(zin, bestanden)
+    bestanden[f"word/_rels/{hdr}.rels"] = (
+        f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="{PR}">'
+        f'<Relationship Id="rIdKtpLogo" Type="{R}/image" Target="media/ktp_logobalk.png"/>'
+        f'<Relationship Id="rIdKtpHoek" Type="{R}/image" Target="media/ktp_hoek.png"/></Relationships>').encode()
+    bestanden[f"word/{hdr}"] = (
+        f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:hdr {NS_HDR}><w:p><w:pPr><w:spacing w:before="0" w:after="0"/></w:pPr>'
+        + _afbeelding_anker("rIdKtpLogo", "KTP Backoffice logo", 1, 1647825, 161925, 5731510, 1003935, "<wp:wrapNone/>")
+        + _afbeelding_anker("rIdKtpHoek", "KTP hoek", 2, 0, 0, 1514475, 1085850, "<wp:wrapNone/>")
+        + "</w:p></w:hdr>").encode()
+
+    # Voettekst: bestaande (Paraaf + paginanummer) houden, groene lijn met adresregel eronder
+    voet = etree.fromstring(zin.read(f"word/{ftr}"))
+    voet.append(etree.fromstring(
+        f'<w:p xmlns:w="{W}"><w:pPr><w:pBdr><w:top w:val="single" w:sz="6" w:space="6" w:color="{KTP_GROEN}"/></w:pBdr>'
+        f'<w:spacing w:before="120" w:after="0"/><w:jc w:val="center"/></w:pPr><w:r><w:rPr>'
+        f'<w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/><w:color w:val="{KTP_GROEN}"/><w:sz w:val="16"/><w:szCs w:val="16"/>'
+        f'</w:rPr><w:t xml:space="preserve">KTP Backoffice   |   Kanaalstraat 217, 7547 AS Enschede   |   053-7113495   |   info@ktp.nl</w:t></w:r></w:p>'))
+    bestanden[f"word/{ftr}"] = etree.tostring(voet, xml_declaration=True, encoding="UTF-8", standalone=True)
+
+    # Marges: ruimte voor de logobalk (eindigt op 3,2 cm); koptekst niet laten duwen
+    for sp in doc.iter(q("sectPr")):
+        m = sp.find(q("pgMar"))
+        if m is not None:
+            m.set(q("header"), "720")
+            if int(m.get(q("top"))) < 2100: m.set(q("top"), "2100")
+
+    # Koppen in KTP-blauw: kopstijlen + losse kopregels die met directe opmaak zijn gemaakt
+    stijlen = etree.fromstring(bestanden.get("word/styles.xml") or zin.read("word/styles.xml"))
+    for st in stijlen.iter(q("style")):
+        if st.get(q("styleId")) in ("Kop1", "Kop2", "Heading1", "Heading2", "Title", "Titel"):
+            rpr = st.find(q("rPr"))
+            if rpr is None: rpr = etree.SubElement(st, q("rPr"))
+            for c in rpr.findall(q("color")): rpr.remove(c)
+            etree.SubElement(rpr, q("color")).set(q("val"), KTP_BLAUW)
+    bestanden["word/styles.xml"] = etree.tostring(stijlen, xml_declaration=True, encoding="UTF-8", standalone=True)
+    for p in kop_alineas:
+        for r in p.iter(q("r")):
+            rpr = r.find(q("rPr"))
+            if rpr is None: rpr = etree.Element(q("rPr")); r.insert(0, rpr)
+            for c in rpr.findall(q("color")): rpr.remove(c)
+            etree.SubElement(rpr, q("color")).set(q("val"), KTP_BLAUW)
+
 def voeg_handtekening_toe(zin, doc, p, bestanden):
     """Zet handtekening_verhuurder.png als afbeelding (max. 4,5 cm breed, 2,2 cm hoog) in alinea p."""
     import struct
@@ -156,16 +245,12 @@ def voeg_handtekening_toe(zin, doc, p, bestanden):
     if emu_h > 2.2 * 360000: emu_h = 2.2 * 360000; emu_b = emu_h * bw / bh
     cx, cy = int(emu_b), int(emu_h)
     R = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
-    rels = etree.fromstring(zin.read("word/_rels/document.xml.rels"))
+    rels = etree.fromstring(bestanden.get("word/_rels/document.xml.rels") or zin.read("word/_rels/document.xml.rels"))
     rid = "rIdHandtekening"
     etree.SubElement(rels, "{http://schemas.openxmlformats.org/package/2006/relationships}Relationship",
                      Id=rid, Type=R + "/image", Target="media/handtekening_verhuurder.png")
     bestanden["word/_rels/document.xml.rels"] = etree.tostring(rels, xml_declaration=True, encoding="UTF-8", standalone=True)
-    ct = etree.fromstring(zin.read("[Content_Types].xml"))
-    CT = "http://schemas.openxmlformats.org/package/2006/content-types"
-    if not any(d.get("Extension", "").lower() == "png" for d in ct.findall("{%s}Default" % CT)):
-        etree.SubElement(ct, "{%s}Default" % CT, Extension="png", ContentType="image/png")
-    bestanden["[Content_Types].xml"] = etree.tostring(ct, xml_declaration=True, encoding="UTF-8", standalone=True)
+    _zorg_png(zin, bestanden)
     bestanden["word/media/handtekening_verhuurder.png"] = png
     tekening = f"""<w:r xmlns:w="{W}" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
       xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"
@@ -251,6 +336,7 @@ def maak(origineel, taal, soort="huurovereenkomst"):
 
     if os.path.exists(HANDTEKENING):
         voeg_handtekening_toe(zin, doc, paras[HANDTEKENING_ALINEA], bestanden)
+    pas_huisstijl_toe(zin, doc, bestanden, kop_alineas=[paras[i] for i in KOPREGELS_HUUROVEREENKOMST])
     schrijf(zin, doc, bestanden, f"huurovereenkomst_{taal}.docx", len(vertaling))
 
 def schrijf(zin, doc, bestanden, naam, n_vertaald):
@@ -315,7 +401,9 @@ def maak_informatieblad(origineel, taal):
     # versiedatum en bestandsgrootte bij de pdf-link eruit (alinea 57)
     verwijder_tekst(paras[57], r",\s*806 kB|,?\s*versie\s+\d{1,2}\s+\w+\s+\d{4}")
     plaats_vertalingen(paras, numbering, vertaling, taal, INVULLEN_INFORMATIEBLAD)
-    schrijf(zin, doc, {}, f"informatieblad_{taal}.docx", len(vertaling))
+    bestanden = {}
+    pas_huisstijl_toe(zin, doc, bestanden)
+    schrijf(zin, doc, bestanden, f"informatieblad_{taal}.docx", len(vertaling))
 
 def talen(soort):
     return ["NL"] + sorted(f[len(soort) + 1:-5] for f in os.listdir(os.path.join(HIER, "vertalingen"))
