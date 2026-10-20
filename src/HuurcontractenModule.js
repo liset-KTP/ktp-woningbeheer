@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "./supabaseClient";
-import { SJABLOON_TALEN, WERKGEVER_JURIDISCH, VOORZIENINGEN, contractWaarden, informatiebladWaarden, meldpuntVoor, vulSjabloon, haalSjabloon, bewaarBestand } from "./huurcontractWord";
+import { SJABLOON_TALEN, WERKGEVER_JURIDISCH, VOORZIENINGEN, contractWaarden, informatiebladWaarden, briefVerhuizingWaarden, meldpuntVoor, vulSjabloon, haalSjabloon, bewaarBestand } from "./huurcontractWord";
 
 // ─── HUURCONTRACTEN (backoffice) ─────────────────────────────────────────────
 // Overzicht per bewoner: moet er nog een huurovereenkomst gemaakt/getekend worden,
@@ -116,14 +116,18 @@ function huurbevestigingTekst(c, huis) {
 
 // Invoer voor de Word-documenten (niet opgeslagen). Staat in de pagina i.p.v. in het formulier,
 // zodat het blijft staan als het formulier na opslaan opnieuw laadt.
-function startInvoer(huis) {
+function adresRegel(h) { return h ? [h.adres, [h.postcode, h.stad].filter(Boolean).join(" ")].filter(Boolean).join(", ") : ""; }
+function startInvoer(huis, c, vorige, vorigHuis) {
   return {
+    // Brief 5 (verhuizing): datum huidige huurovereenkomst = getekend/begin vorige contract, adres = vorige woning
+    brief: { datumBrief: vandaag(), email: "", huidigAdres: adresRegel(vorigHuis),
+             datumHuurovereenkomst: vorige?.getekend_op || vorige?.begindatum || c?.eerste_aankomst || "" },
     extra: { geboorteplaats:"", geboortedatum:"", telefoon:"", documentnummer:"", bijzonderheden:"geen bijzonderheden", datumOndertekening: vandaag() },
     info: { voorzieningen: VOORZIENINGEN.filter(v => v.standaard).map(v => v.k), maxBewoners: huis?.kamers?.length || "" },
   };
 }
 
-function ContractDetail({ c, huis, gebruiker, onOpslaan, onLog, showToast, bezig, invoer, setInvoer }) {
+function ContractDetail({ c, huis, vorige, vorigHuis, gebruiker, onOpslaan, onLog, showToast, bezig, invoer, setInvoer }) {
   const [f, setF] = useState(() => ({
     werkgever: c.werkgever || "", huurprijs: c.huurprijs ?? "", borg: c.borg ?? "", taal: c.taal || "",
     begindatum: c.begindatum || "", eerste_aankomst: c.eerste_aankomst || "", einddatum: c.einddatum || "",
@@ -131,9 +135,11 @@ function ContractDetail({ c, huis, gebruiker, onOpslaan, onLog, showToast, bezig
   }));
   const [tekenDatum, setTekenDatum] = useState(vandaag());
   // Alleen voor het Word-document; wordt bewust niet opgeslagen (privacy)
-  const { extra, info } = invoer || startInvoer(huis);
-  const zetDeel = deel => upd => setInvoer(s => ({ ...s, [deel]: typeof upd === "function" ? upd(s[deel]) : upd }));
-  const setExtra = zetDeel("extra"), setInfo = zetDeel("info");
+  const start = startInvoer(huis, c, vorige, vorigHuis);
+  const { extra, info } = invoer || start;
+  const briefIn = invoer?.brief || start.brief;
+  const zetDeel = deel => upd => setInvoer(s => ({ ...s, [deel]: typeof upd === "function" ? upd(s[deel] ?? start[deel]) : upd }));
+  const setExtra = zetDeel("extra"), setInfo = zetDeel("info"), setBrief = zetDeel("brief");
   const [maakt, setMaakt] = useState(false);
   // Informatieblad: per woning verschillend, (nog) niet opgeslagen — na SNF-certificering per woning vastleggen
   const meldpunt = meldpuntVoor(huis?.stad);
@@ -164,9 +170,10 @@ function ContractDetail({ c, huis, gebruiker, onOpslaan, onLog, showToast, bezig
   const sjabloon = !f.taal ? "kies taal" : f.taal === "NL" ? "Nederlands" : `Nederlands + ${TAAL_LABEL[f.taal]}`;
 
   async function downloadWord(soort = "huurovereenkomst") {
-    const isInfo = soort === "informatieblad";
+    const isInfo = soort === "informatieblad", isBrief = soort === "brief_verhuizing";
     if (!f.taal) return showToast("Kies eerst de taal", "err");
     if (!isInfo && ontbr.length) return showToast("Eerst invullen: " + ontbr.join(", "), "err");
+    if (isBrief && (!briefIn.datumBrief || !briefIn.datumHuurovereenkomst)) return showToast("Vul datum brief en datum huidige huurovereenkomst in", "err");
     if (isInfo && !info.voorzieningen.length) return showToast("Vink minstens één gedeelde voorziening aan", "err");
     if (gewijzigd && !(await onOpslaan(c, naarDb(), null))) return;
     if (!SJABLOON_TALEN.includes(f.taal)) return showToast(`Sjabloon ${TAAL_LABEL[f.taal]} is er nog niet`, "err");
@@ -174,9 +181,11 @@ function ContractDetail({ c, huis, gebruiker, onOpslaan, onLog, showToast, bezig
     try {
       const sjabloon = await haalSjabloon(f.taal, soort);
       if (!sjabloon) return showToast(`Sjabloon ${TAAL_LABEL[f.taal]} kon niet geladen worden`, "err");
-      const waarden = isInfo ? informatiebladWaarden(huis, info) : contractWaarden({ ...c, ...naarDb() }, huis, eind, extra);
+      const waarden = isInfo ? informatiebladWaarden(huis, info)
+        : isBrief ? briefVerhuizingWaarden({ ...c, ...naarDb() }, huis, eind, extra, briefIn, f.taal)
+        : contractWaarden({ ...c, ...naarDb() }, huis, eind, extra);
       const blob = await vulSjabloon(sjabloon, waarden);
-      const titel = isInfo ? "Informatieblad" : "Huurovereenkomst";
+      const titel = isInfo ? "Informatieblad" : isBrief ? "Brief verhuizing" : "Huurovereenkomst";
       bewaarBestand(blob, `${titel} ${c.naam_medewerker}.docx`);
       showToast(`📄 ${titel} gedownload`);
     } catch (e) {
@@ -207,7 +216,7 @@ function ContractDetail({ c, huis, gebruiker, onOpslaan, onLog, showToast, bezig
 
   return (
     <div style={{background:"#f8fafc",borderTop:`1px solid ${C.border}`,padding:14}}>
-      {c.soort === "verhuizing" && <div style={{fontSize:12,color:C.paars,marginBottom:10}}>🔁 Verhuizing: nieuwe huurbevestiging (nieuw adres). Einddatum blijft 26 weken na de <b>eerste</b> aankomst. Stuur ook brief 5 (verhuizing).</div>}
+      {c.soort === "verhuizing" && <div style={{fontSize:12,color:C.paars,marginBottom:10}}>🔁 Verhuizing: nieuwe huurbevestiging (nieuw adres). Einddatum blijft 26 weken na de <b>eerste</b> aankomst. Brief 5 (verhuizing) kun je hieronder downloaden.</div>}
       {c.soort === "bestaand" && !c.begindatum && <div style={{fontSize:12,color:C.rood,marginBottom:10}}>⚠️ Bewoner van vóór de app — begindatum onbekend. Zoek de aankomstdatum op (Cockpit/planning) en vul hem in.</div>}
 
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:10}}>
@@ -317,6 +326,24 @@ function ContractDetail({ c, huis, gebruiker, onOpslaan, onLog, showToast, bezig
           </div>
         </div>
       </div>
+
+      {/* Brief 5: verhuizing (art. 1.3) met Bijlage I huurbevestiging — alleen bij een verhuizing */}
+      {c.soort === "verhuizing" && (
+        <div style={{marginTop:10,background:"white",border:`1px solid ${C.border}`,borderRadius:9,padding:12}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:8}}>
+            <div style={{fontWeight:800,fontSize:13,color:C.text}}>✉️ Brief 5 – verhuizing <span style={{fontWeight:400,color:C.muted,fontSize:12}}>· {sjabloon} · incl. Bijlage I huurbevestiging</span></div>
+            <button style={btn(C.blauw)} disabled={maakt || bezig} onClick={()=>downloadWord("brief_verhuizing")}>{maakt ? "Bezig…" : "⬇️ Download Word"}</button>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:8,marginBottom:6}}>
+            <div><span style={lbl}>Datum brief</span><input type="date" style={inp} value={briefIn.datumBrief} onChange={e=>setBrief(p=>({...p,datumBrief:e.target.value}))} /></div>
+            <div><span style={lbl}>Datum huidige huurovereenkomst</span><input type="date" style={{...inp, borderColor: !briefIn.datumHuurovereenkomst ? C.rood : C.border}} value={briefIn.datumHuurovereenkomst} onChange={e=>setBrief(p=>({...p,datumHuurovereenkomst:e.target.value}))} /></div>
+            <div style={{gridColumn:"span 2"}}><span style={lbl}>Huidig adres (geadresseerde)</span><input style={inp} value={briefIn.huidigAdres} placeholder="Leeg = stippellijn" onChange={e=>setBrief(p=>({...p,huidigAdres:e.target.value}))} /></div>
+            <div><span style={lbl}>E-mail medewerker (optioneel)</span><input style={inp} value={briefIn.email} placeholder="Leeg = regel weg" onChange={e=>setBrief(p=>({...p,email:e.target.value}))} /></div>
+          </div>
+          <div style={{fontSize:11,color:C.muted}}>Nieuw adres en verhuisdatum komen uit de gegevens hierboven (begindatum = verhuisdatum). De huurbevestiging gebruikt dezelfde velden als de huurovereenkomst. Huurder tekent de bijlage en stuurt hem terug → daarna "Getekend" afvinken.</div>
+          {briefIn.datumBrief && f.begindatum && briefIn.datumBrief > f.begindatum && <div style={{fontSize:11,color:C.oranje,marginTop:4}}>Let op: de brief is van na de verhuisdatum. Stuur hem bij voorkeur vóór de verhuizing.</div>}
+        </div>
+      )}
 
       {/* Acties */}
       {c.actief && (
@@ -472,8 +499,9 @@ export default function HuurcontractenModule({ gebruiker, houses = [], showToast
                     <span style={{color:C.muted}}>{isOpen ? "▲" : "▼"}</span>
                   </div>
                 </div>
-                {isOpen && <ContractDetail key={c.id + c.bijgewerkt_op} c={c} huis={huis} gebruiker={gebruiker} onOpslaan={opslaan} onLog={log} showToast={showToast} bezig={bezig}
-                  invoer={docInvoer[c.id]} setInvoer={fn => setDocInvoer(p => ({ ...p, [c.id]: fn(p[c.id] || startInvoer(huis)) }))} />}
+                {isOpen && (() => { const vorige = c.vorige_id ? rijen.find(x => x.id === c.vorige_id) : null; const vorigHuis = vorige ? huisMap[vorige.woning_id] : null;
+                  return <ContractDetail key={c.id + c.bijgewerkt_op} c={c} huis={huis} vorige={vorige} vorigHuis={vorigHuis} gebruiker={gebruiker} onOpslaan={opslaan} onLog={log} showToast={showToast} bezig={bezig}
+                  invoer={docInvoer[c.id]} setInvoer={fn => setDocInvoer(p => ({ ...p, [c.id]: fn(p[c.id] || startInvoer(huis, c, vorige, vorigHuis)) }))} />; })()}
               </div>
             );
           })}

@@ -90,6 +90,22 @@ export function contractWaarden(c, huis, einde, extra = {}) {
   };
 }
 
+// Brief 5 (verhuizing, art. 1.3) + Bijlage I huurbevestiging. `brief` = invoer op de pagina (niet opgeslagen).
+const EMAIL_TEKST = { NL: "Tevens verzonden per e-mail", EN: "Also sent by e-mail", PL: "Wysłano również e-mailem", RO: "Trimis și prin e-mail" };
+export function briefVerhuizingWaarden(c, huis, einde, extra = {}, brief = {}, taal = "NL") {
+  const email = (brief.email || "").trim();
+  const emailLabel = EMAIL_TEKST.NL + (taal !== "NL" && EMAIL_TEKST[taal] ? ` / ${EMAIL_TEKST[taal]}` : "");
+  return {
+    ...contractWaarden(c, huis, einde, extra),
+    "Adres huidig": brief.huidigAdres,
+    "E-mail regel": email ? `${emailLabel}: ${email}` : false,
+    "Datum brief": datumNL(brief.datumBrief),
+    "Datum huurovereenkomst": datumNL(brief.datumHuurovereenkomst),
+    "Verhuisdatum": datumNL(c.begindatum),
+    "Nieuw adres": [huis?.adres, [huis?.postcode, huis?.stad].filter(Boolean).join(" "), c.kamer ? `kamer ${c.kamer}` : ""].filter(Boolean).join(", "),
+  };
+}
+
 const DELEN = /^word\/(document|header\d*|footer\d*)\.xml$/;
 
 export async function vulSjabloon(sjabloon, waarden) {
@@ -98,6 +114,7 @@ export async function vulSjabloon(sjabloon, waarden) {
     const xml = await zip.file(naam).async("string");
     zip.file(naam, xml.replace(/\{\{([^{}]+)\}\}/g, (_, tag) => {
       const v = waarden[tag];
+      if (v === false) return "";  // false = regel bewust leeg (geen stippellijn)
       return xmlVeilig(v == null || v === "" ? LEEG : v);
     }));
   }
