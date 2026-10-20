@@ -1002,20 +1002,22 @@ function App() {
       ]);
     }
 
-    // Bij vertrek aankondiging: taak voor backoffice om in te plannen. NIET voor huismeester —
-    // die krijgt dit aankondigings-stadium niet meer te zien (melding is voor hem weggehaald,
-    // zie relevanteMeldingen/magZienMelding/openMeldingen) en moet alléén nog een taak krijgen
-    // bij het daadwerkelijke vertrek ("Kamer controleren na vertrek", hieronder verderop
-    // aangemaakt zodra de vertrek-melding zelf binnenkomt). Zo blijft zijn takenlijst schoon
-    // tot het echt zijn beurt is.
+    // Bij vertrek aankondiging (sinds 20-10-2026): taak voor de MELDER zelf, niet meer voor
+    // backoffice. De melder heeft het contact met de medewerker en bevestigt dus ook dat hij
+    // echt weg is. Dat bevestigen = het daadwerkelijke vertrek melden (knop "🧳 Is vertrokken"
+    // op de taak), waarna de huismeester pas zijn controletaak krijgt. ingepland_op = verwachte
+    // vertrekdatum, zodat de taak op deadline sorteert. "Gedaan" zonder vertrekmelding wordt
+    // geblokkeerd in updateTaak — anders sluit de cascade de aankondiging zonder dat de kamer
+    // wordt vrijgegeven of de huismeester een taak krijgt.
     if (m.type === "vertrek_aankondiging") {
       await supabase.from("taken").insert([{
-        titel: `Vertrek inplannen — ${m.medewerker}`,
-        omschrijving: `${m.medewerker} heeft een vertrek aangekondigd op ${m.datum}. Plan de daadwerkelijke vertrekdatum en kamercontrole in (de huismeester krijgt zijn eigen controletaak pas zodra het vertrek daadwerkelijk wordt gemeld).`,
+        titel: `Vertrek bevestigen — ${m.medewerker}`,
+        omschrijving: `${m.medewerker} vertrekt naar verwachting op ${m.datum}. Is de medewerker echt weg? Klik dan op "🧳 Is vertrokken" en vul het vertrek in — de huismeester krijgt daarna automatisch zijn controletaak.`,
         woning_id: m.huisId || null,
         kamer: m.kamer || null,
         prioriteit: "middel",
-        voor_rol: "backoffice",
+        voor_rol: gebruiker.rol === "backoffice" ? "backoffice" : "collega",
+        ingepland_op: m.datum || null,
         status: "open",
         aangemaakt_door: gebruiker.naam,
         melding_id: meldingId,
@@ -1431,6 +1433,13 @@ function App() {
         return;
         }
       }
+    }
+    // Vertrek-aankondigingstaak mag niet los op "gedaan": dan sluit de cascade de aankondiging
+    // zonder vertrekmelding → kamer blijft bezet en huismeester krijgt geen controletaak.
+    // Backoffice mag wel (bv. medewerker blijft toch → aankondiging vervalt).
+    if (updates.status==="gedaan" && isVertrekBevestigTaak(t?.titel) && gebruiker?.rol!=="backoffice") {
+      showToast(`Gebruik "🧳 Is vertrokken" om het vertrek te melden. Blijft ${t?.titel?.split("— ")[1]||"de medewerker"} toch? Kies "Kan niet", dan sluit backoffice het af.`, "err");
+      return;
     }
     // Verwijder notitie uit updates als de kolom niet bestaat
     const safeUpdates = {...updates};
@@ -2799,7 +2808,15 @@ function SK({label,val,color}) {
 // ─── HELPER: is dit een vertrek/kamer-controle taak? ─────────────────────────
 function isVertrekTaak(titel) {
   const t = (titel || "").toLowerCase();
+  if (isVertrekBevestigTaak(titel)) return false; // aankondigingstaak is géén kamercontrole
   return t.includes("vertrek") || t.includes("kamer controleren");
+}
+
+// ─── HELPER: taak bij een vertrek-aankondiging (melder bevestigt dat medewerker weg is) ───
+// "Vertrek inplannen" = oude titel (vóór 20-10-2026), voor bestaande taken.
+function isVertrekBevestigTaak(titel) {
+  const t = (titel || "").toLowerCase();
+  return t.startsWith("vertrek bevestigen") || t.startsWith("vertrek inplannen");
 }
 
 // ─── HELPER: welke controlepunten zijn NIET afgevinkt bij een kamercontrole? ──
@@ -4385,6 +4402,15 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
   const isCollega = rol === "collega" || rol === "financieel";
 
   const [subTab, setSubTab] = useState("woningen");
+  // Vertrek-aankondiging die vanuit de taak "Vertrek bevestigen" in het vertrekformulier wordt voorgevuld
+  const [startAankondiging, setStartAankondiging] = useState(null);
+  useEffect(()=>{ if (subTab !== "nieuw") setStartAankondiging(null); }, [subTab]);
+  const vertrekMeldenVanTaak = (t) => {
+    const a = meldingen.find(m => m.id === t.melding_id && m.type === "vertrek_aankondiging" && m.status === "open");
+    if (!a) { showToast("Aankondiging niet (meer) open — meld het vertrek handmatig via Nieuwe melding", "err"); return; }
+    setStartAankondiging(a);
+    setSubTab("nieuw");
+  };
   const [filter, setFilter] = useState("open");
   const [zoek, setZoek] = useState("");
   const [sorteer, setSorteer] = useState("deadline"); // deadline | datum_nieuw | datum_oud | prioriteit | naam
@@ -4398,7 +4424,7 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
     // reserveringen kan alleen backoffice inplannen/afhandelen, een aankomst-melding is voor
     // hem niet van toepassing — hij werkt via de automatisch aangemaakte taak "Aankomst
     // begeleiden", niet via de melding zelf — en een vertrek-aankondiging leidt nu tot een
-    // inplan-taak voor backoffice; hij krijgt zelf pas een taak bij het daadwerkelijke vertrek.
+    // bevestig-taak voor de melder; hij krijgt zelf pas een taak bij het daadwerkelijke vertrek.
     // Alle drie waren hier pure ruis zonder eigen actie voor hem.
     if (isHuismeester) return m.type !== "reservering" && m.type !== "aankomst" && m.type !== "vertrek_aankondiging";
     if (isCollega) return m.ingediend_door === gebruiker?.naam;
@@ -4670,7 +4696,7 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
               <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:10}}>
                 🔧 Taken ({takenWoningen.length})
               </div>
-              <TakenView taken={takenWoningen} houses={houses} gebruiker={gebruiker} onAdd={onAddTaak} onUpdate={onUpdateTaak} showToast={showToast} inlineMode/>
+              <TakenView taken={takenWoningen} houses={houses} gebruiker={gebruiker} onAdd={onAddTaak} onUpdate={onUpdateTaak} showToast={showToast} inlineMode onVertrekMelden={vertrekMeldenVanTaak}/>
             </div>
           )}
           {gefilterdeMeldingen.length===0 && takenWoningen.length===0 && !isCollega && !(isBackoffice||isHuismeester) && (
@@ -4719,12 +4745,12 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
 
       {/* Nieuwe melding (collega) */}
       {subTab === "nieuw" && isCollega && (
-        <MeldingForm houses={houses} meldingen={meldingen} onSubmit={async(d)=>{ await onAddMelding(d); setSubTab("woningen"); }} showToast={showToast} taal={taal}/>
+        <MeldingForm key={startAankondiging?.id||"leeg"} houses={houses} meldingen={meldingen} startAankondiging={startAankondiging} onSubmit={async(d)=>{ await onAddMelding(d); setSubTab("woningen"); }} showToast={showToast} taal={taal}/>
       )}
       {/* Backoffice mag (sinds 14-10-2026) alleen vertrek/vertrekaankondiging doorgeven, bv. als de
           vestigingscollega afwezig is. Zelfde formulier + zelfde flow (controletaak huismeester). */}
       {subTab === "nieuw" && isBackoffice && (
-        <MeldingForm houses={houses} meldingen={meldingen} toegestaneTypes={["vertrek","vertrek_aankondiging"]}
+        <MeldingForm key={startAankondiging?.id||"leeg"} houses={houses} meldingen={meldingen} toegestaneTypes={["vertrek","vertrek_aankondiging"]} startAankondiging={startAankondiging}
           onSubmit={async(d)=>{ await onAddMelding(d); setSubTab("woningen"); }} showToast={showToast} taal={taal}/>
       )}
 
@@ -5202,7 +5228,7 @@ function NieuwesTaakForm({ houses, gebruiker, onAdd, showToast }) {
 }
 
 // ─── TAKEN / TO-DO ────────────────────────────────────────────────────────────
-function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast, inlineMode, verbergKop }) {
+function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast, inlineMode, verbergKop, onVertrekMelden }) {
   const [toonNieuwe, setToonNieuwe] = useState(false);
   const [filter, setFilter] = useState("open");
   const [nieuw, setNieuw] = useState({titel:"",omschrijving:"",woning_id:"",kamer:"",prioriteit:"middel",voor_rol:"iedereen"});
@@ -5825,8 +5851,16 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast, inlin
                       💬 Opmerking
                     </button>
                   )}
-                  {/* Backoffice mag altijd afvinken, anderen alleen hun eigen rol */}
-                  {(isBackoffice || (t.voor_rol === "huismeester" ? isHuismeester : t.voor_rol === "backoffice" ? isBackoffice : true)) && (
+                  {/* Vertrek-aankondiging: bevestigen = daadwerkelijk vertrek melden (formulier voorgevuld) */}
+                  {isVertrekBevestigTaak(t.titel) && onVertrekMelden && !isHuismeester && (
+                    <button style={{background:"#ef4444",color:"white",border:"none",borderRadius:8,padding:"8px 16px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}
+                      onClick={()=>onVertrekMelden(t)}>
+                      🧳 Is vertrokken
+                    </button>
+                  )}
+                  {/* Backoffice mag altijd afvinken, anderen alleen hun eigen rol.
+                      Vertrek-bevestigtaak: alleen backoffice (afsluiten als vertrek niet doorgaat). */}
+                  {(isBackoffice || (!isVertrekBevestigTaak(t.titel) && (t.voor_rol === "huismeester" ? isHuismeester : t.voor_rol === "backoffice" ? isBackoffice : true))) && (
                     <button className="btn-g" style={{padding:"8px 16px",fontSize:13}}
                       onClick={()=>setBevestigMap(p=>({...p,[t.id]:true}))}>
                       ✓ Gedaan
@@ -6401,8 +6435,8 @@ function HuismeesterPlanningView({ dagplanningDB, houses, taken=[], meldingen=[]
 }
 
 
-function MeldingForm({ houses, meldingen=[], onSubmit, showToast, taal="nl", toegestaneTypes=null }) {
-  const [type,setType]=useState(toegestaneTypes ? toegestaneTypes[0] : "aankomst");
+function MeldingForm({ houses, meldingen=[], onSubmit, showToast, taal="nl", toegestaneTypes=null, startAankondiging=null }) {
+  const [type,setType]=useState(startAankondiging ? "vertrek" : (toegestaneTypes ? toegestaneTypes[0] : "aankomst"));
   const [medewerker,setMedewerker]=useState("");
   const [datum,setDatum]=useState(todayISO());
   const [huisId,setHuisId]=useState(houses[0]?.id||1);
@@ -6465,6 +6499,9 @@ function MeldingForm({ houses, meldingen=[], onSubmit, showToast, taal="nl", toe
       .order("id",{ascending:false}).limit(1).maybeSingle();
     setSleutelAantal(plan?.sleutels || 1);
   }
+
+  // Geopend vanuit taak "Vertrek bevestigen": direct koppelen aan die aankondiging
+  useEffect(()=>{ if (startAankondiging) kiesAankondiging(startAankondiging); },[]); // eslint-disable-line
 
   function terugNaarHandmatig() {
     setGekoppeldeAankondigingId(null);
