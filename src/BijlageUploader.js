@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { supabase } from "./supabaseClient";
-import { tx } from "./i18n";
+import { tx, txv } from "./i18n";
 
 const C = {
   blauw:"#1B3A6B", groen:"#4A9B3C", bg:"#f0f4f8",
@@ -57,7 +57,7 @@ export function BijlageUploader({ bestanden, setBestanden, label = "📎 Foto's 
             <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:8}}>
               {bestanden.filter(b=>b.preview).map((b,i)=>(
                 <div key={i} style={{position:"relative"}}>
-                  <img src={b.preview} alt={b.naam} style={{width:80,height:80,objectFit:"cover",borderRadius:8,border:`1px solid ${C.border}`}}/>
+                  <img src={b.preview} alt={tx(b.naam)} style={{width:80,height:80,objectFit:"cover",borderRadius:8,border:`1px solid ${C.border}`}}/>
                   <button onClick={()=>setBestanden(prev=>prev.filter((_,j)=>prev.indexOf(b)!==j||(j!==prev.indexOf(b))))}
                     style={{position:"absolute",top:-6,right:-6,background:"#ef4444",color:"white",border:"none",borderRadius:"50%",width:18,height:18,fontSize:11,cursor:"pointer",lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
                 </div>
@@ -95,7 +95,7 @@ export function BijlageWeergave({ bijlages }) {
       {fotos.length > 0 && (
         <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:8}}>
           {fotos.map((b,i) => (
-            <img key={i} src={b.url} alt={b.naam} onClick={()=>setLightbox(b.url)}
+            <img key={i} src={b.url} alt={tx(b.naam)} onClick={()=>setLightbox(b.url)}
               style={{width:70,height:70,objectFit:"cover",borderRadius:8,border:`1px solid ${C.border}`,cursor:"pointer",transition:"transform .2s"}}
               onMouseOver={e=>e.target.style.transform="scale(1.05)"}
               onMouseOut={e=>e.target.style.transform="scale(1)"}/>

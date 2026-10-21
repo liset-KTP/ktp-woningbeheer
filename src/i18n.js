@@ -35,3 +35,15 @@ export function dbTekst(rij, veld = "tekst", taal = huidigeTaal) {
   if (taal !== "nl" && rij[veld + "_" + taal]) return rij[veld + "_" + taal];
   return rij[veld];
 }
+
+// txv: vertaal een tekst met invulplekken {0}, {1}, ... — bv. txv("Alles ({0})", aantal).
+// De vertaling in teksten.json moet dezelfde {0}/{1} bevatten. Ingevulde waarden die zelf
+// een bekende tekst zijn (bv. "Wekelijks") worden ook vertaald.
+export function txv(sjabloon, ...waarden) {
+  const basis = tx(sjabloon);
+  return basis.replace(/\{(\d+)\}/g, (m, i) => {
+    const w = waarden[Number(i)];
+    if (w === null || w === undefined) return "";
+    return typeof w === "string" ? tx(w) : String(w);
+  });
+}

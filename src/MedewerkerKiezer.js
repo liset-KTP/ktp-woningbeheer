@@ -19,7 +19,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { supabase } from "./supabaseClient";
-import { tx } from "./i18n";
+import { tx, txv } from "./i18n";
 
 const KLEUR = {
   blauw: "#1B3A6B", groen: "#357a2b", rood: "#b91c1c", oranje: "#b45309",
@@ -160,7 +160,7 @@ export function MedewerkerKiezer({
   return (
     <div ref={wrapRef} style={{ position: "relative", ...style }}>
       <input
-        className={className} value={waarde} autoFocus={autoFocus} placeholder={placeholder} autoComplete="off"
+        className={className} value={waarde} autoFocus={autoFocus} placeholder={tx(placeholder)} autoComplete="off"
         onChange={e => { onChange(e.target.value); setOpen(true); }}
         onFocus={() => setOpen(true)}
         onBlur={() => { const n = normaliseerNaam(waarde); if (n !== waarde) onChange(n); }}
@@ -175,8 +175,8 @@ export function MedewerkerKiezer({
           {suggesties.map(s => (
             <div key={s.naam} onMouseDown={e => { e.preventDefault(); kies(s.naam); }}
               style={{ padding: "9px 12px", cursor: "pointer", fontSize: 14, display: "flex", justifyContent: "space-between", gap: 8, borderBottom: "1px solid #eef2f7" }}>
-              <span style={{ fontWeight: 600, color: KLEUR.text }}>{s.naam}</span>
-              <span style={{ fontSize: 11, color: KLEUR.muted, whiteSpace: "nowrap", fontStyle: s.info === NIET_AANWEZIG ? "italic" : "normal" }}>{s.info}</span>
+              <span style={{ fontWeight: 600, color: KLEUR.text }}>{tx(s.naam)}</span>
+              <span style={{ fontSize: 11, color: KLEUR.muted, whiteSpace: "nowrap", fontStyle: s.info === NIET_AANWEZIG ? "italic" : "normal" }}>{tx(s.info)}</span>
             </div>
           ))}
           {nieuwToegestaan && waarde.trim() && (
@@ -200,7 +200,7 @@ export function MedewerkerKiezer({
               {i > 0 && tx(" of ")}
               <button type="button" onClick={() => kies(l.naam)}
                 style={{ background: "none", border: "none", padding: 0, color: KLEUR.blauw, fontWeight: 700, textDecoration: "underline", cursor: "pointer", fontFamily: "inherit", fontSize: 12 }}>
-                {l.naam}
+                {tx(l.naam)}
               </button>
             </span>
           ))}
@@ -208,7 +208,7 @@ export function MedewerkerKiezer({
         </div>
       )}
       {!exact && waarde.trim() && probleem && (
-        <div style={{ fontSize: 11, color: KLEUR.rood, marginTop: 4, fontWeight: 600 }}>✕ {probleem}</div>
+        <div style={{ fontSize: 11, color: KLEUR.rood, marginTop: 4, fontWeight: 600 }}>✕ {tx(probleem)}</div>
       )}
       {!exact && waarde.trim() && !probleem && lijkend.length === 0 && (
         <div style={{ fontSize: 11, color: nieuwToegestaan ? KLEUR.muted : KLEUR.oranje, marginTop: 4, fontWeight: nieuwToegestaan ? 400 : 600 }}>

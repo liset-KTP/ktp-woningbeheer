@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { supabase } from "./supabaseClient";
 import WeekDatePicker from "./WeekDatePicker";
 import { MedewerkerKiezer, naamProbleem, normaliseerNaam } from "./MedewerkerKiezer";
-import { tx } from "./i18n";
+import { tx, txv } from "./i18n";
 
 const C = {
   blauw:"#1B3A6B", blauwDark:"#132b52", groen:"#4A9B3C",
@@ -23,9 +23,9 @@ function fmtTime(d) {
 
 function SH({titel,sub,actie}) {
   return <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:24}}>
-    <div><h2 style={{fontSize:20,fontWeight:800,color:C.blauw,marginBottom:3}}>{titel}</h2>
-    {sub&&<p style={{fontSize:13,color:C.muted}}>{sub}</p>}</div>
-    {actie}
+    <div><h2 style={{fontSize:20,fontWeight:800,color:C.blauw,marginBottom:3}}>{tx(titel)}</h2>
+    {sub&&<p style={{fontSize:13,color:C.muted}}>{tx(sub)}</p>}</div>
+    {tx(actie)}
   </div>;
 }
 
@@ -58,7 +58,7 @@ export function KledingModule({ gebruiker, showToast }) {
     const item = voorraad.find(v=>v.vestiging===vestiging&&v.type===type&&v.maat===maat);
     if (!item) { showToast(tx("Artikel niet gevonden"),"err"); return false; }
     if (actie==="uitgifte" && item.aantal < aantal) {
-      showToast(`Onvoldoende voorraad — nog ${item.aantal} beschikbaar`,"err"); return false;
+      showToast(txv("Onvoldoende voorraad — nog {0} beschikbaar", item.aantal),"err"); return false;
     }
     const nieuwAantal = actie==="uitgifte" ? item.aantal - aantal : item.aantal + aantal;
     const { error: e1 } = await supabase.from("kleding_voorraad")
@@ -71,8 +71,8 @@ export function KledingModule({ gebruiker, showToast }) {
       opmerking: opmerking ? `${opmerking} (door: ${gebruiker.naam})` : `Ingevoerd door: ${gebruiker.naam}`
     }]);
     const msg = actie==="uitgifte"
-      ? `✓ ${aantal}x ${type} ${maat} uitgegeven aan ${medewerkerNaam||gebruiker.naam}`
-      : `✓ ${aantal}x ${type} ${maat} ingenomen van ${medewerkerNaam||gebruiker.naam}`;
+      ? txv("✓ {0}x {1} {2} uitgegeven aan {3}", aantal, type, maat, medewerkerNaam||gebruiker.naam)
+      : txv("✓ {0}x {1} {2} ingenomen van {3}", aantal, type, maat, medewerkerNaam||gebruiker.naam);
     showToast(msg);
     return true;
   }
@@ -88,7 +88,7 @@ export function KledingModule({ gebruiker, showToast }) {
       vestiging, type, maat, aantal, actie:"bijvulling",
       medewerker: gebruiker.naam, opmerking: opmerking||null
     }]);
-    showToast(`✓ Voorraad bijgevuld: +${aantal}x ${type} ${maat}`);
+    showToast(txv("✓ Voorraad bijgevuld: +{0}x {1} {2}", aantal, type, maat));
     return true;
   }
 
@@ -97,7 +97,7 @@ export function KledingModule({ gebruiker, showToast }) {
       .update({ besteld_aantal, besteld_datum, besteld_door: gebruiker.naam, updated_at: new Date().toISOString() })
       .eq("id", id);
     if (error) { showToast(tx("Fout bij opslaan"),"err"); return false; }
-    showToast(`✓ Bestelling geregistreerd (${besteld_aantal} stuks)`);
+    showToast(txv("✓ Bestelling geregistreerd ({0} stuks)", besteld_aantal));
     await loadVoorraad(); return true;
   }
 
@@ -113,7 +113,7 @@ export function KledingModule({ gebruiker, showToast }) {
       vestiging, type, maat, aantal: ontvangen_aantal, actie:"bijvulling",
       medewerker: gebruiker.naam, opmerking: "Bestelling ontvangen"
     }]);
-    showToast(`✓ Ontvangst verwerkt — voorraad bijgewerkt naar ${nieuwAantal}`);
+    showToast(txv("✓ Ontvangst verwerkt — voorraad bijgewerkt naar {0}", nieuwAantal));
     await loadVoorraad(); return true;
   }
 
@@ -144,7 +144,7 @@ export function KledingModule({ gebruiker, showToast }) {
 
   return (
     <div>
-      <SH titel={tx("👕 Kleding voorraad")} sub={`${voorraad.length} artikelen · ${bijTeBestellenTotaal} moeten bijbesteld worden`}/>
+      <SH titel={tx("👕 Kleding voorraad")} sub={txv("{0} artikelen · {1} moeten bijbesteld worden", voorraad.length, bijTeBestellenTotaal)}/>
       <div style={{display:"flex",gap:6,marginBottom:24,borderBottom:`2px solid ${C.border}`,paddingBottom:0,overflowX:"auto"}}>
         {tabs.map(t=>(
           <button key={t.id} onClick={()=>setSubTab(t.id)}
@@ -194,7 +194,7 @@ function VoorraadOverzicht({ voorraad }) {
               style={{padding:"8px 20px",borderRadius:20,border:`2px solid ${vestiging===v?C.blauw:C.border}`,
                 background:vestiging===v?C.blauw:"white",color:vestiging===v?"white":C.text,
                 fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
-              {v} {laag>0&&<span style={{marginLeft:6,background:"#ef4444",color:"white",borderRadius:10,padding:"1px 7px",fontSize:10,fontWeight:800}}>{laag}</span>}
+              {tx(v)} {laag>0&&<span style={{marginLeft:6,background:"#ef4444",color:"white",borderRadius:10,padding:"1px 7px",fontSize:10,fontWeight:800}}>{tx(laag)}</span>}
             </button>
           );
         })}
@@ -202,7 +202,7 @@ function VoorraadOverzicht({ voorraad }) {
 
       {/* Stats + zoek */}
       <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}>
-        {totaalOp>0&&<div style={{padding:"5px 12px",borderRadius:20,background:"#fef2f2",border:"1px solid #fecaca",fontSize:12,fontWeight:700,color:"#b91c1c"}}>🔴 {totaalOp} {tx("op")}</div>}
+        {totaalOp>0&&<div style={{padding:"5px 12px",borderRadius:20,background:"#fef2f2",border:"1px solid #fecaca",fontSize:12,fontWeight:700,color:"#b91c1c"}}>🔴 {tx(totaalOp)} {tx("op")}</div>}
         {totaalLaag>totaalOp&&<div style={{padding:"5px 12px",borderRadius:20,background:"#fffbeb",border:"1px solid #fde68a",fontSize:12,fontWeight:700,color:"#92400e"}}>🟡 {totaalLaag-totaalOp} {tx("laag")}</div>}
         {totaalLaag===0&&<div style={{padding:"5px 12px",borderRadius:20,background:"#f0fdf4",border:"1px solid #bbf7d0",fontSize:12,fontWeight:700,color:"#166534"}}>{tx("✅ Alles op peil")}</div>}
         <input value={zoek} onChange={e=>setZoek(e.target.value)} placeholder={tx("🔍 Zoek type of maat...")}
@@ -218,7 +218,7 @@ function VoorraadOverzicht({ voorraad }) {
             <div style={{padding:"10px 16px",background:heeftProbleem?"#fffbeb":C.blauw+"08",borderBottom:`1px solid ${C.border}`,
               display:"flex",alignItems:"center",gap:10}}>
               <div style={{width:4,height:18,borderRadius:2,background:heeftProbleem?"#f59e0b":C.groen}}/>
-              <span style={{fontWeight:800,fontSize:14,color:C.text}}>{type}</span>
+              <span style={{fontWeight:800,fontSize:14,color:C.text}}>{tx(type)}</span>
               {heeftProbleem&&<span style={{fontSize:11,color:"#92400e",background:"#fde68a",padding:"1px 8px",borderRadius:10,fontWeight:700}}>{tx("bijbestellen")}</span>}
             </div>
             <table style={{width:"100%",borderCollapse:"collapse"}}>
@@ -237,9 +237,9 @@ function VoorraadOverzicht({ voorraad }) {
                   const tekort = item.min_voorraad - item.aantal;
                   return (
                     <tr key={item.id} style={{borderTop:`1px solid ${C.border}`,background:s.bg}}>
-                      <td style={{padding:"9px 16px",fontSize:13,fontWeight:600,color:C.text}}>{item.maat}</td>
-                      <td style={{padding:"9px 8px",textAlign:"center",fontSize:15,fontWeight:800,color:s.kleur}}>{item.aantal}</td>
-                      <td style={{padding:"9px 8px",textAlign:"center",fontSize:13,color:C.muted}}>{item.min_voorraad}</td>
+                      <td style={{padding:"9px 16px",fontSize:13,fontWeight:600,color:C.text}}>{tx(item.maat)}</td>
+                      <td style={{padding:"9px 8px",textAlign:"center",fontSize:15,fontWeight:800,color:s.kleur}}>{tx(item.aantal)}</td>
+                      <td style={{padding:"9px 8px",textAlign:"center",fontSize:13,color:C.muted}}>{tx(item.min_voorraad)}</td>
                       <td style={{padding:"9px 8px",textAlign:"center"}}>
                         <span style={{fontSize:10,fontWeight:800,padding:"2px 8px",borderRadius:10,
                           background:s.kleur+"20",color:s.kleur}}>{tx(s.label)}</span>
@@ -288,10 +288,10 @@ function UitgifteForm({ voorraad, gebruiker, onSubmit, showToast }) {
     if (!type||!maat||aantal<1) { showToast(tx("Selecteer type en maat"),"err"); return; }
     const item = voorraad.find(v=>v.vestiging===vestiging&&v.type===type&&v.maat===maat);
     if (!item) return;
-    if (actie==="uitgifte" && beschikbaar(item) < aantal) { showToast(`Onvoldoende voorraad — nog ${beschikbaar(item)} beschikbaar`,"err"); return; }
+    if (actie==="uitgifte" && beschikbaar(item) < aantal) { showToast(txv("Onvoldoende voorraad — nog {0} beschikbaar", beschikbaar(item)),"err"); return; }
     setMandje(prev=>[...prev, {vestiging, type, maat, aantal, item}]);
     setType(""); setMaat(""); setAantal(1);
-    showToast(`✓ ${type} ${maat} toegevoegd aan lijst`);
+    showToast(txv("✓ {0} {1} toegevoegd aan lijst", type, maat));
   }
 
   function verwijderUitMandje(idx) { setMandje(prev=>prev.filter((_,i)=>i!==idx)); }
@@ -308,7 +308,7 @@ function UitgifteForm({ voorraad, gebruiker, onSubmit, showToast }) {
     }
     setSaving(false);
     if (allOk) {
-      showToast(`✓ ${mandje.length} artikel${mandje.length>1?"en":""} geregistreerd voor ${medewerkerNaam}`);
+      showToast(txv("✓ {0} artikel{1} geregistreerd voor {2}", mandje.length, mandje.length>1?"en":"", medewerkerNaam));
       setMandje([]); setMedewerkerNaam(""); setType(""); setMaat(""); setAantal(1);
     }
   }
@@ -330,7 +330,7 @@ function UitgifteForm({ voorraad, gebruiker, onSubmit, showToast }) {
               <button key={v} onClick={()=>{setActie(v);setMandje([]);}}
                 style={{flex:1,padding:"10px",border:`2px solid ${actie===v?kleur:C.border}`,borderRadius:10,
                   background:actie===v?kleur+"18":"white",cursor:"pointer",fontFamily:"inherit",color:actie===v?kleur:C.muted,fontWeight:700,fontSize:13}}>
-                {tx(label)}<br/><span style={{fontSize:11,fontWeight:400}}>{sub}</span>
+                {tx(label)}<br/><span style={{fontSize:11,fontWeight:400}}>{tx(sub)}</span>
               </button>
             ))}
           </div>
@@ -352,7 +352,7 @@ function UitgifteForm({ voorraad, gebruiker, onSubmit, showToast }) {
               <button key={v} onClick={()=>{setVestiging(v);setType("");setMaat("");}}
                 style={{flex:1,padding:"9px",border:`2px solid ${vestiging===v?C.blauw:C.border}`,borderRadius:8,
                   background:vestiging===v?C.blauw+"12":"white",color:vestiging===v?C.blauw:C.muted,
-                  fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>{v}</button>
+                  fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>{tx(v)}</button>
             ))}
           </div>
         </div>
@@ -363,7 +363,7 @@ function UitgifteForm({ voorraad, gebruiker, onSubmit, showToast }) {
           <div style={{marginBottom:12}}>
             <select value={type} onChange={e=>{setType(e.target.value);setMaat("");}} style={{...inp,marginBottom:0}}>
               <option value="">{tx("— Selecteer type —")}</option>
-              {types.map(t=><option key={t} value={t}>{t}</option>)}
+              {types.map(t=><option key={t} value={t}>{tx(t)}</option>)}
             </select>
           </div>
           {type && (
@@ -379,7 +379,7 @@ function UitgifteForm({ voorraad, gebruiker, onSubmit, showToast }) {
                         border:`2px solid ${sel?actiekleur:isOp?"#fecaca":C.border}`,
                         background:sel?actiekleur:isOp?"#fef2f2":"white",
                         color:sel?"white":isOp?"#b91c1c":C.text,opacity:isOp?.5:1}}>
-                      {item.maat} <span style={{fontSize:11,opacity:.7}}>({beschik})</span>
+                      {tx(item.maat)} <span style={{fontSize:11,opacity:.7}}>({tx(beschik)})</span>
                     </button>
                   );
                 })}
@@ -406,7 +406,7 @@ function UitgifteForm({ voorraad, gebruiker, onSubmit, showToast }) {
         {mandje.length > 0 && (
           <div style={{marginBottom:16}}>
             <div style={{fontSize:12,fontWeight:700,color:C.muted,marginBottom:10,textTransform:"uppercase",letterSpacing:".7px"}}>
-              {tx("Lijst (")}{mandje.length} {tx("artikel")}{mandje.length>1?tx("en"):""})
+              {tx("Lijst (")}{tx(mandje.length)} {tx("artikel")}{mandje.length>1?tx("en"):""})
             </div>
             <div style={{display:"grid",gap:6}}>
               {mandje.map((r,i)=>(
@@ -414,8 +414,8 @@ function UitgifteForm({ voorraad, gebruiker, onSubmit, showToast }) {
                   background:actiekleur+"10",border:`1px solid ${actiekleur}30`}}>
                   <span style={{fontSize:18}}>{actie==="uitgifte"?"📤":"📥"}</span>
                   <div style={{flex:1}}>
-                    <span style={{fontWeight:700,fontSize:13}}>{r.aantal}x {r.type}</span>
-                    <span style={{fontSize:12,color:C.muted}}> — {r.maat} ({r.vestiging})</span>
+                    <span style={{fontWeight:700,fontSize:13}}>{tx(r.aantal)}x {tx(r.type)}</span>
+                    <span style={{fontSize:12,color:C.muted}}> — {tx(r.maat)} ({tx(r.vestiging)})</span>
                   </div>
                   <button onClick={()=>verwijderUitMandje(i)}
                     style={{background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:16,padding:"2px 6px"}}>✕</button>
@@ -429,7 +429,7 @@ function UitgifteForm({ voorraad, gebruiker, onSubmit, showToast }) {
         <button onClick={submitAlles} disabled={saving||mandje.length===0||!medewerkerNaam.trim()}
           style={{background:mandje.length>0&&medewerkerNaam.trim()?actiekleur:"#d1dbe8",color:"white",border:"none",borderRadius:8,
             padding:"12px 28px",fontSize:14,fontWeight:700,cursor:mandje.length>0&&medewerkerNaam.trim()?"pointer":"not-allowed",fontFamily:"inherit",width:"100%"}}>
-          {saving?tx("⏳ Bezig..."):`${actie==="uitgifte"?"📤":"📥"} ${mandje.length} artikel${mandje.length!==1?"en":""} registreren voor ${medewerkerNaam||"..."}`}
+          {saving?tx("⏳ Bezig..."):txv("{0} {1} artikel{2} registreren voor {3}", actie==="uitgifte"?"📤":"📥", mandje.length, mandje.length!==1?"en":"", medewerkerNaam||"...")}
         </button>
       </div>
     </div>
@@ -481,7 +481,7 @@ function BijbestellenView({ voorraad, isBackoffice, onBesteld, onOntvangen }) {
             style={{padding:"7px 16px",borderRadius:20,border:`2px solid ${vestiging===v?C.blauw:C.border}`,
               background:vestiging===v?C.blauw:"white",color:vestiging===v?"white":C.text,
               fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>
-            {tx(l)} {v!=="alle"&&<span style={{opacity:.7}}>({voorraad.filter(i=>i.vestiging===v&&i.aantal<i.min_voorraad).length})</span>}
+            {tx(l)} {v!=="alle"&&<span style={{opacity:.7}}>({tx(voorraad.filter(i=>i.vestiging===v&&i.aantal<i.min_voorraad).length)})</span>}
           </button>
         ))}
       </div>
@@ -493,16 +493,16 @@ function BijbestellenView({ voorraad, isBackoffice, onBesteld, onOntvangen }) {
           <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
             <thead><tr style={{borderBottom:`1px solid #bbf7d0`}}>
               {["Vestiging","Type","Maat","Besteld","Datum","Door",isBackoffice?"Actie":""].map(h=>(
-                <th key={h} style={{textAlign:"left",padding:"5px 8px",fontSize:11,fontWeight:700,color:"#166534",textTransform:"uppercase"}}>{h}</th>
+                <th key={h} style={{textAlign:"left",padding:"5px 8px",fontSize:11,fontWeight:700,color:"#166534",textTransform:"uppercase"}}>{tx(h)}</th>
               ))}
             </tr></thead>
             <tbody>
               {alBesteldItems.map(item=>(
                 <tr key={item.id} style={{borderBottom:"1px solid #dcfce7"}}>
-                  <td style={{padding:"8px"}}>{item.vestiging}</td>
-                  <td style={{padding:"8px",fontWeight:600}}>{item.type}</td>
-                  <td style={{padding:"8px"}}>{item.maat}</td>
-                  <td style={{padding:"8px",fontWeight:800,color:"#166534"}}>{item.besteld_aantal}x</td>
+                  <td style={{padding:"8px"}}>{tx(item.vestiging)}</td>
+                  <td style={{padding:"8px",fontWeight:600}}>{tx(item.type)}</td>
+                  <td style={{padding:"8px"}}>{tx(item.maat)}</td>
+                  <td style={{padding:"8px",fontWeight:800,color:"#166534"}}>{tx(item.besteld_aantal)}x</td>
                   <td style={{padding:"8px",color:C.muted}}>{item.besteld_datum ? new Date(item.besteld_datum).toLocaleDateString("nl-NL") : "—"}</td>
                   <td style={{padding:"8px",color:C.muted,fontSize:12}}>{item.besteld_door||"—"}</td>
                   {isBackoffice && <td style={{padding:"8px"}}>
@@ -546,14 +546,14 @@ function BijbestellenView({ voorraad, isBackoffice, onBesteld, onOntvangen }) {
             return (
               <div key={naam} style={{background:"white",border:`1px solid ${C.border}`,borderRadius:12,padding:20,marginBottom:16}}>
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
-                  <h3 style={{fontWeight:800,fontSize:15,color:C.blauw}}>📍 {naam}</h3>
-                  <span style={{fontSize:12,color:C.muted,background:C.bg,padding:"3px 10px",borderRadius:10}}>{items.length} {tx("artikelen")}</span>
+                  <h3 style={{fontWeight:800,fontSize:15,color:C.blauw}}>📍 {tx(naam)}</h3>
+                  <span style={{fontSize:12,color:C.muted,background:C.bg,padding:"3px 10px",borderRadius:10}}>{tx(items.length)} {tx("artikelen")}</span>
                 </div>
                 <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
                   <thead>
                     <tr style={{borderBottom:`2px solid ${C.border}`}}>
                       {["Type","Maat","Huidig","Min","Tekort","Status",isBackoffice?"Actie":""].map(h=>(
-                        <th key={h} style={{textAlign:"left",padding:"6px 8px",fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase"}}>{h}</th>
+                        <th key={h} style={{textAlign:"left",padding:"6px 8px",fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase"}}>{tx(h)}</th>
                       ))}
                     </tr>
                   </thead>
@@ -564,15 +564,15 @@ function BijbestellenView({ voorraad, isBackoffice, onBesteld, onOntvangen }) {
                       return (
                         <React.Fragment key={item.id}>
                           <tr style={{borderBottom: bestellenId===item.id ? "none" : `1px solid ${C.border}`,background:item.aantal===0?"#fef2f2":"#fffbeb"}}>
-                            <td style={{padding:"8px",fontWeight:600}}>{item.type}</td>
-                            <td style={{padding:"8px"}}>{item.maat}</td>
-                            <td style={{padding:"8px",fontWeight:800,color:item.aantal===0?C.rood:C.oranje}}>{item.aantal}</td>
-                            <td style={{padding:"8px",color:C.muted}}>{item.min_voorraad}</td>
-                            <td style={{padding:"8px"}}><span style={{fontWeight:800,color:C.blauw,background:C.blauw+"12",padding:"2px 8px",borderRadius:8}}>+{tekort}</span></td>
+                            <td style={{padding:"8px",fontWeight:600}}>{tx(item.type)}</td>
+                            <td style={{padding:"8px"}}>{tx(item.maat)}</td>
+                            <td style={{padding:"8px",fontWeight:800,color:item.aantal===0?C.rood:C.oranje}}>{tx(item.aantal)}</td>
+                            <td style={{padding:"8px",color:C.muted}}>{tx(item.min_voorraad)}</td>
+                            <td style={{padding:"8px"}}><span style={{fontWeight:800,color:C.blauw,background:C.blauw+"12",padding:"2px 8px",borderRadius:8}}>+{tx(tekort)}</span></td>
                             <td style={{padding:"8px"}}>
                               {isBesteld
                                 ? <span style={{fontSize:11,fontWeight:700,color:"#166534",background:"#dcfce7",padding:"2px 8px",borderRadius:8}}>
-                                    {tx("✓ Besteld:")} {item.besteld_aantal}x ({item.besteld_datum ? new Date(item.besteld_datum).toLocaleDateString("nl-NL") : "—"})
+                                    {tx("✓ Besteld:")} {tx(item.besteld_aantal)}x ({item.besteld_datum ? new Date(item.besteld_datum).toLocaleDateString("nl-NL") : "—"})
                                   </span>
                                 : <span style={{fontSize:11,color:C.muted}}>{tx("Nog niet besteld")}</span>
                               }
@@ -663,19 +663,19 @@ function HistorieView({ transacties, isBackoffice }) {
           <div key={t.id} style={{background:"white",border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 14px",display:"flex",alignItems:"center",gap:12}}>
             <div style={{width:8,height:8,borderRadius:"50%",background:actiKleur[t.actie]||C.muted,flexShrink:0}}/>
             <div style={{flex:1,minWidth:0}}>
-              <div style={{fontSize:13,fontWeight:600,color:C.text}}>{t.type} — {t.maat} <span style={{fontWeight:400,color:C.muted}}>({t.vestiging})</span></div>
-              <div style={{fontSize:11,color:C.muted,marginTop:1}}>{t.medewerker} · {fmtDate(t.created_at)} {fmtTime(t.created_at)}{t.opmerking&&` · ${t.opmerking}`}</div>
+              <div style={{fontSize:13,fontWeight:600,color:C.text}}>{tx(t.type)} — {tx(t.maat)} <span style={{fontWeight:400,color:C.muted}}>({tx(t.vestiging)})</span></div>
+              <div style={{fontSize:11,color:C.muted,marginTop:1}}>{tx(t.medewerker)} · {fmtDate(t.created_at)} {fmtTime(t.created_at)}{t.opmerking&&` · ${t.opmerking}`}</div>
             </div>
             <div style={{textAlign:"right",flexShrink:0}}>
               <div style={{fontSize:14,fontWeight:800,color:t.actie==="uitgifte"?C.rood:t.actie==="bijvulling"?"#16a34a":C.muted}}>
-                {t.actie==="uitgifte"?"-":"+"}{ t.actie==="correctie"?"":""}{t.aantal}
+                {t.actie==="uitgifte"?"-":"+"}{ t.actie==="correctie"?"":""}{tx(t.aantal)}
               </div>
               <div style={{fontSize:10,color:actiKleur[t.actie]||C.muted,fontWeight:600}}>{actiLabel[t.actie]||t.actie}</div>
             </div>
           </div>
         ))}
         {gefilterd.length===0&&<div style={{textAlign:"center",padding:40,color:C.muted}}>{tx("Geen transacties gevonden")}</div>}
-        {gefilterd.length>100&&<div style={{textAlign:"center",fontSize:12,color:C.muted,padding:8}}>{tx("Toont laatste 100 van")} {gefilterd.length} {tx("transacties")}</div>}
+        {gefilterd.length>100&&<div style={{textAlign:"center",fontSize:12,color:C.muted,padding:8}}>{tx("Toont laatste 100 van")} {tx(gefilterd.length)} {tx("transacties")}</div>}
       </div>
     </div>
   );
@@ -711,16 +711,16 @@ function BeheerVoorraad({ voorraad, onBijvullen, onCorrectie, showToast }) {
     }]);
     setSaving(false);
     if (error) { showToast(tx("Fout bij toevoegen"),"err"); return; }
-    showToast(`✓ ${type} ${nieuw.maat} toegevoegd aan ${vestiging}`);
+    showToast(txv("✓ {0} {1} toegevoegd aan {2}", type, nieuw.maat, vestiging));
     setNieuw({type:"",typeNieuw:"",maat:"",aantal:0,min_voorraad:1});
     setToonNieuw(false);
   }
 
   async function verwijderArtikel(item) {
-    if (!window.confirm(`${item.type} ${item.maat} verwijderen uit ${item.vestiging}?`)) return;
+    if (!window.confirm(txv("{0} {1} verwijderen uit {2}?", item.type, item.maat, item.vestiging))) return;
     const { error } = await supabase.from("kleding_voorraad").delete().eq("id", item.id);
     if (error) { showToast(tx("Fout bij verwijderen"),"err"); return; }
-    showToast(`✓ ${item.type} ${item.maat} verwijderd`);
+    showToast(txv("✓ {0} {1} verwijderd", item.type, item.maat));
   }
 
   async function slaCorrectieOp(item) {
@@ -742,7 +742,7 @@ function BeheerVoorraad({ voorraad, onBijvullen, onCorrectie, showToast }) {
             style={{padding:"8px 20px",borderRadius:20,border:`2px solid ${vestiging===v?C.blauw:C.border}`,
               background:vestiging===v?C.blauw:"white",color:vestiging===v?"white":C.text,
               fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
-            {v}
+            {tx(v)}
           </button>
         ))}
         <button onClick={()=>setToonNieuw(!toonNieuw)}
@@ -758,13 +758,13 @@ function BeheerVoorraad({ voorraad, onBijvullen, onCorrectie, showToast }) {
       {/* Nieuw artikel formulier */}
       {toonNieuw && (
         <div style={{background:"white",border:`2px solid ${C.groen}`,borderRadius:12,padding:20,marginBottom:20}}>
-          <div style={{fontWeight:800,fontSize:14,color:C.groen,marginBottom:16}}>{tx("➕ Nieuw artikel —")} {vestiging}</div>
+          <div style={{fontWeight:800,fontSize:14,color:C.groen,marginBottom:16}}>{tx("➕ Nieuw artikel —")} {tx(vestiging)}</div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginBottom:14}}>
             <div>
               <label style={{fontSize:11,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:".7px",display:"block",marginBottom:5}}>{tx("Type *")}</label>
               <select value={nieuw.type} onChange={e=>setNieuw(p=>({...p,type:e.target.value,typeNieuw:""}))} style={{...inp(),width:"100%",marginBottom:6}}>
                 <option value="">{tx("— Bestaand type —")}</option>
-                {alleTypes.map(t=><option key={t} value={t}>{t}</option>)}
+                {alleTypes.map(t=><option key={t} value={t}>{tx(t)}</option>)}
               </select>
               <input value={nieuw.typeNieuw} onChange={e=>setNieuw(p=>({...p,typeNieuw:e.target.value,type:""}))}
                 placeholder={tx("Of nieuw type invullen...")} style={{...inp(),width:"100%",boxSizing:"border-box"}}/>
@@ -797,11 +797,11 @@ function BeheerVoorraad({ voorraad, onBijvullen, onCorrectie, showToast }) {
         const typeItems = items.filter(v=>v.type===type);
         return (
           <div key={type} style={{background:"white",border:`1px solid ${C.border}`,borderRadius:12,padding:16,marginBottom:12}}>
-            <div style={{fontWeight:800,fontSize:14,color:C.text,marginBottom:12}}>{type}</div>
+            <div style={{fontWeight:800,fontSize:14,color:C.text,marginBottom:12}}>{tx(type)}</div>
             <div style={{display:"grid",gap:6}}>
               {typeItems.map(item=>(
                 <div key={item.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:`1px solid ${C.border}`,flexWrap:"wrap"}}>
-                  <span style={{minWidth:90,fontSize:13,fontWeight:600,color:C.text}}>{item.maat}</span>
+                  <span style={{minWidth:90,fontSize:13,fontWeight:600,color:C.text}}>{tx(item.maat)}</span>
 
                   {bewerkId===item.id ? (
                     <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",flex:1}}>
@@ -837,8 +837,8 @@ function BeheerVoorraad({ voorraad, onBijvullen, onCorrectie, showToast }) {
                     </div>
                   ) : (
                     <>
-                      <span style={{fontWeight:800,fontSize:15,color:item.aantal===0?C.rood:item.aantal<item.min_voorraad?C.oranje:C.groen,minWidth:35}}>{item.aantal}</span>
-                      <span style={{fontSize:11,color:C.muted,background:C.bg,padding:"2px 8px",borderRadius:8}}>{tx("min:")} {item.min_voorraad}</span>
+                      <span style={{fontWeight:800,fontSize:15,color:item.aantal===0?C.rood:item.aantal<item.min_voorraad?C.oranje:C.groen,minWidth:35}}>{tx(item.aantal)}</span>
+                      <span style={{fontSize:11,color:C.muted,background:C.bg,padding:"2px 8px",borderRadius:8}}>{tx("min:")} {tx(item.min_voorraad)}</span>
                       <div style={{marginLeft:"auto",display:"flex",gap:6}}>
                         <button onClick={()=>{setBijvullenId(item.id);setBijvullenAantal(Math.max(1,item.min_voorraad-item.aantal));setBewerkId(null);}}
                           style={{background:"#f0fdf4",border:"1px solid #bbf7d0",color:"#166534",borderRadius:6,padding:"4px 10px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>{tx("📥 Bijvullen")}</button>
@@ -855,7 +855,7 @@ function BeheerVoorraad({ voorraad, onBijvullen, onCorrectie, showToast }) {
           </div>
         );
       })}
-      {types.length===0&&<div style={{textAlign:"center",padding:40,color:C.muted}}>{tx("Geen artikelen voor")} {vestiging}</div>}
+      {types.length===0&&<div style={{textAlign:"center",padding:40,color:C.muted}}>{tx("Geen artikelen voor")} {tx(vestiging)}</div>}
     </div>
   );
 }

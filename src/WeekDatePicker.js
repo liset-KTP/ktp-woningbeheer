@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { tx } from "./i18n";
+import { tx, txv } from "./i18n";
 
 // ─── Kleuren (zelfde huisstijl als de rest van de app) ────────────────────────
 const WD = {
@@ -135,7 +135,7 @@ export default function WeekDatePicker({ value, onChange, className = "fi", styl
               style={{ border: "none", background: "none", cursor: "pointer", fontSize: 15, padding: "2px 10px", color: WD.blauw, fontWeight: 700 }}>
               ‹
             </button>
-            <div style={{ fontWeight: 700, fontSize: 13, color: WD.blauw }}>{MAANDEN[maand]} {jaar}</div>
+            <div style={{ fontWeight: 700, fontSize: 13, color: WD.blauw }}>{tx(MAANDEN[maand])} {tx(jaar)}</div>
             <button type="button" onClick={volgendeMaand}
               style={{ border: "none", background: "none", cursor: "pointer", fontSize: 15, padding: "2px 10px", color: WD.blauw, fontWeight: 700 }}>
               ›
@@ -145,7 +145,7 @@ export default function WeekDatePicker({ value, onChange, className = "fi", styl
           <div style={{ display: "grid", gridTemplateColumns: "26px repeat(7,1fr)", gap: 2, marginBottom: 2 }}>
             <div style={{ fontSize: 10, color: "#94a3b8", textAlign: "center", fontWeight: 700 }}>{tx("Wk")}</div>
             {DAGEN.map(d => (
-              <div key={d} style={{ fontSize: 10, fontWeight: 700, color: WD.muted, textAlign: "center" }}>{d}</div>
+              <div key={d} style={{ fontSize: 10, fontWeight: 700, color: WD.muted, textAlign: "center" }}>{tx(d)}</div>
             ))}
           </div>
 

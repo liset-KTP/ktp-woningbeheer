@@ -1,6 +1,6 @@
 // HandleidingModule.js — KTP Interflex Woningbeheer
 import { useState } from "react";
-import { tx } from "./i18n";
+import { tx, txv } from "./i18n";
 
 const C = {
   blauw: "#1B3A6B", groen: "#4A9B3C", oranje: "#F5A623",
@@ -233,7 +233,7 @@ export function HandleidingModule({ gebruiker }) {
 function Sectie({ titel, kleur, children }) {
   return (
     <div style={{background:"white",border:`1px solid ${C.border}`,borderLeft:`5px solid ${kleur}`,borderRadius:12,padding:"20px 24px",marginBottom:16}}>
-      <h2 style={{fontSize:17,fontWeight:800,color:kleur,marginBottom:14,marginTop:0}}>{titel}</h2>
+      <h2 style={{fontSize:17,fontWeight:800,color:kleur,marginBottom:14,marginTop:0}}>{tx(titel)}</h2>
       <div style={{fontSize:14,color:C.text,lineHeight:1.7}}>{children}</div>
     </div>
   );
@@ -242,9 +242,9 @@ function Sectie({ titel, kleur, children }) {
 function Stap({ nr, titel, children }) {
   return (
     <div style={{display:"flex",gap:14,marginBottom:14,alignItems:"flex-start"}}>
-      <div style={{width:28,height:28,borderRadius:"50%",background:C.blauw,color:"white",fontSize:13,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:1}}>{nr}</div>
+      <div style={{width:28,height:28,borderRadius:"50%",background:C.blauw,color:"white",fontSize:13,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:1}}>{tx(nr)}</div>
       <div>
-        <div style={{fontWeight:700,color:C.text,marginBottom:3}}>{titel}</div>
+        <div style={{fontWeight:700,color:C.text,marginBottom:3}}>{tx(titel)}</div>
         <div style={{fontSize:13,color:C.muted,lineHeight:1.6}}>{children}</div>
       </div>
     </div>
@@ -264,10 +264,10 @@ function TypeLijst({ items }) {
     <div style={{display:"grid",gap:8,marginTop:10}}>
       {items.map((item,i) => (
         <div key={i} style={{display:"flex",gap:12,padding:"10px 14px",background:C.bg,borderRadius:8,border:`1px solid ${C.border}`,alignItems:"flex-start"}}>
-          <span style={{fontSize:20,flexShrink:0}}>{item.icon}</span>
+          <span style={{fontSize:20,flexShrink:0}}>{tx(item.icon)}</span>
           <div>
-            <div style={{fontWeight:700,color:C.text,fontSize:13}}>{item.naam}</div>
-            <div style={{fontSize:12,color:C.muted,marginTop:2}}>{item.uitleg}</div>
+            <div style={{fontWeight:700,color:C.text,fontSize:13}}>{tx(item.naam)}</div>
+            <div style={{fontSize:12,color:C.muted,marginTop:2}}>{tx(item.uitleg)}</div>
           </div>
         </div>
       ))}
@@ -280,10 +280,10 @@ function InfoBlok({ items }) {
     <div style={{display:"grid",gap:10,marginTop:10}}>
       {items.map((item,i) => (
         <div key={i} style={{display:"flex",gap:12,padding:"12px 14px",background:C.bg,borderRadius:8,border:`1px solid ${C.border}`}}>
-          <span style={{fontSize:22,flexShrink:0}}>{item.icon}</span>
+          <span style={{fontSize:22,flexShrink:0}}>{tx(item.icon)}</span>
           <div>
-            <div style={{fontWeight:700,color:C.text,fontSize:13,marginBottom:2}}>{item.titel}</div>
-            <div style={{fontSize:12,color:C.muted,lineHeight:1.6}}>{item.tekst}</div>
+            <div style={{fontWeight:700,color:C.text,fontSize:13,marginBottom:2}}>{tx(item.titel)}</div>
+            <div style={{fontSize:12,color:C.muted,lineHeight:1.6}}>{tx(item.tekst)}</div>
           </div>
         </div>
       ))}
@@ -299,12 +299,12 @@ function VraagAntwoord({ items }) {
         <div key={i} style={{border:`1px solid ${C.border}`,borderRadius:8,overflow:"hidden"}}>
           <div onClick={() => setOpen(open===i?null:i)}
             style={{padding:"12px 16px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",background:open===i?"#f0f4ff":"white",fontWeight:600,fontSize:13,color:C.text}}>
-            {item.vraag}
+            {tx(item.vraag)}
             <span style={{color:C.muted,fontSize:16}}>{open===i?"▲":"▼"}</span>
           </div>
           {open===i && (
             <div style={{padding:"10px 16px 14px",fontSize:13,color:C.muted,lineHeight:1.7,borderTop:`1px solid ${C.border}`,background:"white"}}>
-              {item.antwoord}
+              {tx(item.antwoord)}
             </div>
           )}
         </div>

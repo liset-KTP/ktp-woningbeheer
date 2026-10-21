@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "./supabaseClient";
-import { tx } from "./i18n";
+import { tx, txv } from "./i18n";
 
 // ─── WIFI & SLEUTELKLUIS-CODES PER WONING ────────────────────────────────────
 // Iedereen ziet de codes; alleen huismeester + backoffice kunnen wijzigen.
@@ -58,12 +58,12 @@ function CodeForm({ start, onOpslaan, onAnnuleren, bezig }) {
         {Object.entries(CODE_TYPES).map(([k,v]) => (
           <button key={k} onClick={()=>setType(k)} type="button"
             style={{...btn(type===k?C.blauw:"white", type===k?"white":C.text), border:`1px solid ${type===k?C.blauw:C.border}`}}>
-            {v.icoon} {tx(v.label)}
+            {tx(v.icoon)} {tx(v.label)}
           </button>
         ))}
       </div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:8}}>
-        <input style={inp} placeholder={placeholder} value={omschrijving} onChange={e=>setOmschrijving(e.target.value)} />
+        <input style={inp} placeholder={tx(placeholder)} value={omschrijving} onChange={e=>setOmschrijving(e.target.value)} />
         <input style={{...inp,fontFamily:"monospace",fontSize:14}} placeholder={type==="wifi"?tx("Wachtwoord"):tx("Code")} value={code} onChange={e=>setCode(e.target.value)} autoComplete="off" />
       </div>
       <input style={{...inp,marginTop:8}} placeholder={tx("Opmerking (optioneel)")} value={opmerking} onChange={e=>setOpmerking(e.target.value)} />
@@ -89,13 +89,13 @@ function CodeRegel({ r, magWijzigen, onBewerk, onVerwijder, showToast }) {
 
   return (
     <div style={{display:"flex",alignItems:"center",gap:10,padding:"9px 0",borderTop:`1px solid ${C.border}`,flexWrap:"wrap"}}>
-      <div style={{fontSize:20,width:28,textAlign:"center"}} title={t.label}>{t.icoon}</div>
+      <div style={{fontSize:20,width:28,textAlign:"center"}} title={tx(t.label)}>{tx(t.icoon)}</div>
       <div style={{flex:"1 1 180px",minWidth:0}}>
-        <div style={{fontSize:13,fontWeight:700,color:C.text}}>{r.omschrijving}</div>
-        {r.opmerking && <div style={{fontSize:12,color:C.muted}}>{r.opmerking}</div>}
+        <div style={{fontSize:13,fontWeight:700,color:C.text}}>{tx(r.omschrijving)}</div>
+        {r.opmerking && <div style={{fontSize:12,color:C.muted}}>{tx(r.opmerking)}</div>}
         <div style={{fontSize:11,color:oud?C.oranje:C.muted,marginTop:2}}>
-          {oud?"⚠️ ":""}{tx("Gewijzigd")} {fmtDate(r.gewijzigd_op)}{r.gewijzigd_door?` door ${r.gewijzigd_door}`:""}
-          {oud?` (${dagen} dagen geleden)`:""}
+          {oud?"⚠️ ":""}{tx("Gewijzigd")} {fmtDate(r.gewijzigd_op)}{r.gewijzigd_door?txv(" door {0}", r.gewijzigd_door):""}
+          {oud?txv(" ({0} dagen geleden)", dagen):""}
         </div>
       </div>
       <div style={{display:"flex",alignItems:"center",gap:6}}>
@@ -200,11 +200,11 @@ export function CodesModule({ gebruiker, houses, magWijzigen, showToast }) {
         <input style={{...inp,flex:"1 1 220px",width:"auto"}} placeholder={tx("🔍 Zoek op adres of omschrijving…")} value={zoek} onChange={e=>setZoek(e.target.value)} />
         <select style={{...inp,width:"auto"}} value={stad} onChange={e=>setStad(e.target.value)}>
           <option value="">{tx("Alle plaatsen")}</option>
-          {steden.map(s=><option key={s} value={s}>{s}</option>)}
+          {steden.map(s=><option key={s} value={s}>{tx(s)}</option>)}
         </select>
         <label style={{fontSize:12,color:C.text,display:"flex",alignItems:"center",gap:5,cursor:"pointer"}}>
           <input type="checkbox" checked={alleenZonder} onChange={e=>setAlleenZonder(e.target.checked)} />
-          {tx("Alleen woningen zonder codes (")}{aantalZonder})
+          {tx("Alleen woningen zonder codes (")}{tx(aantalZonder)})
         </label>
       </div>
 
@@ -217,8 +217,8 @@ export function CodesModule({ gebruiker, houses, magWijzigen, showToast }) {
               <div key={h.id} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:11,padding:"12px 14px"}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,marginBottom:4}}>
                   <div>
-                    <div style={{fontSize:14,fontWeight:800,color:C.blauw}}>{h.adres}</div>
-                    <div style={{fontSize:12,color:C.muted}}>{h.stad}</div>
+                    <div style={{fontSize:14,fontWeight:800,color:C.blauw}}>{tx(h.adres)}</div>
+                    <div style={{fontSize:12,color:C.muted}}>{tx(h.stad)}</div>
                   </div>
                   {magWijzigen && !nieuwOpen && (
                     <button style={btn(C.blauw)} onClick={()=>setBewerk({ woningId:h.id, regel:null })}>{tx("+ Regel")}</button>

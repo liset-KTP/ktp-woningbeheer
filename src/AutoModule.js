@@ -3,7 +3,7 @@ import { supabase } from "./supabaseClient";
 import { BijlageUploader, BijlageWeergave, uploadBijlages } from "./BijlageUploader";
 import WeekDatePicker from "./WeekDatePicker";
 import { MedewerkerKiezer, naamProbleem, normaliseerNaam } from "./MedewerkerKiezer";
-import { tx } from "./i18n";
+import { tx, txv } from "./i18n";
 
 // ─── EMAILJS ─────────────────────────────────────────────────────────────────
 const EMAILJS_SERVICE  = process.env.REACT_APP_EMAILJS_SERVICE  || "";
@@ -120,8 +120,8 @@ function afwijkingenUitMelding(m) {
 
 function SH({titel,sub,actie}) {
   return <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:24}}>
-    <div><h2 style={{fontSize:20,fontWeight:800,color:C.blauw,marginBottom:3}}>{titel}</h2>{sub&&<p style={{fontSize:13,color:C.muted}}>{sub}</p>}</div>
-    {actie}
+    <div><h2 style={{fontSize:20,fontWeight:800,color:C.blauw,marginBottom:3}}>{tx(titel)}</h2>{sub&&<p style={{fontSize:13,color:C.muted}}>{tx(sub)}</p>}</div>
+    {tx(actie)}
   </div>;
 }
 
@@ -328,14 +328,14 @@ export function AutoModule({ gebruiker, showToast }) {
   const tabs = [
     { id:"overzicht", label:"🚗 Overzicht" },
     { id:"melding",   label:"📋 Melding doorgeven" },
-    { id:"log",       label:`📝 Log ${openMeldingen.length>0?`(${openMeldingen.length} open)`:""}` },
+    { id:"log",       label: tx("📝 Log") + (openMeldingen.length>0 ? " " + txv("({0} open)", openMeldingen.length) : "") },
     ...(isBackoffice ? [{ id:"beheer", label:"⚙️ Auto beheer" }] : []),
     ...(isBackoffice ? [{ id:"boete", label:"🔍 Boete opzoeken" }] : []),
   ];
 
   return (
     <div>
-      <SH titel={tx("🚗 Auto planning")} sub={`${autos.length} auto's · ${autos.filter(a=>a.status==="Beschikbaar").length} beschikbaar · ${autos.filter(a=>a.status==="Lopend").length} uitgegeven`} />
+      <SH titel={tx("🚗 Auto planning")} sub={txv("{0} auto's · {1} beschikbaar · {2} uitgegeven", autos.length, autos.filter(a=>a.status==="Beschikbaar").length, autos.filter(a=>a.status==="Lopend").length)} />
 
       {/* Sub-tabs */}
       <div style={{display:"flex",gap:6,marginBottom:24,borderBottom:`2px solid ${C.border}`,paddingBottom:0}}>
@@ -392,16 +392,16 @@ function AutoOverzicht({ autos, gebruiker }) {
         <div style={{marginBottom:20}}>
           {verlopen.length > 0 && (
             <div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:12,padding:"12px 18px",marginBottom:10}}>
-              <div style={{fontWeight:700,color:"#b91c1c",marginBottom:6}}>{tx("🚨 APK verlopen (")}{verlopen.length})</div>
-              {verlopen.map(a => <div key={a.id} style={{fontSize:13,color:"#b91c1c"}}>• {a.kenteken} — {a.merk_model} {tx("— verlopen op")} {fmtDate(a.apk_datum)}</div>)}
+              <div style={{fontWeight:700,color:"#b91c1c",marginBottom:6}}>{tx("🚨 APK verlopen (")}{tx(verlopen.length)})</div>
+              {verlopen.map(a => <div key={a.id} style={{fontSize:13,color:"#b91c1c"}}>• {tx(a.kenteken)} — {tx(a.merk_model)} {tx("— verlopen op")} {fmtDate(a.apk_datum)}</div>)}
             </div>
           )}
           {apkWaarschuwing.length > 0 && (
             <div style={{background:"#fef3c7",border:"1px solid #fcd34d",borderRadius:12,padding:"12px 18px"}}>
-              <div style={{fontWeight:700,color:"#b45309",marginBottom:6}}>{tx("⚠️ APK bijna verlopen (")}{apkWaarschuwing.length})</div>
+              <div style={{fontWeight:700,color:"#b45309",marginBottom:6}}>{tx("⚠️ APK bijna verlopen (")}{tx(apkWaarschuwing.length)})</div>
               {apkWaarschuwing.map(a => {
                 const dagen = Math.ceil((new Date(a.apk_datum) - new Date()) / 86400000);
-                return <div key={a.id} style={{fontSize:13,color:"#b45309"}}>• {a.kenteken} — {a.merk_model} {tx("— over")} {dagen} {tx("dagen (")}{fmtDate(a.apk_datum)})</div>;
+                return <div key={a.id} style={{fontSize:13,color:"#b45309"}}>• {tx(a.kenteken)} — {tx(a.merk_model)} {tx("— over")} {tx(dagen)} {tx("dagen (")}{fmtDate(a.apk_datum)})</div>;
               })}
             </div>
           )}
@@ -417,7 +417,7 @@ function AutoOverzicht({ autos, gebruiker }) {
           {label:"Niet beschikbaar",val:autos.filter(a=>a.status==="Niet beschikbaar").length, color:"#ef4444"},
         ].map(s=>(
           <div key={s.label} className="card" style={{borderTop:`3px solid ${s.color}`,padding:"12px 14px"}}>
-            <div style={{fontSize:22,fontWeight:800,color:s.color}}>{s.val}</div>
+            <div style={{fontSize:22,fontWeight:800,color:s.color}}>{tx(s.val)}</div>
             <div style={{fontSize:11,color:C.muted,marginTop:2}}>{tx(s.label)}</div>
           </div>
         ))}
@@ -431,7 +431,7 @@ function AutoOverzicht({ autos, gebruiker }) {
           {["Alle",...AUTO_STATUSSEN].map(s=>(
             <button key={s} onClick={()=>setFilterStatus(s)}
               style={{background:filterStatus===s?C.blauw:"white",color:filterStatus===s?"white":C.muted,border:`1.5px solid ${filterStatus===s?C.blauw:C.border}`,borderRadius:20,padding:"5px 12px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-              {s}
+              {tx(s)}
             </button>
           ))}
         </div>
@@ -451,10 +451,10 @@ function AutoOverzicht({ autos, gebruiker }) {
           const apkVerlopen = a.apk_datum && new Date(a.apk_datum) < new Date();
           return (
             <div key={a.id} style={{display:"grid",gridTemplateColumns:"120px 1fr 140px 120px 100px 100px 80px",padding:"12px 16px",fontSize:13,borderBottom:i<filtered.length-1?`1px solid ${C.border}`:"none",alignItems:"center",background:i%2===0?"white":C.bg+"40"}}>
-              <span style={{fontWeight:800,color:C.blauw,fontFamily:"monospace",fontSize:14}}>{a.kenteken}</span>
+              <span style={{fontWeight:800,color:C.blauw,fontFamily:"monospace",fontSize:14}}>{tx(a.kenteken)}</span>
               <div>
-                <div style={{fontWeight:600,color:C.text}}>{a.merk_model}</div>
-                {a.kleur && <div style={{fontSize:11,color:C.muted}}>{a.kleur}</div>}
+                <div style={{fontWeight:600,color:C.text}}>{tx(a.merk_model)}</div>
+                {a.kleur && <div style={{fontSize:11,color:C.muted}}>{tx(a.kleur)}</div>}
               </div>
               <span style={{fontSize:12,color:C.text}}>{a.naam_medewerker||<span style={{color:C.muted,fontStyle:"italic"}}>—</span>}</span>
               <span style={{fontSize:12,color:C.muted}}>{a.vestiging||"—"}</span>
@@ -545,7 +545,7 @@ function HandtekeningPad({ label, sub, dataUrl, onChange }) {
   return (
     <div>
       <label style={lbl}>{tx(label)}</label>
-      {sub && <div style={{fontSize:11,color:C.muted,marginBottom:6}}>{sub}</div>}
+      {sub && <div style={{fontSize:11,color:C.muted,marginBottom:6}}>{tx(sub)}</div>}
       <div style={{border:`1.5px solid ${dataUrl?C.groen:C.border}`,borderRadius:8,overflow:"hidden",background:"white"}}>
         <canvas ref={canvasRef} width={560} height={170}
           style={{width:"100%",height:170,display:"block",touchAction:"none",cursor:"crosshair"}}
@@ -649,7 +649,7 @@ function AutoSchadeSchema({ punten, setPunten }) {
           {punten.map((p,i) => (
             <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 0",borderBottom:`1px solid ${C.border}`}}>
               <span style={{width:20,height:20,borderRadius:"50%",background:p.omschrijving.trim()?"#ef4444":"#f59e0b",color:"white",fontSize:11,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{i+1}</span>
-              <span style={{fontSize:11,color:C.muted,fontWeight:600,minWidth:72}}>{SCHADE_ZONES.find(z=>z.key===p.zone)?.label}</span>
+              <span style={{fontSize:11,color:C.muted,fontWeight:600,minWidth:72}}>{tx(SCHADE_ZONES.find(z=>z.key===p.zone)?.label)}</span>
               <input autoFocus={i===laatstToegevoegdeRef.current} value={p.omschrijving} onChange={e=>wijzigOmschrijving(i,e.target.value)}
                 placeholder={tx("bijv. kras 10cm, deuk, steenslag...")}
                 style={{flex:1,background:"white",border:`1.5px solid ${p.omschrijving.trim()?C.border:"#f59e0b"}`,borderRadius:8,padding:"6px 10px",fontSize:13,outline:"none",fontFamily:"inherit"}}/>
@@ -821,9 +821,9 @@ function AutoHandoverWizard({ autos, gebruiker, actie, onSubmit, showToast }) {
   if (submitted) return (
     <div className="card" style={{textAlign:"center",padding:"60px 40px",borderTop:`4px solid ${C.groen}`}}>
       <div style={{fontSize:64,marginBottom:16}}>✅</div>
-      <div style={{fontSize:22,fontWeight:800,color:C.groen,marginBottom:8}}>{titel} {tx("vastgelegd — inclusief handtekeningen")}</div>
+      <div style={{fontSize:22,fontWeight:800,color:C.groen,marginBottom:8}}>{tx(titel)} {tx("vastgelegd — inclusief handtekeningen")}</div>
       <div style={{fontSize:13,color:C.muted,marginBottom:16}}>{tx("Het bericht voor de medewerker vind je terug bij Auto's → Log, bij deze melding.")}</div>
-      <button className="btn-b" onClick={opnieuw}>{tx("Nieuwe")} {actie}</button>
+      <button className="btn-b" onClick={opnieuw}>{tx("Nieuwe")} {tx(actie)}</button>
     </div>
   );
 
@@ -836,7 +836,7 @@ function AutoHandoverWizard({ autos, gebruiker, actie, onSubmit, showToast }) {
         {STAPPEN.map((s,i) => (
           <div key={s} style={{flex:1,textAlign:"center"}}>
             <div style={{height:4,borderRadius:2,background:i+1<=stap?kleur:C.border,marginBottom:6}}/>
-            <div style={{fontSize:10,fontWeight:700,color:i+1===stap?kleur:C.muted,textTransform:"uppercase",letterSpacing:".4px"}}>{s}</div>
+            <div style={{fontSize:10,fontWeight:700,color:i+1===stap?kleur:C.muted,textTransform:"uppercase",letterSpacing:".4px"}}>{tx(s)}</div>
           </div>
         ))}
       </div>
@@ -848,7 +848,7 @@ function AutoHandoverWizard({ autos, gebruiker, actie, onSubmit, showToast }) {
             <label style={lbl}>{tx("Kenteken *")}</label>
             <select style={{...inp,appearance:"none"}} value={kenteken} onChange={e=>setKenteken(e.target.value)}>
               <option value="">{tx("Selecteer auto")}</option>
-              {autos.map(a=><option key={a.id} value={a.kenteken}>{a.kenteken} — {a.merk_model} [{tx(a.status)}]</option>)}
+              {autos.map(a=><option key={a.id} value={a.kenteken}>{tx(a.kenteken)} — {tx(a.merk_model)} [{tx(a.status)}]</option>)}
             </select>
           </div>
           <div>
@@ -875,9 +875,9 @@ function AutoHandoverWizard({ autos, gebruiker, actie, onSubmit, showToast }) {
                 <div style={{fontSize:12,color:C.muted}}>{tx("⏳ Laatste uitgifte opzoeken...")}</div>
               ) : laatsteUitgifte ? (
                 <div style={{background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 14px",fontSize:12,color:C.text}}>
-                  {tx("📋 Laatste uitgifte:")} {fmtFull(laatsteUitgifte.datum_tijd)} {tx("aan")} {laatsteUitgifte.naam_medewerker}
-                  {laatsteUitgifte.kilometerstand && ` · km-stand toen: ${laatsteUitgifte.kilometerstand}`}
-                  {(laatsteUitgifte.schade_punten||[]).length>0 && ` · ${laatsteUitgifte.schade_punten.length} bekende schadepunt(en)`}
+                  {tx("📋 Laatste uitgifte:")} {fmtFull(laatsteUitgifte.datum_tijd)} {tx("aan")} {tx(laatsteUitgifte.naam_medewerker)}
+                  {laatsteUitgifte.kilometerstand && txv(" · km-stand toen: {0}", laatsteUitgifte.kilometerstand)}
+                  {(laatsteUitgifte.schade_punten||[]).length>0 && txv(" · {0} bekende schadepunt(en)", laatsteUitgifte.schade_punten.length)}
                 </div>
               ) : (
                 <div style={{background:"#fef3c7",border:"1px solid #fcd34d",borderRadius:8,padding:"10px 14px",fontSize:12,color:"#b45309"}}>
@@ -904,7 +904,7 @@ function AutoHandoverWizard({ autos, gebruiker, actie, onSubmit, showToast }) {
                         borderColor:v==="ja"?C.groen:"#ef4444",
                         color:val===v?"white":(v==="ja"?C.groen:"#ef4444"),
                         background:val===v?(v==="ja"?C.groen:"#ef4444"):"white"}}>
-                      {v}
+                      {tx(v)}
                     </button>
                   ))}
                 </div>
@@ -937,7 +937,7 @@ function AutoHandoverWizard({ autos, gebruiker, actie, onSubmit, showToast }) {
             <div style={{marginTop:14,background:C.bg,borderRadius:8,padding:12}}>
               <div style={{fontSize:11,fontWeight:700,color:C.muted,marginBottom:6}}>{tx("Bekende schade bij uitgifte:")}</div>
               {laatsteUitgifte.schade_punten.map((p,i)=>(
-                <div key={i} style={{fontSize:12,color:C.text}}>• {SCHADE_ZONES.find(z=>z.key===p.zone)?.label}: {p.omschrijving}</div>
+                <div key={i} style={{fontSize:12,color:C.text}}>• {tx(SCHADE_ZONES.find(z=>z.key===p.zone)?.label)}: {tx(p.omschrijving)}</div>
               ))}
             </div>
           )}
@@ -966,7 +966,7 @@ function AutoHandoverWizard({ autos, gebruiker, actie, onSubmit, showToast }) {
           {afwijkingenPreview.length > 0 && (
             <div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:8,padding:12,marginBottom:16}}>
               <div style={{fontSize:12,fontWeight:700,color:"#b91c1c",marginBottom:6}}>{tx("⚠️ Bijzonderheden geconstateerd — backoffice wordt automatisch geïnformeerd:")}</div>
-              {afwijkingenPreview.map((a,i)=><div key={i} style={{fontSize:12,color:"#b91c1c"}}>• {a}</div>)}
+              {afwijkingenPreview.map((a,i)=><div key={i} style={{fontSize:12,color:"#b91c1c"}}>• {tx(a)}</div>)}
             </div>
           )}
           {actie === "uitgifte" && (
@@ -995,7 +995,7 @@ function AutoHandoverWizard({ autos, gebruiker, actie, onSubmit, showToast }) {
           <button onClick={volgende} style={{flex:1,background:kleur,color:"white",border:"none",borderRadius:8,padding:14,fontSize:15,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{tx("Volgende →")}</button>
         ) : (
           <button onClick={versturen} disabled={saving} style={{flex:1,background:saving?C.border:kleur,color:"white",border:"none",borderRadius:8,padding:14,fontSize:15,fontWeight:700,cursor:saving?"not-allowed":"pointer",fontFamily:"inherit"}}>
-            {saving?tx("⏳ Opslaan..."):`✓ ${titel} bevestigen en ondertekenen`}
+            {saving?tx("⏳ Opslaan..."):txv("✓ {0} bevestigen en ondertekenen", titel)}
           </button>
         )}
       </div>
@@ -1048,7 +1048,7 @@ function AutoStoringForm({ autos, gebruiker, actie, onSubmit, showToast }) {
           <label style={lbl}>{tx("Kenteken *")}</label>
           <select style={{...inp,appearance:"none"}} value={kenteken} onChange={e=>setKenteken(e.target.value)}>
             <option value="">{tx("Selecteer auto")}</option>
-            {autos.map(a=><option key={a.id} value={a.kenteken}>{a.kenteken} — {a.merk_model} [{tx(a.status)}]</option>)}
+            {autos.map(a=><option key={a.id} value={a.kenteken}>{tx(a.kenteken)} — {tx(a.merk_model)} [{tx(a.status)}]</option>)}
           </select>
         </div>
         <div>
@@ -1076,7 +1076,7 @@ function AutoStoringForm({ autos, gebruiker, actie, onSubmit, showToast }) {
               return (
                 <button key={opt} onClick={()=>setOpmerkingen(prev => selected ? prev.replace(opt+", ","").replace(", "+opt,"").replace(opt,"").trim() : (prev?prev+", ":"")+opt)}
                   style={{background:selected?"#f59e0b18":"white",border:`1.5px solid ${selected?"#f59e0b":C.border}`,borderRadius:8,padding:"10px 14px",cursor:"pointer",fontFamily:"inherit",fontSize:13,fontWeight:600,color:selected?"#b45309":C.text,textAlign:"left",transition:"all .15s"}}>
-                  {selected?"✓ ":""}{opt}
+                  {selected?"✓ ":""}{tx(opt)}
                 </button>
               );
             })}
@@ -1098,7 +1098,7 @@ function AutoStoringForm({ autos, gebruiker, actie, onSubmit, showToast }) {
 
       <button onClick={handleSubmit} disabled={saving}
         style={{width:"100%",background:saving?C.border:C.blauw,color:"white",border:"none",borderRadius:8,padding:14,fontSize:15,fontWeight:700,cursor:saving?"not-allowed":"pointer",fontFamily:"inherit",transition:"background .2s"}}>
-        {saving?tx("⏳ Opslaan..."):`✓ ${actie.charAt(0).toUpperCase()+actie.slice(1)} doorgeven`}
+        {saving?tx("⏳ Opslaan..."):txv("✓ {0} doorgeven", actie.charAt(0).toUpperCase()+actie.slice(1))}
       </button>
     </div>
   );
@@ -1126,7 +1126,7 @@ function AutoMeldingForm({ autos, gebruiker, onSubmit, showToast }) {
           {acties.map(a => (
             <div key={a.id} onClick={()=>setActie(a.id)}
               style={{flex:1,border:`2px solid ${actie===a.id?a.color:C.border}`,borderRadius:10,padding:"14px",textAlign:"center",cursor:"pointer",background:actie===a.id?a.color+"12":"white",transition:"all .2s"}}>
-              <div style={{fontSize:24,marginBottom:6}}>{a.icon}</div>
+              <div style={{fontSize:24,marginBottom:6}}>{tx(a.icon)}</div>
               <div style={{fontSize:11,fontWeight:700,color:actie===a.id?a.color:C.muted,letterSpacing:".8px"}}>{tx(a.label)}</div>
             </div>
           ))}
@@ -1208,7 +1208,7 @@ function AutoLog({ meldingen, autos, onUpdate, gebruiker, isBackoffice, onReacti
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
         <div>
           <h3 style={{fontSize:18,fontWeight:800,color:C.blauw}}>{tx("Auto log")}</h3>
-          <p style={{fontSize:13,color:C.muted,marginTop:2}}>{meldingen.length} {tx("meldingen totaal")}</p>
+          <p style={{fontSize:13,color:C.muted,marginTop:2}}>{tx(meldingen.length)} {tx("meldingen totaal")}</p>
         </div>
         <button onClick={exportCSV}
           style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"9px 18px",fontSize:13,fontWeight:500,cursor:"pointer",fontFamily:"inherit"}}>
@@ -1242,21 +1242,21 @@ function AutoLog({ meldingen, autos, onUpdate, gebruiker, isBackoffice, onReacti
               <span style={{fontSize:24}}>{actiIcon[m.actie]||"🚗"}</span>
               <div style={{flex:1}}>
                 <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",marginBottom:6}}>
-                  <span style={{fontWeight:800,fontSize:15,color:C.text,fontFamily:"monospace"}}>{m.kenteken}</span>
-                  <span style={{fontWeight:600,fontSize:14,color:C.text}}>{m.naam_medewerker}</span>
+                  <span style={{fontWeight:800,fontSize:15,color:C.text,fontFamily:"monospace"}}>{tx(m.kenteken)}</span>
+                  <span style={{fontWeight:600,fontSize:14,color:C.text}}>{tx(m.naam_medewerker)}</span>
                   <span style={{padding:"3px 10px",borderRadius:20,background:(actiKleur[m.actie]||C.muted)+"18",color:actiKleur[m.actie]||C.muted,fontSize:11,fontWeight:700}}>
-                    {(m.actie||"").toUpperCase()}
+                    {(tx(m.actie||"")).toUpperCase()}
                   </span>
                   {m.afwijking_gevonden && (
                     <span style={{padding:"3px 10px",borderRadius:20,background:"#fef2f2",color:"#b91c1c",fontSize:11,fontWeight:700}}>{tx("⚠️ AFWIJKING")}</span>
                   )}
                   <span style={{marginLeft:"auto",padding:"3px 10px",borderRadius:20,background:m.status==="open"?C.blauw+"18":"#f0fdf4",color:m.status==="open"?C.blauw:C.groen,fontSize:11,fontWeight:700}}>
-                    {(m.status||"").toUpperCase()}
+                    {(tx(m.status||"")).toUpperCase()}
                   </span>
                 </div>
                 <div style={{fontSize:12,color:C.muted,marginBottom:8}}>
-                  📅 {m.datum_tijd?fmtFull(m.datum_tijd):fmtFull(m.created_at)} {tx("· Door:")} {m.ingediend_door}
-                  {m.kilometerstand && ` · 🛣 ${m.kilometerstand} km`}
+                  📅 {m.datum_tijd?fmtFull(m.datum_tijd):fmtFull(m.created_at)} {tx("· Door:")} {tx(m.ingediend_door)}
+                  {m.kilometerstand && txv(" · 🛣 {0} km", m.kilometerstand)}
                   {m.locatie && ` · 📍 ${m.locatie}`}
                 </div>
                 {m.actie !== "geannuleerd" && (
@@ -1273,7 +1273,7 @@ function AutoLog({ meldingen, autos, onUpdate, gebruiker, isBackoffice, onReacti
                       ✍️ {m.handtekening_ktp&&m.handtekening_bestuurder?tx("Getekend door beide partijen"):tx("Niet (volledig) getekend")}
                     </span>
                     {(m.schade_punten||[]).length>0 && (
-                      <span className="badge" style={{background:"#fef3c7",color:"#b45309",fontSize:11}}>🚘 {m.schade_punten.length} {tx("schadepunt(en)")}</span>
+                      <span className="badge" style={{background:"#fef3c7",color:"#b45309",fontSize:11}}>🚘 {tx(m.schade_punten.length)} {tx("schadepunt(en)")}</span>
                     )}
                     {m.kosten_inhouden > 0 && (
                       <span className="badge" style={{background:"#fef2f2",color:"#b91c1c",fontSize:11,fontWeight:700}}>💶 €{Number(m.kosten_inhouden).toFixed(2).replace(".",",")} {tx("in te houden")}</span>
@@ -1303,12 +1303,12 @@ function AutoLog({ meldingen, autos, onUpdate, gebruiker, isBackoffice, onReacti
                 {(m.schade_punten||[]).length>0 && (
                   <div style={{fontSize:12,color:C.text,marginBottom:6}}>
                     {m.schade_punten.map((p,i)=>(
-                      <div key={i}>🚘 {SCHADE_ZONES.find(z=>z.key===p.zone)?.label||p.zone}: {p.omschrijving}</div>
+                      <div key={i}>🚘 {SCHADE_ZONES.find(z=>z.key===p.zone)?.label||p.zone}: {tx(p.omschrijving)}</div>
                     ))}
                   </div>
                 )}
-                {m.opmerkingen && <div style={{fontSize:13,color:C.muted,fontStyle:"italic"}}>"{m.opmerkingen}"</div>}
-                {m.afgehandeld_door && <div style={{fontSize:12,color:C.groen,marginTop:4}}>{tx("✓ Afgehandeld door")} {m.afgehandeld_door}</div>}
+                {m.opmerkingen && <div style={{fontSize:13,color:C.muted,fontStyle:"italic"}}>"{tx(m.opmerkingen)}"</div>}
+                {m.afgehandeld_door && <div style={{fontSize:12,color:C.groen,marginTop:4}}>{tx("✓ Afgehandeld door")} {tx(m.afgehandeld_door)}</div>}
                 {/* Documenten */}
                 {m.document_urls && <BijlageWeergave bijlages={JSON.parse(m.document_urls||"[]")}/>}
                 {/* Reactie van backoffice tonen aan collega */}
@@ -1316,9 +1316,9 @@ function AutoLog({ meldingen, autos, onUpdate, gebruiker, isBackoffice, onReacti
                   <div style={{marginTop:8,background:m.reactie_gelezen?"#f0fdf4":"#eff6ff",border:`1px solid ${m.reactie_gelezen?"#bbf7d0":"#bfdbfe"}`,borderRadius:8,padding:"10px 12px"}}
                     onClick={()=>{ if(!m.reactie_gelezen && isCollega) onMarkeerGelezen(m.id); }}>
                     <div style={{fontSize:11,fontWeight:700,color:m.reactie_gelezen?C.groen:C.blauw,marginBottom:4}}>
-                      {m.reactie_gelezen?"✓":"🔔"} {tx("Reactie van backoffice —")} {m.reactie_door}
+                      {m.reactie_gelezen?"✓":"🔔"} {tx("Reactie van backoffice —")} {tx(m.reactie_door)}
                     </div>
-                    <div style={{fontSize:13,color:C.text}}>"{m.backoffice_reactie}"</div>
+                    <div style={{fontSize:13,color:C.text}}>"{tx(m.backoffice_reactie)}"</div>
                     {!m.reactie_gelezen && isCollega && <div style={{fontSize:11,color:C.blauw,marginTop:4,fontStyle:"italic"}}>{tx("Klik om als gelezen te markeren")}</div>}
                   </div>
                 )}
@@ -1361,7 +1361,7 @@ function AutoLog({ meldingen, autos, onUpdate, gebruiker, isBackoffice, onReacti
                 {/* Reactie sturen naar collega */}
                 {toonReactieMap[m.id] ? (
                   <div style={{background:"#eff6ff",border:"1px solid #bfdbfe",borderRadius:8,padding:12}}>
-                    <div style={{fontSize:12,fontWeight:700,color:C.blauw,marginBottom:8}}>{tx("💬 Reactie sturen naar")} {m.ingediend_door}</div>
+                    <div style={{fontSize:12,fontWeight:700,color:C.blauw,marginBottom:8}}>{tx("💬 Reactie sturen naar")} {tx(m.ingediend_door)}</div>
                     <textarea value={reactieMap[m.id]||""} onChange={e=>setReactieMap(p=>({...p,[m.id]:e.target.value}))}
                       placeholder={`bijv. "Borg kunnen we helaas niet meer inhouden omdat..."`}
                       rows={3}
@@ -1388,7 +1388,7 @@ function AutoLog({ meldingen, autos, onUpdate, gebruiker, isBackoffice, onReacti
                   <div style={{display:"flex",flexDirection:"column",gap:8}}>
                   <button onClick={()=>setToonReactieMap(p=>({...p,[m.id]:true}))}
                     style={{background:"white",border:`1.5px solid ${C.blauw}`,color:C.blauw,borderRadius:8,padding:"7px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                    {tx("💬 Reactie sturen naar")} {m.ingediend_door}
+                    {tx("💬 Reactie sturen naar")} {tx(m.ingediend_door)}
                   </button>
                   {toonDocumentMap[m.id] ? (
                     <div style={{width:"100%",marginTop:8,background:"#f8fafc",border:`1px solid ${C.border}`,borderRadius:10,padding:14}}>
@@ -1522,7 +1522,7 @@ function BoeteOpzoeken({ meldingen, autos }) {
             <select value={kenteken} onChange={e=>setKenteken(e.target.value)}
               style={{width:"100%",border:`1.5px solid ${C.border}`,borderRadius:8,padding:"10px 14px",fontSize:14,fontFamily:"inherit",color:C.text,background:"white",outline:"none"}}>
               <option value="">{tx("— Selecteer kenteken —")}</option>
-              {uniekKentekens.map(k => <option key={k} value={k}>{k}</option>)}
+              {uniekKentekens.map(k => <option key={k} value={k}>{tx(k)}</option>)}
             </select>
           </div>
           <div>
@@ -1546,14 +1546,14 @@ function BoeteOpzoeken({ meldingen, autos }) {
                 <span style={{fontSize:28}}>✅</span>
                 <div>
                   <div style={{fontSize:13,color:"#166534",fontWeight:600}}>{resultaat.fallback ? tx("Huidig gekoppelde medewerker (geen uitgifte-log gevonden)") : tx("Bestuurder gevonden")}</div>
-                  <div style={{fontSize:20,fontWeight:800,color:"#14532d",marginTop:2}}>{resultaat.bestuurder}</div>
+                  <div style={{fontSize:20,fontWeight:800,color:"#14532d",marginTop:2}}>{tx(resultaat.bestuurder)}</div>
                   {resultaat.fallback && <div style={{fontSize:11,color:"#166534",marginTop:4}}>{tx("⚠️ Geen uitgifte-registratie gevonden voor deze datum — dit is de huidige koppeling.")}</div>}
                 </div>
               </div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:20}}>
                 <div style={{padding:"12px 16px",background:C.bg,borderRadius:8}}>
                   <div style={{fontSize:11,color:C.muted,fontWeight:600,marginBottom:3}}>{tx("AUTO")}</div>
-                  <div style={{fontSize:13,fontWeight:700,color:C.text}}>{resultaat.auto?.kenteken}</div>
+                  <div style={{fontSize:13,fontWeight:700,color:C.text}}>{tx(resultaat.auto?.kenteken)}</div>
                   <div style={{fontSize:12,color:C.muted}}>{resultaat.auto?.merk_model||"—"}</div>
                 </div>
                 <div style={{padding:"12px 16px",background:C.bg,borderRadius:8}}>
@@ -1589,7 +1589,7 @@ function BoeteOpzoeken({ meldingen, autos }) {
                         <div style={{fontSize:13,fontWeight:600,color:C.text}}>
                           {isUitgifte?tx("Uitgegeven aan"):isInname?tx("Ingenomen van"):m.actie} {m.naam_medewerker||""}
                         </div>
-                        <div style={{fontSize:11,color:C.muted}}>{fmtFull(m.created_at)} · {m.ingediend_door}</div>
+                        <div style={{fontSize:11,color:C.muted}}>{fmtFull(m.created_at)} · {tx(m.ingediend_door)}</div>
                       </div>
                       {isDatumDag && <span style={{fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:10,background:"#fef08a",color:"#713f12"}}>{tx("boetedatum")}</span>}
                     </div>
@@ -1623,7 +1623,7 @@ function AutoBeheer({ autos, gearchiveerdeAutos=[], onAdd, onUpdate, onArchiveer
   return (
     <div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-        <h3 style={{fontSize:16,fontWeight:800,color:C.blauw}}>{tx("Auto's beheren (")}{autos.length})</h3>
+        <h3 style={{fontSize:16,fontWeight:800,color:C.blauw}}>{tx("Auto's beheren (")}{tx(autos.length)})</h3>
         <button onClick={()=>setToonNieuwe(!toonNieuwe)}
           style={{background:C.blauw,color:"white",border:"none",borderRadius:8,padding:"9px 18px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
           {tx("+ Auto toevoegen")}
@@ -1643,7 +1643,7 @@ function AutoBeheer({ autos, gearchiveerdeAutos=[], onAdd, onUpdate, onArchiveer
             ].map(f=>(
               <div key={f.key}>
                 <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>{tx(f.label)}</label>
-                <input value={nieuw[f.key]} onChange={e=>setNieuw(p=>({...p,[f.key]:e.target.value}))} placeholder={f.ph}
+                <input value={nieuw[f.key]} onChange={e=>setNieuw(p=>({...p,[f.key]:e.target.value}))} placeholder={tx(f.ph)}
                   style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"9px 12px",fontSize:13,outline:"none",fontFamily:"inherit"}}/>
               </div>
             ))}
@@ -1661,7 +1661,7 @@ function AutoBeheer({ autos, gearchiveerdeAutos=[], onAdd, onUpdate, onArchiveer
               <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>{tx("Status")}</label>
               <select value={nieuw.status} onChange={e=>setNieuw(p=>({...p,status:e.target.value}))}
                 style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"9px 12px",fontSize:13,outline:"none",appearance:"none",fontFamily:"inherit"}}>
-                {AUTO_STATUSSEN.map(s=><option key={s}>{s}</option>)}
+                {AUTO_STATUSSEN.map(s=><option key={s} value={s}>{tx(s)}</option>)}
               </select>
             </div>
           </div>
@@ -1688,15 +1688,15 @@ function AutoBeheer({ autos, gearchiveerdeAutos=[], onAdd, onUpdate, onArchiveer
             <AutoBewerken key={a.id} auto={a} onSave={async u=>{setSaving(true);await onUpdate(a.id,u,a);setSaving(false);setBewerkId(null);}} onCancel={()=>setBewerkId(null)} saving={saving}/>
           ) : (
             <div key={a.id} style={{display:"grid",gridTemplateColumns:"120px 1fr 130px 100px 100px 120px 80px",padding:"12px 16px",fontSize:12,borderBottom:i<autos.length-1?`1px solid ${C.border}`:"none",alignItems:"center",background:i%2===0?"white":C.bg+"40"}}>
-              <span style={{fontWeight:800,color:C.blauw,fontFamily:"monospace"}}>{a.kenteken}</span>
-              <div><div style={{fontWeight:600,color:C.text}}>{a.merk_model}</div>{a.kleur&&<div style={{fontSize:11,color:C.muted}}>{a.kleur}</div>}</div>
+              <span style={{fontWeight:800,color:C.blauw,fontFamily:"monospace"}}>{tx(a.kenteken)}</span>
+              <div><div style={{fontWeight:600,color:C.text}}>{tx(a.merk_model)}</div>{a.kleur&&<div style={{fontSize:11,color:C.muted}}>{tx(a.kleur)}</div>}</div>
               <span style={{color:C.muted}}>{a.naam_medewerker||"—"}</span>
               <span style={{color:C.muted}}>{a.vestiging||"—"}</span>
               <span style={{color:a.apk_datum&&new Date(a.apk_datum)<new Date()?"#ef4444":C.muted}}>{a.apk_datum?fmtDate(a.apk_datum):"—"}</span>
               <span style={{padding:"3px 8px",borderRadius:6,background:c.bg,color:c.text,fontSize:10,fontWeight:700}}>{tx(a.status)}</span>
               <div style={{display:"flex",gap:4}}>
                 <button onClick={()=>setBewerkId(a.id)} style={{background:"white",border:`1px solid ${C.border}`,borderRadius:6,padding:"4px 8px",cursor:"pointer",fontSize:11}}>✏️</button>
-                <button onClick={async()=>{if(window.confirm(`${a.kenteken} archiveren?`)){await onArchiveer(a.id,a.kenteken);}}} style={{background:"#f59e0b",color:"white",border:"none",borderRadius:6,padding:"4px 8px",cursor:"pointer",fontSize:11}}>🗃</button>
+                <button onClick={async()=>{if(window.confirm(txv("{0} archiveren?", a.kenteken))){await onArchiveer(a.id,a.kenteken);}}} style={{background:"#f59e0b",color:"white",border:"none",borderRadius:6,padding:"4px 8px",cursor:"pointer",fontSize:11}}>🗃</button>
               </div>
             </div>
           );
@@ -1706,13 +1706,13 @@ function AutoBeheer({ autos, gearchiveerdeAutos=[], onAdd, onUpdate, onArchiveer
       {gearchiveerdeAutos.length > 0 && (
         <div style={{marginTop:24}}>
           <div style={{fontWeight:700,fontSize:13,color:"#6b7280",marginBottom:10,borderTop:"2px dashed #e5e7eb",paddingTop:16}}>
-            {tx("🗃 Gearchiveerde auto's (")}{gearchiveerdeAutos.length})
+            {tx("🗃 Gearchiveerde auto's (")}{tx(gearchiveerdeAutos.length)})
           </div>
           {gearchiveerdeAutos.map(a => (
             <div key={a.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 16px",background:"#f9fafb",borderRadius:8,marginBottom:6,border:"1px solid #e5e7eb"}}>
               <div>
-                <span style={{fontWeight:800,color:"#6b7280",fontFamily:"monospace",marginRight:12}}>{a.kenteken}</span>
-                <span style={{fontSize:12,color:"#9ca3af"}}>{a.merk_model}{a.kleur ? " · " + a.kleur : ""}</span>
+                <span style={{fontWeight:800,color:"#6b7280",fontFamily:"monospace",marginRight:12}}>{tx(a.kenteken)}</span>
+                <span style={{fontSize:12,color:"#9ca3af"}}>{tx(a.merk_model)}{a.kleur ? " · " + a.kleur : ""}</span>
               </div>
               <button onClick={async()=>{if(window.confirm(a.kenteken + " terugzetten?")){await onTerugzetten(a.id,a.kenteken);}}}
                 style={{background:"#10b981",color:"white",border:"none",borderRadius:6,padding:"4px 12px",cursor:"pointer",fontSize:11}}>
@@ -1750,7 +1750,7 @@ function AutoBewerken({ auto, onSave, onCancel, saving }) {
           <label style={{fontSize:10,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>{tx("Status")}</label>
           <select value={v.status||"Beschikbaar"} onChange={e=>setV(p=>({...p,status:e.target.value}))}
             style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:6,color:C.text,padding:"7px 10px",fontSize:12,outline:"none",appearance:"none",fontFamily:"inherit"}}>
-            {AUTO_STATUSSEN.map(s=><option key={s}>{s}</option>)}
+            {AUTO_STATUSSEN.map(s=><option key={s} value={s}>{tx(s)}</option>)}
           </select>
         </div>
       </div>

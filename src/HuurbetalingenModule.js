@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "./supabaseClient";
 import WeekDatePicker from "./WeekDatePicker";
 import { MedewerkerKiezer, naamProbleem, normaliseerNaam, vernieuwMedewerkerNamen } from "./MedewerkerKiezer";
-import { tx } from "./i18n";
+import { tx, txv } from "./i18n";
 
 // ─── EMAILJS ──────────────────────────────────────────────────────────────────
 const EMAILJS_SERVICE  = "service_1af258e";
@@ -221,7 +221,7 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
       extra: { naam: (schuld.naam_medewerker || "").trim(), schuld_id: schuld.id, bedrag },
     }]);
     if (logErr) console.error("Log afschrijving mislukt:", logErr);
-    showToast(`✓ €${bedrag.toFixed(2)} afgeschreven — komt vanavond in Cockpit bij ${schuld.naam_medewerker}`);
+    showToast(txv("✓ €{0} afgeschreven — komt vanavond in Cockpit bij {1}", bedrag.toFixed(2), schuld.naam_medewerker));
     return true;
   }
 
@@ -279,9 +279,9 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
         <div>
           <h2 style={{fontSize:20,fontWeight:800,color:C.blauw,marginBottom:3}}>{tx("💶 Huurbetalingen")}</h2>
           <p style={{fontSize:13,color:C.muted}}>
-            {actief.length} {tx("openstaand ·")} {gesloten.length} {tx("afgesloten")}
+            {tx(actief.length)} {tx("openstaand ·")} {tx(gesloten.length)} {tx("afgesloten")}
             {totaalOpen > 0 && <> · <strong style={{color:C.rood}}>€{totaalOpen.toFixed(2)} {tx("open")}</strong></>}
-            {afgeschrevenDitJaar > 0 && <> · <span style={{color:C.muted}}>💸 €{afgeschrevenDitJaar.toFixed(2)} {tx("afgeschreven in")} {ditJaar}</span></>}
+            {afgeschrevenDitJaar > 0 && <> · <span style={{color:C.muted}}>💸 €{afgeschrevenDitJaar.toFixed(2)} {tx("afgeschreven in")} {tx(ditJaar)}</span></>}
           </p>
         </div>
         {isBackoffice && (
@@ -303,7 +303,7 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
       {totaalOpen > 0 && !toonNieuw && (
         <div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:10,padding:"10px 16px",marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}>
           <div style={{fontWeight:700,color:"#b91c1c",fontSize:13}}>{tx("⚠️ Totaal openstaand: €")}{totaalOpen.toFixed(2)}</div>
-          <div style={{fontSize:12,color:"#b91c1c"}}>{tx("Verdeeld over")} {actief.length} {tx("medewerker")}{actief.length !== 1 ? "s" : ""}</div>
+          <div style={{fontSize:12,color:"#b91c1c"}}>{tx("Verdeeld over")} {tx(actief.length)} {tx("medewerker")}{actief.length !== 1 ? "s" : ""}</div>
         </div>
       )}
 
@@ -323,7 +323,7 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
         </select>
       </div>
       <div style={{display:"flex",gap:4,marginBottom:16,flexWrap:"wrap"}}>
-        {[["alle",`Alles (${schulden.length})`],["openstaand",`💶 Openstaand (${actief.length})`],["afgesloten",`✅ Afgesloten (${gesloten.length})`],["afgeschreven",`💸 Afgeschreven (${afgeschreven.length})`]].map(([v,l]) => (
+        {[["alle",txv("Alles ({0})", schulden.length)],["openstaand",txv("💶 Openstaand ({0})", actief.length)],["afgesloten",txv("✅ Afgesloten ({0})", gesloten.length)],["afgeschreven",txv("💸 Afgeschreven ({0})", afgeschreven.length)]].map(([v,l]) => (
           <button key={v} onClick={() => setFilterStatus(v)}
             style={{background:filterStatus===v?C.blauw:"white",color:filterStatus===v?"white":C.muted,border:`1.5px solid ${filterStatus===v?C.blauw:C.border}`,borderRadius:20,padding:"7px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
             {tx(l)}
@@ -331,12 +331,12 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
         ))}
       </div>
 
-      {q && <div style={{fontSize:12,color:C.muted,marginBottom:10}}>{gefilterd.length} {tx("resultaten voor \"")}<strong>{zoek}</strong>"</div>}
+      {q && <div style={{fontSize:12,color:C.muted,marginBottom:10}}>{tx(gefilterd.length)} {tx("resultaten voor \"")}<strong>{tx(zoek)}</strong>"</div>}
 
       {gefilterd.length === 0 ? (
         <div style={{textAlign:"center",padding:"60px",color:C.muted}}>
           <div style={{fontSize:40,marginBottom:10}}>🔍</div>
-          <div>{q ? `Geen resultaten voor "${zoek}"` : tx("Geen huurschulden gevonden 🎉")}</div>
+          <div>{q ? txv("Geen resultaten voor \"{0}\"", zoek) : tx("Geen huurschulden gevonden 🎉")}</div>
         </div>
       ) : (
         <div style={{display:"grid",gap:16}}>
@@ -345,7 +345,7 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
             <>
               {filterStatus === "alle" && (
                 <div style={{display:"flex",alignItems:"center",gap:10,marginTop:4}}>
-                  <span style={{fontWeight:700,fontSize:13,color:C.rood}}>{tx("💶 Openstaand (")}{actiefGefilterd.length})</span>
+                  <span style={{fontWeight:700,fontSize:13,color:C.rood}}>{tx("💶 Openstaand (")}{tx(actiefGefilterd.length)})</span>
                   <div style={{flex:1,height:1,background:C.border}}/>
                 </div>
               )}
@@ -360,7 +360,7 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
             <>
               {filterStatus === "alle" && (
                 <div style={{display:"flex",alignItems:"center",gap:10,marginTop:8}}>
-                  <span style={{fontWeight:700,fontSize:13,color:C.groen}}>{tx("✅ Afgesloten (")}{geslotenGefilterd.length})</span>
+                  <span style={{fontWeight:700,fontSize:13,color:C.groen}}>{tx("✅ Afgesloten (")}{tx(geslotenGefilterd.length)})</span>
                   <div style={{flex:1,height:1,background:C.border}}/>
                 </div>
               )}
@@ -447,7 +447,7 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onAfschrij
       <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",flexWrap:"wrap",gap:12,marginBottom:16}}>
         <div>
           <div style={{fontWeight:800,fontSize:17,color:C.text,marginBottom:4}}>
-            {schuld.naam_medewerker}
+            {tx(schuld.naam_medewerker)}
             {schuld.einddatum && schuld.actief && openstaand > 0 && (
               <span style={{marginLeft:8,fontSize:11,fontWeight:700,background:"#fef2f2",color:"#ef4444",padding:"2px 8px",borderRadius:8,border:"1px solid #fecaca"}}>
                 {tx("🛑 Gestopt — schuld loopt nog")}
@@ -467,12 +467,12 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onAfschrij
           <div style={{fontSize:12,color:C.muted}}>
             {tx("Vanaf")} {fmtDate(schuld.startdatum)}
             {schuld.einddatum ? ` t/m ${fmtDate(schuld.einddatum)}` : tx(" (lopend)")}
-            {" · "}{weken} {tx("week")}{weken !== 1 ? tx("en") : ""}
-            {" · €"}{weekbedrag}{tx("/week")}
+            {" · "}{tx(weken)} {tx("week")}{weken !== 1 ? tx("en") : ""}
+            {" · €"}{tx(weekbedrag)}{tx("/week")}
           </div>
           {volgendeDatum && !schuld.einddatum && (
             <div style={{fontSize:12,color:"#f59e0b",fontWeight:600,marginTop:3}}>
-              {tx("📅 Volgende betaling verwacht:")} {fmtDate(volgendeDatum)} (€{weekbedrag})
+              {tx("📅 Volgende betaling verwacht:")} {fmtDate(volgendeDatum)} (€{tx(weekbedrag)})
             </div>
           )}
         </div>
@@ -506,14 +506,14 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onAfschrij
       {/* Opmerkingen */}
       {schuld.opmerkingen && (
         <div style={{background:C.bg,borderRadius:8,padding:"10px 14px",fontSize:13,color:C.muted,marginBottom:12,whiteSpace:"pre-wrap"}}>
-          💬 {schuld.opmerkingen}
+          💬 {tx(schuld.opmerkingen)}
         </div>
       )}
 
       {isAfgeschreven && (
         <div style={{background:"#f1f5f9",border:"1px solid #cbd5e1",borderRadius:8,padding:"10px 14px",fontSize:13,color:"#475569",marginBottom:12}}>
-          💸 €{afgeschrevenBedrag.toFixed(2)} {tx("afgeschreven op")} {fmtDate(schuld.afgeschreven_op)}{schuld.afgeschreven_door ? ` door ${schuld.afgeschreven_door}` : ""}
-          {schuld.afgeschreven_reden && <> — {schuld.afgeschreven_reden}</>}
+          💸 €{afgeschrevenBedrag.toFixed(2)} {tx("afgeschreven op")} {fmtDate(schuld.afgeschreven_op)}{schuld.afgeschreven_door ? txv(" door {0}", schuld.afgeschreven_door) : ""}
+          {schuld.afgeschreven_reden && <> — {tx(schuld.afgeschreven_reden)}</>}
           <div style={{fontSize:11,marginTop:4}}>{tx("Niet betaald. Staat als contactmoment in Cockpit voor als deze medewerker terugkomt.")}</div>
         </div>
       )}
@@ -522,7 +522,7 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onAfschrij
       {(schuld.betalingen || []).length > 0 && (
         <button onClick={() => setToonBetalingen(!toonBetalingen)}
           style={{background:"none",border:"none",color:C.blauw,fontSize:13,cursor:"pointer",fontFamily:"inherit",padding:"4px 0",marginBottom:8,fontWeight:600}}>
-          {toonBetalingen ? "▲" : "▼"} {(schuld.betalingen || []).length} {tx("betaling")}{(schuld.betalingen || []).length !== 1 ? tx("en") : ""} {tx("bekijken")}
+          {toonBetalingen ? "▲" : "▼"} {tx((schuld.betalingen || []).length)} {tx("betaling")}{(schuld.betalingen || []).length !== 1 ? tx("en") : ""} {tx("bekijken")}
         </button>
       )}
       {toonBetalingen && (
@@ -532,9 +532,9 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onAfschrij
               <div>
                 <span style={{fontWeight:700,color:C.groen}}>€{Number(b.bedrag).toFixed(2)}</span>
                 <span style={{color:C.muted,marginLeft:10}}>{fmtDate(b.datum)}</span>
-                {b.opmerking && <span style={{color:C.muted,marginLeft:10,fontStyle:"italic"}}>"{b.opmerking}"</span>}
+                {b.opmerking && <span style={{color:C.muted,marginLeft:10,fontStyle:"italic"}}>"{tx(b.opmerking)}"</span>}
               </div>
-              <span style={{fontSize:11,color:C.muted}}>{tx("door")} {b.geregistreerd_door}</span>
+              <span style={{fontSize:11,color:C.muted}}>{tx("door")} {tx(b.geregistreerd_door)}</span>
             </div>
           ))}
         </div>
@@ -649,7 +649,7 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onAfschrij
                   {tx("Annuleren")}
                 </button>
                 <span style={{fontSize:12,color:C.muted,marginLeft:4}}>
-                  {tx("Datum:")} <strong style={{color:C.blauw}}>{betalingDatum}</strong>
+                  {tx("Datum:")} <strong style={{color:C.blauw}}>{tx(betalingDatum)}</strong>
                 </span>
               </div>
             </div>
@@ -658,7 +658,7 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onAfschrij
               <div style={{fontWeight:700,fontSize:13,color:"#475569",marginBottom:8}}>{tx("💸 Afschrijven — wordt niet meer betaald")}</div>
               <div style={{fontSize:12,color:"#475569",marginBottom:12,lineHeight:1.5}}>
                 {tx("Er wordt")} <strong>€{berekenOpenstaand({ ...schuld, einddatum: schuld.einddatum || todayISO() }).toFixed(2)}</strong> {tx("afgeschreven")}
-                {!schuld.einddatum && <> {tx("(huur stopt vandaag,")} {fmtDate(todayISO())})</>}{tx(". Dit telt")} <strong>{tx("niet")}</strong> {tx("als betaling: het bedrag blijft zichtbaar als gemiste huur. De schuld verdwijnt uit \"Openstaand\" en vanavond komt er een contactmoment in Cockpit bij")} {schuld.naam_medewerker}.
+                {!schuld.einddatum && <> {tx("(huur stopt vandaag,")} {fmtDate(todayISO())})</>}{tx(". Dit telt")} <strong>{tx("niet")}</strong> {tx("als betaling: het bedrag blijft zichtbaar als gemiste huur. De schuld verdwijnt uit \"Openstaand\" en vanavond komt er een contactmoment in Cockpit bij")} {tx(schuld.naam_medewerker)}.
               </div>
               <Label>{tx("Reden *")}</Label>
               <div style={{marginBottom:10}}>
@@ -748,7 +748,7 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onAfschrij
                     </button>
                   )}
                   {openstaand === 0 && (
-                    <button onClick={()=>{ if(window.confirm(`Schuld van ${schuld.naam_medewerker} afsluiten? Alles is betaald.`)) onAfsluiten(schuld.id); }}
+                    <button onClick={()=>{ if(window.confirm(txv("Schuld van {0} afsluiten? Alles is betaald.", schuld.naam_medewerker))) onAfsluiten(schuld.id); }}
                       style={{background:"#f0fdf4",border:`1.5px solid ${C.groen}`,color:C.groen,borderRadius:8,padding:"9px 14px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
                       {tx("✅ Afsluiten")}
                     </button>
@@ -815,14 +815,14 @@ function BetalingsKalender({ betalingen, geselecteerdeDatum, onSelecteer }) {
       {/* Navigatie */}
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
         <button onClick={vorigeM} style={{background:"none",border:"none",cursor:"pointer",fontSize:16,color:C.muted,padding:"2px 8px"}}>‹</button>
-        <span style={{fontWeight:700,fontSize:13,color:C.blauw}}>{maandNamen[huidigMaand]} {huidigJaar}</span>
+        <span style={{fontWeight:700,fontSize:13,color:C.blauw}}>{tx(maandNamen[huidigMaand])} {tx(huidigJaar)}</span>
         <button onClick={volgendeM} style={{background:"none",border:"none",cursor:"pointer",fontSize:16,color:C.muted,padding:"2px 8px"}}>›</button>
       </div>
 
       {/* Dagnamen */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2,marginBottom:4}}>
         {["Ma","Di","Wo","Do","Vr","Za","Zo"].map(d => (
-          <div key={d} style={{textAlign:"center",fontSize:10,fontWeight:700,color:C.muted,padding:"2px 0"}}>{d}</div>
+          <div key={d} style={{textAlign:"center",fontSize:10,fontWeight:700,color:C.muted,padding:"2px 0"}}>{tx(d)}</div>
         ))}
       </div>
 
@@ -848,7 +848,7 @@ function BetalingsKalender({ betalingen, geselecteerdeDatum, onSelecteer }) {
                   border: isGeselecteerd ? `2px solid ${C.blauw}` : heeftBetaling ? `1.5px solid ${C.groen}` : `1px solid ${C.border}`,
                   color: heeftBetaling ? C.groenDark : isGeselecteerd ? C.blauw : C.text,
                 }}>
-                {dag}
+                {tx(dag)}
                 {isVandaag && <div style={{width:4,height:4,borderRadius:"50%",background:C.blauw,margin:"1px auto 0"}}/>}
                 {heeftBetaling && <div style={{fontSize:8,color:C.groenDark,fontWeight:700}}>✓</div>}
               </div>
@@ -856,7 +856,7 @@ function BetalingsKalender({ betalingen, geselecteerdeDatum, onSelecteer }) {
               {tooltip?.iso === iso && (
                 <div style={{position:"absolute",bottom:"110%",left:"50%",transform:"translateX(-50%)",background:C.blauwDark,color:"white",borderRadius:8,padding:"6px 10px",fontSize:11,whiteSpace:"nowrap",zIndex:99,boxShadow:"0 4px 12px rgba(0,0,0,.2)",pointerEvents:"none"}}>
                   {bets.map((b,bi) => (
-                    <div key={bi}>💶 €{Number(b.bedrag).toFixed(2)} — {b.geregistreerd_door}</div>
+                    <div key={bi}>💶 €{Number(b.bedrag).toFixed(2)} — {tx(b.geregistreerd_door)}</div>
                   ))}
                   <div style={{position:"absolute",bottom:-5,left:"50%",width:10,height:10,background:C.blauwDark,borderRadius:2,transform:"translateX(-50%) rotate(45deg)"}}/>
                 </div>

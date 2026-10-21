@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "./supabaseClient";
 import { weekPlusN, getWeekNr } from "./BorgModule";
-import { tx } from "./i18n";
+import { tx, txv } from "./i18n";
 
 const C = {
   blauw:"#1B3A6B", blauwDark:"#132b52",
@@ -168,7 +168,7 @@ export function FietsModule({ gebruiker, showToast }) {
     }
 
     setSaving(false);
-    showToast(`✓ Fiets uitgegeven aan ${naam} — ${toastBorg}, gelogd`);
+    showToast(txv("✓ Fiets uitgegeven aan {0} — {1}, gelogd", naam, toastBorg));
     setToonUitgifte(false);
     setUitgifte({ locatie:"", naam_medewerker:"", nieuweNaam:"", verkoopbedrag:"" });
   }
@@ -194,7 +194,7 @@ export function FietsModule({ gebruiker, showToast }) {
       <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:20,flexWrap:"wrap",gap:12}}>
         <div>
           <h2 style={{fontSize:20,fontWeight:800,color:C.blauw,marginBottom:3}}>{tx("🚲 Beschikbare fietsen")}</h2>
-          <p style={{fontSize:13,color:C.muted}}>{fietsen.length} {tx("beschikbaar ·")} {locaties.length} {tx("locatie")}{locaties.length!==1?"s":""}</p>
+          <p style={{fontSize:13,color:C.muted}}>{tx(fietsen.length)} {tx("beschikbaar ·")} {tx(locaties.length)} {tx("locatie")}{locaties.length!==1?"s":""}</p>
         </div>
         <div style={{display:"flex",gap:8}}>
           <button onClick={()=>{setToonUitgifte(!toonUitgifte);setToonToevoegen(false);}}
@@ -221,7 +221,7 @@ export function FietsModule({ gebruiker, showToast }) {
                 style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:uitgifte.locatie?C.text:C.muted,padding:"10px 14px",fontSize:14,outline:"none",fontFamily:"inherit",appearance:"none"}}>
                 <option value="">{tx("Selecteer locatie...")}</option>
                 {locaties.map(l => (
-                  <option key={l} value={l}>{tx(l)} ({(perLocatie[l]||[]).length} {tx("beschikbaar)")}</option>
+                  <option key={l} value={l}>{tx(l)} ({tx((perLocatie[l]||[]).length)} {tx("beschikbaar)")}</option>
                 ))}
               </select>
             </div>
@@ -230,7 +230,7 @@ export function FietsModule({ gebruiker, showToast }) {
               <select value={uitgifte.naam_medewerker} onChange={e=>setUitgifte(p=>({...p,naam_medewerker:e.target.value}))}
                 style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:uitgifte.naam_medewerker?C.text:C.muted,padding:"10px 14px",fontSize:14,outline:"none",fontFamily:"inherit",appearance:"none"}}>
                 <option value="">{tx("Selecteer bestaande medewerker...")}</option>
-                {actievePlannen.map(n => <option key={n} value={n}>{n}</option>)}
+                {actievePlannen.map(n => <option key={n} value={n}>{tx(n)}</option>)}
                 <option value="__nieuw__">{tx("+ Nieuwe naam (nog geen borgplan)")}</option>
               </select>
               {uitgifte.naam_medewerker === "__nieuw__" && (
@@ -288,8 +288,8 @@ export function FietsModule({ gebruiker, showToast }) {
             const kleur = aantal === 0 ? C.muted : aantal <= 1 ? "#f59e0b" : C.groen;
             return (
               <div key={loc} style={{background:"white",border:`1px solid ${C.border}`,borderTop:`4px solid ${kleur}`,borderRadius:12,padding:20,boxShadow:"0 1px 4px rgba(27,58,107,.06)"}}>
-                <div style={{fontSize:13,fontWeight:700,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:".5px"}}>📍 {loc}</div>
-                <div style={{fontSize:48,fontWeight:900,color:kleur,lineHeight:1,marginBottom:6}}>{aantal}</div>
+                <div style={{fontSize:13,fontWeight:700,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:".5px"}}>📍 {tx(loc)}</div>
+                <div style={{fontSize:48,fontWeight:900,color:kleur,lineHeight:1,marginBottom:6}}>{tx(aantal)}</div>
                 <div style={{fontSize:13,color:C.muted}}>{tx("fiets")}{aantal!==1?tx("en"):""} {tx("beschikbaar")}</div>
                 {aantal <= 1 && aantal > 0 && (
                   <div style={{marginTop:8,fontSize:11,fontWeight:700,color:"#b45309",background:"#fef3c7",borderRadius:6,padding:"4px 8px",display:"inline-block"}}>{tx("⚠️ Bijna op")}</div>

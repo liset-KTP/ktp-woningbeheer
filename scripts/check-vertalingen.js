@@ -4,7 +4,7 @@ const fs = require("fs"), path = require("path");
 const SRC = path.join(__dirname, "..", "src");
 const teksten = JSON.parse(fs.readFileSync(path.join(SRC, "i18n", "teksten.json"), "utf8"));
 const TALEN = ["en", "ro", "pl"];
-const re = /\btx\(("(?:[^"\\]|\\.)*")\)/g;
+const re = /\btxv?\(("(?:[^"\\]|\\.)*")[,)]/g;
 const ontbreekt = new Map();
 for (const f of fs.readdirSync(SRC).filter(f => f.endsWith(".js") && f !== "i18n.js")) {
   const src = fs.readFileSync(path.join(SRC, f), "utf8");

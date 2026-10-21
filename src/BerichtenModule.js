@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "./supabaseClient";
-import { tx } from "./i18n";
+import { tx, txv } from "./i18n";
 
 const C = {
   blauw:"#1B3A6B", blauwLight:"#2a52a0",
@@ -124,9 +124,9 @@ export function BerichtenModule({ gebruiker, houses, taken, meldingen, autos }) 
         <div>
           <h2 style={{ fontSize: 20, fontWeight: 800, color: C.blauw, marginBottom: 3 }}>
             {tx("💬 Berichten")}
-            {ongelezen > 0 && <span style={{ background: C.rood, color: "white", fontSize: 12, fontWeight: 700, padding: "2px 8px", borderRadius: 10, marginLeft: 10 }}>{ongelezen}</span>}
+            {ongelezen > 0 && <span style={{ background: C.rood, color: "white", fontSize: 12, fontWeight: 700, padding: "2px 8px", borderRadius: 10, marginLeft: 10 }}>{tx(ongelezen)}</span>}
           </h2>
-          <p style={{ fontSize: 13, color: C.muted }}>{berichten.length} {tx("berichten ·")} {ongelezen} {tx("ongelezen")}</p>
+          <p style={{ fontSize: 13, color: C.muted }}>{tx(berichten.length)} {tx("berichten ·")} {tx(ongelezen)} {tx("ongelezen")}</p>
         </div>
         <button onClick={() => setToonNieuw(true)}
           style={{ background: C.blauw, color: "white", border: "none", borderRadius: 8, padding: "10px 20px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
@@ -203,13 +203,13 @@ function BerichtKaart({ bericht: b, gebruiker, onMarkeerGelezen }) {
       <div onClick={handleOpen} style={{ padding: "14px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 12 }}>
         {/* Avatar */}
         <div style={{ width: 38, height: 38, borderRadius: "50%", background: vanMij ? C.groen + "20" : C.blauw + "20", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>
-          {b.van.charAt(0).toUpperCase()}
+          {tx(b.van.charAt(0)).toUpperCase()}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            <span style={{ fontWeight: 700, fontSize: 14, color: C.text }}>{b.van}</span>
+            <span style={{ fontWeight: 700, fontSize: 14, color: C.text }}>{tx(b.van)}</span>
             {b.aan ? (
-              <span style={{ fontSize: 12, color: C.muted }}>→ {b.aan}</span>
+              <span style={{ fontSize: 12, color: C.muted }}>→ {tx(b.aan)}</span>
             ) : (
               <span style={{ fontSize: 11, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: "1px 8px", color: C.muted }}>{tx("iedereen")}</span>
             )}
@@ -218,12 +218,12 @@ function BerichtKaart({ bericht: b, gebruiker, onMarkeerGelezen }) {
             )}
             {b.koppeling_label && (
               <span style={{ fontSize: 11, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: "1px 8px", color: C.muted }}>
-                {KOPPELING_ICONS[b.koppeling_type]} {b.koppeling_label}
+                {tx(KOPPELING_ICONS[b.koppeling_type])} {tx(b.koppeling_label)}
               </span>
             )}
           </div>
           <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>
-            {b.onderwerp && <span style={{ fontWeight: 600, color: C.text, marginRight: 8 }}>{b.onderwerp}</span>}
+            {b.onderwerp && <span style={{ fontWeight: 600, color: C.text, marginRight: 8 }}>{tx(b.onderwerp)}</span>}
             <span style={{ color: gelezen ? C.muted : C.text }}>{b.tekst.length > 80 && !open ? b.tekst.slice(0, 80) + "..." : !open ? b.tekst : ""}</span>
           </div>
         </div>
@@ -237,12 +237,12 @@ function BerichtKaart({ bericht: b, gebruiker, onMarkeerGelezen }) {
       {open && (
         <div style={{ padding: "0 18px 16px 18px", borderTop: `1px solid ${C.border}` }}>
           {b.onderwerp && (
-            <div style={{ fontWeight: 700, fontSize: 14, color: C.text, marginTop: 14, marginBottom: 8 }}>{b.onderwerp}</div>
+            <div style={{ fontWeight: 700, fontSize: 14, color: C.text, marginTop: 14, marginBottom: 8 }}>{tx(b.onderwerp)}</div>
           )}
-          <div style={{ fontSize: 14, color: C.text, marginTop: b.onderwerp ? 0 : 14, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{b.tekst}</div>
+          <div style={{ fontSize: 14, color: C.text, marginTop: b.onderwerp ? 0 : 14, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{tx(b.tekst)}</div>
           {b.koppeling_label && (
             <div style={{ marginTop: 12, padding: "8px 12px", background: C.bg, borderRadius: 8, fontSize: 12, color: C.muted }}>
-              {KOPPELING_ICONS[b.koppeling_type]} {tx("Gekoppeld aan:")} <strong style={{ color: C.text }}>{b.koppeling_label}</strong>
+              {tx(KOPPELING_ICONS[b.koppeling_type])} {tx("Gekoppeld aan:")} <strong style={{ color: C.text }}>{tx(b.koppeling_label)}</strong>
             </div>
           )}
           <div style={{ marginTop: 12, fontSize: 11, color: C.muted }}>
@@ -307,7 +307,7 @@ function NieuwBerichtForm({ gebruiker, houses, taken, meldingen, autos, onVerstu
           <select value={aan} onChange={e => setAan(e.target.value)}
             style={{ width: "100%", background: "white", border: `1.5px solid ${C.border}`, borderRadius: 8, color: C.text, padding: "10px 14px", fontSize: 14, outline: "none", appearance: "none", fontFamily: "inherit" }}>
             <option value="">{tx("Iedereen")}</option>
-            {andereGebruikers.map(g => <option key={g.naam} value={g.naam}>{g.naam}</option>)}
+            {andereGebruikers.map(g => <option key={g.naam} value={g.naam}>{tx(g.naam)}</option>)}
           </select>
         </div>
         <div>
@@ -332,7 +332,7 @@ function NieuwBerichtForm({ gebruiker, houses, taken, meldingen, autos, onVerstu
         </div>
         {koppelingType && (
           <div>
-            <label style={{ fontSize: 11, fontWeight: 600, color: C.muted, letterSpacing: ".8px", textTransform: "uppercase", marginBottom: 6, display: "block" }}>{tx("Selecteer")} {koppelingType}</label>
+            <label style={{ fontSize: 11, fontWeight: 600, color: C.muted, letterSpacing: ".8px", textTransform: "uppercase", marginBottom: 6, display: "block" }}>{tx("Selecteer")} {tx(koppelingType)}</label>
             <select value={koppelingId} onChange={e => setKoppelingId(e.target.value)}
               style={{ width: "100%", background: "white", border: `1.5px solid ${C.border}`, borderRadius: 8, color: C.text, padding: "10px 14px", fontSize: 14, outline: "none", appearance: "none", fontFamily: "inherit" }}>
               <option value="">{tx("Kies...")}</option>
