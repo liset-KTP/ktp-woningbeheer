@@ -1111,7 +1111,7 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
           {!gegroepeerd && <div style={{fontWeight:800,fontSize:16,color:C.text}}>{tx(plan.naam_medewerker)}</div>}
           {gegroepeerd && (
             <div style={{fontWeight:700,fontSize:13,color:C.blauw,marginBottom:2}}>
-              {plan.heeft_fiets && !plan.sleutels ? tx("🚲 Fietsborg") : plan.sleutels && !plan.heeft_fiets ? tx("🔑 Sleutelborg") : txv("🔑 {0} sleutel{1}{2}", plan.sleutels, plan.sleutels>1?"s":"", plan.heeft_fiets?" + 🚲 fiets":"")}
+              {plan.heeft_fiets && !plan.sleutels ? tx("🚲 Fietsborg") : plan.sleutels && !plan.heeft_fiets ? tx("🔑 Sleutelborg") : (plan.sleutels>1 ? txv("🔑 {0} sleutels", plan.sleutels) : txv("🔑 {0} sleutel", plan.sleutels)) + (plan.heeft_fiets ? " + " + tx("🚲 fiets") : "")}
             </div>
           )}
           <div style={{fontSize:12,color:C.muted,marginTop:gegroepeerd?0:3}}>
@@ -1590,7 +1590,7 @@ function ArchiefKaart({ plan, termijnen, extras, huis }) {
       {(t.length>0 || ex.length>0) && (
         <button onClick={()=>setOpen(!open)}
           style={{background:"none",border:"none",color:C.blauw,fontSize:13,cursor:"pointer",fontFamily:"inherit",padding:"8px 0 0",fontWeight:600}}>
-          {open?"▲":"▼"} {tx("Termijnen bekijken (")}{tx(aantalIngeh)} {tx("van")} {tx(t.length)} {tx("ingehouden")}{ex.length>0?txv(" · {0} extra post{1}", ex.length, ex.length>1?"en":""):""})
+          {open?"▲":"▼"} {tx("Termijnen bekijken (")}{tx(aantalIngeh)} {tx("van")} {tx(t.length)} {tx("ingehouden")}{ex.length>0?(ex.length>1 ? txv(" · {0} extra posten", ex.length) : txv(" · {0} extra post", ex.length)):""})
         </button>
       )}
 

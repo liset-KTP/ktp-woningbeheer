@@ -4816,7 +4816,7 @@ function FotoUploadMelding({ melding: m, gebruiker }) {
       {bestanden.length > 0 && (
         <button onClick={upload} disabled={uploading}
           style={{background:C.blauw,color:"white",border:"none",borderRadius:8,padding:"7px 16px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit",marginTop:8}}>
-          {uploading ? tx("⏳ Uploaden...") : txv("⬆ {0} bestand{1} uploaden", bestanden.length, bestanden.length>1?"en":"")}
+          {uploading ? tx("⏳ Uploaden...") : (bestanden.length>1 ? txv("⬆ {0} bestanden uploaden", bestanden.length) : txv("⬆ {0} bestand uploaden", bestanden.length))}
         </button>
       )}
       {(m.bijlages||[]).length > 0 && (

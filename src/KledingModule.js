@@ -308,7 +308,7 @@ function UitgifteForm({ voorraad, gebruiker, onSubmit, showToast }) {
     }
     setSaving(false);
     if (allOk) {
-      showToast(txv("✓ {0} artikel{1} geregistreerd voor {2}", mandje.length, mandje.length>1?"en":"", medewerkerNaam));
+      showToast((mandje.length>1 ? txv("✓ {0} artikelen geregistreerd voor {1}", mandje.length, medewerkerNaam) : txv("✓ {0} artikel geregistreerd voor {1}", mandje.length, medewerkerNaam)));
       setMandje([]); setMedewerkerNaam(""); setType(""); setMaat(""); setAantal(1);
     }
   }
@@ -429,7 +429,7 @@ function UitgifteForm({ voorraad, gebruiker, onSubmit, showToast }) {
         <button onClick={submitAlles} disabled={saving||mandje.length===0||!medewerkerNaam.trim()}
           style={{background:mandje.length>0&&medewerkerNaam.trim()?actiekleur:"#d1dbe8",color:"white",border:"none",borderRadius:8,
             padding:"12px 28px",fontSize:14,fontWeight:700,cursor:mandje.length>0&&medewerkerNaam.trim()?"pointer":"not-allowed",fontFamily:"inherit",width:"100%"}}>
-          {saving?tx("⏳ Bezig..."):txv("{0} {1} artikel{2} registreren voor {3}", actie==="uitgifte"?"📤":"📥", mandje.length, mandje.length!==1?"en":"", medewerkerNaam||"...")}
+          {saving?tx("⏳ Bezig..."):(mandje.length!==1 ? txv("{0} {1} artikelen registreren voor {2}", actie==="uitgifte"?"📤":"📥", mandje.length, medewerkerNaam||"...") : txv("{0} {1} artikel registreren voor {2}", actie==="uitgifte"?"📤":"📥", mandje.length, medewerkerNaam||"..."))}
         </button>
       </div>
     </div>

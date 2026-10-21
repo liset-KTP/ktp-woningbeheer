@@ -19,10 +19,20 @@
   "ro": " (încă de plătit)",
   "pl": " (do wypłaty)"
  },
+ " ({0} dagen geleden)": {
+  "en": " ({0} days ago)",
+  "ro": " (acum {0} zile)",
+  "pl": " ({0} dni temu)"
+ },
  " Voeg items toe via Beheer → Checklists.": {
   "en": " Add items via Management → Checklists.",
   "ro": " Adaugă elemente prin Administrare → Liste de verificare.",
   "pl": " Dodaj pozycje przez Zarządzanie → Listy kontrolne."
+ },
+ " door {0}": {
+  "en": " by {0}",
+  "ro": " de {0}",
+  "pl": " przez {0}"
  },
  " en wordt het borgplan aangemaakt": {
   "en": " and the deposit plan is created",
@@ -34,15 +44,75 @@
   "ro": " sau ",
   "pl": " lub "
  },
+ " op {0}": {
+  "en": " on {0}",
+  "ro": " pe {0}",
+  "pl": " w dniu {0}"
+ },
+ " voor \"{0}\"": {
+  "en": " for \"{0}\"",
+  "ro": " pentru \"{0}\"",
+  "pl": " dla \"{0}\""
+ },
+ " · Aankomst {0}": {
+  "en": " · Arrival {0}",
+  "ro": " · Sosire {0}",
+  "pl": " · Przyjazd {0}"
+ },
+ " · Kamer {0}": {
+  "en": " · Room {0}",
+  "ro": " · Camera {0}",
+  "pl": " · Pokój {0}"
+ },
  " · inplan-taak nog open": {
   "en": " · scheduling task still open",
   "ro": " · sarcina de programare încă deschisă",
   "pl": " · zadanie planowania nadal otwarte"
  },
+ " · km-stand toen: {0}": {
+  "en": " · mileage then: {0}",
+  "ro": " · kilometraj atunci: {0}",
+  "pl": " · przebieg wtedy: {0}"
+ },
+ " · {0} al ingepland": {
+  "en": " · {0} already scheduled",
+  "ro": " · {0} deja planificat(e)",
+  "pl": " · {0} już zaplanowane"
+ },
+ " · {0} bekende schadepunt(en)": {
+  "en": " · {0} known damage point(s)",
+  "ro": " · {0} punct(e) de daune cunoscute",
+  "pl": " · {0} znane uszkodzenie/a"
+ },
+ " · {0} extra post": {
+  "en": " · {0} extra item",
+  "ro": " · {0} poziție extra",
+  "pl": " · {0} dodatkowa pozycja"
+ },
+ " · {0} extra posten": {
+  "en": " · {0} extra items",
+  "ro": " · {0} poziții extra",
+  "pl": " · dodatkowe pozycje: {0}"
+ },
+ " · {0} open taak/taken": {
+  "en": " · {0} open task(s)",
+  "ro": " · {0} sarcină/sarcini deschise",
+  "pl": " · {0} otwarte zadanie/a"
+ },
  " · 🚲 Fiets": {
   "en": " · 🚲 Bike",
   "ro": " · 🚲 Bicicletă",
   "pl": " · 🚲 Rower"
+ },
+ " · 🛣 {0} km": {
+  "en": " · 🛣 {0} km",
+  "ro": " · 🛣 {0} km",
+  "pl": " · 🛣 {0} km"
+ },
+ " — Kamer {0}": {
+  "en": " — Room {0}",
+  "ro": " — Camera {0}",
+  "pl": " — Pokój {0}"
  },
  " ⚠️ VERLOPEN": {
   "en": " ⚠️ EXPIRED",
@@ -79,6 +149,16 @@
   "ro": "\"Cameră greșită introdusă\"",
   "pl": "\"Wpisano zły pokój\""
  },
+ "\"{0}\" terugzetten naar actieve woningen?": {
+  "en": "Restore \"{0}\" to active houses?",
+  "ro": "Readuci \"{0}\" la casele active?",
+  "pl": "Przywrócić \"{0}\" do aktywnych domów?"
+ },
+ "\"{0}...\" verwijderen?": {
+  "en": "Delete \"{0}...\"?",
+  "ro": "Ștergi \"{0}...\"?",
+  "pl": "Usunąć \"{0}...\"?"
+ },
  "\"✅ Controlepunten afvinken\"": {
   "en": "\"✅ Tick off checkpoints\"",
   "ro": "\"✅ Bifează punctele de verificare\"",
@@ -103,6 +183,11 @@
   "en": "(who",
   "ro": "(cine",
   "pl": "(kto"
+ },
+ "({0} open)": {
+  "en": "({0} open)",
+  "ro": "({0} deschise)",
+  "pl": "({0} otwarte)"
  },
  "* Voer de kilometer-/vloeistofcontrole pas als laatste uit, dit voorkomt een vertekend beeld.": {
   "en": "* Do the mileage/fluid check last, this prevents a distorted picture.",
@@ -339,10 +424,20 @@
   "ro": "Sosire (rezervare)",
   "pl": "Przyjazd (rezerwacja)"
  },
+ "Aankomst begeleiden & bevestigen — {0}": {
+  "en": "Guide & confirm arrival — {0}",
+  "ro": "Însoțește & confirmă sosirea — {0}",
+  "pl": "Przyjmij i potwierdź przyjazd — {0}"
+ },
  "Aankomst van": {
   "en": "Arrival of",
   "ro": "Sosirea lui",
   "pl": "Przyjazd"
+ },
+ "Aankomst verwerken in administratie — {0}": {
+  "en": "Process arrival in administration — {0}",
+  "ro": "Procesează sosirea în administrație — {0}",
+  "pl": "Przetwórz przyjazd w administracji — {0}"
  },
  "Aankomstdatum": {
   "en": "Arrival date",
@@ -539,6 +634,11 @@
   "ro": "Toate casele (prezentare)",
   "pl": "Wszystkie domy (przegląd)"
  },
+ "Alle {0} woningen met bewoners en kamerstatus": {
+  "en": "All {0} houses with residents and room status",
+  "ro": "Toate cele {0} case cu locatari și starea camerelor",
+  "pl": "Wszystkie {0} domy z mieszkańcami i statusem pokoi"
+ },
  "Alleen beschikbaar voor Liset": {
   "en": "Only available to Liset",
   "ro": "Disponibil doar pentru Liset",
@@ -578,6 +678,11 @@
   "en": "Everything",
   "ro": "Tot",
   "pl": "Wszystko"
+ },
+ "Alles ({0})": {
+  "en": "All ({0})",
+  "ro": "Toate ({0})",
+  "pl": "Wszystko ({0})"
  },
  "Alles afgehandeld!": {
   "en": "All completed!",
@@ -638,6 +743,11 @@
   "en": "Cancel",
   "ro": "Anulează",
   "pl": "Anuluj"
+ },
+ "Annuleren = niet aangekomen (pas dan de verwachte aankomstdatum aan in het woningoverzicht)": {
+  "en": "Cancel = not arrived (then adjust the expected arrival date in the house overview)",
+  "ro": "Anulare = nu a sosit (apoi modifică data estimată a sosirii în prezentarea caselor)",
+  "pl": "Anuluj = nie przyjechał (wtedy zmień przewidywaną datę przyjazdu w przeglądzie domów)"
  },
  "App fout gevonden:": {
   "en": "App error found:",
@@ -708,6 +818,36 @@
   "en": "Car form, damage form, photo...",
   "ro": "Formular mașină, formular daune, fotografie...",
   "pl": "Formularz samochodu, formularz szkody, zdjęcie..."
+ },
+ "Automatisch (annulering reservering)": {
+  "en": "Automatic (reservation cancelled)",
+  "ro": "Automat (anulare rezervare)",
+  "pl": "Automatycznie (anulowanie rezerwacji)"
+ },
+ "Automatisch (gekoppelde taak afgerond)": {
+  "en": "Automatic (linked task completed)",
+  "ro": "Automat (sarcină asociată finalizată)",
+  "pl": "Automatycznie (powiązane zadanie zakończone)"
+ },
+ "Automatisch (vertrek al verwerkt)": {
+  "en": "Automatic (departure already processed)",
+  "ro": "Automat (plecare deja procesată)",
+  "pl": "Automatycznie (wyjazd już przetworzony)"
+ },
+ "Automatisch (vertrek verwerkt)": {
+  "en": "Automatic (departure processed)",
+  "ro": "Automat (plecare procesată)",
+  "pl": "Automatycznie (wyjazd przetworzony)"
+ },
+ "Automatisch afgehandeld: gekoppelde huismeester-taak is afgevinkt": {
+  "en": "Completed automatically: linked house manager task has been ticked off",
+  "ro": "Finalizat automat: sarcina asociată a administratorului de casă a fost bifată",
+  "pl": "Zakończone automatycznie: powiązane zadanie gospodarza domu zostało odhaczone"
+ },
+ "Automatisch verwerkt bij aankomst": {
+  "en": "Processed automatically on arrival",
+  "ro": "Procesat automat la sosire",
+  "pl": "Przetworzone automatycznie przy przyjeździe"
  },
  "A–Z Naam": {
   "en": "A–Z Name",
@@ -829,6 +969,11 @@
   "ro": "Data comenzii",
   "pl": "Data zamówienia"
  },
+ "Bestelling ontvangen": {
+  "en": "Order received",
+  "ro": "Comandă primită",
+  "pl": "Zamówienie otrzymane"
+ },
  "Bestuurder gevonden": {
   "en": "Driver found",
   "ro": "Șofer găsit",
@@ -879,6 +1024,11 @@
   "ro": "Se procesează...",
   "pl": "Przetwarzanie..."
  },
+ "Bij taken: klik op ↩ Terugzetten. Bij borg: klik op ↩ naast de termijn. Bij meldingen: klik op ✏️ Bewerken.": {
+  "en": "For tasks: click ↩ Reset. For deposits: click ↩ next to the instalment. For reports: click ✏️ Edit.",
+  "ro": "La sarcini: apasă pe ↩ Resetează. La garanție: apasă pe ↩ lângă rată. La rapoarte: apasă pe ✏️ Editează.",
+  "pl": "Przy zadaniach: kliknij ↩ Cofnij. Przy kaucji: kliknij ↩ obok raty. Przy zgłoszeniach: kliknij ✏️ Edytuj."
+ },
  "Bijlage": {
   "en": "Attachment",
   "ro": "Atașament",
@@ -919,6 +1069,11 @@
   "ro": "Garanție bicicletă (săptămâna 2/2)",
   "pl": "Kaucja za rower (tydzień 2/2)"
  },
+ "Borg fiets (week {0}/{1})": {
+  "en": "Bike deposit (week {0}/{1})",
+  "ro": "Garanție bicicletă (săptămâna {0}/{1})",
+  "pl": "Kaucja za rower (tydzień {0}/{1})"
+ },
  "Borg gedeeltelijk inhouden": {
   "en": "Partially withhold deposit",
   "ro": "Reține parțial garanția",
@@ -938,6 +1093,11 @@
   "en": "Key deposit (week 2/2)",
   "ro": "Garanție cheie (săptămâna 2/2)",
   "pl": "Kaucja za klucz (tydzień 2/2)"
+ },
+ "Borg sleutel + fiets (week {0}/{1})": {
+  "en": "Key + bike deposit (week {0}/{1})",
+  "ro": "Garanție cheie + bicicletă (săptămâna {0}/{1})",
+  "pl": "Kaucja za klucz + rower (tydzień {0}/{1})"
  },
  "Borg sleutels (week 1/4)": {
   "en": "Keys deposit (week 1/4)",
@@ -959,6 +1119,11 @@
   "ro": "Garanție chei (săptămâna 4/4)",
   "pl": "Kaucja za klucze (tydzień 4/4)"
  },
+ "Borg terugbetalen — kamer schoon + sleutels ingeleverd (K{0})": {
+  "en": "Refund deposit — room clean + keys returned (K{0})",
+  "ro": "Rambursează garanția — cameră curată + chei predate (K{0})",
+  "pl": "Zwróć kaucję — pokój czysty + klucze oddane (K{0})"
+ },
  "Borg teruggeven": {
   "en": "Refund deposit",
   "ro": "Returnează garanția",
@@ -968,6 +1133,21 @@
   "en": "Deposit is created automatically",
   "ro": "Garanția se creează automat",
   "pl": "Kaucja jest tworzona automatycznie"
+ },
+ "Borgplan aangemaakt voor {0}: €{1} in {2} termijnen. Aankomst ingediend door: {3}.": {
+  "en": "Deposit plan created for {0}: €{1} in {2} instalments. Arrival submitted by: {3}.",
+  "ro": "Plan de garanție creat pentru {0}: €{1} în {2} rate. Sosire trimisă de: {3}.",
+  "pl": "Utworzono plan kaucji dla {0}: €{1} w {2} ratach. Przyjazd zgłoszony przez: {3}."
+ },
+ "Borgplan aangemaakt voor {0}: €{1} in {2} termijnen. Ingediend door: {3}.": {
+  "en": "Deposit plan created for {0}: €{1} in {2} instalments. Submitted by: {3}.",
+  "ro": "Plan de garanție creat pentru {0}: €{1} în {2} rate. Trimis de: {3}.",
+  "pl": "Utworzono plan kaucji dla {0}: €{1} w {2} ratach. Zgłoszone przez: {3}."
+ },
+ "Borgplan geannuleerd: {0} — €{1} ({2})": {
+  "en": "Deposit plan cancelled: {0} — €{1} ({2})",
+  "ro": "Plan de garanție anulat: {0} — €{1} ({2})",
+  "pl": "Plan kaucji anulowany: {0} — €{1} ({2})"
  },
  "Bovenaanzicht": {
   "en": "Top view",
@@ -1014,6 +1194,11 @@
   "ro": "Listă de verificare cameră veche",
   "pl": "Lista kontrolna starego pokoju"
  },
+ "Controles & administratie": {
+  "en": "Checks & administration",
+  "ro": "Verificări & administrație",
+  "pl": "Kontrole i administracja"
+ },
  "DAADWERKELIJK VERTREK": {
   "en": "ACTUAL DEPARTURE",
   "ro": "PLECARE EFECTIVĂ",
@@ -1023,6 +1208,11 @@
   "en": "DATE",
   "ro": "DATA",
   "pl": "DATA"
+ },
+ "Daadwerkelijk vertrek": {
+  "en": "Actual departure",
+  "ro": "Plecare efectivă",
+  "pl": "Faktyczny wyjazd"
  },
  "Datum": {
   "en": "Date",
@@ -1059,6 +1249,11 @@
   "ro": "Data predării",
   "pl": "Data wydania"
  },
+ "Datum verhuizing": {
+  "en": "Move date",
+  "ro": "Data mutării",
+  "pl": "Data przeprowadzki"
+ },
  "Datum:": {
   "en": "Date:",
   "ro": "Data:",
@@ -1068,6 +1263,11 @@
   "en": "The app is available in Dutch, English, Romanian and Polish. Click the language buttons at the top right:",
   "ro": "Aplicația este disponibilă în olandeză, engleză, română și poloneză. Apasă pe butoanele de limbă din dreapta sus:",
   "pl": "Aplikacja jest dostępna po niderlandzku, angielsku, rumuńsku i polsku. Kliknij przyciski języka w prawym górnym rogu:"
+ },
+ "De app is wit — wat doe ik?": {
+  "en": "The app is blank — what do I do?",
+  "ro": "Aplicația este albă — ce fac?",
+  "pl": "Aplikacja jest biała — co mam zrobić?"
  },
  "De foto wordt opgeslagen en is zichtbaar voor iedereen.": {
   "en": "The photo is saved and visible to everyone.",
@@ -1184,6 +1384,11 @@
   "ro": "Descarcă o prezentare ca fișier Excel pentru rapoarte.",
   "pl": "Pobierz przegląd jako plik Excel do raportów."
  },
+ "Druk op Ctrl+Shift+R (hard refresh). Als het dan nog wit is, stuur een bericht naar Liset.": {
+  "en": "Press Ctrl+Shift+R (hard refresh). If it is still blank, send a message to Liset.",
+  "ro": "Apasă Ctrl+Shift+R (reîncărcare completă). Dacă tot e albă, trimite un mesaj către Liset.",
+  "pl": "Naciśnij Ctrl+Shift+R (twarde odświeżenie). Jeśli nadal jest biała, wyślij wiadomość do Liset."
+ },
  "Eerder afgehandeld": {
   "en": "Previously completed",
   "ro": "Finalizat anterior",
@@ -1199,10 +1404,25 @@
   "ro": "În fiecare luni €140",
   "pl": "W każdy poniedziałek 140 €"
  },
+ "Er bestaat al een aankomstmelding voor {0} op {1}": {
+  "en": "An arrival report already exists for {0} on {1}",
+  "ro": "Există deja un raport de sosire pentru {0} pe {1}",
+  "pl": "Istnieje już zgłoszenie przyjazdu dla {0} w dniu {1}"
+ },
+ "Er staat al een open vertrekmelding voor {0} (K{1}) — niets nieuws toegevoegd": {
+  "en": "There is already an open departure report for {0} (K{1}) — nothing new added",
+  "ro": "Există deja un raport de plecare deschis pentru {0} (K{1}) — nu s-a adăugat nimic nou",
+  "pl": "Jest już otwarte zgłoszenie wyjazdu dla {0} (K{1}) — nic nowego nie dodano"
+ },
  "Er staat niets open om af te schrijven": {
   "en": "Nothing open to write off",
   "ro": "Nu este nimic deschis de anulat",
   "pl": "Nie ma nic otwartego do odpisania"
+ },
+ "Er stond al een vertrekmelding voor {0} — je opmerking is daaraan toegevoegd": {
+  "en": "There was already a departure report for {0} — your comment has been added to it",
+  "ro": "Exista deja un raport de plecare pentru {0} — comentariul tău a fost adăugat la acesta",
+  "pl": "Było już zgłoszenie wyjazdu dla {0} — Twoja uwaga została do niego dodana"
  },
  "Er wordt": {
   "en": "There will be",
@@ -1268,6 +1488,16 @@
   "en": "Bike",
   "ro": "Bicicletă",
   "pl": "Rower"
+ },
+ "Fiets aanvragen — {0} ({1})": {
+  "en": "Request bike — {0} ({1})",
+  "ro": "Solicită bicicletă — {0} ({1})",
+  "pl": "Zamów rower — {0} ({1})"
+ },
+ "Fiets nodig voor {0} in {1} vanaf {2}.{3}": {
+  "en": "Bike needed for {0} in {1} from {2}.{3}",
+  "ro": "Bicicletă necesară pentru {0} în {1} de la {2}.{3}",
+  "pl": "Rower potrzebny dla {0} w {1} od {2}.{3}"
  },
  "Fiets wordt gelogd + borg automatisch aangemaakt/opgehoogd": {
   "en": "Bike is logged + deposit automatically created/increased",
@@ -1434,6 +1664,11 @@
   "ro": "Mergi la Sarcini & Rapoarte",
   "pl": "Przejdź do Zadania & zgłoszenia"
  },
+ "Gebruik \"🧳 Is vertrokken\" om het vertrek te melden. Blijft {0} toch? Kies \"Kan niet\", dan sluit backoffice het af.": {
+  "en": "Use \"🧳 Has departed\" to report the departure. Is {0} staying after all? Choose \"Can't do\", then back office will close it.",
+  "ro": "Folosește \"🧳 A plecat\" pentru a raporta plecarea. {0} rămâne totuși? Alege \"Nu se poate\", iar back office îl va închide.",
+  "pl": "Użyj \"🧳 Wyjechał\", aby zgłosić wyjazd. {0} jednak zostaje? Wybierz \"Nie mogę\", a back office to zamknie."
+ },
  "Gebruikers & pincodes": {
   "en": "Users & PIN codes",
   "ro": "Utilizatori & coduri PIN",
@@ -1483,6 +1718,11 @@
   "en": "No arrivals or departures planned",
   "ro": "Nicio sosire sau plecare planificată",
   "pl": "Brak zaplanowanych przyjazdów ani wyjazdów"
+ },
+ "Geen aankomstmelding aangemaakt — verhuizing #{0} loopt al": {
+  "en": "No arrival report created — move #{0} is already in progress",
+  "ro": "Nu s-a creat niciun raport de sosire — mutarea #{0} este deja în curs",
+  "pl": "Nie utworzono zgłoszenia przyjazdu — przeprowadzka #{0} już trwa"
  },
  "Geen actieve borgplannen": {
   "en": "No active deposit plans",
@@ -1644,6 +1884,11 @@
   "ro": "Niciun rezultat",
   "pl": "Brak wyników"
  },
+ "Geen resultaten voor \"{0}\"": {
+  "en": "No results for \"{0}\"",
+  "ro": "Niciun rezultat pentru \"{0}\"",
+  "pl": "Brak wyników dla \"{0}\""
+ },
  "Geen specifieke kamer": {
   "en": "No specific room",
   "ro": "Nicio cameră anume",
@@ -1729,10 +1974,20 @@
   "ro": "Modificat",
   "pl": "Zmieniono"
  },
+ "Grijs": {
+  "en": "Grey",
+  "ro": "Gri",
+  "pl": "Szary"
+ },
  "Handleiding KTP Woningbeheer": {
   "en": "KTP Housing Management manual",
   "ro": "Manual KTP Administrare case",
   "pl": "Instrukcja KTP Zarządzanie domami"
+ },
+ "Handmatige correctie": {
+  "en": "Manual correction",
+  "ro": "Corecție manuală",
+  "pl": "Ręczna korekta"
  },
  "Handtekening KTP": {
   "en": "KTP signature",
@@ -1794,6 +2049,16 @@
   "ro": "Istoric pentru",
   "pl": "Historia dla"
  },
+ "Hoe verander ik de taal?": {
+  "en": "How do I change the language?",
+  "ro": "Cum schimb limba?",
+  "pl": "Jak zmienić język?"
+ },
+ "Hoe weet ik of mijn melding is ontvangen?": {
+  "en": "How do I know my report has been received?",
+  "ro": "Cum știu dacă raportul meu a fost primit?",
+  "pl": "Skąd mam wiedzieć, że moje zgłoszenie zostało przyjęte?"
+ },
  "Hoog": {
   "en": "High",
   "ro": "Ridicat",
@@ -1833,6 +2098,11 @@
   "en": "Rent payments & financial overview",
   "ro": "Plăți chirie & situație financiară",
   "pl": "Płatności czynszu & przegląd finansowy"
+ },
+ "Huurschuld": {
+  "en": "Rent arrears",
+  "ro": "Datorie de chirie",
+  "pl": "Zaległość czynszowa"
  },
  "Huurschuld aangemaakt!": {
   "en": "Rent arrears created!",
@@ -1919,6 +2189,21 @@
   "ro": "Eu (șoferul) știu și mi s-a spus că nu este permisă conducerea în scop personal. Mașina este doar pentru naveta între casă și serviciu.",
   "pl": "Ja (kierowca) wiem i zostałem poinformowany, że jazda prywatna jest zabroniona. Samochód służy wyłącznie do dojazdów między domem a pracą."
  },
+ "Ik heb iets per ongeluk aangeklikt — kan dat terug?": {
+  "en": "I clicked something by accident — can it be undone?",
+  "ro": "Am apăsat ceva din greșeală — se poate anula?",
+  "pl": "Kliknąłem coś przez przypadek — czy można to cofnąć?"
+ },
+ "Ik heb jouw taak opgepakt en ingepland op {0}.{1}": {
+  "en": "I have picked up your task and scheduled it for {0}.{1}",
+  "ro": "Am preluat sarcina ta și am planificat-o pe {0}.{1}",
+  "pl": "Podjąłem Twoje zadanie i zaplanowałem je na {0}.{1}"
+ },
+ "Ik zie mijn melding niet meer — waar is die?": {
+  "en": "I can't see my report anymore — where is it?",
+  "ro": "Nu-mi mai văd raportul — unde este?",
+  "pl": "Nie widzę już mojego zgłoszenia — gdzie ono jest?"
+ },
  "In": {
   "en": "Returned",
   "ro": "Retur",
@@ -1979,6 +2264,11 @@
   "ro": "Reține în săptămâna",
   "pl": "Potrąć w tygodniu"
  },
+ "Inloggen als {0}": {
+  "en": "Log in as {0}",
+  "ro": "Autentificare ca {0}",
+  "pl": "Zaloguj jako {0}"
+ },
  "Inloggen →": {
   "en": "Log in →",
   "ro": "Autentificare →",
@@ -2024,6 +2314,11 @@
   "ro": "A început cineva să plătească mai târziu? Apasă pe 📅 Mută săptămâna pentru a muta toate ratele cu 1 săptămână mai târziu.",
   "pl": "Ktoś zaczął płacić później? Kliknij 📅 Przesuń tydzień, aby przesunąć wszystkie raty o 1 tydzień później."
  },
+ "Is {0} aangekomen in kamer {1}?": {
+  "en": "Has {0} arrived in room {1}?",
+  "ro": "A sosit {0} în camera {1}?",
+  "pl": "Czy {0} przyjechał do pokoju {1}?"
+ },
  "Items afgevinkt": {
   "en": "Items ticked off",
   "ro": "Elemente bifate",
@@ -2039,6 +2334,11 @@
   "ro": "Da, are bicicletă",
   "pl": "Tak, ma rower"
  },
+ "Je bent uitgelogd. Log opnieuw in.": {
+  "en": "You have been logged out. Please log in again.",
+  "ro": "Ai fost deconectat. Autentifică-te din nou.",
+  "pl": "Zostałeś wylogowany. Zaloguj się ponownie."
+ },
  "Je hebt nog geen meldingen ingediend": {
   "en": "You haven't submitted any reports yet",
   "ro": "Nu ai trimis încă niciun raport",
@@ -2048,6 +2348,11 @@
   "en": "You'll see the report at the top under Reports.",
   "ro": "Vei vedea raportul sus, la Rapoarte.",
   "pl": "Zgłoszenie zobaczysz na górze w Zgłoszeniach."
+ },
+ "Je ziet de melding in de lijst onder 'Open'. Het kantoor en Cristian krijgen automatisch een mail en een bericht in de app.": {
+  "en": "You will see the report in the list under 'Open'. The office and Cristian automatically receive an email and a message in the app.",
+  "ro": "Vei vedea raportul în listă la 'Deschis'. Biroul și Cristian primesc automat un e-mail și un mesaj în aplicație.",
+  "pl": "Zgłoszenie zobaczysz na liście w 'Otwarte'. Biuro i Cristian automatycznie dostają e-mail i wiadomość w aplikacji."
  },
  "Jouw eigen meldingen staan bovenaan — jij had het contact met de medewerker, dus begeleid en bevestig die zelf. Onderstaande van collega's kun je als vangnet ook oppakken. Afvinken doe je in Taken & Meldingen.": {
   "en": "Your own reports are at the top — you had contact with the employee, so guide and confirm them yourself. You can also pick up the ones below from colleagues as a safety net. Ticking off is done in Tasks & Reports.",
@@ -2084,6 +2389,16 @@
   "ro": "Actualizarea camerei a eșuat — sarcina nu a fost închisă",
   "pl": "Aktualizacja pokoju nie powiodła się — zadanie nie zostało zamknięte"
  },
+ "Kamer controleren na verhuizing — {0}": {
+  "en": "Check room after move — {0}",
+  "ro": "Verifică camera după mutare — {0}",
+  "pl": "Sprawdź pokój po przeprowadzce — {0}"
+ },
+ "Kamer controleren na vertrek — {0}": {
+  "en": "Check room after departure — {0}",
+  "ro": "Verifică camera după plecare — {0}",
+  "pl": "Sprawdź pokój po wyjeździe — {0}"
+ },
  "Kamer nr": {
   "en": "Room no",
   "ro": "Cameră nr",
@@ -2099,6 +2414,41 @@
   "ro": "Cameră lăsată curată",
   "pl": "Pokój pozostawiony czysty"
  },
+ "Kamer schoon ✓ · Sleutel(s) ingeleverd ✓ · Borg terugbetalen aan medewerker": {
+  "en": "Room clean ✓ · Key(s) returned ✓ · Refund deposit to employee",
+  "ro": "Cameră curată ✓ · Cheie/chei predate ✓ · Rambursează garanția angajatului",
+  "pl": "Pokój czysty ✓ · Klucz(e) oddane ✓ · Zwróć kaucję pracownikowi"
+ },
+ "Kamer {0} controleren na vertrek {1}": {
+  "en": "Check room {0} after departure of {1}",
+  "ro": "Verifică camera {0} după plecarea lui {1}",
+  "pl": "Sprawdź pokój {0} po wyjeździe {1}"
+ },
+ "Kamer {0} gereedmaken voor {1}": {
+  "en": "Prepare room {0} for {1}",
+  "ro": "Pregătește camera {0} pentru {1}",
+  "pl": "Przygotuj pokój {0} dla {1}"
+ },
+ "Kamer {0} klaarzetten voor {1} (aankomst {2})": {
+  "en": "Get room {0} ready for {1} (arrival {2})",
+  "ro": "Pregătește camera {0} pentru {1} (sosire {2})",
+  "pl": "Przygotuj pokój {0} dla {1} (przyjazd {2})"
+ },
+ "Kamer {0} schoonmaken": {
+  "en": "Clean room {0}",
+  "ro": "Curăță camera {0}",
+  "pl": "Posprzątaj pokój {0}"
+ },
+ "Kamer {0} staat nog op \"{1}\" (datum {2}). Werk eerst de kamerstatus bij of pas de datum aan.": {
+  "en": "Room {0} is still set to \"{1}\" (date {2}). First update the room status or change the date.",
+  "ro": "Camera {0} este încă pe \"{1}\" (data {2}). Actualizează mai întâi starea camerei sau modifică data.",
+  "pl": "Pokój {0} ma nadal status \"{1}\" (data {2}). Najpierw zaktualizuj status pokoju lub zmień datę."
+ },
+ "Kamer {0} verwijderen?": {
+  "en": "Delete room {0}?",
+  "ro": "Ștergi camera {0}?",
+  "pl": "Usunąć pokój {0}?"
+ },
  "Kamernummer": {
   "en": "Room number",
   "ro": "Număr cameră",
@@ -2113,6 +2463,16 @@
   "en": "Rooms",
   "ro": "Camere",
   "pl": "Pokoje"
+ },
+ "Kamers controleren & meldingen verwerken": {
+  "en": "Check rooms & process reports",
+  "ro": "Verifică camerele & procesează rapoartele",
+  "pl": "Sprawdź pokoje i przetwórz zgłoszenia"
+ },
+ "Kan bij {0} deze week niet ingehouden worden?\n\nAlle nog openstaande termijnen van dit plan worden 1 week opgeschoven (deze termijn → week {1}).": {
+  "en": "Can't deduct from {0} this week?\n\nAll remaining open instalments of this plan will be moved 1 week (this instalment → week {1}).",
+  "ro": "Nu se poate reține de la {0} săptămâna aceasta?\n\nToate ratele încă deschise ale acestui plan vor fi mutate cu 1 săptămână (această rată → săptămâna {1}).",
+  "pl": "Nie można potrącić od {0} w tym tygodniu?\n\nWszystkie otwarte raty tego planu zostaną przesunięte o 1 tydzień (ta rata → tydzień {1})."
  },
  "Kan niet": {
   "en": "Can't do",
@@ -2198,6 +2558,21 @@
   "en": "Done! The office and Cristian will be notified automatically.",
   "ro": "Gata! Biroul și Cristian primesc automat o notificare.",
   "pl": "Gotowe! Biuro i Cristian automatycznie otrzymają powiadomienie."
+ },
+ "Kleine klusjes – Midden omgeving": {
+  "en": "Small jobs – Central area",
+  "ro": "Lucrări mici – zona Centru",
+  "pl": "Drobne prace – rejon Centrum"
+ },
+ "Kleine klusjes – Noord omgeving": {
+  "en": "Small jobs – North area",
+  "ro": "Lucrări mici – zona Nord",
+  "pl": "Drobne prace – rejon Północ"
+ },
+ "Kleine klusjes – Zuid omgeving": {
+  "en": "Small jobs – South area",
+  "ro": "Lucrări mici – zona Sud",
+  "pl": "Drobne prace – rejon Południe"
  },
  "Kleur": {
   "en": "Color",
@@ -2329,6 +2704,11 @@
   "ro": "Apasă pe fila",
   "pl": "Kliknij zakładkę"
  },
+ "Klik op het tabje \"Afgehandeld\" of \"Alle\" in Taken & Meldingen. Verwerkte meldingen verdwijnen uit het \"Open\" overzicht.": {
+  "en": "Click the \"Completed\" or \"All\" tab in Tasks & Reports. Processed reports disappear from the \"Open\" overview.",
+  "ro": "Apasă pe fila \"Finalizat\" sau \"Toate\" în Sarcini & Rapoarte. Rapoartele procesate dispar din lista \"Deschis\".",
+  "pl": "Kliknij zakładkę \"Zakończone\" lub \"Wszystkie\" w Zadania i zgłoszenia. Przetworzone zgłoszenia znikają z widoku \"Otwarte\"."
+ },
  "Klik op het 💬 icoontje naast een item. Typ bijvoorbeeld:": {
   "en": "Click the 💬 icon next to an item. For example, type:",
   "ro": "Apasă pe pictograma 💬 de lângă un element. Scrie de exemplu:",
@@ -2358,6 +2738,11 @@
   "en": "Click 🚫 Can't do if you can't carry out the task. Fill in why — the office will be notified.",
   "ro": "Apasă pe 🚫 Nu se poate dacă nu poți executa sarcina. Completează motivul — biroul primește o notificare.",
   "pl": "Kliknij 🚫 Nie mogę, jeśli nie możesz wykonać zadania. Wpisz dlaczego — biuro otrzyma powiadomienie."
+ },
+ "Klik rechtsboven op de taalknoppen 🇳🇱 🇬🇧 🇷🇴 🇵🇱. De app onthoudt jouw keuze.": {
+  "en": "Click the language buttons 🇳🇱 🇬🇧 🇷🇴 🇵🇱 at the top right. The app remembers your choice.",
+  "ro": "Apasă în dreapta sus pe butoanele de limbă 🇳🇱 🇬🇧 🇷🇴 🇵🇱. Aplicația reține alegerea ta.",
+  "pl": "Kliknij w prawym górnym rogu przyciski języka 🇳🇱 🇬🇧 🇷🇴 🇵🇱. Aplikacja zapamięta Twój wybór."
  },
  "Klopt de naam, kamer en datum? Klik op ✏️ Bewerken als er iets fout staat.": {
   "en": "Are the name, room and date correct? Click ✏️ Edit if something is wrong.",
@@ -2593,6 +2978,16 @@
   "en": "Model",
   "ro": "Model",
   "pl": "Model"
+ },
+ "Moet aan het werk": {
+  "en": "Should be at work",
+  "ro": "Trebuie să fie la muncă",
+  "pl": "Powinien być w pracy"
+ },
+ "Moet weg": {
+  "en": "Must leave",
+  "ro": "Trebuie să plece",
+  "pl": "Musi się wyprowadzić"
  },
  "NIET schoon → schoonmaakkosten verwerken": {
   "en": "NOT clean → process cleaning costs",
@@ -2869,6 +3264,11 @@
   "ro": "OK",
   "pl": "OK"
  },
+ "OK = kamer op \"Lopend\" zetten en taak afsluiten": {
+  "en": "OK = set room to \"Active\" and close task",
+  "ro": "OK = setează camera pe \"Activ\" și închide sarcina",
+  "pl": "OK = ustaw pokój na \"Aktywny\" i zamknij zadanie"
+ },
  "OP": {
   "en": "OUT",
   "ro": "EPUIZAT",
@@ -2963,6 +3363,11 @@
   "en": "Invalid sale amount",
   "ro": "Sumă de vânzare invalidă",
   "pl": "Nieprawidłowa kwota sprzedaży"
+ },
+ "Onvoldoende voorraad — nog {0} beschikbaar": {
+  "en": "Insufficient stock — {0} still available",
+  "ro": "Stoc insuficient — mai sunt {0} disponibile",
+  "pl": "Niewystarczający zapas — dostępne jeszcze {0}"
  },
  "Op deze datum was de auto niet uitgegeven.": {
   "en": "The car was not issued on this date.",
@@ -3114,6 +3519,16 @@
   "ro": "Prezentare: ce case în ce zi, inclusiv starea lucrărilor",
   "pl": "Przegląd, które domy w który dzień, w tym status prac"
  },
+ "Overzicht — {0}": {
+  "en": "Overview — {0}",
+  "ro": "Prezentare — {0}",
+  "pl": "Przegląd — {0}"
+ },
+ "POST": {
+  "en": "POST",
+  "ro": "POST",
+  "pl": "POST"
+ },
  "Pas aan wat nodig is": {
   "en": "Change what is needed",
   "ro": "Modifică ce este necesar",
@@ -3138,6 +3553,16 @@
   "en": "Period (days)",
   "ro": "Perioadă (zile)",
   "pl": "Okres (dni)"
+ },
+ "Periode {0} (wk {1}–{2})": {
+  "en": "Period {0} (wk {1}–{2})",
+  "ro": "Perioada {0} (săpt. {1}–{2})",
+  "pl": "Okres {0} (tydz. {1}–{2})"
+ },
+ "Peugeot 206 Grijs": {
+  "en": "Peugeot 206 Grey",
+  "ro": "Peugeot 206 Gri",
+  "pl": "Peugeot 206 Szary"
  },
  "Pincode / wachtwoord wijzigen": {
   "en": "Change PIN / password",
@@ -3234,6 +3659,11 @@
   "ro": "Motivul modificării *",
   "pl": "Powód zmiany *"
  },
+ "Reservering": {
+  "en": "Reservation",
+  "ro": "Rezervare",
+  "pl": "Rezerwacja"
+ },
  "Reset": {
   "en": "Reset",
   "ro": "Resetează",
@@ -3283,6 +3713,11 @@
   "en": "Clean ✅",
   "ro": "Curat ✅",
   "pl": "Czysto ✅"
+ },
+ "Schuld van {0} afsluiten? Alles is betaald.": {
+  "en": "Close debt of {0}? Everything has been paid.",
+  "ro": "Închizi datoria lui {0}? Totul a fost plătit.",
+  "pl": "Zamknąć dług: {0}? Wszystko zostało zapłacone."
  },
  "Schuld volledig betaald?": {
   "en": "Debt fully paid?",
@@ -3469,6 +3904,16 @@
   "ro": "Bucăți",
   "pl": "Sztuki"
  },
+ "Systeem": {
+  "en": "System",
+  "ro": "Sistem",
+  "pl": "System"
+ },
+ "Systeem (statuscontrole)": {
+  "en": "System (status check)",
+  "ro": "Sistem (verificare stare)",
+  "pl": "System (kontrola statusu)"
+ },
  "TE DOEN:": {
   "en": "TO DO:",
   "ro": "DE FĂCUT:",
@@ -3534,6 +3979,11 @@
   "ro": "De rambursat",
   "pl": "Do zwrotu"
  },
+ "Terug te betalen bedrag (max €{0})": {
+  "en": "Amount to be repaid (max €{0})",
+  "ro": "Sumă de rambursat (max. €{0})",
+  "pl": "Kwota do zwrotu (maks. €{0})"
+ },
  "Terugbetaling *": {
   "en": "Repayment *",
   "ro": "Rambursare *",
@@ -3568,6 +4018,11 @@
   "en": "Title *",
   "ro": "Titlu *",
   "pl": "Tytuł *"
+ },
+ "To-do's {0}": {
+  "en": "To-dos {0}",
+  "ro": "De făcut {0}",
+  "pl": "Do zrobienia {0}"
  },
  "Toegevoegd door": {
   "en": "Added by",
@@ -3789,6 +4244,21 @@
   "ro": "Împărțit în",
   "pl": "Rozłożone na"
  },
+ "Verhuizing": {
+  "en": "Move",
+  "ro": "Mutare",
+  "pl": "Przeprowadzka"
+ },
+ "Verhuizing verwerken in administratie — {0}": {
+  "en": "Process move in administration — {0}",
+  "ro": "Procesează mutarea în administrație — {0}",
+  "pl": "Przetwórz przeprowadzkę w administracji — {0}"
+ },
+ "Verhuizing voltooid — sleutel uitreiken {0}": {
+  "en": "Move completed — hand out key {0}",
+  "ro": "Mutare finalizată — predă cheia {0}",
+  "pl": "Przeprowadzka zakończona — wydaj klucz {0}"
+ },
  "Verleden week": {
   "en": "Past week",
   "ro": "Săptămâna trecută",
@@ -3824,6 +4294,21 @@
   "ro": "Plecare",
   "pl": "Wyjazd"
  },
+ "Vertrek aank.": {
+  "en": "Dep. notice",
+  "ro": "Anunț plec.",
+  "pl": "Zapow. wyjazdu"
+ },
+ "Vertrek aankondiging": {
+  "en": "Departure notice",
+  "ro": "Anunț de plecare",
+  "pl": "Zapowiedź wyjazdu"
+ },
+ "Vertrek bevestigen — {0}": {
+  "en": "Confirm departure — {0}",
+  "ro": "Confirmă plecarea — {0}",
+  "pl": "Potwierdź wyjazd — {0}"
+ },
  "Vertrek:": {
   "en": "Departure:",
   "ro": "Plecare:",
@@ -3834,10 +4319,20 @@
   "ro": "Data plecării",
   "pl": "Data wyjazdu"
  },
+ "Vertrokken": {
+  "en": "Departed",
+  "ro": "Plecat",
+  "pl": "Wyjechał"
+ },
  "Verwacht:": {
   "en": "Expected:",
   "ro": "Așteptat:",
   "pl": "Oczekiwane:"
+ },
+ "Verwachte aankomst": {
+  "en": "Expected arrival",
+  "ro": "Sosire estimată",
+  "pl": "Przewidywany przyjazd"
  },
  "Verwachte aankomstdatum": {
   "en": "Expected arrival date",
@@ -3848,6 +4343,16 @@
   "en": "Expected repair date",
   "ro": "Data estimată a reparației",
   "pl": "Przewidywana data naprawy"
+ },
+ "Verwachte vertrek": {
+  "en": "Expected departure",
+  "ro": "Plecare estimată",
+  "pl": "Przewidywany wyjazd"
+ },
+ "Verwachte vertrekdatum": {
+  "en": "Expected departure date",
+  "ro": "Data estimată de plecare",
+  "pl": "Przewidywana data wyjazdu"
  },
  "Verwerkt door": {
   "en": "Processed by",
@@ -4214,6 +4719,16 @@
   "ro": "Mută săptămâna:",
   "pl": "Przesuń tydzień:"
  },
+ "Week {0}": {
+  "en": "Week {0}",
+  "ro": "Săptămâna {0}",
+  "pl": "Tydzień {0}"
+ },
+ "Week {0} · {1} – {2} {3}": {
+  "en": "Week {0} · {1} – {2} {3}",
+  "ro": "Săptămâna {0} · {1} – {2} {3}",
+  "pl": "Tydzień {0} · {1} – {2} {3}"
+ },
  "Weekbedrag": {
   "en": "Weekly amount",
   "ro": "Sumă săptămânală",
@@ -4234,6 +4749,11 @@
   "ro": "Cine sosește astăzi. Asigură-te că camera este pregătită!",
   "pl": "Kto dziś przyjeżdża. Upewnij się, że pokój jest gotowy!"
  },
+ "Wie heeft de auto": {
+  "en": "Who has the car",
+  "ro": "Cine are mașina",
+  "pl": "Kto ma auto"
+ },
  "Wie is er vertrokken? (kies uit aangekondigde vertrekken)": {
   "en": "Who has left? (choose from announced departures)",
   "ro": "Cine a plecat? (alege din plecările anunțate)",
@@ -4243,6 +4763,11 @@
   "en": "Who handles the arrival?",
   "ro": "Cine se ocupă de sosire?",
   "pl": "Kto zajmuje się przyjazdem?"
+ },
+ "Wie regelt: {0}": {
+  "en": "Handled by: {0}",
+  "ro": "Se ocupă: {0}",
+  "pl": "Zajmuje się: {0}"
  },
  "Wifi": {
   "en": "Wi-Fi",
@@ -4334,6 +4859,11 @@
   "ro": "Prezentare case",
   "pl": "Przegląd domów"
  },
+ "Ziek": {
+  "en": "Sick",
+  "ro": "Bolnav",
+  "pl": "Chory"
+ },
  "Zijkant links": {
   "en": "Left side",
   "ro": "Partea stângă",
@@ -4379,10 +4909,20 @@
   "ro": "către",
   "pl": "do"
  },
+ "aankomst": {
+  "en": "arrival",
+  "ro": "sosire",
+  "pl": "przyjazd"
+ },
  "actieve plannen ·": {
   "en": "active plans ·",
   "ro": "planuri active ·",
   "pl": "aktywne plany ·"
+ },
+ "afgehandeld": {
+  "en": "completed",
+  "ro": "finalizat",
+  "pl": "zakończone"
  },
  "afgerond door": {
   "en": "completed by",
@@ -4419,6 +4959,16 @@
   "ro": "bifat",
   "pl": "odhaczone"
  },
+ "all .15s": {
+  "en": "all .15s",
+  "ro": "all .15s",
+  "pl": "all .15s"
+ },
+ "all .2s": {
+  "en": "all .2s",
+  "ro": "all .2s",
+  "pl": "all .2s"
+ },
  "als betaling: het bedrag blijft zichtbaar als gemiste huur. De schuld verdwijnt uit \"Openstaand\" en vanavond komt er een contactmoment in Cockpit bij": {
   "en": "as payment: the amount stays visible as missed rent. The debt disappears from \"Outstanding\" and tonight a contact moment is added in Cockpit",
   "ro": "ca plată: suma rămâne vizibilă ca chirie neplătită. Datoria dispare din \"Restant\" și în seara aceasta se adaugă un moment de contact în Cockpit",
@@ -4438,6 +4988,16 @@
   "en": "items",
   "ro": "articole",
   "pl": "artykuły"
+ },
+ "background .2s": {
+  "en": "background .2s",
+  "ro": "background .2s",
+  "pl": "background .2s"
+ },
+ "backoffice": {
+  "en": "back office",
+  "ro": "back office",
+  "pl": "back office"
  },
  "bekijken": {
   "en": "view",
@@ -4659,6 +5219,11 @@
   "ro": "data amenzii",
   "pl": "data mandatu"
  },
+ "border .2s": {
+  "en": "border .2s",
+  "ro": "border .2s",
+  "pl": "border .2s"
+ },
  "borg termijn": {
   "en": "deposit instalment",
   "ro": "rată garanție",
@@ -4688,6 +5253,11 @@
   "en": "e.g. Rent debt room 3",
   "ro": "de ex. Datorie chirie camera 3",
   "pl": "np. Zaległy czynsz pokój 3"
+ },
+ "calc(100% + 4px)": {
+  "en": "calc(100% + 4px)",
+  "ro": "calc(100% + 4px)",
+  "pl": "calc(100% + 4px)"
  },
  "collega": {
   "en": "colleague",
@@ -4724,6 +5294,11 @@
   "ro": "returnează îmbrăcămintea",
   "pl": "oddaje odzież"
  },
+ "de medewerker": {
+  "en": "the employee",
+  "ro": "angajatul",
+  "pl": "pracownik"
+ },
  "deze week al afgerond": {
   "en": "already completed this week",
   "ro": "deja finalizat săptămâna aceasta",
@@ -4759,6 +5334,21 @@
   "ro": "bicicletă",
   "pl": "rower"
  },
+ "financieel": {
+  "en": "financial",
+  "ro": "financiar",
+  "pl": "finanse"
+ },
+ "geaccepteerd": {
+  "en": "accepted",
+  "ro": "acceptat",
+  "pl": "zaakceptowane"
+ },
+ "geannuleerd": {
+  "en": "cancelled",
+  "ro": "anulat",
+  "pl": "anulowane"
+ },
  "gedaan": {
   "en": "done",
   "ro": "făcut",
@@ -4783,6 +5373,21 @@
   "en": "reserved for",
   "ro": "rezervat pentru",
   "pl": "zarezerwowane dla"
+ },
+ "hoog": {
+  "en": "high",
+  "ro": "ridicat",
+  "pl": "wysoki"
+ },
+ "huismeester": {
+  "en": "house manager",
+  "ro": "administrator de casă",
+  "pl": "gospodarz domu"
+ },
+ "huismeester controleert": {
+  "en": "house manager checks",
+  "ro": "administratorul de casă verifică",
+  "pl": "gospodarz domu sprawdza"
  },
  "iedereen": {
   "en": "everyone",
@@ -4914,6 +5519,11 @@
   "ro": "rapoarte în total",
   "pl": "zgłoszeń łącznie"
  },
+ "middel": {
+  "en": "medium",
+  "ro": "mediu",
+  "pl": "średni"
+ },
  "min:": {
   "en": "min:",
   "ro": "min:",
@@ -4964,6 +5574,11 @@
   "ro": "încă de preluat",
   "pl": "jeszcze do podjęcia"
  },
+ "normaal": {
+  "en": "normal",
+  "ro": "normal",
+  "pl": "normalny"
+ },
  "of": {
   "en": "or",
   "ro": "sau",
@@ -5008,6 +5623,11 @@
   "en": "open ",
   "ro": "deschise ",
   "pl": "otwarte "
+ },
+ "overig": {
+  "en": "other",
+  "ro": "altele",
+  "pl": "inne"
  },
  "past afhandelen ook de kamerstatus aan": {
   "en": "completing also updates the room status",
@@ -5134,6 +5754,16 @@
   "ro": "tranzacții",
   "pl": "transakcje"
  },
+ "transform .2s": {
+  "en": "transform .2s",
+  "ro": "transform .2s",
+  "pl": "transform .2s"
+ },
+ "translateX(-50%) rotate(45deg)": {
+  "en": "translateX(-50%) rotate(45deg)",
+  "ro": "translateX(-50%) rotate(45deg)",
+  "pl": "translateX(-50%) rotate(45deg)"
+ },
  "van": {
   "en": "of",
   "ro": "din",
@@ -5149,10 +5779,25 @@
   "ro": "ascunde",
   "pl": "ukryj"
  },
+ "verhuizing": {
+  "en": "move",
+  "ro": "mutare",
+  "pl": "przeprowadzka"
+ },
  "verstreken — controleer": {
   "en": "expired — check",
   "ro": "expirat — verifică",
   "pl": "upłynął — sprawdź"
+ },
+ "vertrek": {
+  "en": "departure",
+  "ro": "plecare",
+  "pl": "wyjazd"
+ },
+ "vertrek_aankondiging": {
+  "en": "departure notice",
+  "ro": "anunț plecare",
+  "pl": "zapowiedź wyjazdu"
  },
  "vertrokken": {
   "en": "departed",
@@ -5163,6 +5808,11 @@
   "en": "expired",
   "ro": "expirat",
   "pl": "wygasłe"
+ },
+ "verwerkt": {
+  "en": "processed",
+  "ro": "procesat",
+  "pl": "przetworzone"
  },
  "voor het borgbeheer.": {
   "en": "for deposit management.",
@@ -5189,6 +5839,21 @@
   "ro": "săptămâni",
   "pl": "tygodnie"
  },
+ "width .3s": {
+  "en": "width .3s",
+  "ro": "width .3s",
+  "pl": "width .3s"
+ },
+ "width .4s": {
+  "en": "width .4s",
+  "ro": "width .4s",
+  "pl": "width .4s"
+ },
+ "width .5s": {
+  "en": "width .5s",
+  "ro": "width .5s",
+  "pl": "width .5s"
+ },
  "woningen": {
   "en": "houses",
   "ro": "case",
@@ -5208,6 +5873,106 @@
   "en": "are",
   "ro": "sunt",
   "pl": "są"
+ },
+ "{0} archiveren?": {
+  "en": "Archive {0}?",
+  "ro": "Arhivezi {0}?",
+  "pl": "Zarchiwizować {0}?"
+ },
+ "{0} artikelen · {1} moeten bijbesteld worden": {
+  "en": "{0} items · {1} need to be reordered",
+  "ro": "{0} articole · {1} trebuie comandate suplimentar",
+  "pl": "{0} artykułów · {1} do domówienia"
+ },
+ "{0} auto's · {1} beschikbaar · {2} uitgegeven": {
+  "en": "{0} cars · {1} available · {2} issued",
+  "ro": "{0} mașini · {1} disponibile · {2} predate",
+  "pl": "{0} aut · {1} dostępnych · {2} wydanych"
+ },
+ "{0} is vertrokken uit K{1}. Controleer: kamer schoon + {2} sleutel{3} ingeleverd. Daarna kamer op Beschikbaar zetten.": {
+  "en": "{0} has left K{1}. Check: room clean + {2} key{3} handed in. Then set the room to Available.",
+  "ro": "{0} a plecat din K{1}. Verifică: camera curată + chei predate: {2}{3}. Apoi setează camera pe Disponibil.",
+  "pl": "{0} wyjechał z K{1}. Sprawdź: pokój czysty + oddane klucze: {2}{3}. Następnie ustaw pokój jako Dostępny."
+ },
+ "{0} komt aan op {1}. Reik {2} sleutel{3} uit, begeleid de aankomst en vink af zodra de medewerker daadwerkelijk is aangekomen.": {
+  "en": "{0} arrives on {1}. Hand out {2} key{3}, assist with the arrival and tick off once the employee has actually arrived.",
+  "ro": "{0} sosește pe {1}. Predă cheile (număr: {2}{3}), însoțește sosirea și bifează când angajatul a sosit efectiv.",
+  "pl": "{0} przyjeżdża {1}. Wydaj klucze (liczba: {2}{3}), pomóż przy przyjeździe i odhacz, gdy pracownik faktycznie przyjedzie."
+ },
+ "{0} komt aan op {1}. Verwerk in systemen: huurcontract, borgplan, kamerstatus.": {
+  "en": "{0} arrives on {1}. Process in systems: rental contract, deposit plan, room status.",
+  "ro": "{0} sosește pe {1}. Procesează în sisteme: contract de închiriere, plan de garanție, starea camerei.",
+  "pl": "{0} przyjeżdża {1}. Przetwórz w systemach: umowa najmu, plan kaucji, status pokoju."
+ },
+ "{0} openstaand · klik op een blok om die lijst te zien": {
+  "en": "{0} open · click a block to see that list",
+  "ro": "{0} deschise · apasă pe un bloc pentru a vedea lista",
+  "pl": "{0} otwartych · kliknij blok, aby zobaczyć listę"
+ },
+ "{0} totaal · {1}": {
+  "en": "{0} total · {1}",
+  "ro": "{0} total · {1}",
+  "pl": "{0} razem · {1}"
+ },
+ "{0} trekt in bij {1} K{2}. Reik sleutel(s) uit en controleer of alles klaar is.": {
+  "en": "{0} moves into {1} K{2}. Hand out key(s) and check that everything is ready.",
+  "ro": "{0} se mută la {1} K{2}. Predă cheia/cheile și verifică dacă totul este pregătit.",
+  "pl": "{0} wprowadza się do {1} K{2}. Wydaj klucz(e) i sprawdź, czy wszystko jest gotowe."
+ },
+ "{0} vertrekt naar verwachting op {1}. Is de medewerker echt weg? Klik dan op \"🧳 Is vertrokken\" en vul het vertrek in — de huismeester krijgt daarna automatisch zijn controletaak.": {
+  "en": "{0} is expected to leave on {1}. Has the employee really left? Then click \"🧳 Has departed\" and fill in the departure — the house manager then automatically gets the check task.",
+  "ro": "{0} pleacă probabil pe {1}. A plecat angajatul cu adevărat? Atunci apasă pe \"🧳 A plecat\" și completează plecarea — administratorul de casă primește apoi automat sarcina de verificare.",
+  "pl": "{0} prawdopodobnie wyjeżdża {1}. Czy pracownik naprawdę wyjechał? Kliknij wtedy \"🧳 Wyjechał\" i uzupełnij wyjazd — gospodarz domu automatycznie otrzyma zadanie kontroli."
+ },
+ "{0} verwijderen?\n\n{1} wordt direct op alle apparaten uitgelogd en kan niet meer inloggen.": {
+  "en": "Delete {0}?\n\n{1} will be logged out on all devices immediately and can no longer log in.",
+  "ro": "Ștergi {0}?\n\n{1} va fi deconectat imediat de pe toate dispozitivele și nu se va mai putea autentifica.",
+  "pl": "Usunąć {0}?\n\n{1} zostanie natychmiast wylogowany na wszystkich urządzeniach i nie będzie mógł się już zalogować."
+ },
+ "{0} {1} artikel registreren voor {2}": {
+  "en": "{0} Register {1} item for {2}",
+  "ro": "{0} Înregistrează {1} articol pentru {2}",
+  "pl": "{0} Zarejestruj {1} artykuł dla {2}"
+ },
+ "{0} {1} artikelen registreren voor {2}": {
+  "en": "{0} Register {1} items for {2}",
+  "ro": "{0} Înregistrează {1} articole pentru {2}",
+  "pl": "{0} Zarejestruj artykuły ({1}) dla {2}"
+ },
+ "{0} {1} verwijderen uit {2}?": {
+  "en": "Remove {0} {1} from {2}?",
+  "ro": "Elimini {0} {1} din {2}?",
+  "pl": "Usunąć {0} {1} z {2}?"
+ },
+ "{0} — Wie ben jij?": {
+  "en": "{0} — Who are you?",
+  "ro": "{0} — Cine ești?",
+  "pl": "{0} — Kim jesteś?"
+ },
+ "{0} €{1} van borg {2}{3}": {
+  "en": "{0} €{1} from deposit {2}{3}",
+  "ro": "{0} €{1} din garanția {2}{3}",
+  "pl": "{0} €{1} z kaucji {2}{3}"
+ },
+ "{0}. Controleer: kamer schoon + {1} sleutel{2} ingeleverd.": {
+  "en": "{0}. Check: room clean + {1} key{2} returned.",
+  "ro": "{0}. Verifică: cameră curată + {1} cheie{2} predate.",
+  "pl": "{0}. Sprawdź: pokój czysty + {1} klucz{2} zwrócone."
+ },
+ "{0}. Verwerk: huurcontract, borgplan, kamerstatus bijwerken in systemen. Check of extra borg of km-vergoeding aanpassing nodig is.": {
+  "en": "{0}. Process: update rental contract, deposit plan and room status in the systems. Check whether extra deposit or a mileage allowance adjustment is needed.",
+  "ro": "{0}. De procesat: actualizează contractul de închiriere, planul de garanție și statusul camerei în sisteme. Verifică dacă este necesară garanție suplimentară sau ajustarea decontului de km.",
+  "pl": "{0}. Do wykonania: zaktualizuj umowę najmu, plan kaucji i status pokoju w systemach. Sprawdź, czy potrzebna jest dodatkowa kaucja lub korekta zwrotu za kilometry."
+ },
+ "{0}: niet in orde": {
+  "en": "{0}: not OK",
+  "ro": "{0}: nu este în regulă",
+  "pl": "{0}: nie w porządku"
+ },
+ "{0}: {1} — {2} Reden: {3}": {
+  "en": "{0}: {1} — {2} Reason: {3}",
+  "ro": "{0}: {1} — {2} Motiv: {3}",
+  "pl": "{0}: {1} — {2} Powód: {3}"
  },
  "· Aangemeld door:": {
   "en": "· Reported by:",
@@ -5333,6 +6098,16 @@
   "en": "ℹ️ Every Monday on or after the start date, the weekly amount is added automatically. Default €140 per week, payable in advance.",
   "ro": "ℹ️ În fiecare luni, la sau după data de început, suma săptămânală se adaugă automat. Standard €140 pe săptămână, plătibil în avans.",
   "pl": "ℹ️ W każdy poniedziałek w dniu rozpoczęcia lub później kwota tygodniowa jest doliczana automatycznie. Domyślnie 140 € tygodniowo, płatne z góry."
+ },
+ "ℹ️ {0} is inmiddels vertrokken — kamer {1} niet op bezet gezet.": {
+  "en": "ℹ️ {0} has already left — room {1} not set to occupied.",
+  "ro": "ℹ️ {0} a plecat între timp — camera {1} nu a fost marcată ca ocupată.",
+  "pl": "ℹ️ {0} już wyjechał — pokój {1} nie został oznaczony jako zajęty."
+ },
+ "ℹ️ {0} openstaande aankomst-taak/taken voor {1} automatisch geannuleerd (al vertrokken)": {
+  "en": "ℹ️ {0} open arrival task(s) for {1} automatically cancelled (already left)",
+  "ro": "ℹ️ {0} sarcină/sarcini de sosire deschise pentru {1} anulate automat (a plecat deja)",
+  "pl": "ℹ️ {0} otwarte zadanie/zadania przyjazdu dla {1} automatycznie anulowane (już wyjechał)"
  },
  "← DEZE WEEK": {
   "en": "← THIS WEEK",
@@ -5518,6 +6293,21 @@
   "en": "⚙️ Management → Checklists",
   "ro": "⚙️ Administrare → Liste de verificare",
   "pl": "⚙️ Zarządzanie → Listy kontrolne"
+ },
+ "⚠ Kamer {0} niet leeggemaakt — {1} zit er al in. Backoffice is gewaarschuwd, controleer handmatig.": {
+  "en": "⚠ Room {0} not cleared — {1} is already in it. Back office has been notified, check manually.",
+  "ro": "⚠ Camera {0} nu a fost eliberată — {1} locuiește deja acolo. Back office a fost anunțat, verifică manual.",
+  "pl": "⚠ Pokój {0} nie został zwolniony — {1} już w nim mieszka. Back office został powiadomiony, sprawdź ręcznie."
+ },
+ "⚠ Kamer {0} niet leeggemaakt — {1} zit er al in. Backoffice is gewaarschuwd.": {
+  "en": "⚠ Room {0} not cleared — {1} is already in it. Back office has been notified.",
+  "ro": "⚠ Camera {0} nu a fost eliberată — {1} locuiește deja acolo. Back office a fost anunțat.",
+  "pl": "⚠ Pokój {0} nie został zwolniony — {1} już w nim mieszka. Back office został powiadomiony."
+ },
+ "⚠ Kamerconflict: checklist \"{0}\" wilde kamer {1} ({2}) vrijmaken, maar daar zit inmiddels {3} in (status: {4}). Kamer NIET aangepast — controleer handmatig of de oude checklist nog klopt.": {
+  "en": "⚠ Room conflict: checklist \"{0}\" tried to free room {1} ({2}), but {3} is now living there (status: {4}). Room NOT changed — check manually whether the old checklist is still correct.",
+  "ro": "⚠ Conflict de cameră: lista de verificare \"{0}\" a încercat să elibereze camera {1} ({2}), dar acolo locuiește acum {3} (status: {4}). Camera NU a fost modificată — verifică manual dacă vechea listă de verificare mai este corectă.",
+  "pl": "⚠ Konflikt pokoju: lista kontrolna \"{0}\" próbowała zwolnić pokój {1} ({2}), ale mieszka tam już {3} (status: {4}). Pokój NIE został zmieniony — sprawdź ręcznie, czy stara lista kontrolna jest nadal aktualna."
  },
  "⚠ vertaling ontbreekt": {
   "en": "⚠ translation missing",
@@ -5724,6 +6514,11 @@
   "ro": "✅ Închis (",
   "pl": "✅ Zamknięte ("
  },
+ "✅ Afgesloten ({0})": {
+  "en": "✅ Closed ({0})",
+  "ro": "✅ Închise ({0})",
+  "pl": "✅ Zamknięte ({0})"
+ },
  "✅ Afsluiten": {
   "en": "✅ Close",
   "ro": "✅ Închide",
@@ -5753,6 +6548,11 @@
   "en": "✅ Tick off check points",
   "ro": "✅ Bifează punctele de verificare",
   "pl": "✅ Odhacz punkty kontroli"
+ },
+ "✅ Gedaan": {
+  "en": "✅ Done",
+  "ro": "✅ Gata",
+  "pl": "✅ Zrobione"
  },
  "✅ Geen urgente taken": {
   "en": "✅ No urgent tasks",
@@ -5819,6 +6619,11 @@
   "ro": "✏️ Editează",
   "pl": "✏️ Edytuj"
  },
+ "✏️ Correctie": {
+  "en": "✏️ Correction",
+  "ro": "✏️ Corecție",
+  "pl": "✏️ Korekta"
+ },
  "✏️ Kamer": {
   "en": "✏️ Room",
   "ro": "✏️ Cameră",
@@ -5833,6 +6638,11 @@
   "en": "✓ COMPLETED",
   "ro": "✓ FINALIZAT",
   "pl": "✓ ZAKOŃCZONE"
+ },
+ "✓ Aankomst van {0} geannuleerd ({1})": {
+  "en": "✓ Arrival of {0} cancelled ({1})",
+  "ro": "✓ Sosirea lui {0} anulată ({1})",
+  "pl": "✓ Przyjazd {0} anulowany ({1})"
  },
  "✓ Aanmaken": {
   "en": "✓ Create",
@@ -5858,6 +6668,16 @@
   "en": "✓ Completed by",
   "ro": "✓ Finalizat de",
   "pl": "✓ Zakończone przez"
+ },
+ "✓ Afgesloten — €{0} klaargezet in 'Terug te betalen'": {
+  "en": "✓ Closed — €{0} queued in 'To be repaid'",
+  "ro": "✓ Închis — €{0} pregătit în 'De rambursat'",
+  "pl": "✓ Zamknięte — €{0} przygotowane w 'Do zwrotu'"
+ },
+ "✓ Afgesloten — €{0} terugbetaald (verwerkt in verloning)": {
+  "en": "✓ Closed — €{0} repaid (processed in payroll)",
+  "ro": "✓ Închis — €{0} rambursat (procesat în salarizare)",
+  "pl": "✓ Zamknięte — €{0} zwrócone (rozliczone w wypłacie)"
  },
  "✓ Afhandelen": {
   "en": "✓ Complete",
@@ -5934,6 +6754,11 @@
   "ro": "✓ Comandat:",
   "pl": "✓ Zamówiono:"
  },
+ "✓ Bestelling geregistreerd ({0} stuks)": {
+  "en": "✓ Order registered ({0} pcs)",
+  "ro": "✓ Comandă înregistrată ({0} buc.)",
+  "pl": "✓ Zamówienie zarejestrowane ({0} szt.)"
+ },
  "✓ Betaling geregistreerd": {
   "en": "✓ Payment registered",
   "ro": "✓ Plată înregistrată",
@@ -5963,6 +6788,11 @@
   "en": "✓ Restock",
   "ro": "✓ Reaprovizionează",
   "pl": "✓ Uzupełnij"
+ },
+ "✓ Borgplan aangemaakt — €{0} in {1} termijnen": {
+  "en": "✓ Deposit plan created — €{0} in {1} instalments",
+  "ro": "✓ Plan de garanție creat — €{0} în {1} rate",
+  "pl": "✓ Plan kaucji utworzony — €{0} w {1} ratach"
  },
  "✓ Borgplan aanmaken": {
   "en": "✓ Create deposit plan",
@@ -5999,10 +6829,20 @@
   "ro": "✓ Bicicletă adăugată",
   "pl": "✓ Rower dodany"
  },
+ "✓ Fiets uitgegeven aan {0} — {1}, gelogd": {
+  "en": "✓ Bike issued to {0} — {1}, logged",
+  "ro": "✓ Bicicletă predată lui {0} — {1}, înregistrat",
+  "pl": "✓ Rower wydany {0} — {1}, zapisano"
+ },
  "✓ Fiets uitgeven": {
   "en": "✓ Issue bike",
   "ro": "✓ Predă bicicleta",
   "pl": "✓ Wydaj rower"
+ },
+ "✓ Fietsaanvraag ingediend voor {0}": {
+  "en": "✓ Bike request submitted for {0}",
+  "ro": "✓ Cerere de bicicletă trimisă pentru {0}",
+  "pl": "✓ Wniosek o rower złożony dla {0}"
  },
  "✓ Gedaan": {
   "en": "✓ Done",
@@ -6043,6 +6883,11 @@
   "en": "✓ Rent debt closed",
   "ro": "✓ Datorie de chirie închisă",
   "pl": "✓ Zaległość czynszowa zamknięta"
+ },
+ "✓ Inhouding van €{0} ingepland voor week {1}": {
+  "en": "✓ Deduction of €{0} scheduled for week {1}",
+  "ro": "✓ Reținere de €{0} programată pentru săptămâna {1}",
+  "pl": "✓ Potrącenie €{0} zaplanowane na tydzień {1}"
  },
  "✓ Inplannen": {
   "en": "✓ Schedule",
@@ -6089,6 +6934,11 @@
   "ro": "✓ Semnat",
   "pl": "✓ Podpisano"
  },
+ "✓ Ontvangst verwerkt — voorraad bijgewerkt naar {0}": {
+  "en": "✓ Receipt processed — stock updated to {0}",
+  "ro": "✓ Recepție procesată — stoc actualizat la {0}",
+  "pl": "✓ Przyjęcie zarejestrowane — zapas zaktualizowany do {0}"
+ },
  "✓ Opgeslagen": {
   "en": "✓ Saved",
   "ro": "✓ Salvat",
@@ -6118,6 +6968,16 @@
   "en": "✓ Reply sent — visible in Messages",
   "ro": "✓ Răspuns trimis — vizibil în Mesaje",
   "pl": "✓ Odpowiedź wysłana — widoczna w Wiadomościach"
+ },
+ "✓ Reservering van {0} in K{1} geannuleerd": {
+  "en": "✓ Reservation of {0} in K{1} cancelled",
+  "ro": "✓ Rezervarea lui {0} în K{1} anulată",
+  "pl": "✓ Rezerwacja {0} w K{1} anulowana"
+ },
+ "✓ Sleutels aangepast: {0} → {1} sleutel(s), borg €{2}": {
+  "en": "✓ Keys updated: {0} → {1} key(s), deposit €{2}",
+  "ro": "✓ Chei actualizate: {0} → {1} cheie/chei, garanție €{2}",
+  "pl": "✓ Klucze zmienione: {0} → {1} klucz(e), kaucja €{2}"
  },
  "✓ Status bijgewerkt": {
   "en": "✓ Status updated",
@@ -6199,6 +7059,11 @@
   "ro": "✓ Procesat în administrație",
   "pl": "✓ Przetworzone w administracji"
  },
+ "✓ Voorraad bijgevuld: +{0}x {1} {2}": {
+  "en": "✓ Stock restocked: +{0}x {1} {2}",
+  "ro": "✓ Stoc reaprovizionat: +{0}x {1} {2}",
+  "pl": "✓ Zapas uzupełniony: +{0}x {1} {2}"
+ },
  "✓ Voorraad gecorrigeerd": {
   "en": "✓ Stock corrected",
   "ro": "✓ Stoc corectat",
@@ -6234,6 +7099,66 @@
   "ro": "✓ deja reținut",
   "pl": "✓ już potrącone"
  },
+ "✓ ja": {
+  "en": "✓ yes",
+  "ro": "✓ da",
+  "pl": "✓ tak"
+ },
+ "✓ {0} artikel geregistreerd voor {1}": {
+  "en": "✓ {0} item registered for {1}",
+  "ro": "✓ {0} articol înregistrat pentru {1}",
+  "pl": "✓ Zarejestrowano {0} artykuł dla {1}"
+ },
+ "✓ {0} artikelen geregistreerd voor {1}": {
+  "en": "✓ {0} items registered for {1}",
+  "ro": "✓ {0} articole înregistrate pentru {1}",
+  "pl": "✓ Zarejestrowano artykuły ({0}) dla {1}"
+ },
+ "✓ {0} bevestigen en ondertekenen": {
+  "en": "✓ Confirm and sign {0}",
+  "ro": "✓ Confirmă și semnează {0}",
+  "pl": "✓ Potwierdź i podpisz {0}"
+ },
+ "✓ {0} doorgeven": {
+  "en": "✓ Submit {0}",
+  "ro": "✓ Trimite {0}",
+  "pl": "✓ Zgłoś {0}"
+ },
+ "✓ {0} geregistreerd — {1}": {
+  "en": "✓ {0} registered — {1}",
+  "ro": "✓ {0} înregistrat — {1}",
+  "pl": "✓ {0} zarejestrowano — {1}"
+ },
+ "✓ {0} {1} toegevoegd aan lijst": {
+  "en": "✓ {0} {1} added to list",
+  "ro": "✓ {0} {1} adăugat în listă",
+  "pl": "✓ {0} {1} dodano do listy"
+ },
+ "✓ {0} {1} toegevoegd aan {2}": {
+  "en": "✓ {0} {1} added to {2}",
+  "ro": "✓ {0} {1} adăugat la {2}",
+  "pl": "✓ {0} {1} dodano do {2}"
+ },
+ "✓ {0} {1} verwijderd": {
+  "en": "✓ {0} {1} removed",
+  "ro": "✓ {0} {1} eliminat",
+  "pl": "✓ {0} {1} usunięto"
+ },
+ "✓ {0}x {1} {2} ingenomen van {3}": {
+  "en": "✓ {0}x {1} {2} returned by {3}",
+  "ro": "✓ {0}x {1} {2} returnat de la {3}",
+  "pl": "✓ {0}x {1} {2} zwrócone przez {3}"
+ },
+ "✓ {0}x {1} {2} uitgegeven aan {3}": {
+  "en": "✓ {0}x {1} {2} issued to {3}",
+  "ro": "✓ {0}x {1} {2} predat lui {3}",
+  "pl": "✓ {0}x {1} {2} wydano dla {3}"
+ },
+ "✓ €{0} afgeschreven — komt vanavond in Cockpit bij {1}": {
+  "en": "✓ €{0} written off — will appear in Cockpit for {1} tonight",
+  "ro": "✓ €{0} anulat — apare diseară în Cockpit la {1}",
+  "pl": "✓ €{0} odpisane — pojawi się dziś wieczorem w Cockpit u {1}"
+ },
  "✕ Aankomst annuleren": {
   "en": "✕ Cancel arrival",
   "ro": "✕ Anulează sosirea",
@@ -6264,6 +7189,16 @@
   "ro": "✕ Da, anulează",
   "pl": "✕ Tak, anuluj"
  },
+ "✗ nee": {
+  "en": "✗ no",
+  "ro": "✗ nu",
+  "pl": "✗ nie"
+ },
+ "❌ Auto geannuleerd": {
+  "en": "❌ Car cancelled",
+  "ro": "❌ Mașină anulată",
+  "pl": "❌ Samochód anulowany"
+ },
  "❌ Geen voorraad": {
   "en": "❌ Out of stock",
   "ro": "❌ Stoc epuizat",
@@ -6273,6 +7208,11 @@
   "en": "❌ No",
   "ro": "❌ Nu",
   "pl": "❌ Nie"
+ },
+ "❌ Niet gedaan": {
+  "en": "❌ Not done",
+  "ro": "❌ Nefăcut",
+  "pl": "❌ Niezrobione"
  },
  "❓ Veel gestelde vragen": {
   "en": "❓ Frequently asked questions",
@@ -6303,6 +7243,16 @@
   "en": "➕ Create new rent debt",
   "ro": "➕ Creează datorie de chirie nouă",
   "pl": "➕ Utwórz nową zaległość czynszową"
+ },
+ "⬆ {0} bestand uploaden": {
+  "en": "⬆ Upload {0} file",
+  "ro": "⬆ Încarcă {0} fișier",
+  "pl": "⬆ Prześlij {0} plik"
+ },
+ "⬆ {0} bestanden uploaden": {
+  "en": "⬆ Upload {0} files",
+  "ro": "⬆ Încarcă {0} fișiere",
+  "pl": "⬆ Prześlij pliki ({0})"
  },
  "⬇ Exporteer CSV": {
   "en": "⬇ Export CSV",
@@ -6409,6 +7359,11 @@
   "ro": "🏠 Case",
   "pl": "🏠 Domy"
  },
+ "🏠 Woningen{0}": {
+  "en": "🏠 Houses{0}",
+  "ro": "🏠 Case{0}",
+  "pl": "🏠 Domy{0}"
+ },
  "👁 Als collega": {
   "en": "👁 As colleague",
   "ro": "👁 Ca coleg",
@@ -6458,6 +7413,11 @@
   "en": "👕 Stock",
   "ro": "👕 Stoc",
   "pl": "👕 Zapas"
+ },
+ "👤 Alle plannen ({0})": {
+  "en": "👤 All plans ({0})",
+  "ro": "👤 Toate planurile ({0})",
+  "pl": "👤 Wszystkie plany ({0})"
  },
  "👤 Collega": {
   "en": "👤 Colleague",
@@ -6539,6 +7499,11 @@
   "ro": "💬 Adaugă comentariu",
   "pl": "💬 Dodaj komentarz"
  },
+ "💬 Overig": {
+  "en": "💬 Other",
+  "ro": "💬 Altele",
+  "pl": "💬 Inne"
+ },
  "💬 Reactie sturen naar": {
   "en": "💬 Send reply to",
   "ro": "💬 Trimite răspuns către",
@@ -6599,6 +7564,21 @@
   "ro": "💶 Restant (",
   "pl": "💶 Zaległe ("
  },
+ "💶 Openstaand ({0})": {
+  "en": "💶 Outstanding ({0})",
+  "ro": "💶 Restant ({0})",
+  "pl": "💶 Otwarte ({0})"
+ },
+ "💶 Terug te betalen ({0})": {
+  "en": "💶 To be repaid ({0})",
+  "ro": "💶 De rambursat ({0})",
+  "pl": "💶 Do zwrotu ({0})"
+ },
+ "💸 Afgeschreven ({0})": {
+  "en": "💸 Written off ({0})",
+  "ro": "💸 Anulate ({0})",
+  "pl": "💸 Odpisane ({0})"
+ },
  "💸 Afgeschreven — oninbaar": {
   "en": "💸 Written off — uncollectible",
   "ro": "💸 Anulat — irecuperabil",
@@ -6613,6 +7593,11 @@
   "en": "💸 Write off — will not be paid",
   "ro": "💸 Anulează — nu se mai plătește",
   "pl": "💸 Odpisz — nie zostanie zapłacone"
+ },
+ "💸 Huurschuld afgeschreven (oninbaar): nog €{0} huur open bij vertrek (periode {1}). Reden: {2}. LET OP bij terugkomst: dit bedrag eerst afspreken/verrekenen.": {
+  "en": "💸 Rent arrears written off (uncollectable): €{0} rent still outstanding at departure (period {1}). Reason: {2}. NOTE on return: agree on/settle this amount first.",
+  "ro": "💸 Datorie chirie anulată (nerecuperabilă): €{0} chirie încă restantă la plecare (perioada {1}). Motiv: {2}. ATENȚIE la revenire: mai întâi stabiliți/compensați această sumă.",
+  "pl": "💸 Zaległy czynsz odpisany (nieściągalny): €{0} czynszu nadal otwarte przy wyjeździe (okres {1}). Powód: {2}. UWAGA przy powrocie: najpierw uzgodnić/rozliczyć tę kwotę."
  },
  "💸 Inhouden": {
   "en": "💸 Deduct",
@@ -6683,6 +7668,11 @@
   "en": "📅 This week",
   "ro": "📅 Săptămâna aceasta",
   "pl": "📅 Ten tydzień"
+ },
+ "📅 Deze week ({0})": {
+  "en": "📅 This week ({0})",
+  "ro": "📅 Săptămâna aceasta ({0})",
+  "pl": "📅 Ten tydzień ({0})"
  },
  "📅 Einddatum instellen": {
   "en": "📅 Set end date",
@@ -6778,6 +7768,11 @@
   "en": "📅 Reserve",
   "ro": "📅 Rezervă",
   "pl": "📅 Zarezerwuj"
+ },
+ "📅 Reservering": {
+  "en": "📅 Reservation",
+  "ro": "📅 Rezervare",
+  "pl": "📅 Rezerwacja"
  },
  "📅 Reservering annuleren": {
   "en": "📅 Cancel reservation",
@@ -6984,10 +7979,20 @@
   "ro": "📝 Jurnal",
   "pl": "📝 Dziennik"
  },
+ "📝 Log {0}": {
+  "en": "📝 Log {0}",
+  "ro": "📝 Jurnal {0}",
+  "pl": "📝 Dziennik {0}"
+ },
  "📝 Meldingen (": {
   "en": "📝 Reports (",
   "ro": "📝 Rapoarte (",
   "pl": "📝 Zgłoszenia ("
+ },
+ "📝 Meldingen ({0})": {
+  "en": "📝 Reports ({0})",
+  "ro": "📝 Rapoarte ({0})",
+  "pl": "📝 Zgłoszenia ({0})"
  },
  "📝 Notities": {
   "en": "📝 Notes",
@@ -7014,6 +8019,11 @@
   "ro": "📥 Reaprovizionează",
   "pl": "📥 Uzupełnij"
  },
+ "📥 Bijvulling": {
+  "en": "📥 Restock",
+  "ro": "📥 Reaprovizionare",
+  "pl": "📥 Uzupełnienie"
+ },
  "📥 Export CSV": {
   "en": "📥 Export CSV",
   "ro": "📥 Export CSV",
@@ -7028,6 +8038,11 @@
   "en": "📦 On the way / ordered",
   "ro": "📦 În drum / comandat",
   "pl": "📦 W drodze / zamówione"
+ },
+ "📦 Verhuizing": {
+  "en": "📦 Move",
+  "ro": "📦 Mutare",
+  "pl": "📦 Przeprowadzka"
  },
  "📦 Verhuizingsgegevens": {
   "en": "📦 Move details",
@@ -7184,6 +8199,11 @@
   "ro": "🔑 Sosiri și predare chei (",
   "pl": "🔑 Przyjazdy i wydanie kluczy ("
  },
+ "🔑 Auto inname": {
+  "en": "🔑 Car return",
+  "ro": "🔑 Returnare mașină",
+  "pl": "🔑 Zwrot samochodu"
+ },
  "🔑 Auto start goed": {
   "en": "🔑 Car starts properly",
   "ro": "🔑 Mașina pornește bine",
@@ -7264,6 +8284,16 @@
   "ro": "🔑 Modifică cheile",
   "pl": "🔑 Edytuj klucze"
  },
+ "🔑 {0} sleutel": {
+  "en": "🔑 {0} key",
+  "ro": "🔑 {0} cheie",
+  "pl": "🔑 {0} klucz"
+ },
+ "🔑 {0} sleutels": {
+  "en": "🔑 {0} keys",
+  "ro": "🔑 {0} chei",
+  "pl": "🔑 Klucze: {0}"
+ },
  "🔑 €100 inhouden": {
   "en": "🔑 Deduct €100",
   "ro": "🔑 Reține €100",
@@ -7304,6 +8334,11 @@
   "ro": "🔥 După prioritate",
   "pl": "🔥 Według priorytetu"
  },
+ "🔧 Auto storing/schade": {
+  "en": "🔧 Car fault/damage",
+  "ro": "🔧 Defecțiune/daună mașină",
+  "pl": "🔧 Awaria/szkoda samochodu"
+ },
  "🔧 Klusje inplannen": {
   "en": "🔧 Schedule job",
   "ro": "🔧 Planifică o lucrare",
@@ -7318,6 +8353,11 @@
   "en": "🔧 Tasks (",
   "ro": "🔧 Sarcini (",
   "pl": "🔧 Zadania ("
+ },
+ "🔧 Taken ({0})": {
+  "en": "🔧 Tasks ({0})",
+  "ro": "🔧 Sarcini ({0})",
+  "pl": "🔧 Zadania ({0})"
  },
  "🔧 Wat is er aan de hand?": {
   "en": "🔧 What is the problem?",
@@ -7364,6 +8404,11 @@
   "ro": "🗑 Arhivează planul de garanție",
   "pl": "🗑 Archiwizuj plan kaucji"
  },
+ "🗑 Borgplan gearchiveerd: {0} — {1}": {
+  "en": "🗑 Deposit plan archived: {0} — {1}",
+  "ro": "🗑 Plan de garanție arhivat: {0} — {1}",
+  "pl": "🗑 Plan kaucji zarchiwizowany: {0} — {1}"
+ },
  "🗓 Uitgifte": {
   "en": "🗓 Issue",
   "ro": "🗓 Predare",
@@ -7378,6 +8423,11 @@
   "en": "🙋 Confirm this yourself",
   "ro": "🙋 Confirmă tu însuți",
   "pl": "🙋 Potwierdź to sam"
+ },
+ "🚗 Aankomst": {
+  "en": "🚗 Arrival",
+  "ro": "🚗 Sosire",
+  "pl": "🚗 Przyjazd"
  },
  "🚗 Aankomst verwerken": {
   "en": "🚗 Process arrival",
@@ -7404,10 +8454,20 @@
   "ro": "🚗 Planificare mașini",
   "pl": "🚗 Planowanie samochodów"
  },
+ "🚗 Auto uitgifte": {
+  "en": "🚗 Car issue",
+  "ro": "🚗 Predare mașină",
+  "pl": "🚗 Wydanie samochodu"
+ },
  "🚗 Auto's": {
   "en": "🚗 Cars",
   "ro": "🚗 Mașini",
   "pl": "🚗 Samochody"
+ },
+ "🚗 Auto's{0}": {
+  "en": "🚗 Cars{0}",
+  "ro": "🚗 Mașini{0}",
+  "pl": "🚗 Samochody{0}"
  },
  "🚗 Overzicht": {
   "en": "🚗 Overview",
@@ -7494,6 +8554,11 @@
   "ro": "🚲 Solicită bicicletă",
   "pl": "🚲 Poproś o rower"
  },
+ "🚲 Fiets uitgegeven aan {0} — locatie: {1}{2}": {
+  "en": "🚲 Bike issued to {0} — location: {1}{2}",
+  "ro": "🚲 Bicicletă predată lui {0} — locație: {1}{2}",
+  "pl": "🚲 Rower wydany {0} — lokalizacja: {1}{2}"
+ },
  "🚲 Fiets uitgeven": {
   "en": "🚲 Issue bike",
   "ro": "🚲 Predă bicicleta",
@@ -7524,6 +8589,16 @@
   "ro": "🚲 Biciclete",
   "pl": "🚲 Rowery"
  },
+ "🚲 Fietsen{0}": {
+  "en": "🚲 Bikes{0}",
+  "ro": "🚲 Biciclete{0}",
+  "pl": "🚲 Rowery{0}"
+ },
+ "🚲 fiets": {
+  "en": "🚲 bike",
+  "ro": "🚲 bicicletă",
+  "pl": "🚲 rower"
+ },
  "🛑 Gestopt — schuld loopt nog": {
   "en": "🛑 Stopped — debt still outstanding",
   "ro": "🛑 Oprit — datoria este încă restantă",
@@ -7533,6 +8608,11 @@
   "en": "🛑 Stop",
   "ro": "🛑 Oprește",
   "pl": "🛑 Wstrzymaj"
+ },
+ "🛒 Bijbestellen{0}": {
+  "en": "🛒 Reorder{0}",
+  "ro": "🛒 Comandă din nou{0}",
+  "pl": "🛒 Zamów ponownie{0}"
  },
  "🛒 Markeer besteld": {
   "en": "🛒 Mark ordered",
@@ -7589,6 +8669,11 @@
   "ro": "🧳 A plecat",
   "pl": "🧳 Wyjechał"
  },
+ "🧳 Vertrek": {
+  "en": "🧳 Departure",
+  "ro": "🧳 Plecare",
+  "pl": "🧳 Wyjazd"
+ },
  "🧳 Vertrek melden": {
   "en": "🧳 Report departure",
   "ro": "🧳 Anunță plecarea",
@@ -7628,6 +8713,11 @@
   "en": "🧹 Clean:",
   "ro": "🧹 Curat:",
   "pl": "🧹 Czysto:"
+ },
+ "🧹 Taak automatisch gesloten: {0} — {1} K{2} ({3})": {
+  "en": "🧹 Task closed automatically: {0} — {1} K{2} ({3})",
+  "ro": "🧹 Sarcină închisă automat: {0} — {1} K{2} ({3})",
+  "pl": "🧹 Zadanie zamknięte automatycznie: {0} — {1} K{2} ({3})"
  },
  "🧹 schoonmaakkosten": {
   "en": "🧹 cleaning costs",
