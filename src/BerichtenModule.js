@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "./supabaseClient";
+import { tx } from "./i18n";
 
 const C = {
   blauw:"#1B3A6B", blauwLight:"#2a52a0",
@@ -91,7 +92,7 @@ export function BerichtenModule({ gebruiker, houses, taken, meldingen, autos }) 
     return true;
   }
 
-  if (loading) return <div style={{ textAlign: "center", padding: "60px", color: C.muted }}>⏳ Laden...</div>;
+  if (loading) return <div style={{ textAlign: "center", padding: "60px", color: C.muted }}>{tx("⏳ Laden...")}</div>;
 
   const ongelezen = berichten.filter(b =>
     !(b.gelezen_door || []).includes(gebruiker.naam) &&
@@ -122,14 +123,14 @@ export function BerichtenModule({ gebruiker, houses, taken, meldingen, autos }) 
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24 }}>
         <div>
           <h2 style={{ fontSize: 20, fontWeight: 800, color: C.blauw, marginBottom: 3 }}>
-            💬 Berichten
+            {tx("💬 Berichten")}
             {ongelezen > 0 && <span style={{ background: C.rood, color: "white", fontSize: 12, fontWeight: 700, padding: "2px 8px", borderRadius: 10, marginLeft: 10 }}>{ongelezen}</span>}
           </h2>
-          <p style={{ fontSize: 13, color: C.muted }}>{berichten.length} berichten · {ongelezen} ongelezen</p>
+          <p style={{ fontSize: 13, color: C.muted }}>{berichten.length} {tx("berichten ·")} {ongelezen} {tx("ongelezen")}</p>
         </div>
         <button onClick={() => setToonNieuw(true)}
           style={{ background: C.blauw, color: "white", border: "none", borderRadius: 8, padding: "10px 20px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
-          ✉️ Nieuw bericht
+          {tx("✉️ Nieuw bericht")}
         </button>
       </div>
 
@@ -152,13 +153,13 @@ export function BerichtenModule({ gebruiker, houses, taken, meldingen, autos }) 
       {/* Filters + zoek */}
       <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap", alignItems: "center" }}>
         <input value={zoek} onChange={e => setZoek(e.target.value)}
-          placeholder="🔍 Zoek berichten..."
+          placeholder={tx("🔍 Zoek berichten...")}
           style={{ background: "white", border: `1.5px solid ${C.border}`, borderRadius: 8, color: C.text, padding: "8px 14px", fontSize: 13, outline: "none", width: 220 }} />
         <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
           {[["alle", "Alle"], ["aan_mij", "Voor mij"], ["van_mij", "Van mij"], ["ongelezen", `Ongelezen${ongelezen > 0 ? ` (${ongelezen})` : ""}`]].map(([v, l]) => (
             <button key={v} onClick={() => setFilter(v)}
               style={{ background: filter === v ? C.blauw : "white", color: filter === v ? "white" : C.muted, border: `1.5px solid ${filter === v ? C.blauw : C.border}`, borderRadius: 20, padding: "6px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
-              {l}
+              {tx(l)}
             </button>
           ))}
         </div>
@@ -168,7 +169,7 @@ export function BerichtenModule({ gebruiker, houses, taken, meldingen, autos }) 
       {gefilterd.length === 0 ? (
         <div style={{ textAlign: "center", padding: "60px", color: C.muted }}>
           <div style={{ fontSize: 40, marginBottom: 10 }}>💬</div>
-          <div>Geen berichten gevonden</div>
+          <div>{tx("Geen berichten gevonden")}</div>
         </div>
       ) : gefilterd.map(b => (
         <BerichtKaart key={b.id} bericht={b} gebruiker={gebruiker} onMarkeerGelezen={markeerGelezen} />
@@ -210,10 +211,10 @@ function BerichtKaart({ bericht: b, gebruiker, onMarkeerGelezen }) {
             {b.aan ? (
               <span style={{ fontSize: 12, color: C.muted }}>→ {b.aan}</span>
             ) : (
-              <span style={{ fontSize: 11, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: "1px 8px", color: C.muted }}>iedereen</span>
+              <span style={{ fontSize: 11, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: "1px 8px", color: C.muted }}>{tx("iedereen")}</span>
             )}
             {!gelezen && !vanMij && (
-              <span style={{ background: C.blauw, color: "white", fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 10 }}>NIEUW</span>
+              <span style={{ background: C.blauw, color: "white", fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 10 }}>{tx("NIEUW")}</span>
             )}
             {b.koppeling_label && (
               <span style={{ fontSize: 11, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: "1px 8px", color: C.muted }}>
@@ -241,11 +242,11 @@ function BerichtKaart({ bericht: b, gebruiker, onMarkeerGelezen }) {
           <div style={{ fontSize: 14, color: C.text, marginTop: b.onderwerp ? 0 : 14, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{b.tekst}</div>
           {b.koppeling_label && (
             <div style={{ marginTop: 12, padding: "8px 12px", background: C.bg, borderRadius: 8, fontSize: 12, color: C.muted }}>
-              {KOPPELING_ICONS[b.koppeling_type]} Gekoppeld aan: <strong style={{ color: C.text }}>{b.koppeling_label}</strong>
+              {KOPPELING_ICONS[b.koppeling_type]} {tx("Gekoppeld aan:")} <strong style={{ color: C.text }}>{b.koppeling_label}</strong>
             </div>
           )}
           <div style={{ marginTop: 12, fontSize: 11, color: C.muted }}>
-            Gelezen door: {(b.gelezen_door || []).join(", ") || "niemand"}
+            {tx("Gelezen door:")} {(b.gelezen_door || []).join(", ") || tx("niemand")}
           </div>
         </div>
       )}
@@ -298,20 +299,20 @@ function NieuwBerichtForm({ gebruiker, houses, taken, meldingen, autos, onVerstu
 
   return (
     <div style={{ background: "white", border: `2px solid ${C.blauw}`, borderRadius: 12, padding: 20, marginBottom: 20 }}>
-      <div style={{ fontWeight: 800, fontSize: 15, color: C.blauw, marginBottom: 16 }}>✉️ Nieuw bericht</div>
+      <div style={{ fontWeight: 800, fontSize: 15, color: C.blauw, marginBottom: 16 }}>{tx("✉️ Nieuw bericht")}</div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
         <div>
-          <label style={{ fontSize: 11, fontWeight: 600, color: C.muted, letterSpacing: ".8px", textTransform: "uppercase", marginBottom: 6, display: "block" }}>Aan</label>
+          <label style={{ fontSize: 11, fontWeight: 600, color: C.muted, letterSpacing: ".8px", textTransform: "uppercase", marginBottom: 6, display: "block" }}>{tx("Aan")}</label>
           <select value={aan} onChange={e => setAan(e.target.value)}
             style={{ width: "100%", background: "white", border: `1.5px solid ${C.border}`, borderRadius: 8, color: C.text, padding: "10px 14px", fontSize: 14, outline: "none", appearance: "none", fontFamily: "inherit" }}>
-            <option value="">Iedereen</option>
+            <option value="">{tx("Iedereen")}</option>
             {andereGebruikers.map(g => <option key={g.naam} value={g.naam}>{g.naam}</option>)}
           </select>
         </div>
         <div>
-          <label style={{ fontSize: 11, fontWeight: 600, color: C.muted, letterSpacing: ".8px", textTransform: "uppercase", marginBottom: 6, display: "block" }}>Onderwerp (optioneel)</label>
-          <input value={onderwerp} onChange={e => setOnderwerp(e.target.value)} placeholder="bijv. Borg auto AB-123-C"
+          <label style={{ fontSize: 11, fontWeight: 600, color: C.muted, letterSpacing: ".8px", textTransform: "uppercase", marginBottom: 6, display: "block" }}>{tx("Onderwerp (optioneel)")}</label>
+          <input value={onderwerp} onChange={e => setOnderwerp(e.target.value)} placeholder={tx("bijv. Borg auto AB-123-C")}
             style={{ width: "100%", background: "white", border: `1.5px solid ${C.border}`, borderRadius: 8, color: C.text, padding: "10px 14px", fontSize: 14, outline: "none", fontFamily: "inherit", boxSizing: "border-box" }} />
         </div>
       </div>
@@ -319,24 +320,24 @@ function NieuwBerichtForm({ gebruiker, houses, taken, meldingen, autos, onVerstu
       {/* Koppeling */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
         <div>
-          <label style={{ fontSize: 11, fontWeight: 600, color: C.muted, letterSpacing: ".8px", textTransform: "uppercase", marginBottom: 6, display: "block" }}>Koppelen aan (optioneel)</label>
+          <label style={{ fontSize: 11, fontWeight: 600, color: C.muted, letterSpacing: ".8px", textTransform: "uppercase", marginBottom: 6, display: "block" }}>{tx("Koppelen aan (optioneel)")}</label>
           <select value={koppelingType} onChange={e => { setKoppelingType(e.target.value); setKoppelingId(""); }}
             style={{ width: "100%", background: "white", border: `1.5px solid ${C.border}`, borderRadius: 8, color: C.text, padding: "10px 14px", fontSize: 14, outline: "none", appearance: "none", fontFamily: "inherit" }}>
-            <option value="">Geen koppeling</option>
-            <option value="woning">🏠 Woning</option>
-            <option value="auto">🚗 Auto</option>
-            <option value="taak">📌 Taak</option>
-            <option value="melding">🔔 Melding</option>
+            <option value="">{tx("Geen koppeling")}</option>
+            <option value="woning">{tx("🏠 Woning")}</option>
+            <option value="auto">{tx("🚗 Auto")}</option>
+            <option value="taak">{tx("📌 Taak")}</option>
+            <option value="melding">{tx("🔔 Melding")}</option>
           </select>
         </div>
         {koppelingType && (
           <div>
-            <label style={{ fontSize: 11, fontWeight: 600, color: C.muted, letterSpacing: ".8px", textTransform: "uppercase", marginBottom: 6, display: "block" }}>Selecteer {koppelingType}</label>
+            <label style={{ fontSize: 11, fontWeight: 600, color: C.muted, letterSpacing: ".8px", textTransform: "uppercase", marginBottom: 6, display: "block" }}>{tx("Selecteer")} {koppelingType}</label>
             <select value={koppelingId} onChange={e => setKoppelingId(e.target.value)}
               style={{ width: "100%", background: "white", border: `1.5px solid ${C.border}`, borderRadius: 8, color: C.text, padding: "10px 14px", fontSize: 14, outline: "none", appearance: "none", fontFamily: "inherit" }}>
-              <option value="">Kies...</option>
+              <option value="">{tx("Kies...")}</option>
               {(koppelingOpties[koppelingType] || []).map(o => (
-                <option key={o.id} value={o.id}>{o.label}</option>
+                <option key={o.id} value={o.id}>{tx(o.label)}</option>
               ))}
             </select>
           </div>
@@ -345,9 +346,9 @@ function NieuwBerichtForm({ gebruiker, houses, taken, meldingen, autos, onVerstu
 
       {/* Bericht tekst */}
       <div style={{ marginBottom: 14 }}>
-        <label style={{ fontSize: 11, fontWeight: 600, color: C.muted, letterSpacing: ".8px", textTransform: "uppercase", marginBottom: 6, display: "block" }}>Bericht *</label>
+        <label style={{ fontSize: 11, fontWeight: 600, color: C.muted, letterSpacing: ".8px", textTransform: "uppercase", marginBottom: 6, display: "block" }}>{tx("Bericht *")}</label>
         <textarea value={tekst} onChange={e => setTekst(e.target.value)}
-          placeholder="Typ hier je bericht..."
+          placeholder={tx("Typ hier je bericht...")}
           rows={4}
           style={{ width: "100%", background: "white", border: `1.5px solid ${C.border}`, borderRadius: 8, color: C.text, padding: "10px 14px", fontSize: 14, outline: "none", fontFamily: "inherit", resize: "vertical", boxSizing: "border-box" }} />
       </div>
@@ -355,11 +356,11 @@ function NieuwBerichtForm({ gebruiker, houses, taken, meldingen, autos, onVerstu
       <div style={{ display: "flex", gap: 10 }}>
         <button onClick={handleSubmit} disabled={saving || !tekst.trim()}
           style={{ background: saving || !tekst.trim() ? C.border : C.blauw, color: "white", border: "none", borderRadius: 8, padding: "11px 24px", fontSize: 14, fontWeight: 700, cursor: saving || !tekst.trim() ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
-          {saving ? "⏳ Versturen..." : "✉️ Verstuur"}
+          {saving ? tx("⏳ Versturen...") : tx("✉️ Verstuur")}
         </button>
         <button onClick={onAnnuleer}
           style={{ background: "white", border: `1.5px solid ${C.border}`, color: C.muted, borderRadius: 8, padding: "11px 18px", fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}>
-          Annuleren
+          {tx("Annuleren")}
         </button>
       </div>
     </div>

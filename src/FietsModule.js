@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "./supabaseClient";
 import { weekPlusN, getWeekNr } from "./BorgModule";
+import { tx } from "./i18n";
 
 const C = {
   blauw:"#1B3A6B", blauwDark:"#132b52",
@@ -80,7 +81,7 @@ export function FietsModule({ gebruiker, showToast }) {
   const locaties = Object.keys(perLocatie).sort();
 
   async function geefFietsUit() {
-    if (!uitgifte.locatie) { showToast("Selecteer een locatie","err"); return; }
+    if (!uitgifte.locatie) { showToast(tx("Selecteer een locatie"),"err"); return; }
 
     const isNieuw = uitgifte.naam_medewerker === "__nieuw__";
     const naam = (isNieuw ? uitgifte.nieuweNaam : uitgifte.naam_medewerker).trim();
@@ -91,10 +92,10 @@ export function FietsModule({ gebruiker, showToast }) {
     // matches als een borg die altijd op het hardcoded standaardbedrag €100 bleef staan.
     const bedragRuw = uitgifte.verkoopbedrag.trim().replace(",", ".");
     const bedrag = bedragRuw ? Number(bedragRuw) : 100;
-    if (!Number.isFinite(bedrag) || bedrag <= 0) { showToast("Ongeldig verkoopbedrag","err"); return; }
+    if (!Number.isFinite(bedrag) || bedrag <= 0) { showToast(tx("Ongeldig verkoopbedrag"),"err"); return; }
 
     const beschikbaar = perLocatie[uitgifte.locatie] || [];
-    if (beschikbaar.length === 0) { showToast("Geen fiets beschikbaar op die locatie","err"); return; }
+    if (beschikbaar.length === 0) { showToast(tx("Geen fiets beschikbaar op die locatie"),"err"); return; }
 
     setSaving(true);
     const fiets = beschikbaar[0]; // pak eerste beschikbare fiets van die locatie
@@ -173,7 +174,7 @@ export function FietsModule({ gebruiker, showToast }) {
   }
 
   async function voegFietsToe() {
-    if (!nieuweLocatie.trim()) { showToast("Vul een locatie in","err"); return; }
+    if (!nieuweLocatie.trim()) { showToast(tx("Vul een locatie in"),"err"); return; }
     setSaving(true);
     await supabase.from("fietsen").insert([{
       fietsnummer: String(Date.now()).slice(-4), // intern ID, niet zichtbaar
@@ -181,29 +182,29 @@ export function FietsModule({ gebruiker, showToast }) {
       naam_medewerker: nieuweLocatie.trim(),
     }]);
     setSaving(false);
-    showToast("✓ Fiets toegevoegd");
+    showToast(tx("✓ Fiets toegevoegd"));
     setNieuweLocatie(""); setToonToevoegen(false);
   }
 
-  if (loading) return <div style={{textAlign:"center",padding:"60px",color:C.muted}}>⏳ Laden...</div>;
+  if (loading) return <div style={{textAlign:"center",padding:"60px",color:C.muted}}>{tx("⏳ Laden...")}</div>;
 
   return (
     <div>
       {/* Header */}
       <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:20,flexWrap:"wrap",gap:12}}>
         <div>
-          <h2 style={{fontSize:20,fontWeight:800,color:C.blauw,marginBottom:3}}>🚲 Beschikbare fietsen</h2>
-          <p style={{fontSize:13,color:C.muted}}>{fietsen.length} beschikbaar · {locaties.length} locatie{locaties.length!==1?"s":""}</p>
+          <h2 style={{fontSize:20,fontWeight:800,color:C.blauw,marginBottom:3}}>{tx("🚲 Beschikbare fietsen")}</h2>
+          <p style={{fontSize:13,color:C.muted}}>{fietsen.length} {tx("beschikbaar ·")} {locaties.length} {tx("locatie")}{locaties.length!==1?"s":""}</p>
         </div>
         <div style={{display:"flex",gap:8}}>
           <button onClick={()=>{setToonUitgifte(!toonUitgifte);setToonToevoegen(false);}}
             style={{background:toonUitgifte?"white":C.groen,color:toonUitgifte?C.groen:"white",border:`2px solid ${C.groen}`,borderRadius:8,padding:"9px 18px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
-            {toonUitgifte?"✕ Annuleren":"🚲 Fiets uitgeven"}
+            {toonUitgifte?tx("✕ Annuleren"):tx("🚲 Fiets uitgeven")}
           </button>
           {isBackoffice && (
             <button onClick={()=>{setToonToevoegen(!toonToevoegen);setToonUitgifte(false);}}
               style={{background:toonToevoegen?"white":C.blauw,color:toonToevoegen?C.blauw:"white",border:`2px solid ${C.blauw}`,borderRadius:8,padding:"9px 18px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
-              {toonToevoegen?"✕ Annuleren":"+ Fiets toevoegen"}
+              {toonToevoegen?tx("✕ Annuleren"):tx("+ Fiets toevoegen")}
             </button>
           )}
         </div>
@@ -212,44 +213,44 @@ export function FietsModule({ gebruiker, showToast }) {
       {/* Uitgifte form */}
       {toonUitgifte && (
         <div style={{background:"white",border:`2px solid ${C.groen}`,borderRadius:12,padding:20,marginBottom:20}}>
-          <div style={{fontWeight:700,fontSize:15,color:C.groen,marginBottom:16}}>🚲 Fiets uitgeven aan medewerker</div>
+          <div style={{fontWeight:700,fontSize:15,color:C.groen,marginBottom:16}}>{tx("🚲 Fiets uitgeven aan medewerker")}</div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
             <div>
-              <Label>Locatie *</Label>
+              <Label>{tx("Locatie *")}</Label>
               <select value={uitgifte.locatie} onChange={e=>setUitgifte(p=>({...p,locatie:e.target.value}))}
                 style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:uitgifte.locatie?C.text:C.muted,padding:"10px 14px",fontSize:14,outline:"none",fontFamily:"inherit",appearance:"none"}}>
-                <option value="">Selecteer locatie...</option>
+                <option value="">{tx("Selecteer locatie...")}</option>
                 {locaties.map(l => (
-                  <option key={l} value={l}>{l} ({(perLocatie[l]||[]).length} beschikbaar)</option>
+                  <option key={l} value={l}>{tx(l)} ({(perLocatie[l]||[]).length} {tx("beschikbaar)")}</option>
                 ))}
               </select>
             </div>
             <div>
-              <Label>Naam medewerker *</Label>
+              <Label>{tx("Naam medewerker *")}</Label>
               <select value={uitgifte.naam_medewerker} onChange={e=>setUitgifte(p=>({...p,naam_medewerker:e.target.value}))}
                 style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:uitgifte.naam_medewerker?C.text:C.muted,padding:"10px 14px",fontSize:14,outline:"none",fontFamily:"inherit",appearance:"none"}}>
-                <option value="">Selecteer bestaande medewerker...</option>
+                <option value="">{tx("Selecteer bestaande medewerker...")}</option>
                 {actievePlannen.map(n => <option key={n} value={n}>{n}</option>)}
-                <option value="__nieuw__">+ Nieuwe naam (nog geen borgplan)</option>
+                <option value="__nieuw__">{tx("+ Nieuwe naam (nog geen borgplan)")}</option>
               </select>
               {uitgifte.naam_medewerker === "__nieuw__" && (
                 <div style={{marginTop:8}}>
-                  <Input value={uitgifte.nieuweNaam} onChange={e=>setUitgifte(p=>({...p,nieuweNaam:e.target.value}))} placeholder="Exacte voor- en achternaam" autoFocus/>
-                  <div style={{fontSize:11,color:C.muted,marginTop:4}}>⚠️ Typ de naam exact zoals die straks bij aankomst/borgplan gebruikt wordt — anders ontstaat opnieuw een dubbel borgplan.</div>
+                  <Input value={uitgifte.nieuweNaam} onChange={e=>setUitgifte(p=>({...p,nieuweNaam:e.target.value}))} placeholder={tx("Exacte voor- en achternaam")} autoFocus/>
+                  <div style={{fontSize:11,color:C.muted,marginTop:4}}>{tx("⚠️ Typ de naam exact zoals die straks bij aankomst/borgplan gebruikt wordt — anders ontstaat opnieuw een dubbel borgplan.")}</div>
                 </div>
               )}
             </div>
           </div>
           <div style={{maxWidth:260,marginBottom:16}}>
-            <Label>Afwijkend verkoopbedrag</Label>
-            <Input type="number" min="1" step="1" value={uitgifte.verkoopbedrag} onChange={e=>setUitgifte(p=>({...p,verkoopbedrag:e.target.value}))} placeholder="leeg = standaard €100"/>
+            <Label>{tx("Afwijkend verkoopbedrag")}</Label>
+            <Input type="number" min="1" step="1" value={uitgifte.verkoopbedrag} onChange={e=>setUitgifte(p=>({...p,verkoopbedrag:e.target.value}))} placeholder={tx("leeg = standaard €100")}/>
           </div>
           <div style={{display:"flex",gap:10,alignItems:"center"}}>
             <button onClick={geefFietsUit} disabled={saving||!uitgifte.locatie||!uitgifte.naam_medewerker||(uitgifte.naam_medewerker==="__nieuw__"&&!uitgifte.nieuweNaam.trim())}
               style={{background:saving||!uitgifte.locatie||!uitgifte.naam_medewerker||(uitgifte.naam_medewerker==="__nieuw__"&&!uitgifte.nieuweNaam.trim())?"#ccc":C.groen,color:"white",border:"none",borderRadius:8,padding:"11px 24px",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
-              {saving?"⏳ Bezig...":"✓ Fiets uitgeven"}
+              {saving?tx("⏳ Bezig..."):tx("✓ Fiets uitgeven")}
             </button>
-            <span style={{fontSize:12,color:C.muted}}>Fiets wordt gelogd + borg automatisch aangemaakt/opgehoogd</span>
+            <span style={{fontSize:12,color:C.muted}}>{tx("Fiets wordt gelogd + borg automatisch aangemaakt/opgehoogd")}</span>
           </div>
         </div>
       )}
@@ -257,18 +258,18 @@ export function FietsModule({ gebruiker, showToast }) {
       {/* Toevoegen form */}
       {toonToevoegen && isBackoffice && (
         <div style={{background:"white",border:`2px solid ${C.blauw}`,borderRadius:12,padding:20,marginBottom:20}}>
-          <div style={{fontWeight:700,fontSize:15,color:C.blauw,marginBottom:16}}>+ Fiets toevoegen aan voorraad</div>
+          <div style={{fontWeight:700,fontSize:15,color:C.blauw,marginBottom:16}}>{tx("+ Fiets toevoegen aan voorraad")}</div>
           <div style={{maxWidth:340,marginBottom:16}}>
-            <Label>Locatie *</Label>
+            <Label>{tx("Locatie *")}</Label>
             <Input value={nieuweLocatie} onChange={e=>setNieuweLocatie(e.target.value)}
-              placeholder="bijv. Kantoor Enschede" list="locatie-lijst" autoFocus/>
+              placeholder={tx("bijv. Kantoor Enschede")} list="locatie-lijst" autoFocus/>
             <datalist id="locatie-lijst">
               {locaties.map(l => <option key={l} value={l}/>)}
             </datalist>
           </div>
           <button onClick={voegFietsToe} disabled={saving||!nieuweLocatie.trim()}
             style={{background:saving||!nieuweLocatie.trim()?"#ccc":C.blauw,color:"white",border:"none",borderRadius:8,padding:"10px 22px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
-            {saving?"⏳ Opslaan...":"✓ Toevoegen"}
+            {saving?tx("⏳ Opslaan..."):tx("✓ Toevoegen")}
           </button>
         </div>
       )}
@@ -277,8 +278,8 @@ export function FietsModule({ gebruiker, showToast }) {
       {fietsen.length === 0 ? (
         <div style={{textAlign:"center",padding:"60px",color:C.muted,background:"white",borderRadius:12,border:`1px solid ${C.border}`}}>
           <div style={{fontSize:48,marginBottom:12}}>🚲</div>
-          <div style={{fontWeight:600,fontSize:16,marginBottom:6}}>Geen beschikbare fietsen</div>
-          <div style={{fontSize:13}}>Voeg fietsen toe via de knop hierboven</div>
+          <div style={{fontWeight:600,fontSize:16,marginBottom:6}}>{tx("Geen beschikbare fietsen")}</div>
+          <div style={{fontSize:13}}>{tx("Voeg fietsen toe via de knop hierboven")}</div>
         </div>
       ) : (
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:16}}>
@@ -289,12 +290,12 @@ export function FietsModule({ gebruiker, showToast }) {
               <div key={loc} style={{background:"white",border:`1px solid ${C.border}`,borderTop:`4px solid ${kleur}`,borderRadius:12,padding:20,boxShadow:"0 1px 4px rgba(27,58,107,.06)"}}>
                 <div style={{fontSize:13,fontWeight:700,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:".5px"}}>📍 {loc}</div>
                 <div style={{fontSize:48,fontWeight:900,color:kleur,lineHeight:1,marginBottom:6}}>{aantal}</div>
-                <div style={{fontSize:13,color:C.muted}}>fiets{aantal!==1?"en":""} beschikbaar</div>
+                <div style={{fontSize:13,color:C.muted}}>{tx("fiets")}{aantal!==1?tx("en"):""} {tx("beschikbaar")}</div>
                 {aantal <= 1 && aantal > 0 && (
-                  <div style={{marginTop:8,fontSize:11,fontWeight:700,color:"#b45309",background:"#fef3c7",borderRadius:6,padding:"4px 8px",display:"inline-block"}}>⚠️ Bijna op</div>
+                  <div style={{marginTop:8,fontSize:11,fontWeight:700,color:"#b45309",background:"#fef3c7",borderRadius:6,padding:"4px 8px",display:"inline-block"}}>{tx("⚠️ Bijna op")}</div>
                 )}
                 {aantal === 0 && (
-                  <div style={{marginTop:8,fontSize:11,fontWeight:700,color:"#dc2626",background:"#fef2f2",borderRadius:6,padding:"4px 8px",display:"inline-block"}}>❌ Geen voorraad</div>
+                  <div style={{marginTop:8,fontSize:11,fontWeight:700,color:"#dc2626",background:"#fef2f2",borderRadius:6,padding:"4px 8px",display:"inline-block"}}>{tx("❌ Geen voorraad")}</div>
                 )}
               </div>
             );

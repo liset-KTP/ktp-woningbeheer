@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "./supabaseClient";
 import WeekDatePicker from "./WeekDatePicker";
 import { MedewerkerKiezer, naamProbleem, normaliseerNaam, vernieuwMedewerkerNamen } from "./MedewerkerKiezer";
+import { tx } from "./i18n";
 
 // ─── EMAILJS ──────────────────────────────────────────────────────────────────
 const EMAILJS_SERVICE  = "service_1af258e";
@@ -160,8 +161,8 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
       tarief_bedrag: data.tarief_bedrag || null,
       tarief_dagen: data.tarief_dagen || null,
     }]);
-    if (error) { showToast("Fout bij opslaan","err"); return false; }
-    showToast("✓ Huurschuld aangemaakt"); return true;
+    if (error) { showToast(tx("Fout bij opslaan"),"err"); return false; }
+    showToast(tx("✓ Huurschuld aangemaakt")); return true;
   }
 
   async function addBetaling(schuldId, bedrag, opmerking, datum) {
@@ -172,26 +173,26 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
       opmerking: opmerking || null,
       geregistreerd_door: gebruiker.naam,
     }]);
-    if (error) { showToast("Fout bij opslaan betaling","err"); return false; }
+    if (error) { showToast(tx("Fout bij opslaan betaling"),"err"); return false; }
     // Auto-afsluiten: als schuld een einddatum heeft en nu volledig betaald is → actief=false
     const schuld = schulden.find(s => s.id === schuldId);
     if (schuld?.einddatum && schuld?.actief) {
       const bijgewerkt = { ...schuld, betalingen: [...(schuld.betalingen||[]), {bedrag: Number(bedrag), datum: datum||todayISO()}] };
       if (berekenOpenstaand(bijgewerkt) <= 0) {
         await supabase.from("huurschulden").update({ actief: false }).eq("id", schuldId);
-        showToast("✓ Betaling opgeslagen — schuld volledig afgerond en afgesloten");
+        showToast(tx("✓ Betaling opgeslagen — schuld volledig afgerond en afgesloten"));
         return true;
       }
     }
-    showToast("✓ Betaling geregistreerd"); return true;
+    showToast(tx("✓ Betaling geregistreerd")); return true;
   }
 
   async function sluitAf(schuldId) {
     const { error } = await supabase.from("huurschulden").update({
       actief: false, einddatum: todayISO(),
     }).eq("id", schuldId);
-    if (error) { showToast("Fout bij afsluiten","err"); return false; }
-    showToast("✓ Huurschuld afgesloten"); return true;
+    if (error) { showToast(tx("Fout bij afsluiten"),"err"); return false; }
+    showToast(tx("✓ Huurschuld afgesloten")); return true;
   }
 
   // Afschrijven = schuld is oninbaar (medewerker weg, geen inhouding mogelijk).
@@ -202,7 +203,7 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
   async function schrijfAf(schuld, reden) {
     const einddatum = schuld.einddatum || todayISO();
     const bedrag = Math.round(berekenOpenstaand({ ...schuld, einddatum }) * 100) / 100;
-    if (bedrag <= 0) { showToast("Er staat niets open om af te schrijven","err"); return false; }
+    if (bedrag <= 0) { showToast(tx("Er staat niets open om af te schrijven"),"err"); return false; }
     const { error } = await supabase.from("huurschulden").update({
       actief: false,
       einddatum,
@@ -211,7 +212,7 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
       afgeschreven_door: gebruiker.naam,
       afgeschreven_reden: reden,
     }).eq("id", schuld.id);
-    if (error) { console.error(error); showToast("Fout bij afschrijven","err"); return false; }
+    if (error) { console.error(error); showToast(tx("Fout bij afschrijven"),"err"); return false; }
     const periode = `${fmtDate(schuld.startdatum)} t/m ${fmtDate(einddatum)}`;
     const { error: logErr } = await supabase.from("activiteiten").insert([{
       type: "huurschuld_afgeschreven",
@@ -229,11 +230,11 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
     const huidige = schuld?.opmerkingen || "";
     const nieuw = huidige ? huidige + "\n" + tekst : tekst;
     const { error } = await supabase.from("huurschulden").update({ opmerkingen: nieuw }).eq("id", schuldId);
-    if (error) { showToast("Fout bij opslaan","err"); return false; }
-    showToast("✓ Opmerking toegevoegd"); return true;
+    if (error) { showToast(tx("Fout bij opslaan"),"err"); return false; }
+    showToast(tx("✓ Opmerking toegevoegd")); return true;
   }
 
-  if (loading) return <div style={{textAlign:"center",padding:"60px",color:C.muted}}>⏳ Laden...</div>;
+  if (loading) return <div style={{textAlign:"center",padding:"60px",color:C.muted}}>{tx("⏳ Laden...")}</div>;
 
   const actief   = schulden.filter(s => s.actief);
   const gesloten = schulden.filter(s => !s.actief);
@@ -276,17 +277,17 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
       {/* Header met stats + knop */}
       <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:16,flexWrap:"wrap",gap:12}}>
         <div>
-          <h2 style={{fontSize:20,fontWeight:800,color:C.blauw,marginBottom:3}}>💶 Huurbetalingen</h2>
+          <h2 style={{fontSize:20,fontWeight:800,color:C.blauw,marginBottom:3}}>{tx("💶 Huurbetalingen")}</h2>
           <p style={{fontSize:13,color:C.muted}}>
-            {actief.length} openstaand · {gesloten.length} afgesloten
-            {totaalOpen > 0 && <> · <strong style={{color:C.rood}}>€{totaalOpen.toFixed(2)} open</strong></>}
-            {afgeschrevenDitJaar > 0 && <> · <span style={{color:C.muted}}>💸 €{afgeschrevenDitJaar.toFixed(2)} afgeschreven in {ditJaar}</span></>}
+            {actief.length} {tx("openstaand ·")} {gesloten.length} {tx("afgesloten")}
+            {totaalOpen > 0 && <> · <strong style={{color:C.rood}}>€{totaalOpen.toFixed(2)} {tx("open")}</strong></>}
+            {afgeschrevenDitJaar > 0 && <> · <span style={{color:C.muted}}>💸 €{afgeschrevenDitJaar.toFixed(2)} {tx("afgeschreven in")} {ditJaar}</span></>}
           </p>
         </div>
         {isBackoffice && (
           <button onClick={() => setToonNieuw(!toonNieuw)}
             style={{background:toonNieuw?"white":C.blauw,color:toonNieuw?C.blauw:"white",border:`2px solid ${C.blauw}`,borderRadius:8,padding:"9px 18px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
-            {toonNieuw ? "✕ Annuleren" : "+ Nieuwe schuld"}
+            {toonNieuw ? tx("✕ Annuleren") : tx("+ Nieuwe schuld")}
           </button>
         )}
       </div>
@@ -301,8 +302,8 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
       {/* Rode banner als er openstaand is */}
       {totaalOpen > 0 && !toonNieuw && (
         <div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:10,padding:"10px 16px",marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}>
-          <div style={{fontWeight:700,color:"#b91c1c",fontSize:13}}>⚠️ Totaal openstaand: €{totaalOpen.toFixed(2)}</div>
-          <div style={{fontSize:12,color:"#b91c1c"}}>Verdeeld over {actief.length} medewerker{actief.length !== 1 ? "s" : ""}</div>
+          <div style={{fontWeight:700,color:"#b91c1c",fontSize:13}}>{tx("⚠️ Totaal openstaand: €")}{totaalOpen.toFixed(2)}</div>
+          <div style={{fontSize:12,color:"#b91c1c"}}>{tx("Verdeeld over")} {actief.length} {tx("medewerker")}{actief.length !== 1 ? "s" : ""}</div>
         </div>
       )}
 
@@ -310,32 +311,32 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
       <div style={{display:"flex",gap:10,marginBottom:12,flexWrap:"wrap"}}>
         <input
           value={zoek} onChange={e => setZoek(e.target.value)}
-          placeholder="🔍 Zoek op naam..."
+          placeholder={tx("🔍 Zoek op naam...")}
           style={{flex:1,minWidth:200,background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"9px 14px",fontSize:13,outline:"none",fontFamily:"inherit"}}
         />
         <select value={sorteer} onChange={e => setSorteer(e.target.value)}
           style={{background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"9px 14px",fontSize:13,outline:"none",fontFamily:"inherit",cursor:"pointer"}}>
-          <option value="openstaand">↓ Hoogst openstaand</option>
-          <option value="laatste_betaling">⏰ Langst geen betaling</option>
-          <option value="naam">A–Z Naam</option>
-          <option value="startdatum">📅 Startdatum</option>
+          <option value="openstaand">{tx("↓ Hoogst openstaand")}</option>
+          <option value="laatste_betaling">{tx("⏰ Langst geen betaling")}</option>
+          <option value="naam">{tx("A–Z Naam")}</option>
+          <option value="startdatum">{tx("📅 Startdatum")}</option>
         </select>
       </div>
       <div style={{display:"flex",gap:4,marginBottom:16,flexWrap:"wrap"}}>
         {[["alle",`Alles (${schulden.length})`],["openstaand",`💶 Openstaand (${actief.length})`],["afgesloten",`✅ Afgesloten (${gesloten.length})`],["afgeschreven",`💸 Afgeschreven (${afgeschreven.length})`]].map(([v,l]) => (
           <button key={v} onClick={() => setFilterStatus(v)}
             style={{background:filterStatus===v?C.blauw:"white",color:filterStatus===v?"white":C.muted,border:`1.5px solid ${filterStatus===v?C.blauw:C.border}`,borderRadius:20,padding:"7px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
-            {l}
+            {tx(l)}
           </button>
         ))}
       </div>
 
-      {q && <div style={{fontSize:12,color:C.muted,marginBottom:10}}>{gefilterd.length} resultaten voor "<strong>{zoek}</strong>"</div>}
+      {q && <div style={{fontSize:12,color:C.muted,marginBottom:10}}>{gefilterd.length} {tx("resultaten voor \"")}<strong>{zoek}</strong>"</div>}
 
       {gefilterd.length === 0 ? (
         <div style={{textAlign:"center",padding:"60px",color:C.muted}}>
           <div style={{fontSize:40,marginBottom:10}}>🔍</div>
-          <div>{q ? `Geen resultaten voor "${zoek}"` : "Geen huurschulden gevonden 🎉"}</div>
+          <div>{q ? `Geen resultaten voor "${zoek}"` : tx("Geen huurschulden gevonden 🎉")}</div>
         </div>
       ) : (
         <div style={{display:"grid",gap:16}}>
@@ -344,7 +345,7 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
             <>
               {filterStatus === "alle" && (
                 <div style={{display:"flex",alignItems:"center",gap:10,marginTop:4}}>
-                  <span style={{fontWeight:700,fontSize:13,color:C.rood}}>💶 Openstaand ({actiefGefilterd.length})</span>
+                  <span style={{fontWeight:700,fontSize:13,color:C.rood}}>{tx("💶 Openstaand (")}{actiefGefilterd.length})</span>
                   <div style={{flex:1,height:1,background:C.border}}/>
                 </div>
               )}
@@ -359,7 +360,7 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
             <>
               {filterStatus === "alle" && (
                 <div style={{display:"flex",alignItems:"center",gap:10,marginTop:8}}>
-                  <span style={{fontWeight:700,fontSize:13,color:C.groen}}>✅ Afgesloten ({geslotenGefilterd.length})</span>
+                  <span style={{fontWeight:700,fontSize:13,color:C.groen}}>{tx("✅ Afgesloten (")}{geslotenGefilterd.length})</span>
                   <div style={{flex:1,height:1,background:C.border}}/>
                 </div>
               )}
@@ -379,7 +380,7 @@ function SchuldenLijst({ schulden, gebruiker, isBackoffice, onBetaling, onAfslui
   if (schulden.length === 0) return (
     <div style={{textAlign:"center",padding:"60px",color:C.muted}}>
       <div style={{fontSize:40,marginBottom:10}}>💶</div>
-      <div>{readonly ? "Geen afgesloten schulden" : "Geen openstaande huurschulden 🎉"}</div>
+      <div>{readonly ? tx("Geen afgesloten schulden") : tx("Geen openstaande huurschulden 🎉")}</div>
     </div>
   );
 
@@ -421,7 +422,7 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onAfschrij
   const pct   = totaalVerschuldigd > 0 ? Math.min(100, (totaalBetaald / totaalVerschuldigd) * 100) : 0;
 
   async function handleBetaling() {
-    if (!bedrag || isNaN(Number(bedrag)) || Number(bedrag) <= 0) { showToast("Vul een geldig bedrag in","err"); return; }
+    if (!bedrag || isNaN(Number(bedrag)) || Number(bedrag) <= 0) { showToast(tx("Vul een geldig bedrag in"),"err"); return; }
     setSaving(true);
     await onBetaling(schuld.id, bedrag, betalingOpmerking, betalingDatum);
     setSaving(false);
@@ -449,29 +450,29 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onAfschrij
             {schuld.naam_medewerker}
             {schuld.einddatum && schuld.actief && openstaand > 0 && (
               <span style={{marginLeft:8,fontSize:11,fontWeight:700,background:"#fef2f2",color:"#ef4444",padding:"2px 8px",borderRadius:8,border:"1px solid #fecaca"}}>
-                🛑 Gestopt — schuld loopt nog
+                {tx("🛑 Gestopt — schuld loopt nog")}
               </span>
             )}
             {isAfgeschreven && (
               <span style={{marginLeft:8,fontSize:11,fontWeight:700,background:"#f1f5f9",color:"#475569",padding:"2px 8px",borderRadius:8,border:"1px solid #cbd5e1"}}>
-                💸 Afgeschreven — oninbaar
+                {tx("💸 Afgeschreven — oninbaar")}
               </span>
             )}
             {schuld.actief && openstaand === 0 && (
               <span style={{marginLeft:8,fontSize:11,fontWeight:700,background:"#f0fdf4",color:C.groen,padding:"2px 8px",borderRadius:8,border:"1px solid #bbf7d0"}}>
-                ✅ Volledig betaald — klaar om af te sluiten
+                {tx("✅ Volledig betaald — klaar om af te sluiten")}
               </span>
             )}
           </div>
           <div style={{fontSize:12,color:C.muted}}>
-            Vanaf {fmtDate(schuld.startdatum)}
-            {schuld.einddatum ? ` t/m ${fmtDate(schuld.einddatum)}` : " (lopend)"}
-            {" · "}{weken} week{weken !== 1 ? "en" : ""}
-            {" · €"}{weekbedrag}/week
+            {tx("Vanaf")} {fmtDate(schuld.startdatum)}
+            {schuld.einddatum ? ` t/m ${fmtDate(schuld.einddatum)}` : tx(" (lopend)")}
+            {" · "}{weken} {tx("week")}{weken !== 1 ? tx("en") : ""}
+            {" · €"}{weekbedrag}{tx("/week")}
           </div>
           {volgendeDatum && !schuld.einddatum && (
             <div style={{fontSize:12,color:"#f59e0b",fontWeight:600,marginTop:3}}>
-              📅 Volgende betaling verwacht: {fmtDate(volgendeDatum)} (€{weekbedrag})
+              {tx("📅 Volgende betaling verwacht:")} {fmtDate(volgendeDatum)} (€{weekbedrag})
             </div>
           )}
         </div>
@@ -479,12 +480,12 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onAfschrij
           {isAfgeschreven ? (
             <>
               <div style={{fontSize:24,fontWeight:800,color:"#475569",textDecoration:"line-through"}}>€{afgeschrevenBedrag.toFixed(2)}</div>
-              <div style={{fontSize:11,color:C.muted}}>afgeschreven (gemist)</div>
+              <div style={{fontSize:11,color:C.muted}}>{tx("afgeschreven (gemist)")}</div>
             </>
           ) : (
             <>
               <div style={{fontSize:24,fontWeight:800,color:kleur}}>€{openstaand.toFixed(2)}</div>
-              <div style={{fontSize:11,color:C.muted}}>openstaand</div>
+              <div style={{fontSize:11,color:C.muted}}>{tx("openstaand")}</div>
             </>
           )}
         </div>
@@ -493,13 +494,13 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onAfschrij
       {/* Voortgangsbalk */}
       <div style={{marginBottom:16}}>
         <div style={{display:"flex",justifyContent:"space-between",fontSize:12,color:C.muted,marginBottom:6}}>
-          <span>Betaald: <strong style={{color:C.groen}}>€{totaalBetaald.toFixed(2)}</strong></span>
-          <span>Totaal verschuldigd: <strong style={{color:C.rood}}>€{totaalVerschuldigd.toFixed(2)}</strong></span>
+          <span>{tx("Betaald:")} <strong style={{color:C.groen}}>€{totaalBetaald.toFixed(2)}</strong></span>
+          <span>{tx("Totaal verschuldigd:")} <strong style={{color:C.rood}}>€{totaalVerschuldigd.toFixed(2)}</strong></span>
         </div>
         <div style={{background:C.bg,borderRadius:99,height:10,overflow:"hidden"}}>
           <div style={{height:"100%",width:`${pct}%`,background:C.groen,borderRadius:99,transition:"width .5s"}}/>
         </div>
-        <div style={{fontSize:11,color:C.muted,marginTop:4,textAlign:"right"}}>{pct.toFixed(0)}% betaald</div>
+        <div style={{fontSize:11,color:C.muted,marginTop:4,textAlign:"right"}}>{pct.toFixed(0)}{tx("% betaald")}</div>
       </div>
 
       {/* Opmerkingen */}
@@ -511,9 +512,9 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onAfschrij
 
       {isAfgeschreven && (
         <div style={{background:"#f1f5f9",border:"1px solid #cbd5e1",borderRadius:8,padding:"10px 14px",fontSize:13,color:"#475569",marginBottom:12}}>
-          💸 €{afgeschrevenBedrag.toFixed(2)} afgeschreven op {fmtDate(schuld.afgeschreven_op)}{schuld.afgeschreven_door ? ` door ${schuld.afgeschreven_door}` : ""}
+          💸 €{afgeschrevenBedrag.toFixed(2)} {tx("afgeschreven op")} {fmtDate(schuld.afgeschreven_op)}{schuld.afgeschreven_door ? ` door ${schuld.afgeschreven_door}` : ""}
           {schuld.afgeschreven_reden && <> — {schuld.afgeschreven_reden}</>}
-          <div style={{fontSize:11,marginTop:4}}>Niet betaald. Staat als contactmoment in Cockpit voor als deze medewerker terugkomt.</div>
+          <div style={{fontSize:11,marginTop:4}}>{tx("Niet betaald. Staat als contactmoment in Cockpit voor als deze medewerker terugkomt.")}</div>
         </div>
       )}
 
@@ -521,7 +522,7 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onAfschrij
       {(schuld.betalingen || []).length > 0 && (
         <button onClick={() => setToonBetalingen(!toonBetalingen)}
           style={{background:"none",border:"none",color:C.blauw,fontSize:13,cursor:"pointer",fontFamily:"inherit",padding:"4px 0",marginBottom:8,fontWeight:600}}>
-          {toonBetalingen ? "▲" : "▼"} {(schuld.betalingen || []).length} betaling{(schuld.betalingen || []).length !== 1 ? "en" : ""} bekijken
+          {toonBetalingen ? "▲" : "▼"} {(schuld.betalingen || []).length} {tx("betaling")}{(schuld.betalingen || []).length !== 1 ? tx("en") : ""} {tx("bekijken")}
         </button>
       )}
       {toonBetalingen && (
@@ -533,7 +534,7 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onAfschrij
                 <span style={{color:C.muted,marginLeft:10}}>{fmtDate(b.datum)}</span>
                 {b.opmerking && <span style={{color:C.muted,marginLeft:10,fontStyle:"italic"}}>"{b.opmerking}"</span>}
               </div>
-              <span style={{fontSize:11,color:C.muted}}>door {b.geregistreerd_door}</span>
+              <span style={{fontSize:11,color:C.muted}}>{tx("door")} {b.geregistreerd_door}</span>
             </div>
           ))}
         </div>
@@ -544,9 +545,9 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onAfschrij
         <div style={{marginTop:12}}>
           {toonCollegaOpmerkingForm ? (
             <div style={{background:C.bg,border:`1px solid ${C.border}`,borderRadius:10,padding:16}}>
-              <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Opmerking plaatsen</label>
+              <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>{tx("Opmerking plaatsen")}</label>
               <input value={collegaOpmerking} onChange={e=>setCollegaOpmerking(e.target.value)}
-                placeholder="bijv. ik betaal op 15 mei de helft..."
+                placeholder={tx("bijv. ik betaal op 15 mei de helft...")}
                 style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"10px 14px",fontSize:14,outline:"none",fontFamily:"inherit",boxSizing:"border-box",marginBottom:10}}
                 autoFocus/>
               <div style={{display:"flex",gap:8}}>
@@ -565,21 +566,21 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onAfschrij
                   });
                   setSavingCollegaOpm(false);
                   setCollegaOpmerking(""); setToonCollegaOpmerkingForm(false);
-                  showToast("✓ Opmerking verstuurd naar backoffice");
+                  showToast(tx("✓ Opmerking verstuurd naar backoffice"));
                 }} disabled={savingCollegaOpm}
                   style={{background:C.blauw,color:"white",border:"none",borderRadius:8,padding:"9px 18px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                  {savingCollegaOpm ? "⏳" : "✓ Verstuur naar backoffice"}
+                  {savingCollegaOpm ? "⏳" : tx("✓ Verstuur naar backoffice")}
                 </button>
                 <button onClick={()=>setToonCollegaOpmerkingForm(false)}
                   style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"9px 14px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
-                  Annuleren
+                  {tx("Annuleren")}
                 </button>
               </div>
             </div>
           ) : (
             <button onClick={()=>setToonCollegaOpmerkingForm(true)}
               style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"9px 14px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
-              💬 Opmerking plaatsen
+              {tx("💬 Opmerking plaatsen")}
             </button>
           )}
         </div>
@@ -590,39 +591,39 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onAfschrij
         <div>
           {toonExtraForm ? (
             <div style={{background:"#fffbeb",border:"1px solid #fcd34d",borderRadius:10,padding:16,marginBottom:10}}>
-              <div style={{fontWeight:700,fontSize:13,color:"#b45309",marginBottom:12}}>➕ Extra bedrag toevoegen</div>
-              <div style={{fontSize:12,color:"#b45309",marginBottom:12}}>Voeg een extra bedrag toe aan de schuld (bijv. boete, schade of correctie). Dit verhoogt het openstaande bedrag.</div>
+              <div style={{fontWeight:700,fontSize:13,color:"#b45309",marginBottom:12}}>{tx("➕ Extra bedrag toevoegen")}</div>
+              <div style={{fontSize:12,color:"#b45309",marginBottom:12}}>{tx("Voeg een extra bedrag toe aan de schuld (bijv. boete, schade of correctie). Dit verhoogt het openstaande bedrag.")}</div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
                 <div>
-                  <Label>Bedrag (€) *</Label>
-                  <Input type="number" step="0.01" min="0.01" value={extraBedrag} onChange={e=>setExtraBedrag(e.target.value)} placeholder="bijv. 60.00" autoFocus/>
+                  <Label>{tx("Bedrag (€) *")}</Label>
+                  <Input type="number" step="0.01" min="0.01" value={extraBedrag} onChange={e=>setExtraBedrag(e.target.value)} placeholder={tx("bijv. 60.00")} autoFocus/>
                 </div>
                 <div>
-                  <Label>Reden *</Label>
-                  <Input value={extraOpmerking} onChange={e=>setExtraOpmerking(e.target.value)} placeholder="bijv. schade aan kamer, boete..."/>
+                  <Label>{tx("Reden *")}</Label>
+                  <Input value={extraOpmerking} onChange={e=>setExtraOpmerking(e.target.value)} placeholder={tx("bijv. schade aan kamer, boete...")}/>
                 </div>
               </div>
               <div style={{display:"flex",gap:8}}>
                 <button onClick={async()=>{
-                  if(!extraBedrag||isNaN(Number(extraBedrag))||Number(extraBedrag)<=0){showToast("Vul een geldig bedrag in","err");return;}
-                  if(!extraOpmerking.trim()){showToast("Vul een reden in","err");return;}
+                  if(!extraBedrag||isNaN(Number(extraBedrag))||Number(extraBedrag)<=0){showToast(tx("Vul een geldig bedrag in"),"err");return;}
+                  if(!extraOpmerking.trim()){showToast(tx("Vul een reden in"),"err");return;}
                   setSaving(true);
                   await onBetaling(schuld.id, -Number(extraBedrag), "➕ Extra: "+extraOpmerking);
                   setSaving(false);
                   setExtraBedrag(""); setExtraOpmerking(""); setToonExtraForm(false);
                 }} disabled={saving}
                   style={{background:"#f59e0b",color:"white",border:"none",borderRadius:8,padding:"10px 20px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                  {saving ? "⏳" : "✓ Toevoegen aan schuld"}
+                  {saving ? "⏳" : tx("✓ Toevoegen aan schuld")}
                 </button>
                 <button onClick={()=>setToonExtraForm(false)}
                   style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"10px 14px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
-                  Annuleren
+                  {tx("Annuleren")}
                 </button>
               </div>
             </div>
           ) : toonBetalingForm ? (
             <div style={{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:10,padding:16,marginBottom:10}}>
-              <div style={{fontWeight:700,fontSize:13,color:C.groen,marginBottom:12}}>💶 Betaling registreren</div>
+              <div style={{fontWeight:700,fontSize:13,color:C.groen,marginBottom:12}}>{tx("💶 Betaling registreren")}</div>
               <BetalingsKalender
                 betalingen={schuld.betalingen || []}
                 geselecteerdeDatum={betalingDatum}
@@ -630,70 +631,68 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onAfschrij
               />
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12,marginTop:12}}>
                 <div>
-                  <Label>Bedrag (€) *</Label>
-                  <Input type="number" step="0.01" min="0.01" value={bedrag} onChange={e=>setBedrag(e.target.value)} placeholder="bijv. 130.00" autoFocus/>
+                  <Label>{tx("Bedrag (€) *")}</Label>
+                  <Input type="number" step="0.01" min="0.01" value={bedrag} onChange={e=>setBedrag(e.target.value)} placeholder={tx("bijv. 130.00")} autoFocus/>
                 </div>
                 <div>
-                  <Label>Opmerking</Label>
-                  <Input value={betalingOpmerking} onChange={e=>setBetalingOpmerking(e.target.value)} placeholder="bijv. betaalt rest volgende week"/>
+                  <Label>{tx("Opmerking")}</Label>
+                  <Input value={betalingOpmerking} onChange={e=>setBetalingOpmerking(e.target.value)} placeholder={tx("bijv. betaalt rest volgende week")}/>
                 </div>
               </div>
               <div style={{display:"flex",gap:8,alignItems:"center"}}>
                 <button onClick={handleBetaling} disabled={saving}
                   style={{background:C.groen,color:"white",border:"none",borderRadius:8,padding:"10px 20px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                  {saving ? "⏳" : "✓ Betaling opslaan"}
+                  {saving ? "⏳" : tx("✓ Betaling opslaan")}
                 </button>
                 <button onClick={()=>setToonBetalingForm(false)}
                   style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"10px 14px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
-                  Annuleren
+                  {tx("Annuleren")}
                 </button>
                 <span style={{fontSize:12,color:C.muted,marginLeft:4}}>
-                  Datum: <strong style={{color:C.blauw}}>{betalingDatum}</strong>
+                  {tx("Datum:")} <strong style={{color:C.blauw}}>{betalingDatum}</strong>
                 </span>
               </div>
             </div>
           ) : toonAfschrijven ? (
             <div style={{background:"#f8fafc",border:"1px solid #cbd5e1",borderRadius:10,padding:16,marginBottom:10}}>
-              <div style={{fontWeight:700,fontSize:13,color:"#475569",marginBottom:8}}>💸 Afschrijven — wordt niet meer betaald</div>
+              <div style={{fontWeight:700,fontSize:13,color:"#475569",marginBottom:8}}>{tx("💸 Afschrijven — wordt niet meer betaald")}</div>
               <div style={{fontSize:12,color:"#475569",marginBottom:12,lineHeight:1.5}}>
-                Er wordt <strong>€{berekenOpenstaand({ ...schuld, einddatum: schuld.einddatum || todayISO() }).toFixed(2)}</strong> afgeschreven
-                {!schuld.einddatum && <> (huur stopt vandaag, {fmtDate(todayISO())})</>}.
-                Dit telt <strong>niet</strong> als betaling: het bedrag blijft zichtbaar als gemiste huur.
-                De schuld verdwijnt uit "Openstaand" en vanavond komt er een contactmoment in Cockpit bij {schuld.naam_medewerker}.
+                {tx("Er wordt")} <strong>€{berekenOpenstaand({ ...schuld, einddatum: schuld.einddatum || todayISO() }).toFixed(2)}</strong> {tx("afgeschreven")}
+                {!schuld.einddatum && <> {tx("(huur stopt vandaag,")} {fmtDate(todayISO())})</>}{tx(". Dit telt")} <strong>{tx("niet")}</strong> {tx("als betaling: het bedrag blijft zichtbaar als gemiste huur. De schuld verdwijnt uit \"Openstaand\" en vanavond komt er een contactmoment in Cockpit bij")} {schuld.naam_medewerker}.
               </div>
-              <Label>Reden *</Label>
+              <Label>{tx("Reden *")}</Label>
               <div style={{marginBottom:10}}>
-                <Input value={afschrijfReden} onChange={e=>setAfschrijfReden(e.target.value)} placeholder="bijv. vertrokken, geen loon meer om in te houden" autoFocus/>
+                <Input value={afschrijfReden} onChange={e=>setAfschrijfReden(e.target.value)} placeholder={tx("bijv. vertrokken, geen loon meer om in te houden")} autoFocus/>
               </div>
               <div style={{display:"flex",gap:8}}>
                 <button onClick={async()=>{
-                  if(!afschrijfReden.trim()){showToast("Vul een reden in","err");return;}
+                  if(!afschrijfReden.trim()){showToast(tx("Vul een reden in"),"err");return;}
                   setSaving(true);
                   const ok = await onAfschrijven(schuld, afschrijfReden.trim());
                   setSaving(false);
                   if (ok) { setAfschrijfReden(""); setToonAfschrijven(false); }
                 }} disabled={saving}
                   style={{background:"#475569",color:"white",border:"none",borderRadius:8,padding:"10px 20px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                  {saving ? "⏳" : "✓ Definitief afschrijven"}
+                  {saving ? "⏳" : tx("✓ Definitief afschrijven")}
                 </button>
                 <button onClick={()=>setToonAfschrijven(false)}
                   style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"10px 14px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
-                  Annuleren
+                  {tx("Annuleren")}
                 </button>
               </div>
             </div>
           ) : toonOpmerkingForm ? (
             <div style={{background:C.bg,border:`1px solid ${C.border}`,borderRadius:10,padding:16,marginBottom:10}}>
-              <Label>Opmerking toevoegen</Label>
-              <Input value={nieuweOpmerking} onChange={e=>setNieuweOpmerking(e.target.value)} placeholder="bijv. Pietje betaalt op 15 mei" autoFocus style={{marginBottom:10}}/>
+              <Label>{tx("Opmerking toevoegen")}</Label>
+              <Input value={nieuweOpmerking} onChange={e=>setNieuweOpmerking(e.target.value)} placeholder={tx("bijv. Pietje betaalt op 15 mei")} autoFocus style={{marginBottom:10}}/>
               <div style={{display:"flex",gap:8}}>
                 <button onClick={handleOpmerking} disabled={saving}
                   style={{background:C.blauw,color:"white",border:"none",borderRadius:8,padding:"9px 18px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                  {saving ? "⏳" : "✓ Opslaan"}
+                  {saving ? "⏳" : tx("✓ Opslaan")}
                 </button>
                 <button onClick={()=>setToonOpmerkingForm(false)}
                   style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"9px 14px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
-                  Annuleren
+                  {tx("Annuleren")}
                 </button>
               </div>
             </div>
@@ -701,25 +700,25 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onAfschrij
             <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
               <button onClick={()=>setToonBetalingForm(true)}
                 style={{background:C.groen,color:"white",border:"none",borderRadius:8,padding:"9px 18px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                💶 Betaling toevoegen
+                {tx("💶 Betaling toevoegen")}
               </button>
               <button onClick={()=>setToonExtraForm(true)}
                 style={{background:"white",border:`1.5px solid #f59e0b`,color:"#b45309",borderRadius:8,padding:"9px 14px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                ➕ Extra bedrag
+                {tx("➕ Extra bedrag")}
               </button>
               <button onClick={()=>setToonOpmerkingForm(true)}
                 style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"9px 14px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
-                💬 Opmerking
+                {tx("💬 Opmerking")}
               </button>
               {toonStopzetten ? (
                 <div style={{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:10,padding:12,minWidth:280}}>
-                  <div style={{fontSize:12,fontWeight:700,color:C.groen,marginBottom:8}}>📅 Einddatum instellen</div>
-                  <div style={{fontSize:12,color:C.muted,marginBottom:8}}>De huur wordt berekend t/m deze datum. Daarna stopt de opbouw.</div>
+                  <div style={{fontSize:12,fontWeight:700,color:C.groen,marginBottom:8}}>{tx("📅 Einddatum instellen")}</div>
+                  <div style={{fontSize:12,color:C.muted,marginBottom:8}}>{tx("De huur wordt berekend t/m deze datum. Daarna stopt de opbouw.")}</div>
                   <WeekDatePicker value={stopDatum} onChange={v=>setStopDatum(v)}
                     style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1.5px solid ${C.border}`,fontSize:13,fontFamily:"inherit",background:"white",color:C.text,boxSizing:"border-box",marginBottom:8}}/>
                   <div style={{display:"flex",gap:8}}>
                     <button onClick={async()=>{
-                      if(!stopDatum){showToast("Vul een einddatum in","err");return;}
+                      if(!stopDatum){showToast(tx("Vul een einddatum in"),"err");return;}
                       await supabase.from("huurschulden").update({
                         einddatum: stopDatum,
                         actief: true,
@@ -727,11 +726,11 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onAfschrij
                       showToast("✓ Einddatum ingesteld — huur stopt op "+fmtDate(new Date(stopDatum))+", schuld blijft open tot volledig betaald");
                       setToonStopzetten(false);
                     }} style={{background:C.groen,color:"white",border:"none",borderRadius:8,padding:"7px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                      ✓ Opslaan
+                      {tx("✓ Opslaan")}
                     </button>
                     <button onClick={()=>setToonStopzetten(false)}
                       style={{background:"white",border:`1px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"7px 12px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>
-                      Annuleren
+                      {tx("Annuleren")}
                     </button>
                   </div>
                 </div>
@@ -740,18 +739,18 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onAfschrij
                 <>
                   <button onClick={()=>{setToonStopzetten(true);setStopDatum(new Date().toISOString().slice(0,10));}}
                     style={{background:"white",border:`1.5px solid ${C.oranje}`,color:C.oranje,borderRadius:8,padding:"9px 14px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                    🛑 Stopzetten
+                    {tx("🛑 Stopzetten")}
                   </button>
                   {openstaand > 0 && onAfschrijven && (
                     <button onClick={()=>setToonAfschrijven(true)}
                       style={{background:"white",border:"1.5px solid #64748b",color:"#475569",borderRadius:8,padding:"9px 14px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                      💸 Afschrijven (oninbaar)
+                      {tx("💸 Afschrijven (oninbaar)")}
                     </button>
                   )}
                   {openstaand === 0 && (
                     <button onClick={()=>{ if(window.confirm(`Schuld van ${schuld.naam_medewerker} afsluiten? Alles is betaald.`)) onAfsluiten(schuld.id); }}
                       style={{background:"#f0fdf4",border:`1.5px solid ${C.groen}`,color:C.groen,borderRadius:8,padding:"9px 14px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
-                      ✅ Afsluiten
+                      {tx("✅ Afsluiten")}
                     </button>
                   )}
                 </>
@@ -871,11 +870,11 @@ function BetalingsKalender({ betalingen, geselecteerdeDatum, onSelecteer }) {
       <div style={{display:"flex",gap:14,marginTop:10,fontSize:11,color:C.muted}}>
         <span style={{display:"flex",alignItems:"center",gap:4}}>
           <span style={{width:12,height:12,borderRadius:3,background:"#dcfce7",border:`1px solid ${C.groen}`,display:"inline-block"}}/>
-          Al verwerkt
+          {tx("Al verwerkt")}
         </span>
         <span style={{display:"flex",alignItems:"center",gap:4}}>
           <span style={{width:12,height:12,borderRadius:3,background:"white",border:`2px solid ${C.blauw}`,display:"inline-block"}}/>
-          Geselecteerd
+          {tx("Geselecteerd")}
         </span>
       </div>
     </div>
@@ -897,7 +896,7 @@ function NieuweSchuld({ onSubmit, showToast }) {
   async function handleSubmit() {
     const naamFout = naamProbleem(naam);
     if (naamFout)          { showToast(naamFout,"err"); return; }
-    if (!startdatum)       { showToast("Vul een startdatum in","err"); return; }
+    if (!startdatum)       { showToast(tx("Vul een startdatum in"),"err"); return; }
     setSaving(true);
     const ok = await onSubmit({ naam_medewerker: normaliseerNaam(naam), startdatum, einddatum, opmerkingen, beginsaldo: beginsaldo ? Number(beginsaldo) : 0, tarief_bedrag: tariefType==="handmatig" && tariefBedrag ? Number(tariefBedrag) : null });
     setSaving(false);
@@ -907,65 +906,65 @@ function NieuweSchuld({ onSubmit, showToast }) {
   if (submitted) return (
     <div style={{textAlign:"center",padding:"60px",color:C.groen}}>
       <div style={{fontSize:40,marginBottom:10}}>✅</div>
-      <div style={{fontWeight:700,fontSize:16}}>Huurschuld aangemaakt!</div>
+      <div style={{fontWeight:700,fontSize:16}}>{tx("Huurschuld aangemaakt!")}</div>
     </div>
   );
 
   return (
     <div style={{maxWidth:600}}>
-      <h3 style={{fontSize:16,fontWeight:800,color:C.blauw,marginBottom:20}}>Nieuwe huurschuld aanmaken</h3>
+      <h3 style={{fontSize:16,fontWeight:800,color:C.blauw,marginBottom:20}}>{tx("Nieuwe huurschuld aanmaken")}</h3>
       <div style={{background:"#fef3c7",border:"1px solid #fcd34d",borderRadius:10,padding:"12px 16px",marginBottom:20,fontSize:13,color:"#b45309"}}>
-        ℹ️ Elke maandag op of na de startdatum wordt automatisch het weekbedrag bijgeteld. Standaard €140 per week, vooraf te betalen.
+        {tx("ℹ️ Elke maandag op of na de startdatum wordt automatisch het weekbedrag bijgeteld. Standaard €140 per week, vooraf te betalen.")}
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
         <div style={{gridColumn:"1/-1"}}>
-          <Label>Naam medewerker *</Label>
-          <MedewerkerKiezer value={naam} onChange={setNaam} placeholder="Voor- en achternaam (typ om te zoeken)"/>
+          <Label>{tx("Naam medewerker *")}</Label>
+          <MedewerkerKiezer value={naam} onChange={setNaam} placeholder={tx("Voor- en achternaam (typ om te zoeken)")}/>
         </div>
         <div>
-          <Label>Startdatum (eerste dag niet werken) *</Label>
+          <Label>{tx("Startdatum (eerste dag niet werken) *")}</Label>
           <WeekDatePicker value={startdatum} onChange={v=>setStart(v)}
             style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"10px 14px",fontSize:14,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
         </div>
         <div>
-          <Label>Einddatum (indien bekend)</Label>
+          <Label>{tx("Einddatum (indien bekend)")}</Label>
           <WeekDatePicker value={einddatum} onChange={v=>setEind(v)}
             style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"10px 14px",fontSize:14,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
-          <div style={{fontSize:11,color:C.muted,marginTop:4}}>Leeg = teller loopt nog</div>
+          <div style={{fontSize:11,color:C.muted,marginTop:4}}>{tx("Leeg = teller loopt nog")}</div>
         </div>
         <div style={{gridColumn:"1/-1"}}>
-          <Label>Weekbedrag</Label>
+          <Label>{tx("Weekbedrag")}</Label>
           <div style={{display:"flex",gap:10,marginBottom:12}}>
             {[["standaard","€140 per week (standaard)"],["handmatig","Afwijkend weekbedrag"]].map(([v,l])=>(
               <div key={v} onClick={()=>setTariefType(v)}
                 style={{flex:1,border:`2px solid ${tariefType===v?C.blauw:C.border}`,borderRadius:10,padding:"14px 16px",cursor:"pointer",background:tariefType===v?C.blauw+"10":"white",textAlign:"center"}}>
-                <div style={{fontWeight:700,fontSize:13,color:tariefType===v?C.blauw:C.muted}}>{l}</div>
-                {v==="standaard" && <div style={{fontSize:11,color:C.muted,marginTop:4}}>Elke maandag €140</div>}
+                <div style={{fontWeight:700,fontSize:13,color:tariefType===v?C.blauw:C.muted}}>{tx(l)}</div>
+                {v==="standaard" && <div style={{fontSize:11,color:C.muted,marginTop:4}}>{tx("Elke maandag €140")}</div>}
               </div>
             ))}
           </div>
           {tariefType==="handmatig" && (
             <div style={{background:"#fffbeb",border:"1px solid #fcd34d",borderRadius:10,padding:14}}>
-              <Label>Weekbedrag (€)</Label>
-              <Input type="number" step="0.01" min="1" value={tariefBedrag} onChange={e=>setTariefBedrag(e.target.value)} placeholder="bijv. 70"/>
-              <div style={{fontSize:11,color:C.muted,marginTop:6}}>Dit bedrag wordt elke maandag bijgeteld</div>
+              <Label>{tx("Weekbedrag (€)")}</Label>
+              <Input type="number" step="0.01" min="1" value={tariefBedrag} onChange={e=>setTariefBedrag(e.target.value)} placeholder={tx("bijv. 70")}/>
+              <div style={{fontSize:11,color:C.muted,marginTop:6}}>{tx("Dit bedrag wordt elke maandag bijgeteld")}</div>
             </div>
           )}
         </div>
         <div>
-          <Label>Beginsaldo (€) — bestaande achterstand</Label>
-          <Input type="number" step="0.01" min="0" value={beginsaldo} onChange={e=>setBeginsaldo(e.target.value)} placeholder="bijv. 200.00 — laat leeg als er geen achterstand is"/>
-          <div style={{fontSize:11,color:C.muted,marginTop:4}}>Dit bedrag wordt direct bovenop de dagelijkse teller gezet</div>
+          <Label>{tx("Beginsaldo (€) — bestaande achterstand")}</Label>
+          <Input type="number" step="0.01" min="0" value={beginsaldo} onChange={e=>setBeginsaldo(e.target.value)} placeholder={tx("bijv. 200.00 — laat leeg als er geen achterstand is")}/>
+          <div style={{fontSize:11,color:C.muted,marginTop:4}}>{tx("Dit bedrag wordt direct bovenop de dagelijkse teller gezet")}</div>
         </div>
         <div style={{gridColumn:"1/-1"}}>
-          <Label>Opmerking</Label>
-          <textarea value={opmerkingen} onChange={e=>setOpm(e.target.value)} placeholder="bijv. ziek gemeld, verwacht terug 15 mei..."
+          <Label>{tx("Opmerking")}</Label>
+          <textarea value={opmerkingen} onChange={e=>setOpm(e.target.value)} placeholder={tx("bijv. ziek gemeld, verwacht terug 15 mei...")}
             style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"10px 14px",fontSize:14,outline:"none",fontFamily:"inherit",resize:"vertical",boxSizing:"border-box"}} rows={3}/>
         </div>
       </div>
       <button onClick={handleSubmit} disabled={saving}
         style={{background:C.blauw,color:"white",border:"none",borderRadius:8,padding:"12px 28px",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
-        {saving ? "⏳ Opslaan..." : "✓ Huurschuld aanmaken"}
+        {saving ? tx("⏳ Opslaan...") : tx("✓ Huurschuld aanmaken")}
       </button>
     </div>
   );
@@ -986,7 +985,7 @@ export function HuurBetalingInline({ schuldId, onOpgeslagen }) {
       onClick={() => setToon(true)}
       style={{ marginTop: 6, padding: "4px 10px", borderRadius: 6, border: "1px solid #3b82f6", background: "white", color: "#3b82f6", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}
     >
-      + Betaling registreren
+      {tx("+ Betaling registreren")}
     </button>
   );
 
@@ -1007,30 +1006,30 @@ export function HuurBetalingInline({ schuldId, onOpgeslagen }) {
 
   return (
     <div style={{ marginTop: 8, padding: 10, background: "#f0f9ff", borderRadius: 8, border: "1px solid #bae6fd" }}>
-      <div style={{ fontWeight: 600, fontSize: 11, color: "#0369a1", marginBottom: 6 }}>BETALING REGISTREREN</div>
+      <div style={{ fontWeight: 600, fontSize: 11, color: "#0369a1", marginBottom: 6 }}>{tx("BETALING REGISTREREN")}</div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
         <div>
-          <div style={{ fontSize: 10, color: "#64748b", marginBottom: 2 }}>Bedrag (€)</div>
+          <div style={{ fontSize: 10, color: "#64748b", marginBottom: 2 }}>{tx("Bedrag (€)")}</div>
           <input type="number" min="0" step="0.01" value={bedrag} onChange={e => setBedrag(e.target.value)}
             style={{ width: 80, padding: "4px 6px", border: "1px solid #cbd5e1", borderRadius: 4, fontSize: 12 }} />
         </div>
         <div>
-          <div style={{ fontSize: 10, color: "#64748b", marginBottom: 2 }}>Datum</div>
+          <div style={{ fontSize: 10, color: "#64748b", marginBottom: 2 }}>{tx("Datum")}</div>
           <WeekDatePicker value={datum} onChange={v => setDatum(v)}
             style={{ padding: "4px 6px", border: "1px solid #cbd5e1", borderRadius: 4, fontSize: 12 }} />
         </div>
         <div style={{ flex: 1, minWidth: 120 }}>
-          <div style={{ fontSize: 10, color: "#64748b", marginBottom: 2 }}>Opmerking</div>
-          <input type="text" value={opmerking} onChange={e => setOpmerking(e.target.value)} placeholder="Optioneel"
+          <div style={{ fontSize: 10, color: "#64748b", marginBottom: 2 }}>{tx("Opmerking")}</div>
+          <input type="text" value={opmerking} onChange={e => setOpmerking(e.target.value)} placeholder={tx("Optioneel")}
             style={{ width: "100%", padding: "4px 6px", border: "1px solid #cbd5e1", borderRadius: 4, fontSize: 12 }} />
         </div>
         <button onClick={opslaan} disabled={bezig}
           style={{ padding: "5px 12px", borderRadius: 6, border: "none", background: "#3b82f6", color: "white", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
-          {bezig ? "..." : "✓ Opslaan"}
+          {bezig ? "..." : tx("✓ Opslaan")}
         </button>
         <button onClick={() => setToon(false)}
           style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #e5e7eb", background: "white", color: "#64748b", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
-          Annuleer
+          {tx("Annuleer")}
         </button>
       </div>
     </div>

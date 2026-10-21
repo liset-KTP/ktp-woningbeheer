@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "./supabaseClient";
+import { tx } from "./i18n";
 
 // ─── WIFI & SLEUTELKLUIS-CODES PER WONING ────────────────────────────────────
 // Iedereen ziet de codes; alleen huismeester + backoffice kunnen wijzigen.
@@ -57,18 +58,18 @@ function CodeForm({ start, onOpslaan, onAnnuleren, bezig }) {
         {Object.entries(CODE_TYPES).map(([k,v]) => (
           <button key={k} onClick={()=>setType(k)} type="button"
             style={{...btn(type===k?C.blauw:"white", type===k?"white":C.text), border:`1px solid ${type===k?C.blauw:C.border}`}}>
-            {v.icoon} {v.label}
+            {v.icoon} {tx(v.label)}
           </button>
         ))}
       </div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:8}}>
         <input style={inp} placeholder={placeholder} value={omschrijving} onChange={e=>setOmschrijving(e.target.value)} />
-        <input style={{...inp,fontFamily:"monospace",fontSize:14}} placeholder={type==="wifi"?"Wachtwoord":"Code"} value={code} onChange={e=>setCode(e.target.value)} autoComplete="off" />
+        <input style={{...inp,fontFamily:"monospace",fontSize:14}} placeholder={type==="wifi"?tx("Wachtwoord"):tx("Code")} value={code} onChange={e=>setCode(e.target.value)} autoComplete="off" />
       </div>
-      <input style={{...inp,marginTop:8}} placeholder="Opmerking (optioneel)" value={opmerking} onChange={e=>setOpmerking(e.target.value)} />
+      <input style={{...inp,marginTop:8}} placeholder={tx("Opmerking (optioneel)")} value={opmerking} onChange={e=>setOpmerking(e.target.value)} />
       <div style={{display:"flex",gap:8,marginTop:10,justifyContent:"flex-end"}}>
-        <button style={btn("white",C.text)} onClick={onAnnuleren} disabled={bezig}>Annuleren</button>
-        <button style={btn(C.groen)} onClick={opslaan} disabled={bezig}>{bezig?"Opslaan…":"💾 Opslaan"}</button>
+        <button style={btn("white",C.text)} onClick={onAnnuleren} disabled={bezig}>{tx("Annuleren")}</button>
+        <button style={btn(C.groen)} onClick={opslaan} disabled={bezig}>{bezig?tx("Opslaan…"):tx("💾 Opslaan")}</button>
       </div>
     </div>
   );
@@ -82,8 +83,8 @@ function CodeRegel({ r, magWijzigen, onBewerk, onVerwijder, showToast }) {
   const oud = dagen !== null && dagen > OUD_NA_DAGEN;
 
   async function kopieer() {
-    try { await navigator.clipboard.writeText(r.code); showToast("📋 Gekopieerd"); }
-    catch { showToast("Kopiëren lukt niet op dit apparaat","err"); }
+    try { await navigator.clipboard.writeText(r.code); showToast(tx("📋 Gekopieerd")); }
+    catch { showToast(tx("Kopiëren lukt niet op dit apparaat"),"err"); }
   }
 
   return (
@@ -93,7 +94,7 @@ function CodeRegel({ r, magWijzigen, onBewerk, onVerwijder, showToast }) {
         <div style={{fontSize:13,fontWeight:700,color:C.text}}>{r.omschrijving}</div>
         {r.opmerking && <div style={{fontSize:12,color:C.muted}}>{r.opmerking}</div>}
         <div style={{fontSize:11,color:oud?C.oranje:C.muted,marginTop:2}}>
-          {oud?"⚠️ ":""}Gewijzigd {fmtDate(r.gewijzigd_op)}{r.gewijzigd_door?` door ${r.gewijzigd_door}`:""}
+          {oud?"⚠️ ":""}{tx("Gewijzigd")} {fmtDate(r.gewijzigd_op)}{r.gewijzigd_door?` door ${r.gewijzigd_door}`:""}
           {oud?` (${dagen} dagen geleden)`:""}
         </div>
       </div>
@@ -101,13 +102,13 @@ function CodeRegel({ r, magWijzigen, onBewerk, onVerwijder, showToast }) {
         <code style={{background:"#eef2f7",padding:"6px 10px",borderRadius:6,fontSize:14,letterSpacing:toon?0:2,minWidth:90,textAlign:"center",color:C.text}}>
           {toon ? r.code : "••••••"}
         </code>
-        <button style={btn("white",C.text)} onClick={()=>setToon(v=>!v)} title={toon?"Verbergen":"Tonen"}>{toon?"🙈":"👁"}</button>
-        <button style={btn("white",C.text)} onClick={kopieer} title="Kopiëren">📋</button>
-        {magWijzigen && <button style={btn("white",C.blauw)} onClick={onBewerk} title="Wijzigen">✏️</button>}
+        <button style={btn("white",C.text)} onClick={()=>setToon(v=>!v)} title={toon?tx("Verbergen"):tx("Tonen")}>{toon?"🙈":"👁"}</button>
+        <button style={btn("white",C.text)} onClick={kopieer} title={tx("Kopiëren")}>📋</button>
+        {magWijzigen && <button style={btn("white",C.blauw)} onClick={onBewerk} title={tx("Wijzigen")}>✏️</button>}
         {magWijzigen && (bevestig
-          ? <><button style={btn(C.rood)} onClick={onVerwijder}>Verwijderen?</button>
+          ? <><button style={btn(C.rood)} onClick={onVerwijder}>{tx("Verwijderen?")}</button>
               <button style={btn("white",C.text)} onClick={()=>setBevestig(false)}>✕</button></>
-          : <button style={btn("white",C.rood)} onClick={()=>setBevestig(true)} title="Verwijderen">🗑</button>)}
+          : <button style={btn("white",C.rood)} onClick={()=>setBevestig(true)} title={tx("Verwijderen")}>🗑</button>)}
       </div>
     </div>
   );
@@ -170,7 +171,7 @@ export function CodesModule({ gebruiker, houses, magWijzigen, showToast }) {
     }
     setBezig(false);
     if (error) { showToast("Fout: "+error.message,"err"); return; }
-    showToast("✓ Opgeslagen");
+    showToast(tx("✓ Opgeslagen"));
     setBewerk(null);
     laad();
   }
@@ -180,7 +181,7 @@ export function CodesModule({ gebruiker, houses, magWijzigen, showToast }) {
     if (error) { showToast("Fout: "+error.message,"err"); return; }
     const t = CODE_TYPES[regel.type]?.label || regel.type;
     await log("code_verwijderd", `🗑 ${t} "${regel.omschrijving}" verwijderd — ${woning.adres}`, { woning_id: woning.id, code_id: regel.id });
-    showToast("Verwijderd");
+    showToast(tx("Verwijderd"));
     laad();
   }
 
@@ -189,25 +190,25 @@ export function CodesModule({ gebruiker, houses, magWijzigen, showToast }) {
   return (
     <div>
       <div style={{marginBottom:18}}>
-        <h2 style={{fontSize:20,fontWeight:800,color:C.blauw,marginBottom:3}}>🔑 Codes & wifi</h2>
+        <h2 style={{fontSize:20,fontWeight:800,color:C.blauw,marginBottom:3}}>{tx("🔑 Codes & wifi")}</h2>
         <p style={{fontSize:13,color:C.muted}}>
-          Wifi-wachtwoorden en sleutelkluiscodes per woning. {magWijzigen ? "Pas een code direct aan zodra hij verandert — de datum wordt automatisch bijgewerkt." : "Alleen de huismeester en backoffice kunnen codes wijzigen."}
+          {tx("Wifi-wachtwoorden en sleutelkluiscodes per woning.")} {magWijzigen ? tx("Pas een code direct aan zodra hij verandert — de datum wordt automatisch bijgewerkt.") : tx("Alleen de huismeester en backoffice kunnen codes wijzigen.")}
         </p>
       </div>
 
       <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:14,alignItems:"center"}}>
-        <input style={{...inp,flex:"1 1 220px",width:"auto"}} placeholder="🔍 Zoek op adres of omschrijving…" value={zoek} onChange={e=>setZoek(e.target.value)} />
+        <input style={{...inp,flex:"1 1 220px",width:"auto"}} placeholder={tx("🔍 Zoek op adres of omschrijving…")} value={zoek} onChange={e=>setZoek(e.target.value)} />
         <select style={{...inp,width:"auto"}} value={stad} onChange={e=>setStad(e.target.value)}>
-          <option value="">Alle plaatsen</option>
+          <option value="">{tx("Alle plaatsen")}</option>
           {steden.map(s=><option key={s} value={s}>{s}</option>)}
         </select>
         <label style={{fontSize:12,color:C.text,display:"flex",alignItems:"center",gap:5,cursor:"pointer"}}>
           <input type="checkbox" checked={alleenZonder} onChange={e=>setAlleenZonder(e.target.checked)} />
-          Alleen woningen zonder codes ({aantalZonder})
+          {tx("Alleen woningen zonder codes (")}{aantalZonder})
         </label>
       </div>
 
-      {loading ? <div style={{color:C.muted,fontSize:13}}>Laden…</div> : (
+      {loading ? <div style={{color:C.muted,fontSize:13}}>{tx("Laden…")}</div> : (
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(min(420px,100%),1fr))",gap:12}}>
           {zichtbaar.map(h => {
             const regels = perWoning[h.id] || [];
@@ -220,11 +221,11 @@ export function CodesModule({ gebruiker, houses, magWijzigen, showToast }) {
                     <div style={{fontSize:12,color:C.muted}}>{h.stad}</div>
                   </div>
                   {magWijzigen && !nieuwOpen && (
-                    <button style={btn(C.blauw)} onClick={()=>setBewerk({ woningId:h.id, regel:null })}>+ Regel</button>
+                    <button style={btn(C.blauw)} onClick={()=>setBewerk({ woningId:h.id, regel:null })}>{tx("+ Regel")}</button>
                   )}
                 </div>
                 {regels.length === 0 && !nieuwOpen && (
-                  <div style={{fontSize:12,color:C.muted,fontStyle:"italic",paddingTop:6}}>Nog geen codes ingevuld</div>
+                  <div style={{fontSize:12,color:C.muted,fontStyle:"italic",paddingTop:6}}>{tx("Nog geen codes ingevuld")}</div>
                 )}
                 {regels.map(r => (bewerk && bewerk.regel?.id === r.id)
                   ? <CodeForm key={r.id} start={r} bezig={bezig} onAnnuleren={()=>setBewerk(null)} onOpslaan={(w,f)=>opslaan(h,r,w,f)} />
@@ -235,7 +236,7 @@ export function CodesModule({ gebruiker, houses, magWijzigen, showToast }) {
               </div>
             );
           })}
-          {zichtbaar.length === 0 && <div style={{color:C.muted,fontSize:13}}>Geen woningen gevonden.</div>}
+          {zichtbaar.length === 0 && <div style={{color:C.muted,fontSize:13}}>{tx("Geen woningen gevonden.")}</div>}
         </div>
       )}
     </div>

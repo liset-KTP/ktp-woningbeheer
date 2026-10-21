@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { supabase } from "./supabaseClient";
 import WeekDatePicker from "./WeekDatePicker";
 import { MedewerkerKiezer, naamProbleem, normaliseerNaam } from "./MedewerkerKiezer";
+import { tx } from "./i18n";
 
 const C = {
   blauw:"#1B3A6B", blauwDark:"#132b52", groen:"#4A9B3C",
@@ -55,7 +56,7 @@ export function KledingModule({ gebruiker, showToast }) {
 
   async function registreerUitgifte(vestiging, type, maat, aantal, opmerking, medewerkerNaam, actie="uitgifte") {
     const item = voorraad.find(v=>v.vestiging===vestiging&&v.type===type&&v.maat===maat);
-    if (!item) { showToast("Artikel niet gevonden","err"); return false; }
+    if (!item) { showToast(tx("Artikel niet gevonden"),"err"); return false; }
     if (actie==="uitgifte" && item.aantal < aantal) {
       showToast(`Onvoldoende voorraad — nog ${item.aantal} beschikbaar`,"err"); return false;
     }
@@ -63,7 +64,7 @@ export function KledingModule({ gebruiker, showToast }) {
     const { error: e1 } = await supabase.from("kleding_voorraad")
       .update({ aantal: nieuwAantal, updated_at: new Date().toISOString() })
       .eq("id", item.id);
-    if (e1) { showToast("Fout bij opslaan","err"); return false; }
+    if (e1) { showToast(tx("Fout bij opslaan"),"err"); return false; }
     await supabase.from("kleding_transacties").insert([{
       vestiging, type, maat, aantal, actie,
       medewerker: medewerkerNaam || gebruiker.naam,
@@ -78,11 +79,11 @@ export function KledingModule({ gebruiker, showToast }) {
 
   async function registreerBijvulling(vestiging, type, maat, aantal, opmerking) {
     const item = voorraad.find(v=>v.vestiging===vestiging&&v.type===type&&v.maat===maat);
-    if (!item) { showToast("Artikel niet gevonden","err"); return false; }
+    if (!item) { showToast(tx("Artikel niet gevonden"),"err"); return false; }
     const { error } = await supabase.from("kleding_voorraad")
       .update({ aantal: item.aantal + aantal, updated_at: new Date().toISOString() })
       .eq("id", item.id);
-    if (error) { showToast("Fout bij opslaan","err"); return false; }
+    if (error) { showToast(tx("Fout bij opslaan"),"err"); return false; }
     await supabase.from("kleding_transacties").insert([{
       vestiging, type, maat, aantal, actie:"bijvulling",
       medewerker: gebruiker.naam, opmerking: opmerking||null
@@ -95,7 +96,7 @@ export function KledingModule({ gebruiker, showToast }) {
     const { error } = await supabase.from("kleding_voorraad")
       .update({ besteld_aantal, besteld_datum, besteld_door: gebruiker.naam, updated_at: new Date().toISOString() })
       .eq("id", id);
-    if (error) { showToast("Fout bij opslaan","err"); return false; }
+    if (error) { showToast(tx("Fout bij opslaan"),"err"); return false; }
     showToast(`✓ Bestelling geregistreerd (${besteld_aantal} stuks)`);
     await loadVoorraad(); return true;
   }
@@ -107,7 +108,7 @@ export function KledingModule({ gebruiker, showToast }) {
     const { error } = await supabase.from("kleding_voorraad")
       .update({ aantal: nieuwAantal, besteld_aantal: 0, besteld_datum: null, besteld_door: null, updated_at: new Date().toISOString() })
       .eq("id", id);
-    if (error) { showToast("Fout bij opslaan","err"); return false; }
+    if (error) { showToast(tx("Fout bij opslaan"),"err"); return false; }
     await supabase.from("kleding_transacties").insert([{
       vestiging, type, maat, aantal: ontvangen_aantal, actie:"bijvulling",
       medewerker: gebruiker.naam, opmerking: "Bestelling ontvangen"
@@ -119,19 +120,19 @@ export function KledingModule({ gebruiker, showToast }) {
   async function correctieVoorraad(id, nieuwAantal, vestiging, type, maat) {
     const { error } = await supabase.from("kleding_voorraad")
       .update({ aantal: nieuwAantal, updated_at: new Date().toISOString() }).eq("id", id);
-    if (error) { showToast("Fout bij correctie","err"); return false; }
+    if (error) { showToast(tx("Fout bij correctie"),"err"); return false; }
     await supabase.from("kleding_transacties").insert([{
       vestiging, type, maat, aantal: nieuwAantal, actie:"correctie",
       medewerker: gebruiker.naam, opmerking:"Handmatige correctie"
     }]);
-    showToast("✓ Voorraad gecorrigeerd");
+    showToast(tx("✓ Voorraad gecorrigeerd"));
     return true;
   }
 
   const bijTeBestellenAlles = voorraad.filter(v => v.aantal < v.min_voorraad);
   const bijTeBestellenTotaal = bijTeBestellenAlles.length;
 
-  if (loading) return <div style={{textAlign:"center",padding:60,color:C.muted}}>Voorraad laden...</div>;
+  if (loading) return <div style={{textAlign:"center",padding:60,color:C.muted}}>{tx("Voorraad laden...")}</div>;
 
   const tabs = [
     { id:"overzicht", label:"👕 Voorraad" },
@@ -143,7 +144,7 @@ export function KledingModule({ gebruiker, showToast }) {
 
   return (
     <div>
-      <SH titel="👕 Kleding voorraad" sub={`${voorraad.length} artikelen · ${bijTeBestellenTotaal} moeten bijbesteld worden`}/>
+      <SH titel={tx("👕 Kleding voorraad")} sub={`${voorraad.length} artikelen · ${bijTeBestellenTotaal} moeten bijbesteld worden`}/>
       <div style={{display:"flex",gap:6,marginBottom:24,borderBottom:`2px solid ${C.border}`,paddingBottom:0,overflowX:"auto"}}>
         {tabs.map(t=>(
           <button key={t.id} onClick={()=>setSubTab(t.id)}
@@ -151,7 +152,7 @@ export function KledingModule({ gebruiker, showToast }) {
               color:subTab===t.id?C.blauw:C.muted,
               borderBottom:subTab===t.id?`3px solid ${C.blauw}`:"3px solid transparent",
               marginBottom:-2,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
-            {t.label}
+            {tx(t.label)}
           </button>
         ))}
       </div>
@@ -201,10 +202,10 @@ function VoorraadOverzicht({ voorraad }) {
 
       {/* Stats + zoek */}
       <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}>
-        {totaalOp>0&&<div style={{padding:"5px 12px",borderRadius:20,background:"#fef2f2",border:"1px solid #fecaca",fontSize:12,fontWeight:700,color:"#b91c1c"}}>🔴 {totaalOp} op</div>}
-        {totaalLaag>totaalOp&&<div style={{padding:"5px 12px",borderRadius:20,background:"#fffbeb",border:"1px solid #fde68a",fontSize:12,fontWeight:700,color:"#92400e"}}>🟡 {totaalLaag-totaalOp} laag</div>}
-        {totaalLaag===0&&<div style={{padding:"5px 12px",borderRadius:20,background:"#f0fdf4",border:"1px solid #bbf7d0",fontSize:12,fontWeight:700,color:"#166534"}}>✅ Alles op peil</div>}
-        <input value={zoek} onChange={e=>setZoek(e.target.value)} placeholder="🔍 Zoek type of maat..."
+        {totaalOp>0&&<div style={{padding:"5px 12px",borderRadius:20,background:"#fef2f2",border:"1px solid #fecaca",fontSize:12,fontWeight:700,color:"#b91c1c"}}>🔴 {totaalOp} {tx("op")}</div>}
+        {totaalLaag>totaalOp&&<div style={{padding:"5px 12px",borderRadius:20,background:"#fffbeb",border:"1px solid #fde68a",fontSize:12,fontWeight:700,color:"#92400e"}}>🟡 {totaalLaag-totaalOp} {tx("laag")}</div>}
+        {totaalLaag===0&&<div style={{padding:"5px 12px",borderRadius:20,background:"#f0fdf4",border:"1px solid #bbf7d0",fontSize:12,fontWeight:700,color:"#166534"}}>{tx("✅ Alles op peil")}</div>}
+        <input value={zoek} onChange={e=>setZoek(e.target.value)} placeholder={tx("🔍 Zoek type of maat...")}
           style={{marginLeft:"auto",border:`1.5px solid ${C.border}`,borderRadius:8,padding:"7px 12px",fontSize:13,fontFamily:"inherit",outline:"none",minWidth:200}}/>
       </div>
 
@@ -218,16 +219,16 @@ function VoorraadOverzicht({ voorraad }) {
               display:"flex",alignItems:"center",gap:10}}>
               <div style={{width:4,height:18,borderRadius:2,background:heeftProbleem?"#f59e0b":C.groen}}/>
               <span style={{fontWeight:800,fontSize:14,color:C.text}}>{type}</span>
-              {heeftProbleem&&<span style={{fontSize:11,color:"#92400e",background:"#fde68a",padding:"1px 8px",borderRadius:10,fontWeight:700}}>bijbestellen</span>}
+              {heeftProbleem&&<span style={{fontSize:11,color:"#92400e",background:"#fde68a",padding:"1px 8px",borderRadius:10,fontWeight:700}}>{tx("bijbestellen")}</span>}
             </div>
             <table style={{width:"100%",borderCollapse:"collapse"}}>
               <thead>
                 <tr style={{background:C.bg}}>
-                  <th style={{padding:"6px 16px",textAlign:"left",fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".5px",textTransform:"uppercase"}}>Maat</th>
-                  <th style={{padding:"6px 8px",textAlign:"center",fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".5px",textTransform:"uppercase"}}>Voorraad</th>
-                  <th style={{padding:"6px 8px",textAlign:"center",fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".5px",textTransform:"uppercase"}}>Minimum</th>
-                  <th style={{padding:"6px 8px",textAlign:"center",fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".5px",textTransform:"uppercase"}}>Status</th>
-                  <th style={{padding:"6px 16px",textAlign:"right",fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".5px",textTransform:"uppercase"}}>Tekort</th>
+                  <th style={{padding:"6px 16px",textAlign:"left",fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".5px",textTransform:"uppercase"}}>{tx("Maat")}</th>
+                  <th style={{padding:"6px 8px",textAlign:"center",fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".5px",textTransform:"uppercase"}}>{tx("Voorraad")}</th>
+                  <th style={{padding:"6px 8px",textAlign:"center",fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".5px",textTransform:"uppercase"}}>{tx("Minimum")}</th>
+                  <th style={{padding:"6px 8px",textAlign:"center",fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".5px",textTransform:"uppercase"}}>{tx("Status")}</th>
+                  <th style={{padding:"6px 16px",textAlign:"right",fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".5px",textTransform:"uppercase"}}>{tx("Tekort")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -241,7 +242,7 @@ function VoorraadOverzicht({ voorraad }) {
                       <td style={{padding:"9px 8px",textAlign:"center",fontSize:13,color:C.muted}}>{item.min_voorraad}</td>
                       <td style={{padding:"9px 8px",textAlign:"center"}}>
                         <span style={{fontSize:10,fontWeight:800,padding:"2px 8px",borderRadius:10,
-                          background:s.kleur+"20",color:s.kleur}}>{s.label}</span>
+                          background:s.kleur+"20",color:s.kleur}}>{tx(s.label)}</span>
                       </td>
                       <td style={{padding:"9px 16px",textAlign:"right",fontSize:13,fontWeight:700,
                         color:tekort>0?C.blauw:"transparent"}}>{tekort>0?`+${tekort}`:""}</td>
@@ -253,7 +254,7 @@ function VoorraadOverzicht({ voorraad }) {
           </div>
         );
       })}
-      {types.length===0&&<div style={{textAlign:"center",padding:40,color:C.muted}}>Geen artikelen gevonden</div>}
+      {types.length===0&&<div style={{textAlign:"center",padding:40,color:C.muted}}>{tx("Geen artikelen gevonden")}</div>}
     </div>
   );
 }
@@ -284,7 +285,7 @@ function UitgifteForm({ voorraad, gebruiker, onSubmit, showToast }) {
   }
 
   function voegToeAanMandje() {
-    if (!type||!maat||aantal<1) { showToast("Selecteer type en maat","err"); return; }
+    if (!type||!maat||aantal<1) { showToast(tx("Selecteer type en maat"),"err"); return; }
     const item = voorraad.find(v=>v.vestiging===vestiging&&v.type===type&&v.maat===maat);
     if (!item) return;
     if (actie==="uitgifte" && beschikbaar(item) < aantal) { showToast(`Onvoldoende voorraad — nog ${beschikbaar(item)} beschikbaar`,"err"); return; }
@@ -296,7 +297,7 @@ function UitgifteForm({ voorraad, gebruiker, onSubmit, showToast }) {
   function verwijderUitMandje(idx) { setMandje(prev=>prev.filter((_,i)=>i!==idx)); }
 
   async function submitAlles() {
-    if (mandje.length===0) { showToast("Voeg eerst artikelen toe","err"); return; }
+    if (mandje.length===0) { showToast(tx("Voeg eerst artikelen toe"),"err"); return; }
     const naamFout = naamProbleem(medewerkerNaam);
     if (naamFout) { showToast(naamFout,"err"); return; }
     setSaving(true);
@@ -318,18 +319,18 @@ function UitgifteForm({ voorraad, gebruiker, onSubmit, showToast }) {
   return (
     <div style={{maxWidth:580}}>
       <div style={{background:"white",border:`1px solid ${C.border}`,borderRadius:14,padding:28}}>
-        <h3 style={{fontSize:16,fontWeight:800,color:C.blauw,marginBottom:4}}>👕 Kleding registreren</h3>
-        <p style={{fontSize:13,color:C.muted,marginBottom:20}}>Voeg meerdere artikelen toe voor dezelfde medewerker.</p>
+        <h3 style={{fontSize:16,fontWeight:800,color:C.blauw,marginBottom:4}}>{tx("👕 Kleding registreren")}</h3>
+        <p style={{fontSize:13,color:C.muted,marginBottom:20}}>{tx("Voeg meerdere artikelen toe voor dezelfde medewerker.")}</p>
 
         {/* Uitgifte / Inname */}
         <div style={{marginBottom:16}}>
-          <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:8,display:"block"}}>Actie *</label>
+          <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:8,display:"block"}}>{tx("Actie *")}</label>
           <div style={{display:"flex",gap:8}}>
             {[["uitgifte","📤 Uitgifte","Kleding meegeven",C.groen],["inname","📥 Inname","Kleding terugkrijgen","#6366f1"]].map(([v,label,sub,kleur])=>(
               <button key={v} onClick={()=>{setActie(v);setMandje([]);}}
                 style={{flex:1,padding:"10px",border:`2px solid ${actie===v?kleur:C.border}`,borderRadius:10,
                   background:actie===v?kleur+"18":"white",cursor:"pointer",fontFamily:"inherit",color:actie===v?kleur:C.muted,fontWeight:700,fontSize:13}}>
-                {label}<br/><span style={{fontSize:11,fontWeight:400}}>{sub}</span>
+                {tx(label)}<br/><span style={{fontSize:11,fontWeight:400}}>{sub}</span>
               </button>
             ))}
           </div>
@@ -338,14 +339,14 @@ function UitgifteForm({ voorraad, gebruiker, onSubmit, showToast }) {
         {/* Naam medewerker */}
         <div style={{marginBottom:16}}>
           <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>
-            Naam medewerker * <span style={{fontSize:10,fontWeight:400}}>(wie {actie==="uitgifte"?"de kleding krijgt":"de kleding teruggeeft"})</span>
+            {tx("Naam medewerker *")} <span style={{fontSize:10,fontWeight:400}}>{tx("(wie")} {actie==="uitgifte"?tx("de kleding krijgt"):tx("de kleding teruggeeft")})</span>
           </label>
-          <MedewerkerKiezer value={medewerkerNaam} onChange={setMedewerkerNaam} placeholder="Voor- en achternaam (typ om te zoeken)"/>
+          <MedewerkerKiezer value={medewerkerNaam} onChange={setMedewerkerNaam} placeholder={tx("Voor- en achternaam (typ om te zoeken)")}/>
         </div>
 
         {/* Vestiging */}
         <div style={{marginBottom:16}}>
-          <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Vestiging</label>
+          <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>{tx("Vestiging")}</label>
           <div style={{display:"flex",gap:8}}>
             {VESTIGINGEN.map(v=>(
               <button key={v} onClick={()=>{setVestiging(v);setType("");setMaat("");}}
@@ -358,10 +359,10 @@ function UitgifteForm({ voorraad, gebruiker, onSubmit, showToast }) {
 
         {/* Artikel selectie */}
         <div style={{background:C.bg,borderRadius:10,padding:16,marginBottom:16}}>
-          <div style={{fontSize:12,fontWeight:700,color:C.muted,marginBottom:12,textTransform:"uppercase",letterSpacing:".7px"}}>Artikel selecteren</div>
+          <div style={{fontSize:12,fontWeight:700,color:C.muted,marginBottom:12,textTransform:"uppercase",letterSpacing:".7px"}}>{tx("Artikel selecteren")}</div>
           <div style={{marginBottom:12}}>
             <select value={type} onChange={e=>{setType(e.target.value);setMaat("");}} style={{...inp,marginBottom:0}}>
-              <option value="">— Selecteer type —</option>
+              <option value="">{tx("— Selecteer type —")}</option>
               {types.map(t=><option key={t} value={t}>{t}</option>)}
             </select>
           </div>
@@ -395,7 +396,7 @@ function UitgifteForm({ voorraad, gebruiker, onSubmit, showToast }) {
               </div>
               <button onClick={voegToeAanMandje}
                 style={{background:actiekleur,color:"white",border:"none",borderRadius:8,padding:"8px 20px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit",marginLeft:"auto"}}>
-                + Toevoegen aan lijst
+                {tx("+ Toevoegen aan lijst")}
               </button>
             </div>
           )}
@@ -405,7 +406,7 @@ function UitgifteForm({ voorraad, gebruiker, onSubmit, showToast }) {
         {mandje.length > 0 && (
           <div style={{marginBottom:16}}>
             <div style={{fontSize:12,fontWeight:700,color:C.muted,marginBottom:10,textTransform:"uppercase",letterSpacing:".7px"}}>
-              Lijst ({mandje.length} artikel{mandje.length>1?"en":""})
+              {tx("Lijst (")}{mandje.length} {tx("artikel")}{mandje.length>1?tx("en"):""})
             </div>
             <div style={{display:"grid",gap:6}}>
               {mandje.map((r,i)=>(
@@ -428,7 +429,7 @@ function UitgifteForm({ voorraad, gebruiker, onSubmit, showToast }) {
         <button onClick={submitAlles} disabled={saving||mandje.length===0||!medewerkerNaam.trim()}
           style={{background:mandje.length>0&&medewerkerNaam.trim()?actiekleur:"#d1dbe8",color:"white",border:"none",borderRadius:8,
             padding:"12px 28px",fontSize:14,fontWeight:700,cursor:mandje.length>0&&medewerkerNaam.trim()?"pointer":"not-allowed",fontFamily:"inherit",width:"100%"}}>
-          {saving?"⏳ Bezig...":`${actie==="uitgifte"?"📤":"📥"} ${mandje.length} artikel${mandje.length!==1?"en":""} registreren voor ${medewerkerNaam||"..."}`}
+          {saving?tx("⏳ Bezig..."):`${actie==="uitgifte"?"📤":"📥"} ${mandje.length} artikel${mandje.length!==1?"en":""} registreren voor ${medewerkerNaam||"..."}`}
         </button>
       </div>
     </div>
@@ -480,7 +481,7 @@ function BijbestellenView({ voorraad, isBackoffice, onBesteld, onOntvangen }) {
             style={{padding:"7px 16px",borderRadius:20,border:`2px solid ${vestiging===v?C.blauw:C.border}`,
               background:vestiging===v?C.blauw:"white",color:vestiging===v?"white":C.text,
               fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>
-            {l} {v!=="alle"&&<span style={{opacity:.7}}>({voorraad.filter(i=>i.vestiging===v&&i.aantal<i.min_voorraad).length})</span>}
+            {tx(l)} {v!=="alle"&&<span style={{opacity:.7}}>({voorraad.filter(i=>i.vestiging===v&&i.aantal<i.min_voorraad).length})</span>}
           </button>
         ))}
       </div>
@@ -488,7 +489,7 @@ function BijbestellenView({ voorraad, isBackoffice, onBesteld, onOntvangen }) {
       {/* Al besteld sectie */}
       {alBesteldItems.length > 0 && (
         <div style={{background:"#f0fdf4",border:"1.5px solid #86efac",borderRadius:12,padding:20,marginBottom:20}}>
-          <div style={{fontWeight:800,fontSize:14,color:"#166534",marginBottom:12}}>📦 Onderweg / besteld</div>
+          <div style={{fontWeight:800,fontSize:14,color:"#166534",marginBottom:12}}>{tx("📦 Onderweg / besteld")}</div>
           <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
             <thead><tr style={{borderBottom:`1px solid #bbf7d0`}}>
               {["Vestiging","Type","Maat","Besteld","Datum","Door",isBackoffice?"Actie":""].map(h=>(
@@ -508,10 +509,10 @@ function BijbestellenView({ voorraad, isBackoffice, onBesteld, onOntvangen }) {
                     {ontvangenId===item.id ? (
                       <div style={{display:"flex",gap:6,alignItems:"center"}}>
                         <input type="number" min={1} value={ontvangenAantal} onChange={e=>setOntvangenAantal(+e.target.value)}
-                          style={{...inp,width:60}} placeholder="Stuks"/>
+                          style={{...inp,width:60}} placeholder={tx("Stuks")}/>
                         <button onClick={()=>slaOntvangenOp(item)} disabled={saving}
                           style={{background:C.groen,color:"white",border:"none",borderRadius:6,padding:"5px 12px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>
-                          ✓ Verwerken
+                          {tx("✓ Verwerken")}
                         </button>
                         <button onClick={()=>setOntvangenId(null)}
                           style={{background:"white",border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 8px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>✕</button>
@@ -519,7 +520,7 @@ function BijbestellenView({ voorraad, isBackoffice, onBesteld, onOntvangen }) {
                     ) : (
                       <button onClick={()=>{setOntvangenId(item.id);setOntvangenAantal(item.besteld_aantal||1);setBestellenId(null);}}
                         style={{background:C.blauw,color:"white",border:"none",borderRadius:6,padding:"5px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                        📥 Ontvangen
+                        {tx("📥 Ontvangen")}
                       </button>
                     )}
                   </td>}
@@ -534,19 +535,19 @@ function BijbestellenView({ voorraad, isBackoffice, onBesteld, onOntvangen }) {
       {teBestellenItems.length===0 ? (
         <div style={{textAlign:"center",padding:60,color:C.muted}}>
           <div style={{fontSize:40,marginBottom:12}}>✅</div>
-          <div style={{fontWeight:700,fontSize:16}}>Alles op peil!</div>
-          <div style={{fontSize:13,marginTop:6}}>Geen artikelen hoeven bijbesteld te worden.</div>
+          <div style={{fontWeight:700,fontSize:16}}>{tx("Alles op peil!")}</div>
+          <div style={{fontSize:13,marginTop:6}}>{tx("Geen artikelen hoeven bijbesteld te worden.")}</div>
         </div>
       ) : (
         <>
-          <div style={{fontWeight:800,fontSize:14,color:C.text,marginBottom:12}}>🛒 Nog te bestellen</div>
+          <div style={{fontWeight:800,fontSize:14,color:C.text,marginBottom:12}}>{tx("🛒 Nog te bestellen")}</div>
           {(vestiging==="alle" ? perVestiging : [{naam:vestiging,items:teBestellenItems}]).map(({naam,items})=>{
             if (items.length===0) return null;
             return (
               <div key={naam} style={{background:"white",border:`1px solid ${C.border}`,borderRadius:12,padding:20,marginBottom:16}}>
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
                   <h3 style={{fontWeight:800,fontSize:15,color:C.blauw}}>📍 {naam}</h3>
-                  <span style={{fontSize:12,color:C.muted,background:C.bg,padding:"3px 10px",borderRadius:10}}>{items.length} artikelen</span>
+                  <span style={{fontSize:12,color:C.muted,background:C.bg,padding:"3px 10px",borderRadius:10}}>{items.length} {tx("artikelen")}</span>
                 </div>
                 <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
                   <thead>
@@ -571,9 +572,9 @@ function BijbestellenView({ voorraad, isBackoffice, onBesteld, onOntvangen }) {
                             <td style={{padding:"8px"}}>
                               {isBesteld
                                 ? <span style={{fontSize:11,fontWeight:700,color:"#166534",background:"#dcfce7",padding:"2px 8px",borderRadius:8}}>
-                                    ✓ Besteld: {item.besteld_aantal}x ({item.besteld_datum ? new Date(item.besteld_datum).toLocaleDateString("nl-NL") : "—"})
+                                    {tx("✓ Besteld:")} {item.besteld_aantal}x ({item.besteld_datum ? new Date(item.besteld_datum).toLocaleDateString("nl-NL") : "—"})
                                   </span>
-                                : <span style={{fontSize:11,color:C.muted}}>Nog niet besteld</span>
+                                : <span style={{fontSize:11,color:C.muted}}>{tx("Nog niet besteld")}</span>
                               }
                             </td>
                             {isBackoffice && <td style={{padding:"8px"}}>
@@ -581,7 +582,7 @@ function BijbestellenView({ voorraad, isBackoffice, onBesteld, onOntvangen }) {
                                 bestellenId===item.id ? null :
                                 <button onClick={()=>{setBestellenId(item.id);setBestellenAantal(tekort);setBestellenDatum(new Date().toISOString().slice(0,10));setOntvangenId(null);}}
                                   style={{background:"#fef9c3",border:"1px solid #fde047",color:"#854d0e",borderRadius:6,padding:"5px 12px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                                  🛒 Markeer besteld
+                                  {tx("🛒 Markeer besteld")}
                                 </button>
                               )}
                             </td>}
@@ -591,21 +592,21 @@ function BijbestellenView({ voorraad, isBackoffice, onBesteld, onOntvangen }) {
                               <td colSpan={7} style={{padding:"12px 8px"}}>
                                 <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
                                   <div>
-                                    <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:3}}>Aantal besteld</label>
+                                    <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:3}}>{tx("Aantal besteld")}</label>
                                     <input type="number" min={1} value={bestellenAantal} onChange={e=>setBestellenAantal(+e.target.value)}
                                       style={{...inp,width:80}}/>
                                   </div>
                                   <div>
-                                    <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:3}}>Besteldatum</label>
+                                    <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:3}}>{tx("Besteldatum")}</label>
                                     <WeekDatePicker value={bestellenDatum} onChange={v=>setBestellenDatum(v)} style={{...inp}}/>
                                   </div>
                                   <div style={{marginTop:16,display:"flex",gap:6}}>
                                     <button onClick={()=>slaBestellingOp(item)} disabled={saving}
                                       style={{background:"#ca8a04",color:"white",border:"none",borderRadius:6,padding:"7px 16px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
-                                      {saving?"⏳...":"✓ Opslaan"}
+                                      {saving?"⏳...":tx("✓ Opslaan")}
                                     </button>
                                     <button onClick={()=>setBestellenId(null)}
-                                      style={{background:"white",border:`1px solid ${C.border}`,borderRadius:6,padding:"7px 12px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>Annuleren</button>
+                                      style={{background:"white",border:`1px solid ${C.border}`,borderRadius:6,padding:"7px 12px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>{tx("Annuleren")}</button>
                                   </div>
                                 </div>
                               </td>
@@ -645,7 +646,7 @@ function HistorieView({ transacties, isBackoffice }) {
           <button key={v} onClick={()=>setVestiging(v)}
             style={{padding:"6px 14px",borderRadius:20,border:`1.5px solid ${vestiging===v?C.blauw:C.border}`,
               background:vestiging===v?C.blauw:"white",color:vestiging===v?"white":C.text,
-              fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{l}</button>
+              fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{tx(l)}</button>
         ))}
         <div style={{flex:1}}/>
         {["alle","uitgifte","bijvulling","correctie"].map(a=>(
@@ -653,7 +654,7 @@ function HistorieView({ transacties, isBackoffice }) {
             style={{padding:"6px 14px",borderRadius:20,border:`1.5px solid ${actie===a?(actiKleur[a]||C.blauw):C.border}`,
               background:actie===a?(actiKleur[a]+"18"||C.blauw+"18"):"white",color:actie===a?(actiKleur[a]||C.blauw):C.muted,
               fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
-            {a==="alle"?"Alle acties":actiLabel[a]||a}
+            {a==="alle"?tx("Alle acties"):actiLabel[a]||a}
           </button>
         ))}
       </div>
@@ -673,8 +674,8 @@ function HistorieView({ transacties, isBackoffice }) {
             </div>
           </div>
         ))}
-        {gefilterd.length===0&&<div style={{textAlign:"center",padding:40,color:C.muted}}>Geen transacties gevonden</div>}
-        {gefilterd.length>100&&<div style={{textAlign:"center",fontSize:12,color:C.muted,padding:8}}>Toont laatste 100 van {gefilterd.length} transacties</div>}
+        {gefilterd.length===0&&<div style={{textAlign:"center",padding:40,color:C.muted}}>{tx("Geen transacties gevonden")}</div>}
+        {gefilterd.length>100&&<div style={{textAlign:"center",fontSize:12,color:C.muted,padding:8}}>{tx("Toont laatste 100 van")} {gefilterd.length} {tx("transacties")}</div>}
       </div>
     </div>
   );
@@ -700,16 +701,16 @@ function BeheerVoorraad({ voorraad, onBijvullen, onCorrectie, showToast }) {
 
   async function voegArtikeltoe() {
     const type = nieuw.typeNieuw.trim() || nieuw.type;
-    if (!type || !nieuw.maat.trim()) { showToast("Vul type en maat in","err"); return; }
+    if (!type || !nieuw.maat.trim()) { showToast(tx("Vul type en maat in"),"err"); return; }
     const bestaatAl = voorraad.find(v=>v.vestiging===vestiging&&v.type===type&&v.maat===nieuw.maat.trim());
-    if (bestaatAl) { showToast("Dit artikel bestaat al voor deze vestiging","err"); return; }
+    if (bestaatAl) { showToast(tx("Dit artikel bestaat al voor deze vestiging"),"err"); return; }
     setSaving(true);
     const { error } = await supabase.from("kleding_voorraad").insert([{
       vestiging, type, maat: nieuw.maat.trim(),
       aantal: nieuw.aantal, min_voorraad: nieuw.min_voorraad
     }]);
     setSaving(false);
-    if (error) { showToast("Fout bij toevoegen","err"); return; }
+    if (error) { showToast(tx("Fout bij toevoegen"),"err"); return; }
     showToast(`✓ ${type} ${nieuw.maat} toegevoegd aan ${vestiging}`);
     setNieuw({type:"",typeNieuw:"",maat:"",aantal:0,min_voorraad:1});
     setToonNieuw(false);
@@ -718,7 +719,7 @@ function BeheerVoorraad({ voorraad, onBijvullen, onCorrectie, showToast }) {
   async function verwijderArtikel(item) {
     if (!window.confirm(`${item.type} ${item.maat} verwijderen uit ${item.vestiging}?`)) return;
     const { error } = await supabase.from("kleding_voorraad").delete().eq("id", item.id);
-    if (error) { showToast("Fout bij verwijderen","err"); return; }
+    if (error) { showToast(tx("Fout bij verwijderen"),"err"); return; }
     showToast(`✓ ${item.type} ${item.maat} verwijderd`);
   }
 
@@ -728,8 +729,8 @@ function BeheerVoorraad({ voorraad, onBijvullen, onCorrectie, showToast }) {
       .update({ aantal: bewerkVoorraad, min_voorraad: bewerkMin, maat: bewerkMaat.trim() || item.maat, updated_at: new Date().toISOString() })
       .eq("id", item.id);
     setSaving(false);
-    if (!error) { showToast("✓ Opgeslagen"); setBewerkId(null); }
-    else showToast("Fout bij opslaan","err");
+    if (!error) { showToast(tx("✓ Opgeslagen")); setBewerkId(null); }
+    else showToast(tx("Fout bij opslaan"),"err");
   }
 
   return (
@@ -750,43 +751,43 @@ function BeheerVoorraad({ voorraad, onBijvullen, onCorrectie, showToast }) {
             background:toonNieuw?"#fef2f2":"#f0fdf4",
             color:toonNieuw?C.rood:C.groen,
             fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
-          {toonNieuw?"✕ Annuleren":"+ Artikel toevoegen"}
+          {toonNieuw?tx("✕ Annuleren"):tx("+ Artikel toevoegen")}
         </button>
       </div>
 
       {/* Nieuw artikel formulier */}
       {toonNieuw && (
         <div style={{background:"white",border:`2px solid ${C.groen}`,borderRadius:12,padding:20,marginBottom:20}}>
-          <div style={{fontWeight:800,fontSize:14,color:C.groen,marginBottom:16}}>➕ Nieuw artikel — {vestiging}</div>
+          <div style={{fontWeight:800,fontSize:14,color:C.groen,marginBottom:16}}>{tx("➕ Nieuw artikel —")} {vestiging}</div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginBottom:14}}>
             <div>
-              <label style={{fontSize:11,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:".7px",display:"block",marginBottom:5}}>Type *</label>
+              <label style={{fontSize:11,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:".7px",display:"block",marginBottom:5}}>{tx("Type *")}</label>
               <select value={nieuw.type} onChange={e=>setNieuw(p=>({...p,type:e.target.value,typeNieuw:""}))} style={{...inp(),width:"100%",marginBottom:6}}>
-                <option value="">— Bestaand type —</option>
+                <option value="">{tx("— Bestaand type —")}</option>
                 {alleTypes.map(t=><option key={t} value={t}>{t}</option>)}
               </select>
               <input value={nieuw.typeNieuw} onChange={e=>setNieuw(p=>({...p,typeNieuw:e.target.value,type:""}))}
-                placeholder="Of nieuw type invullen..." style={{...inp(),width:"100%",boxSizing:"border-box"}}/>
+                placeholder={tx("Of nieuw type invullen...")} style={{...inp(),width:"100%",boxSizing:"border-box"}}/>
             </div>
             <div>
-              <label style={{fontSize:11,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:".7px",display:"block",marginBottom:5}}>Maat / omschrijving *</label>
+              <label style={{fontSize:11,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:".7px",display:"block",marginBottom:5}}>{tx("Maat / omschrijving *")}</label>
               <input value={nieuw.maat} onChange={e=>setNieuw(p=>({...p,maat:e.target.value}))}
-                placeholder="Bijv. 42 of XL of Maat 44" style={{...inp(),width:"100%",boxSizing:"border-box"}}/>
+                placeholder={tx("Bijv. 42 of XL of Maat 44")} style={{...inp(),width:"100%",boxSizing:"border-box"}}/>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
               <div>
-                <label style={{fontSize:11,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:".7px",display:"block",marginBottom:5}}>Begin voorraad</label>
+                <label style={{fontSize:11,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:".7px",display:"block",marginBottom:5}}>{tx("Begin voorraad")}</label>
                 <input type="number" min={0} value={nieuw.aantal} onChange={e=>setNieuw(p=>({...p,aantal:+e.target.value}))} style={{...inp(),width:"100%",boxSizing:"border-box"}}/>
               </div>
               <div>
-                <label style={{fontSize:11,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:".7px",display:"block",marginBottom:5}}>Minimum</label>
+                <label style={{fontSize:11,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:".7px",display:"block",marginBottom:5}}>{tx("Minimum")}</label>
                 <input type="number" min={0} value={nieuw.min_voorraad} onChange={e=>setNieuw(p=>({...p,min_voorraad:+e.target.value}))} style={{...inp(),width:"100%",boxSizing:"border-box"}}/>
               </div>
             </div>
           </div>
           <button onClick={voegArtikeltoe} disabled={saving}
             style={{background:C.groen,color:"white",border:"none",borderRadius:8,padding:"10px 24px",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
-            {saving?"⏳ Opslaan...":"✓ Artikel toevoegen"}
+            {saving?tx("⏳ Opslaan..."):tx("✓ Artikel toevoegen")}
           </button>
         </div>
       )}
@@ -805,24 +806,24 @@ function BeheerVoorraad({ voorraad, onBijvullen, onCorrectie, showToast }) {
                   {bewerkId===item.id ? (
                     <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",flex:1}}>
                       <div style={{display:"flex",alignItems:"center",gap:6}}>
-                        <label style={{fontSize:11,color:C.muted}}>Maat:</label>
+                        <label style={{fontSize:11,color:C.muted}}>{tx("Maat:")}</label>
                         <input type="text" value={bewerkMaat} onChange={e=>setBewerkMaat(e.target.value)}
                           style={{...inp(),width:80}}/>
                       </div>
                       <div style={{display:"flex",alignItems:"center",gap:6}}>
-                        <label style={{fontSize:11,color:C.muted}}>Voorraad:</label>
+                        <label style={{fontSize:11,color:C.muted}}>{tx("Voorraad:")}</label>
                         <input type="number" min={0} value={bewerkVoorraad} onChange={e=>setBewerkVoorraad(+e.target.value)}
                           style={{...inp(),width:65}}/>
                       </div>
                       <div style={{display:"flex",alignItems:"center",gap:6}}>
-                        <label style={{fontSize:11,color:C.muted}}>Minimum:</label>
+                        <label style={{fontSize:11,color:C.muted}}>{tx("Minimum:")}</label>
                         <input type="number" min={0} value={bewerkMin} onChange={e=>setBewerkMin(+e.target.value)}
                           style={{...inp(),width:65}}/>
                       </div>
                       <button onClick={()=>slaCorrectieOp(item)} disabled={saving}
-                        style={{background:C.groen,color:"white",border:"none",borderRadius:6,padding:"5px 12px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>✓ Opslaan</button>
+                        style={{background:C.groen,color:"white",border:"none",borderRadius:6,padding:"5px 12px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>{tx("✓ Opslaan")}</button>
                       <button onClick={()=>setBewerkId(null)}
-                        style={{background:"white",border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 10px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>Annuleren</button>
+                        style={{background:"white",border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 10px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>{tx("Annuleren")}</button>
                     </div>
                   ) : bijvullenId===item.id ? (
                     <div style={{display:"flex",gap:8,alignItems:"center",flex:1}}>
@@ -830,19 +831,19 @@ function BeheerVoorraad({ voorraad, onBijvullen, onCorrectie, showToast }) {
                       <input type="number" min={1} value={bijvullenAantal} onChange={e=>setBijvullenAantal(+e.target.value)}
                         style={{...inp(),width:70}}/>
                       <button onClick={async()=>{setSaving(true);await onBijvullen(item.vestiging,item.type,item.maat,bijvullenAantal,"");setSaving(false);setBijvullenId(null);setBijvullenAantal(1);}}
-                        style={{background:C.groen,color:"white",border:"none",borderRadius:6,padding:"5px 12px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>✓ Bijvullen</button>
+                        style={{background:C.groen,color:"white",border:"none",borderRadius:6,padding:"5px 12px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>{tx("✓ Bijvullen")}</button>
                       <button onClick={()=>setBijvullenId(null)}
-                        style={{background:"white",border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 10px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>Annuleren</button>
+                        style={{background:"white",border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 10px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>{tx("Annuleren")}</button>
                     </div>
                   ) : (
                     <>
                       <span style={{fontWeight:800,fontSize:15,color:item.aantal===0?C.rood:item.aantal<item.min_voorraad?C.oranje:C.groen,minWidth:35}}>{item.aantal}</span>
-                      <span style={{fontSize:11,color:C.muted,background:C.bg,padding:"2px 8px",borderRadius:8}}>min: {item.min_voorraad}</span>
+                      <span style={{fontSize:11,color:C.muted,background:C.bg,padding:"2px 8px",borderRadius:8}}>{tx("min:")} {item.min_voorraad}</span>
                       <div style={{marginLeft:"auto",display:"flex",gap:6}}>
                         <button onClick={()=>{setBijvullenId(item.id);setBijvullenAantal(Math.max(1,item.min_voorraad-item.aantal));setBewerkId(null);}}
-                          style={{background:"#f0fdf4",border:"1px solid #bbf7d0",color:"#166534",borderRadius:6,padding:"4px 10px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>📥 Bijvullen</button>
+                          style={{background:"#f0fdf4",border:"1px solid #bbf7d0",color:"#166534",borderRadius:6,padding:"4px 10px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>{tx("📥 Bijvullen")}</button>
                         <button onClick={()=>{setBewerkId(item.id);setBewerkVoorraad(item.aantal);setBewerkMin(item.min_voorraad);setBewerkMaat(item.maat);setBijvullenId(null);}}
-                          style={{background:C.bg,border:`1px solid ${C.border}`,color:C.muted,borderRadius:6,padding:"4px 10px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>✏️ Bewerken</button>
+                          style={{background:C.bg,border:`1px solid ${C.border}`,color:C.muted,borderRadius:6,padding:"4px 10px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>{tx("✏️ Bewerken")}</button>
                         <button onClick={()=>verwijderArtikel(item)}
                           style={{background:"#fef2f2",border:"1px solid #fecaca",color:"#b91c1c",borderRadius:6,padding:"4px 8px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>🗑</button>
                       </div>
@@ -854,7 +855,7 @@ function BeheerVoorraad({ voorraad, onBijvullen, onCorrectie, showToast }) {
           </div>
         );
       })}
-      {types.length===0&&<div style={{textAlign:"center",padding:40,color:C.muted}}>Geen artikelen voor {vestiging}</div>}
+      {types.length===0&&<div style={{textAlign:"center",padding:40,color:C.muted}}>{tx("Geen artikelen voor")} {vestiging}</div>}
     </div>
   );
 }

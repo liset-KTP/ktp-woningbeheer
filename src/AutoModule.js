@@ -3,6 +3,7 @@ import { supabase } from "./supabaseClient";
 import { BijlageUploader, BijlageWeergave, uploadBijlages } from "./BijlageUploader";
 import WeekDatePicker from "./WeekDatePicker";
 import { MedewerkerKiezer, naamProbleem, normaliseerNaam } from "./MedewerkerKiezer";
+import { tx } from "./i18n";
 
 // ─── EMAILJS ─────────────────────────────────────────────────────────────────
 const EMAILJS_SERVICE  = process.env.REACT_APP_EMAILJS_SERVICE  || "";
@@ -169,7 +170,7 @@ export function AutoModule({ gebruiker, showToast }) {
     // "afwijkingen" is alleen voor de e-mailtekst — geen kolom in de database
     const { afwijkingen, ...opslagData } = m;
     const { error } = await supabase.from("auto_meldingen").insert([{...opslagData, ingediend_door: gebruiker.naam, status:"open"}]);
-    if (error) { showToast("Fout bij opslaan","err"); return false; }
+    if (error) { showToast(tx("Fout bij opslaan"),"err"); return false; }
 
     // Auto status bijwerken
     if (m.kenteken && m.actie !== "geannuleerd") {
@@ -214,8 +215,8 @@ export function AutoModule({ gebruiker, showToast }) {
 
   async function updateAutoMelding(id, updates) {
     const { error } = await supabase.from("auto_meldingen").update({...updates, afgehandeld_door: gebruiker.naam, afgehandeld_op: new Date().toISOString()}).eq("id", id);
-    if (error) showToast("Fout bij updaten","err");
-    else showToast("✓ Bijgewerkt");
+    if (error) showToast(tx("Fout bij updaten"),"err");
+    else showToast(tx("✓ Bijgewerkt"));
   }
 
   async function stuurReactie(melding, tekst) {
@@ -238,7 +239,7 @@ export function AutoModule({ gebruiker, showToast }) {
       koppeling_label: `Auto ${melding.kenteken} — ${melding.naam_medewerker}`,
       gelezen_door: [gebruiker.naam],
     }]);
-    if (error) { showToast("Fout bij versturen","err"); return false; }
+    if (error) { showToast(tx("Fout bij versturen"),"err"); return false; }
 
     stuurMail({
       type: "💬 Reactie op auto-melding",
@@ -250,7 +251,7 @@ export function AutoModule({ gebruiker, showToast }) {
       ingediend_door: gebruiker.naam,
       opmerkingen: `Reactie van backoffice: "${tekst}"`,
     });
-    showToast("✓ Reactie verstuurd — zichtbaar in Berichten");
+    showToast(tx("✓ Reactie verstuurd — zichtbaar in Berichten"));
     return true;
   }
 
@@ -260,8 +261,8 @@ export function AutoModule({ gebruiker, showToast }) {
 
   async function addAuto(auto) {
     const { error } = await supabase.from("autos").insert([auto]);
-    if (error) { showToast("Fout bij toevoegen","err"); return false; }
-    showToast("✓ Auto toegevoegd"); return true;
+    if (error) { showToast(tx("Fout bij toevoegen"),"err"); return false; }
+    showToast(tx("✓ Auto toegevoegd")); return true;
   }
 
   // Velden die je via het bewerkformulier kunt wijzigen — gebruikt om een leesbare
@@ -292,7 +293,7 @@ export function AutoModule({ gebruiker, showToast }) {
   async function updateAuto(id, updates, oudeAuto) {
     const payload = { ...updates, bijgewerkt_door: gebruiker.naam, updated_at: new Date().toISOString() };
     const { error } = await supabase.from("autos").update(payload).eq("id", id);
-    if (error) { showToast("Fout bij opslaan","err"); return false; }
+    if (error) { showToast(tx("Fout bij opslaan"),"err"); return false; }
 
     const wijzigingen = autoWijzigingen(oudeAuto, updates);
     if (wijzigingen.length) {
@@ -302,27 +303,27 @@ export function AutoModule({ gebruiker, showToast }) {
         { auto_id: id, wijzigingen }
       );
     }
-    showToast("✓ Opgeslagen"); return true;
+    showToast(tx("✓ Opgeslagen")); return true;
   }
 
   async function archiveerAuto(id, kenteken) {
     const { error } = await supabase.from("autos").update({ gearchiveerd: true, bijgewerkt_door: gebruiker.naam, updated_at: new Date().toISOString() }).eq("id", id);
-    if (error) { showToast("Fout bij archiveren","err"); return false; }
+    if (error) { showToast(tx("Fout bij archiveren"),"err"); return false; }
     await logAutoActiviteit("auto_gearchiveerd", `🗃 Auto gearchiveerd: ${kenteken || id}`, { auto_id: id });
-    showToast("✓ Auto gearchiveerd"); await loadAutos(); await loadGearchiveerdeAutos(); return true;
+    showToast(tx("✓ Auto gearchiveerd")); await loadAutos(); await loadGearchiveerdeAutos(); return true;
   }
   async function terugzetAuto(id, kenteken) {
     const { error } = await supabase.from("autos").update({ gearchiveerd: false, bijgewerkt_door: gebruiker.naam, updated_at: new Date().toISOString() }).eq("id", id);
-    if (error) { showToast("Fout bij terugzetten","err"); return false; }
+    if (error) { showToast(tx("Fout bij terugzetten"),"err"); return false; }
     await logAutoActiviteit("auto_teruggezet", `↩️ Auto teruggezet uit archief: ${kenteken || id}`, { auto_id: id });
-    showToast("✓ Auto teruggezet"); await loadAutos(); await loadGearchiveerdeAutos(); return true;
+    showToast(tx("✓ Auto teruggezet")); await loadAutos(); await loadGearchiveerdeAutos(); return true;
   }
 
   const openMeldingen = autoMeldingen.filter(m => m.status === "open");
   const isLiset = gebruiker?.naam === "Liset" && !gebruiker?.bekijkModus;
   const isBackoffice = gebruiker?.rol === "backoffice";
 
-  if (loading) return <div style={{textAlign:"center",padding:"60px",color:C.muted}}>⏳ Laden...</div>;
+  if (loading) return <div style={{textAlign:"center",padding:"60px",color:C.muted}}>{tx("⏳ Laden...")}</div>;
 
   const tabs = [
     { id:"overzicht", label:"🚗 Overzicht" },
@@ -334,14 +335,14 @@ export function AutoModule({ gebruiker, showToast }) {
 
   return (
     <div>
-      <SH titel="🚗 Auto planning" sub={`${autos.length} auto's · ${autos.filter(a=>a.status==="Beschikbaar").length} beschikbaar · ${autos.filter(a=>a.status==="Lopend").length} uitgegeven`} />
+      <SH titel={tx("🚗 Auto planning")} sub={`${autos.length} auto's · ${autos.filter(a=>a.status==="Beschikbaar").length} beschikbaar · ${autos.filter(a=>a.status==="Lopend").length} uitgegeven`} />
 
       {/* Sub-tabs */}
       <div style={{display:"flex",gap:6,marginBottom:24,borderBottom:`2px solid ${C.border}`,paddingBottom:0}}>
         {tabs.map(t => (
           <button key={t.id} onClick={()=>setSubTab(t.id)}
             style={{background:"none",border:"none",padding:"10px 18px",fontSize:13,fontWeight:700,color:subTab===t.id?C.blauw:C.muted,borderBottom:subTab===t.id?`3px solid ${C.blauw}`:"3px solid transparent",marginBottom:-2,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
-            {t.label}
+            {tx(t.label)}
           </button>
         ))}
       </div>
@@ -391,16 +392,16 @@ function AutoOverzicht({ autos, gebruiker }) {
         <div style={{marginBottom:20}}>
           {verlopen.length > 0 && (
             <div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:12,padding:"12px 18px",marginBottom:10}}>
-              <div style={{fontWeight:700,color:"#b91c1c",marginBottom:6}}>🚨 APK verlopen ({verlopen.length})</div>
-              {verlopen.map(a => <div key={a.id} style={{fontSize:13,color:"#b91c1c"}}>• {a.kenteken} — {a.merk_model} — verlopen op {fmtDate(a.apk_datum)}</div>)}
+              <div style={{fontWeight:700,color:"#b91c1c",marginBottom:6}}>{tx("🚨 APK verlopen (")}{verlopen.length})</div>
+              {verlopen.map(a => <div key={a.id} style={{fontSize:13,color:"#b91c1c"}}>• {a.kenteken} — {a.merk_model} {tx("— verlopen op")} {fmtDate(a.apk_datum)}</div>)}
             </div>
           )}
           {apkWaarschuwing.length > 0 && (
             <div style={{background:"#fef3c7",border:"1px solid #fcd34d",borderRadius:12,padding:"12px 18px"}}>
-              <div style={{fontWeight:700,color:"#b45309",marginBottom:6}}>⚠️ APK bijna verlopen ({apkWaarschuwing.length})</div>
+              <div style={{fontWeight:700,color:"#b45309",marginBottom:6}}>{tx("⚠️ APK bijna verlopen (")}{apkWaarschuwing.length})</div>
               {apkWaarschuwing.map(a => {
                 const dagen = Math.ceil((new Date(a.apk_datum) - new Date()) / 86400000);
-                return <div key={a.id} style={{fontSize:13,color:"#b45309"}}>• {a.kenteken} — {a.merk_model} — over {dagen} dagen ({fmtDate(a.apk_datum)})</div>;
+                return <div key={a.id} style={{fontSize:13,color:"#b45309"}}>• {a.kenteken} — {a.merk_model} {tx("— over")} {dagen} {tx("dagen (")}{fmtDate(a.apk_datum)})</div>;
               })}
             </div>
           )}
@@ -417,14 +418,14 @@ function AutoOverzicht({ autos, gebruiker }) {
         ].map(s=>(
           <div key={s.label} className="card" style={{borderTop:`3px solid ${s.color}`,padding:"12px 14px"}}>
             <div style={{fontSize:22,fontWeight:800,color:s.color}}>{s.val}</div>
-            <div style={{fontSize:11,color:C.muted,marginTop:2}}>{s.label}</div>
+            <div style={{fontSize:11,color:C.muted,marginTop:2}}>{tx(s.label)}</div>
           </div>
         ))}
       </div>
 
       {/* Filters */}
       <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}>
-        <input value={zoek} onChange={e=>setZoek(e.target.value)} placeholder="🔍 Zoek kenteken, auto, medewerker..."
+        <input value={zoek} onChange={e=>setZoek(e.target.value)} placeholder={tx("🔍 Zoek kenteken, auto, medewerker...")}
           style={{background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"8px 14px",fontSize:13,outline:"none",width:260}}/>
         <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
           {["Alle",...AUTO_STATUSSEN].map(s=>(
@@ -439,10 +440,10 @@ function AutoOverzicht({ autos, gebruiker }) {
       {/* Auto tabel */}
       <div className="card" style={{padding:0,overflow:"hidden"}}>
         <div style={{display:"grid",gridTemplateColumns:"120px 1fr 140px 120px 100px 100px 80px",padding:"10px 16px",fontSize:10,fontWeight:700,color:C.muted,letterSpacing:".6px",textTransform:"uppercase",borderBottom:`1px solid ${C.border}`,background:C.bg}}>
-          <span>Kenteken</span><span>Auto</span><span>Medewerker</span><span>Vestiging</span><span>APK datum</span><span>Uitgifte</span><span>Status</span>
+          <span>{tx("Kenteken")}</span><span>{tx("Auto")}</span><span>{tx("Medewerker")}</span><span>{tx("Vestiging")}</span><span>{tx("APK datum")}</span><span>{tx("Uitgifte")}</span><span>{tx("Status")}</span>
         </div>
         {filtered.length === 0 && (
-          <div style={{textAlign:"center",padding:"40px",color:C.muted}}>Geen auto's gevonden</div>
+          <div style={{textAlign:"center",padding:"40px",color:C.muted}}>{tx("Geen auto's gevonden")}</div>
         )}
         {filtered.map((a,i) => {
           const c = AUTO_STATUS_MAP[a.status] || {bg:C.bg,text:C.muted,dot:C.muted};
@@ -462,7 +463,7 @@ function AutoOverzicht({ autos, gebruiker }) {
                 {apkVerlopen&&" ⚠️"}
               </span>
               <span style={{fontSize:12,color:C.muted}}>{a.datum_uitgifte?fmtDate(a.datum_uitgifte):"—"}</span>
-              <span style={{padding:"3px 8px",borderRadius:6,background:c.bg,color:c.text,fontSize:10,fontWeight:700,whiteSpace:"nowrap"}}>{a.status}</span>
+              <span style={{padding:"3px 8px",borderRadius:6,background:c.bg,color:c.text,fontSize:10,fontWeight:700,whiteSpace:"nowrap"}}>{tx(a.status)}</span>
             </div>
           );
         })}
@@ -543,7 +544,7 @@ function HandtekeningPad({ label, sub, dataUrl, onChange }) {
 
   return (
     <div>
-      <label style={lbl}>{label}</label>
+      <label style={lbl}>{tx(label)}</label>
       {sub && <div style={{fontSize:11,color:C.muted,marginBottom:6}}>{sub}</div>}
       <div style={{border:`1.5px solid ${dataUrl?C.groen:C.border}`,borderRadius:8,overflow:"hidden",background:"white"}}>
         <canvas ref={canvasRef} width={560} height={170}
@@ -552,8 +553,8 @@ function HandtekeningPad({ label, sub, dataUrl, onChange }) {
           onTouchStart={start} onTouchMove={move} onTouchEnd={eind} />
       </div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:6}}>
-        <span style={{fontSize:11,color:dataUrl?C.groen:C.muted,fontWeight:600}}>{dataUrl?"✓ Ondertekend":"Teken hierboven met vinger of muis"}</span>
-        <button type="button" onClick={wis} style={{background:"none",border:"none",color:C.muted,fontSize:12,cursor:"pointer",textDecoration:"underline",fontFamily:"inherit"}}>Wissen</button>
+        <span style={{fontSize:11,color:dataUrl?C.groen:C.muted,fontWeight:600}}>{dataUrl?tx("✓ Ondertekend"):tx("Teken hierboven met vinger of muis")}</span>
+        <button type="button" onClick={wis} style={{background:"none",border:"none",color:C.muted,fontSize:12,cursor:"pointer",textDecoration:"underline",fontFamily:"inherit"}}>{tx("Wissen")}</button>
       </div>
     </div>
   );
@@ -623,16 +624,16 @@ function AutoSchadeSchema({ punten, setPunten }) {
 
   return (
     <div>
-      <label style={{...lbl,marginBottom:8}}>🚘 Schade markeren — klik op de plek(ken) op de auto, je kunt er meerdere toevoegen</label>
+      <label style={{...lbl,marginBottom:8}}>{tx("🚘 Schade markeren — klik op de plek(ken) op de auto, je kunt er meerdere toevoegen")}</label>
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14}}>
         {SCHADE_ZONES.map(z => (
           <div key={z.key}>
-            <div style={{fontSize:11,fontWeight:700,color:C.text,marginBottom:6,textAlign:"center"}}>{z.label}</div>
+            <div style={{fontSize:11,fontWeight:700,color:C.text,marginBottom:6,textAlign:"center"}}>{tx(z.label)}</div>
             <div onClick={e=>klikOpZone(e,z.key)}
               style={{position:"relative",background:C.bg,border:`1.5px solid ${C.border}`,borderRadius:10,height:150,cursor:"crosshair",overflow:"hidden"}}>
               <AutoIcon zone={z.key}/>
               {punten.map((p,i) => p.zone===z.key && (
-                <div key={i} title={p.omschrijving||"Nog niet omschreven"}
+                <div key={i} title={p.omschrijving||tx("Nog niet omschreven")}
                   style={{position:"absolute",left:`${p.x}%`,top:`${p.y}%`,transform:"translate(-50%,-50%)",width:20,height:20,borderRadius:"50%",background:p.omschrijving.trim()?"#ef4444":"#f59e0b",color:"white",fontSize:11,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 1px 4px rgba(0,0,0,.3)",pointerEvents:"none"}}>
                   {i+1}
                 </div>
@@ -644,13 +645,13 @@ function AutoSchadeSchema({ punten, setPunten }) {
 
       {punten.length > 0 && (
         <div style={{marginTop:14}}>
-          <div style={{fontSize:11,fontWeight:700,color:C.muted,marginBottom:6,textTransform:"uppercase",letterSpacing:".6px"}}>Omschrijf elk gemarkeerd punt *</div>
+          <div style={{fontSize:11,fontWeight:700,color:C.muted,marginBottom:6,textTransform:"uppercase",letterSpacing:".6px"}}>{tx("Omschrijf elk gemarkeerd punt *")}</div>
           {punten.map((p,i) => (
             <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 0",borderBottom:`1px solid ${C.border}`}}>
               <span style={{width:20,height:20,borderRadius:"50%",background:p.omschrijving.trim()?"#ef4444":"#f59e0b",color:"white",fontSize:11,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{i+1}</span>
               <span style={{fontSize:11,color:C.muted,fontWeight:600,minWidth:72}}>{SCHADE_ZONES.find(z=>z.key===p.zone)?.label}</span>
               <input autoFocus={i===laatstToegevoegdeRef.current} value={p.omschrijving} onChange={e=>wijzigOmschrijving(i,e.target.value)}
-                placeholder="bijv. kras 10cm, deuk, steenslag..."
+                placeholder={tx("bijv. kras 10cm, deuk, steenslag...")}
                 style={{flex:1,background:"white",border:`1.5px solid ${p.omschrijving.trim()?C.border:"#f59e0b"}`,borderRadius:8,padding:"6px 10px",fontSize:13,outline:"none",fontFamily:"inherit"}}/>
               <button onClick={()=>verwijderPunt(i)} style={{background:"none",border:"none",color:"#ef4444",cursor:"pointer",fontSize:14}}>×</button>
             </div>
@@ -746,24 +747,24 @@ function AutoHandoverWizard({ autos, gebruiker, actie, onSubmit, showToast }) {
 
   function volgende() {
     if (stap === 1) {
-      if (!kenteken) { showToast("Selecteer een kenteken","err"); return; }
+      if (!kenteken) { showToast(tx("Selecteer een kenteken"),"err"); return; }
       { const naamFout = naamProbleem(naamMedewerker); if (naamFout) { showToast(naamFout,"err"); return; } }
-      if (actie === "inname" && !locatie.trim()) { showToast("Vul de locatie van de auto in","err"); return; }
+      if (actie === "inname" && !locatie.trim()) { showToast(tx("Vul de locatie van de auto in"),"err"); return; }
     }
     if (stap === 2) {
       const onbeantwoord = checklistRegels.some(r => r.val===null || r.val===undefined);
-      if (onbeantwoord) { showToast("Vul de volledige controlelijst in","err"); return; }
+      if (onbeantwoord) { showToast(tx("Vul de volledige controlelijst in"),"err"); return; }
       const missendeToelichting = checklistRegels.some(r => r.val===r.probleem && !toelichtingen[r.key]?.trim());
-      if (missendeToelichting) { showToast("Geef bij elke afwijking (rood) een korte toelichting","err"); return; }
+      if (missendeToelichting) { showToast(tx("Geef bij elke afwijking (rood) een korte toelichting"),"err"); return; }
     }
     if (stap === 3) {
       const leeg = schadePunten.some(p => !p.omschrijving.trim());
-      if (leeg) { showToast("Omschrijf elk gemarkeerd schadepunt (of verwijder het met ×)","err"); return; }
+      if (leeg) { showToast(tx("Omschrijf elk gemarkeerd schadepunt (of verwijder het met ×)"),"err"); return; }
     }
     if (stap === 4) {
       const afwijkingen = berekenAfwijkingen();
       if (afwijkingen.length > 0 && documenten.length === 0) {
-        showToast("Er zijn bijzonderheden gevonden — voeg minimaal 1 foto toe","err"); return;
+        showToast(tx("Er zijn bijzonderheden gevonden — voeg minimaal 1 foto toe"),"err"); return;
       }
     }
     setStap(s => Math.min(s+1, 5));
@@ -771,9 +772,9 @@ function AutoHandoverWizard({ autos, gebruiker, actie, onSubmit, showToast }) {
   function vorige() { setStap(s => Math.max(s-1, 1)); }
 
   async function versturen() {
-    if (!handtekeningKtp) { showToast("Handtekening KTP Interflex ontbreekt","err"); return; }
-    if (!handtekeningBestuurder) { showToast("Handtekening medewerker ontbreekt","err"); return; }
-    if (actie === "uitgifte" && !akkoordPrive) { showToast("Medewerker moet akkoord gaan met het privé-rijverbod","err"); return; }
+    if (!handtekeningKtp) { showToast(tx("Handtekening KTP Interflex ontbreekt"),"err"); return; }
+    if (!handtekeningBestuurder) { showToast(tx("Handtekening medewerker ontbreekt"),"err"); return; }
+    if (actie === "uitgifte" && !akkoordPrive) { showToast(tx("Medewerker moet akkoord gaan met het privé-rijverbod"),"err"); return; }
     setSaving(true);
 
     let docUrls = [];
@@ -783,7 +784,7 @@ function AutoHandoverWizard({ autos, gebruiker, actie, onSubmit, showToast }) {
       uploadHandtekening(handtekeningKtp, `ktp_${kenteken}`),
       uploadHandtekening(handtekeningBestuurder, `bestuurder_${kenteken}`),
     ]);
-    if (!ktpUrl || !bestuurderUrl) { setSaving(false); showToast("Fout bij opslaan handtekening — probeer opnieuw","err"); return; }
+    if (!ktpUrl || !bestuurderUrl) { setSaving(false); showToast(tx("Fout bij opslaan handtekening — probeer opnieuw"),"err"); return; }
 
     const afwijkingen = berekenAfwijkingen();
     const kostenBedrag = actie === "inname" && kostenInhouden.trim() !== ""
@@ -820,9 +821,9 @@ function AutoHandoverWizard({ autos, gebruiker, actie, onSubmit, showToast }) {
   if (submitted) return (
     <div className="card" style={{textAlign:"center",padding:"60px 40px",borderTop:`4px solid ${C.groen}`}}>
       <div style={{fontSize:64,marginBottom:16}}>✅</div>
-      <div style={{fontSize:22,fontWeight:800,color:C.groen,marginBottom:8}}>{titel} vastgelegd — inclusief handtekeningen</div>
-      <div style={{fontSize:13,color:C.muted,marginBottom:16}}>Het bericht voor de medewerker vind je terug bij Auto's → Log, bij deze melding.</div>
-      <button className="btn-b" onClick={opnieuw}>Nieuwe {actie}</button>
+      <div style={{fontSize:22,fontWeight:800,color:C.groen,marginBottom:8}}>{titel} {tx("vastgelegd — inclusief handtekeningen")}</div>
+      <div style={{fontSize:13,color:C.muted,marginBottom:16}}>{tx("Het bericht voor de medewerker vind je terug bij Auto's → Log, bij deze melding.")}</div>
+      <button className="btn-b" onClick={opnieuw}>{tx("Nieuwe")} {actie}</button>
     </div>
   );
 
@@ -844,43 +845,43 @@ function AutoHandoverWizard({ autos, gebruiker, actie, onSubmit, showToast }) {
       {stap === 1 && (
         <div className="card" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:18,marginBottom:16}}>
           <div>
-            <label style={lbl}>Kenteken *</label>
+            <label style={lbl}>{tx("Kenteken *")}</label>
             <select style={{...inp,appearance:"none"}} value={kenteken} onChange={e=>setKenteken(e.target.value)}>
-              <option value="">Selecteer auto</option>
-              {autos.map(a=><option key={a.id} value={a.kenteken}>{a.kenteken} — {a.merk_model} [{a.status}]</option>)}
+              <option value="">{tx("Selecteer auto")}</option>
+              {autos.map(a=><option key={a.id} value={a.kenteken}>{a.kenteken} — {a.merk_model} [{tx(a.status)}]</option>)}
             </select>
           </div>
           <div>
-            <label style={lbl}>Naam medewerker (bestuurder) *</label>
-            <MedewerkerKiezer value={naamMedewerker} onChange={setNaamMedewerker} placeholder="Voor- en achternaam (typ om te zoeken)"/>
+            <label style={lbl}>{tx("Naam medewerker (bestuurder) *")}</label>
+            <MedewerkerKiezer value={naamMedewerker} onChange={setNaamMedewerker} placeholder={tx("Voor- en achternaam (typ om te zoeken)")}/>
           </div>
           <div>
-            <label style={lbl}>Datum + Tijd *</label>
+            <label style={lbl}>{tx("Datum + Tijd *")}</label>
             <input type="datetime-local" style={inp} value={datumTijd} onChange={e=>setDatumTijd(e.target.value)}/>
           </div>
           <div>
-            <label style={lbl}>Kilometerstand (odometer)</label>
-            <input style={inp} value={kilometerstand} onChange={e=>setKilometerstand(e.target.value)} placeholder="bijv. 45230" type="number"/>
+            <label style={lbl}>{tx("Kilometerstand (odometer)")}</label>
+            <input style={inp} value={kilometerstand} onChange={e=>setKilometerstand(e.target.value)} placeholder={tx("bijv. 45230")} type="number"/>
           </div>
           {actie === "inname" && (
             <div style={{gridColumn:"1 / -1"}}>
-              <label style={lbl}>Locatie auto bij inname *</label>
-              <input style={inp} value={locatie} onChange={e=>setLocatie(e.target.value)} placeholder="bijv. Parkeerplaats kantoor Enschede"/>
+              <label style={lbl}>{tx("Locatie auto bij inname *")}</label>
+              <input style={inp} value={locatie} onChange={e=>setLocatie(e.target.value)} placeholder={tx("bijv. Parkeerplaats kantoor Enschede")}/>
             </div>
           )}
           {actie === "inname" && kenteken && (
             <div style={{gridColumn:"1 / -1"}}>
               {zoekenUitgifte ? (
-                <div style={{fontSize:12,color:C.muted}}>⏳ Laatste uitgifte opzoeken...</div>
+                <div style={{fontSize:12,color:C.muted}}>{tx("⏳ Laatste uitgifte opzoeken...")}</div>
               ) : laatsteUitgifte ? (
                 <div style={{background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 14px",fontSize:12,color:C.text}}>
-                  📋 Laatste uitgifte: {fmtFull(laatsteUitgifte.datum_tijd)} aan {laatsteUitgifte.naam_medewerker}
+                  {tx("📋 Laatste uitgifte:")} {fmtFull(laatsteUitgifte.datum_tijd)} {tx("aan")} {laatsteUitgifte.naam_medewerker}
                   {laatsteUitgifte.kilometerstand && ` · km-stand toen: ${laatsteUitgifte.kilometerstand}`}
                   {(laatsteUitgifte.schade_punten||[]).length>0 && ` · ${laatsteUitgifte.schade_punten.length} bekende schadepunt(en)`}
                 </div>
               ) : (
                 <div style={{background:"#fef3c7",border:"1px solid #fcd34d",borderRadius:8,padding:"10px 14px",fontSize:12,color:"#b45309"}}>
-                  ⚠️ Geen eerdere uitgifte gevonden voor dit kenteken — vergelijken niet mogelijk
+                  {tx("⚠️ Geen eerdere uitgifte gevonden voor dit kenteken — vergelijken niet mogelijk")}
                 </div>
               )}
             </div>
@@ -891,11 +892,11 @@ function AutoHandoverWizard({ autos, gebruiker, actie, onSubmit, showToast }) {
       {/* Stap 2: Checklist */}
       {stap === 2 && (
         <div className="card" style={{marginBottom:16}}>
-          <label style={{...lbl,marginBottom:12}}>Controlelijst</label>
+          <label style={{...lbl,marginBottom:12}}>{tx("Controlelijst")}</label>
           {checklistRegels.map(({key,label,val,set,probleem})=>(
             <div key={key} style={{padding:"8px 0",borderBottom:`1px solid ${C.border}`}}>
               <div style={{display:"flex",alignItems:"center",gap:10}}>
-                <span style={{flex:1,fontSize:14,fontWeight:500,color:C.text}}>{label}</span>
+                <span style={{flex:1,fontSize:14,fontWeight:500,color:C.text}}>{tx(label)}</span>
                 <div style={{display:"flex",gap:8}}>
                   {["ja","nee"].map(v=>(
                     <button key={v} onClick={()=>set(v)}
@@ -910,19 +911,19 @@ function AutoHandoverWizard({ autos, gebruiker, actie, onSubmit, showToast }) {
               </div>
               {val === probleem && (
                 <input value={toelichtingen[key]||""} onChange={e=>setToelichtingen(p=>({...p,[key]:e.target.value}))}
-                  placeholder="Verplicht: korte toelichting wat er aan de hand is..."
+                  placeholder={tx("Verplicht: korte toelichting wat er aan de hand is...")}
                   style={{width:"100%",marginTop:8,background:"#fef2f2",border:`1.5px solid ${toelichtingen[key]?.trim()?"#fca5a5":"#ef4444"}`,borderRadius:8,padding:"7px 10px",fontSize:13,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
               )}
             </div>
           ))}
-          <div style={{marginTop:10,fontSize:11,color:C.muted}}>* Voer de kilometer-/vloeistofcontrole pas als laatste uit, dit voorkomt een vertekend beeld.</div>
+          <div style={{marginTop:10,fontSize:11,color:C.muted}}>{tx("* Voer de kilometer-/vloeistofcontrole pas als laatste uit, dit voorkomt een vertekend beeld.")}</div>
           {actie === "inname" && (
             <div style={{marginTop:16,paddingTop:16,borderTop:`1px solid ${C.border}`}}>
-              <label style={lbl}>💶 Kosten in te houden bij medewerker (optioneel)</label>
+              <label style={lbl}>{tx("💶 Kosten in te houden bij medewerker (optioneel)")}</label>
               <input type="text" inputMode="decimal" value={kostenInhouden} onChange={e=>setKostenInhouden(e.target.value)}
-                placeholder="Alleen invullen als er daadwerkelijk kosten verrekend moeten worden, bv. 45,00"
+                placeholder={tx("Alleen invullen als er daadwerkelijk kosten verrekend moeten worden, bv. 45,00")}
                 style={{...inp,maxWidth:220}}/>
-              <div style={{marginTop:6,fontSize:11,color:C.muted}}>Dit bedrag komt automatisch in de inname-mail naar backoffice te staan. De medewerker krijgt dit bedrag niet automatisch te zien — de daadwerkelijke inhouding regel je zelf via Borg → Extra post.</div>
+              <div style={{marginTop:6,fontSize:11,color:C.muted}}>{tx("Dit bedrag komt automatisch in de inname-mail naar backoffice te staan. De medewerker krijgt dit bedrag niet automatisch te zien — de daadwerkelijke inhouding regel je zelf via Borg → Extra post.")}</div>
             </div>
           )}
         </div>
@@ -934,7 +935,7 @@ function AutoHandoverWizard({ autos, gebruiker, actie, onSubmit, showToast }) {
           <AutoSchadeSchema punten={schadePunten} setPunten={setSchadePunten} />
           {actie === "inname" && laatsteUitgifte && (laatsteUitgifte.schade_punten||[]).length > 0 && (
             <div style={{marginTop:14,background:C.bg,borderRadius:8,padding:12}}>
-              <div style={{fontSize:11,fontWeight:700,color:C.muted,marginBottom:6}}>Bekende schade bij uitgifte:</div>
+              <div style={{fontSize:11,fontWeight:700,color:C.muted,marginBottom:6}}>{tx("Bekende schade bij uitgifte:")}</div>
               {laatsteUitgifte.schade_punten.map((p,i)=>(
                 <div key={i} style={{fontSize:12,color:C.text}}>• {SCHADE_ZONES.find(z=>z.key===p.zone)?.label}: {p.omschrijving}</div>
               ))}
@@ -948,14 +949,14 @@ function AutoHandoverWizard({ autos, gebruiker, actie, onSubmit, showToast }) {
         <div className="card" style={{marginBottom:16}}>
           {afwijkingenPreview.length > 0 && (
             <div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:8,padding:"10px 14px",marginBottom:14,fontSize:12,color:"#b91c1c",fontWeight:600}}>
-              ⚠️ Er zijn bijzonderheden gevonden — voeg hieronder minimaal 1 foto toe voordat je verder kunt.
+              {tx("⚠️ Er zijn bijzonderheden gevonden — voeg hieronder minimaal 1 foto toe voordat je verder kunt.")}
             </div>
           )}
           <div style={{marginBottom:16}}>
-            <BijlageUploader bestanden={documenten} setBestanden={setDocumenten} label="📸 Foto's van de auto toevoegen (verplicht bij schade)"/>
+            <BijlageUploader bestanden={documenten} setBestanden={setDocumenten} label={tx("📸 Foto's van de auto toevoegen (verplicht bij schade)")}/>
           </div>
-          <label style={lbl}>Opmerkingen</label>
-          <textarea style={{...inp,resize:"vertical"}} value={opmerkingen} onChange={e=>setOpmerkingen(e.target.value)} placeholder="Eventuele bijzonderheden..." rows={3}/>
+          <label style={lbl}>{tx("Opmerkingen")}</label>
+          <textarea style={{...inp,resize:"vertical"}} value={opmerkingen} onChange={e=>setOpmerkingen(e.target.value)} placeholder={tx("Eventuele bijzonderheden...")} rows={3}/>
         </div>
       )}
 
@@ -964,7 +965,7 @@ function AutoHandoverWizard({ autos, gebruiker, actie, onSubmit, showToast }) {
         <div>
           {afwijkingenPreview.length > 0 && (
             <div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:8,padding:12,marginBottom:16}}>
-              <div style={{fontSize:12,fontWeight:700,color:"#b91c1c",marginBottom:6}}>⚠️ Bijzonderheden geconstateerd — backoffice wordt automatisch geïnformeerd:</div>
+              <div style={{fontSize:12,fontWeight:700,color:"#b91c1c",marginBottom:6}}>{tx("⚠️ Bijzonderheden geconstateerd — backoffice wordt automatisch geïnformeerd:")}</div>
               {afwijkingenPreview.map((a,i)=><div key={i} style={{fontSize:12,color:"#b91c1c"}}>• {a}</div>)}
             </div>
           )}
@@ -972,15 +973,15 @@ function AutoHandoverWizard({ autos, gebruiker, actie, onSubmit, showToast }) {
             <div style={{background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:12,marginBottom:16,fontSize:12,color:C.text}}>
               <label style={{display:"flex",alignItems:"flex-start",gap:8,cursor:"pointer"}}>
                 <input type="checkbox" checked={akkoordPrive} onChange={e=>setAkkoordPrive(e.target.checked)} style={{marginTop:2}}/>
-                <span>Ik (bestuurder) weet en mij is verteld dat het niet is toegestaan om privé te rijden. De auto is alleen voor woon-werkverkeer.</span>
+                <span>{tx("Ik (bestuurder) weet en mij is verteld dat het niet is toegestaan om privé te rijden. De auto is alleen voor woon-werkverkeer.")}</span>
               </label>
             </div>
           )}
           <div className="card" style={{marginBottom:16}}>
-            <HandtekeningPad label="Handtekening KTP Interflex" sub="Uitgevende/innemende collega" dataUrl={handtekeningKtp} onChange={setHandtekeningKtp}/>
+            <HandtekeningPad label={tx("Handtekening KTP Interflex")} sub={tx("Uitgevende/innemende collega")} dataUrl={handtekeningKtp} onChange={setHandtekeningKtp}/>
           </div>
           <div className="card" style={{marginBottom:16}}>
-            <HandtekeningPad label="Handtekening medewerker (bestuurder)" sub={naamMedewerker||"—"} dataUrl={handtekeningBestuurder} onChange={setHandtekeningBestuurder}/>
+            <HandtekeningPad label={tx("Handtekening medewerker (bestuurder)")} sub={naamMedewerker||"—"} dataUrl={handtekeningBestuurder} onChange={setHandtekeningBestuurder}/>
           </div>
         </div>
       )}
@@ -988,13 +989,13 @@ function AutoHandoverWizard({ autos, gebruiker, actie, onSubmit, showToast }) {
       {/* Navigatie */}
       <div style={{display:"flex",gap:10,marginTop:6}}>
         {stap > 1 && (
-          <button onClick={vorige} style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"12px 20px",fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>← Vorige</button>
+          <button onClick={vorige} style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"12px 20px",fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>{tx("← Vorige")}</button>
         )}
         {stap < 5 ? (
-          <button onClick={volgende} style={{flex:1,background:kleur,color:"white",border:"none",borderRadius:8,padding:14,fontSize:15,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>Volgende →</button>
+          <button onClick={volgende} style={{flex:1,background:kleur,color:"white",border:"none",borderRadius:8,padding:14,fontSize:15,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{tx("Volgende →")}</button>
         ) : (
           <button onClick={versturen} disabled={saving} style={{flex:1,background:saving?C.border:kleur,color:"white",border:"none",borderRadius:8,padding:14,fontSize:15,fontWeight:700,cursor:saving?"not-allowed":"pointer",fontFamily:"inherit"}}>
-            {saving?"⏳ Opslaan...":`✓ ${titel} bevestigen en ondertekenen`}
+            {saving?tx("⏳ Opslaan..."):`✓ ${titel} bevestigen en ondertekenen`}
           </button>
         )}
       </div>
@@ -1014,7 +1015,7 @@ function AutoStoringForm({ autos, gebruiker, actie, onSubmit, showToast }) {
   const [saving, setSaving] = useState(false);
 
   async function handleSubmit() {
-    if (!kenteken) { showToast("Selecteer een kenteken","err"); return; }
+    if (!kenteken) { showToast(tx("Selecteer een kenteken"),"err"); return; }
     { const naamFout = naamProbleem(naamMedewerker); if (naamFout) { showToast(naamFout,"err"); return; } }
     setSaving(true);
     let docUrls = [];
@@ -1035,8 +1036,8 @@ function AutoStoringForm({ autos, gebruiker, actie, onSubmit, showToast }) {
   if (submitted) return (
     <div className="card" style={{textAlign:"center",padding:"60px 40px",borderTop:`4px solid ${C.groen}`}}>
       <div style={{fontSize:64,marginBottom:16}}>✅</div>
-      <div style={{fontSize:22,fontWeight:800,color:C.groen,marginBottom:8}}>Auto melding ingediend!</div>
-      <button className="btn-b" onClick={()=>setSubmitted(false)}>Nieuwe melding</button>
+      <div style={{fontSize:22,fontWeight:800,color:C.groen,marginBottom:8}}>{tx("Auto melding ingediend!")}</div>
+      <button className="btn-b" onClick={()=>setSubmitted(false)}>{tx("Nieuwe melding")}</button>
     </div>
   );
 
@@ -1044,30 +1045,30 @@ function AutoStoringForm({ autos, gebruiker, actie, onSubmit, showToast }) {
     <div>
       <div className="card" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:18,marginBottom:16}}>
         <div>
-          <label style={lbl}>Kenteken *</label>
+          <label style={lbl}>{tx("Kenteken *")}</label>
           <select style={{...inp,appearance:"none"}} value={kenteken} onChange={e=>setKenteken(e.target.value)}>
-            <option value="">Selecteer auto</option>
-            {autos.map(a=><option key={a.id} value={a.kenteken}>{a.kenteken} — {a.merk_model} [{a.status}]</option>)}
+            <option value="">{tx("Selecteer auto")}</option>
+            {autos.map(a=><option key={a.id} value={a.kenteken}>{a.kenteken} — {a.merk_model} [{tx(a.status)}]</option>)}
           </select>
         </div>
         <div>
-          <label style={lbl}>Naam medewerker *</label>
-          <MedewerkerKiezer value={naamMedewerker} onChange={setNaamMedewerker} placeholder="Voor- en achternaam (typ om te zoeken)"/>
+          <label style={lbl}>{tx("Naam medewerker *")}</label>
+          <MedewerkerKiezer value={naamMedewerker} onChange={setNaamMedewerker} placeholder={tx("Voor- en achternaam (typ om te zoeken)")}/>
         </div>
         <div>
-          <label style={lbl}>Datum + Tijd *</label>
+          <label style={lbl}>{tx("Datum + Tijd *")}</label>
           <input type="datetime-local" style={inp} value={datumTijd} onChange={e=>setDatumTijd(e.target.value)}/>
         </div>
         <div>
-          <label style={lbl}>Kilometerstand</label>
-          <input style={inp} value={kilometerstand} onChange={e=>setKilometerstand(e.target.value)} placeholder="bijv. 45230" type="number"/>
+          <label style={lbl}>{tx("Kilometerstand")}</label>
+          <input style={inp} value={kilometerstand} onChange={e=>setKilometerstand(e.target.value)} placeholder={tx("bijv. 45230")} type="number"/>
         </div>
       </div>
 
       {actie === "storing" && (
         <div className="card" style={{marginBottom:16,borderTop:`3px solid #f59e0b`}}>
           <label style={{fontSize:11,fontWeight:600,color:"#b45309",letterSpacing:".8px",textTransform:"uppercase",marginBottom:12,display:"block"}}>
-            🔧 Wat is er aan de hand?
+            {tx("🔧 Wat is er aan de hand?")}
           </label>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
             {["Lekke band","Lamp kapot","Motorstoring","Schade / aanrijding","Ruit beschadigd","Accu leeg","Remmen","Overig"].map(opt => {
@@ -1081,23 +1082,23 @@ function AutoStoringForm({ autos, gebruiker, actie, onSubmit, showToast }) {
             })}
           </div>
           <div style={{background:"#fef3c7",border:"1px solid #fcd34d",borderRadius:8,padding:"10px 14px",fontSize:13,color:"#b45309",fontWeight:500}}>
-            ⚠️ De backoffice en huismeester worden direct geïnformeerd
+            {tx("⚠️ De backoffice en huismeester worden direct geïnformeerd")}
           </div>
         </div>
       )}
 
       <div className="card" style={{marginBottom:20}}>
-        <label style={lbl}>Opmerkingen</label>
-        <textarea style={{...inp,resize:"vertical"}} value={opmerkingen} onChange={e=>setOpmerkingen(e.target.value)} placeholder="Eventuele bijzonderheden..." rows={3}/>
+        <label style={lbl}>{tx("Opmerkingen")}</label>
+        <textarea style={{...inp,resize:"vertical"}} value={opmerkingen} onChange={e=>setOpmerkingen(e.target.value)} placeholder={tx("Eventuele bijzonderheden...")} rows={3}/>
       </div>
 
       <div style={{marginBottom:16}}>
-        <BijlageUploader bestanden={documenten} setBestanden={setDocumenten} label="📄 Document toevoegen (schadeformulier, foto)"/>
+        <BijlageUploader bestanden={documenten} setBestanden={setDocumenten} label={tx("📄 Document toevoegen (schadeformulier, foto)")}/>
       </div>
 
       <button onClick={handleSubmit} disabled={saving}
         style={{width:"100%",background:saving?C.border:C.blauw,color:"white",border:"none",borderRadius:8,padding:14,fontSize:15,fontWeight:700,cursor:saving?"not-allowed":"pointer",fontFamily:"inherit",transition:"background .2s"}}>
-        {saving?"⏳ Opslaan...":`✓ ${actie.charAt(0).toUpperCase()+actie.slice(1)} doorgeven`}
+        {saving?tx("⏳ Opslaan..."):`✓ ${actie.charAt(0).toUpperCase()+actie.slice(1)} doorgeven`}
       </button>
     </div>
   );
@@ -1116,17 +1117,17 @@ function AutoMeldingForm({ autos, gebruiker, onSubmit, showToast }) {
 
   return (
     <div style={{maxWidth:700,margin:"0 auto"}}>
-      <SH titel="Auto formulier" sub={actie==="uitgifte"||actie==="inname" ? "Digitaal uitgifte-/innameformulier — inclusief handtekeningen, vervangt het papieren formulier" : "Geef een storing of annulering door"} />
+      <SH titel={tx("Auto formulier")} sub={actie==="uitgifte"||actie==="inname" ? tx("Digitaal uitgifte-/innameformulier — inclusief handtekeningen, vervangt het papieren formulier") : tx("Geef een storing of annulering door")} />
 
       {/* Actie kiezen */}
       <div className="card" style={{marginBottom:16,borderTop:`3px solid ${C.blauw}`}}>
-        <label style={lbl}>Actie</label>
+        <label style={lbl}>{tx("Actie")}</label>
         <div style={{display:"flex",gap:10}}>
           {acties.map(a => (
             <div key={a.id} onClick={()=>setActie(a.id)}
               style={{flex:1,border:`2px solid ${actie===a.id?a.color:C.border}`,borderRadius:10,padding:"14px",textAlign:"center",cursor:"pointer",background:actie===a.id?a.color+"12":"white",transition:"all .2s"}}>
               <div style={{fontSize:24,marginBottom:6}}>{a.icon}</div>
-              <div style={{fontSize:11,fontWeight:700,color:actie===a.id?a.color:C.muted,letterSpacing:".8px"}}>{a.label}</div>
+              <div style={{fontSize:11,fontWeight:700,color:actie===a.id?a.color:C.muted,letterSpacing:".8px"}}>{tx(a.label)}</div>
             </div>
           ))}
         </div>
@@ -1167,10 +1168,10 @@ function AutoLog({ meldingen, autos, onUpdate, gebruiker, isBackoffice, onReacti
     try {
       await navigator.clipboard.writeText(bereidBericht(m));
       setBerichtGekopieerdMap(p=>({...p,[m.id]:true}));
-      showToast("✓ Bericht gekopieerd — plak het in Cockpit");
+      showToast(tx("✓ Bericht gekopieerd — plak het in Cockpit"));
       setTimeout(()=>setBerichtGekopieerdMap(p=>({...p,[m.id]:false})), 3000);
     } catch (e) {
-      showToast("Kopiëren mislukt — selecteer de tekst en kopieer handmatig","err");
+      showToast(tx("Kopiëren mislukt — selecteer de tekst en kopieer handmatig"),"err");
     }
   }
   // Aantal ongelezen reacties voor collega
@@ -1206,12 +1207,12 @@ function AutoLog({ meldingen, autos, onUpdate, gebruiker, isBackoffice, onReacti
     <div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
         <div>
-          <h3 style={{fontSize:18,fontWeight:800,color:C.blauw}}>Auto log</h3>
-          <p style={{fontSize:13,color:C.muted,marginTop:2}}>{meldingen.length} meldingen totaal</p>
+          <h3 style={{fontSize:18,fontWeight:800,color:C.blauw}}>{tx("Auto log")}</h3>
+          <p style={{fontSize:13,color:C.muted,marginTop:2}}>{meldingen.length} {tx("meldingen totaal")}</p>
         </div>
         <button onClick={exportCSV}
           style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"9px 18px",fontSize:13,fontWeight:500,cursor:"pointer",fontFamily:"inherit"}}>
-          ⬇ Exporteer CSV
+          {tx("⬇ Exporteer CSV")}
         </button>
       </div>
 
@@ -1219,7 +1220,7 @@ function AutoLog({ meldingen, autos, onUpdate, gebruiker, isBackoffice, onReacti
         {[["alle","Alle"],["open","Open"],["uitgifte","Uitgifte"],["inname","Inname"],["storing","Schade/Storing"],["afwijking","⚠️ Met afwijking"]].map(([v,l])=>(
           <button key={v} onClick={()=>setFilter(v)}
             style={{background:filter===v?C.blauw:"white",color:filter===v?"white":C.muted,border:`1.5px solid ${filter===v?C.blauw:C.border}`,borderRadius:20,padding:"6px 16px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-            {l}
+            {tx(l)}
           </button>
         ))}
       </div>
@@ -1227,12 +1228,12 @@ function AutoLog({ meldingen, autos, onUpdate, gebruiker, isBackoffice, onReacti
       {gefilterd.length === 0 ? (
         <div className="card" style={{textAlign:"center",padding:"50px",color:C.muted}}>
           <div style={{fontSize:40,marginBottom:10}}>🚗</div>
-          <div>Geen meldingen gevonden</div>
+          <div>{tx("Geen meldingen gevonden")}</div>
         </div>
       ) : gefilterd.map(m => {
         const checkItem = (val, label) => (
           <span className="badge" style={{background:val==="ja"?C.groen+"18":val==="nee"?"#fef2f2":C.bg, color:val==="ja"?C.groen:val==="nee"?"#ef4444":C.muted, fontSize:11}}>
-            {label}: {val||"—"}
+            {tx(label)}: {val||"—"}
           </span>
         );
         return (
@@ -1247,14 +1248,14 @@ function AutoLog({ meldingen, autos, onUpdate, gebruiker, isBackoffice, onReacti
                     {(m.actie||"").toUpperCase()}
                   </span>
                   {m.afwijking_gevonden && (
-                    <span style={{padding:"3px 10px",borderRadius:20,background:"#fef2f2",color:"#b91c1c",fontSize:11,fontWeight:700}}>⚠️ AFWIJKING</span>
+                    <span style={{padding:"3px 10px",borderRadius:20,background:"#fef2f2",color:"#b91c1c",fontSize:11,fontWeight:700}}>{tx("⚠️ AFWIJKING")}</span>
                   )}
                   <span style={{marginLeft:"auto",padding:"3px 10px",borderRadius:20,background:m.status==="open"?C.blauw+"18":"#f0fdf4",color:m.status==="open"?C.blauw:C.groen,fontSize:11,fontWeight:700}}>
                     {(m.status||"").toUpperCase()}
                   </span>
                 </div>
                 <div style={{fontSize:12,color:C.muted,marginBottom:8}}>
-                  📅 {m.datum_tijd?fmtFull(m.datum_tijd):fmtFull(m.created_at)} · Door: {m.ingediend_door}
+                  📅 {m.datum_tijd?fmtFull(m.datum_tijd):fmtFull(m.created_at)} {tx("· Door:")} {m.ingediend_door}
                   {m.kilometerstand && ` · 🛣 ${m.kilometerstand} km`}
                   {m.locatie && ` · 📍 ${m.locatie}`}
                 </div>
@@ -1269,13 +1270,13 @@ function AutoLog({ meldingen, autos, onUpdate, gebruiker, isBackoffice, onReacti
                 {(m.actie === "uitgifte" || m.actie === "inname") && (
                   <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
                     <span className="badge" style={{background:m.handtekening_ktp&&m.handtekening_bestuurder?C.groen+"18":"#fef2f2",color:m.handtekening_ktp&&m.handtekening_bestuurder?C.groen:"#ef4444",fontSize:11}}>
-                      ✍️ {m.handtekening_ktp&&m.handtekening_bestuurder?"Getekend door beide partijen":"Niet (volledig) getekend"}
+                      ✍️ {m.handtekening_ktp&&m.handtekening_bestuurder?tx("Getekend door beide partijen"):tx("Niet (volledig) getekend")}
                     </span>
                     {(m.schade_punten||[]).length>0 && (
-                      <span className="badge" style={{background:"#fef3c7",color:"#b45309",fontSize:11}}>🚘 {m.schade_punten.length} schadepunt(en)</span>
+                      <span className="badge" style={{background:"#fef3c7",color:"#b45309",fontSize:11}}>🚘 {m.schade_punten.length} {tx("schadepunt(en)")}</span>
                     )}
                     {m.kosten_inhouden > 0 && (
-                      <span className="badge" style={{background:"#fef2f2",color:"#b91c1c",fontSize:11,fontWeight:700}}>💶 €{Number(m.kosten_inhouden).toFixed(2).replace(".",",")} in te houden</span>
+                      <span className="badge" style={{background:"#fef2f2",color:"#b91c1c",fontSize:11,fontWeight:700}}>💶 €{Number(m.kosten_inhouden).toFixed(2).replace(".",",")} {tx("in te houden")}</span>
                     )}
                   </div>
                 )}
@@ -1283,17 +1284,17 @@ function AutoLog({ meldingen, autos, onUpdate, gebruiker, isBackoffice, onReacti
                   <div style={{display:"flex",gap:16,marginBottom:8}}>
                     {m.handtekening_ktp && (
                       <div>
-                        <div style={{fontSize:10,color:C.muted,marginBottom:2}}>KTP Interflex</div>
+                        <div style={{fontSize:10,color:C.muted,marginBottom:2}}>{tx("KTP Interflex")}</div>
                         <a href={m.handtekening_ktp} target="_blank" rel="noopener noreferrer">
-                          <img src={m.handtekening_ktp} alt="Handtekening KTP" style={{height:36,border:`1px solid ${C.border}`,borderRadius:4,background:"white"}}/>
+                          <img src={m.handtekening_ktp} alt={tx("Handtekening KTP")} style={{height:36,border:`1px solid ${C.border}`,borderRadius:4,background:"white"}}/>
                         </a>
                       </div>
                     )}
                     {m.handtekening_bestuurder && (
                       <div>
-                        <div style={{fontSize:10,color:C.muted,marginBottom:2}}>Medewerker</div>
+                        <div style={{fontSize:10,color:C.muted,marginBottom:2}}>{tx("Medewerker")}</div>
                         <a href={m.handtekening_bestuurder} target="_blank" rel="noopener noreferrer">
-                          <img src={m.handtekening_bestuurder} alt="Handtekening medewerker" style={{height:36,border:`1px solid ${C.border}`,borderRadius:4,background:"white"}}/>
+                          <img src={m.handtekening_bestuurder} alt={tx("Handtekening medewerker")} style={{height:36,border:`1px solid ${C.border}`,borderRadius:4,background:"white"}}/>
                         </a>
                       </div>
                     )}
@@ -1307,7 +1308,7 @@ function AutoLog({ meldingen, autos, onUpdate, gebruiker, isBackoffice, onReacti
                   </div>
                 )}
                 {m.opmerkingen && <div style={{fontSize:13,color:C.muted,fontStyle:"italic"}}>"{m.opmerkingen}"</div>}
-                {m.afgehandeld_door && <div style={{fontSize:12,color:C.groen,marginTop:4}}>✓ Afgehandeld door {m.afgehandeld_door}</div>}
+                {m.afgehandeld_door && <div style={{fontSize:12,color:C.groen,marginTop:4}}>{tx("✓ Afgehandeld door")} {m.afgehandeld_door}</div>}
                 {/* Documenten */}
                 {m.document_urls && <BijlageWeergave bijlages={JSON.parse(m.document_urls||"[]")}/>}
                 {/* Reactie van backoffice tonen aan collega */}
@@ -1315,10 +1316,10 @@ function AutoLog({ meldingen, autos, onUpdate, gebruiker, isBackoffice, onReacti
                   <div style={{marginTop:8,background:m.reactie_gelezen?"#f0fdf4":"#eff6ff",border:`1px solid ${m.reactie_gelezen?"#bbf7d0":"#bfdbfe"}`,borderRadius:8,padding:"10px 12px"}}
                     onClick={()=>{ if(!m.reactie_gelezen && isCollega) onMarkeerGelezen(m.id); }}>
                     <div style={{fontSize:11,fontWeight:700,color:m.reactie_gelezen?C.groen:C.blauw,marginBottom:4}}>
-                      {m.reactie_gelezen?"✓":"🔔"} Reactie van backoffice — {m.reactie_door}
+                      {m.reactie_gelezen?"✓":"🔔"} {tx("Reactie van backoffice —")} {m.reactie_door}
                     </div>
                     <div style={{fontSize:13,color:C.text}}>"{m.backoffice_reactie}"</div>
-                    {!m.reactie_gelezen && isCollega && <div style={{fontSize:11,color:C.blauw,marginTop:4,fontStyle:"italic"}}>Klik om als gelezen te markeren</div>}
+                    {!m.reactie_gelezen && isCollega && <div style={{fontSize:11,color:C.blauw,marginTop:4,fontStyle:"italic"}}>{tx("Klik om als gelezen te markeren")}</div>}
                   </div>
                 )}
               </div>
@@ -1329,11 +1330,11 @@ function AutoLog({ meldingen, autos, onUpdate, gebruiker, isBackoffice, onReacti
                 {m.status === "open" && (
                   <div style={{display:"flex",gap:10,marginBottom:8}}>
                     <input value={notitieMap[m.id]||""} onChange={e=>setNotitieMap(p=>({...p,[m.id]:e.target.value}))}
-                      placeholder="Notitie (optioneel)..."
+                      placeholder={tx("Notitie (optioneel)...")}
                       style={{flex:1,background:C.bg,border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"8px 12px",fontSize:13,outline:"none",fontFamily:"inherit"}}/>
                     <button onClick={()=>onUpdate(m.id,{status:"verwerkt",notitie:notitieMap[m.id]||null})}
                       style={{background:C.groen,color:"white",border:"none",borderRadius:8,padding:"8px 16px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                      ✓ Verwerkt
+                      {tx("✓ Verwerkt")}
                     </button>
                   </div>
                 )}
@@ -1342,16 +1343,16 @@ function AutoLog({ meldingen, autos, onUpdate, gebruiker, isBackoffice, onReacti
                   <div style={{marginBottom:10}}>
                     <button onClick={()=>setToonBerichtMap(p=>({...p,[m.id]:!p[m.id]}))}
                       style={{background:"white",border:`1.5px solid ${C.groen}`,color:C.groen,borderRadius:8,padding:"7px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                      ✉️ Bericht voor medewerker {toonBerichtMap[m.id]?"verbergen":"tonen"}
+                      {tx("✉️ Bericht voor medewerker")} {toonBerichtMap[m.id]?tx("verbergen"):tx("tonen")}
                     </button>
                     {toonBerichtMap[m.id] && (
                       <div style={{marginTop:8,background:"#f8fafc",border:`1px solid ${C.border}`,borderRadius:10,padding:14}}>
-                        <div style={{fontSize:11,fontWeight:700,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:".6px"}}>Kopieer en verstuur via Cockpit</div>
+                        <div style={{fontSize:11,fontWeight:700,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:".6px"}}>{tx("Kopieer en verstuur via Cockpit")}</div>
                         <textarea readOnly value={bereidBericht(m)} rows={12} onClick={e=>e.target.select()}
                           style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"10px 14px",fontSize:13,outline:"none",fontFamily:"inherit",lineHeight:1.5,resize:"vertical",boxSizing:"border-box"}}/>
                         <button onClick={()=>kopieerBericht(m)}
                           style={{marginTop:8,background:berichtGekopieerdMap[m.id]?C.groen:C.blauw,color:"white",border:"none",borderRadius:8,padding:"8px 18px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                          {berichtGekopieerdMap[m.id] ? "✓ Gekopieerd" : "📋 Kopieer bericht"}
+                          {berichtGekopieerdMap[m.id] ? tx("✓ Gekopieerd") : tx("📋 Kopieer bericht")}
                         </button>
                       </div>
                     )}
@@ -1360,7 +1361,7 @@ function AutoLog({ meldingen, autos, onUpdate, gebruiker, isBackoffice, onReacti
                 {/* Reactie sturen naar collega */}
                 {toonReactieMap[m.id] ? (
                   <div style={{background:"#eff6ff",border:"1px solid #bfdbfe",borderRadius:8,padding:12}}>
-                    <div style={{fontSize:12,fontWeight:700,color:C.blauw,marginBottom:8}}>💬 Reactie sturen naar {m.ingediend_door}</div>
+                    <div style={{fontSize:12,fontWeight:700,color:C.blauw,marginBottom:8}}>{tx("💬 Reactie sturen naar")} {m.ingediend_door}</div>
                     <textarea value={reactieMap[m.id]||""} onChange={e=>setReactieMap(p=>({...p,[m.id]:e.target.value}))}
                       placeholder={`bijv. "Borg kunnen we helaas niet meer inhouden omdat..."`}
                       rows={3}
@@ -1375,11 +1376,11 @@ function AutoLog({ meldingen, autos, onUpdate, gebruiker, isBackoffice, onReacti
                         setToonReactieMap(p=>({...p,[m.id]:false}));
                       }} disabled={savingReactie[m.id]}
                         style={{background:C.blauw,color:"white",border:"none",borderRadius:8,padding:"8px 18px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                        {savingReactie[m.id]?"⏳":"📨 Verstuur"}
+                        {savingReactie[m.id]?"⏳":tx("📨 Verstuur")}
                       </button>
                       <button onClick={()=>setToonReactieMap(p=>({...p,[m.id]:false}))}
                         style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"8px 12px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
-                        Annuleren
+                        {tx("Annuleren")}
                       </button>
                     </div>
                   </div>
@@ -1387,41 +1388,41 @@ function AutoLog({ meldingen, autos, onUpdate, gebruiker, isBackoffice, onReacti
                   <div style={{display:"flex",flexDirection:"column",gap:8}}>
                   <button onClick={()=>setToonReactieMap(p=>({...p,[m.id]:true}))}
                     style={{background:"white",border:`1.5px solid ${C.blauw}`,color:C.blauw,borderRadius:8,padding:"7px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                    💬 Reactie sturen naar {m.ingediend_door}
+                    {tx("💬 Reactie sturen naar")} {m.ingediend_door}
                   </button>
                   {toonDocumentMap[m.id] ? (
                     <div style={{width:"100%",marginTop:8,background:"#f8fafc",border:`1px solid ${C.border}`,borderRadius:10,padding:14}}>
-                      <div style={{fontWeight:700,fontSize:13,color:C.text,marginBottom:10}}>📄 Document toevoegen</div>
+                      <div style={{fontWeight:700,fontSize:13,color:C.text,marginBottom:10}}>{tx("📄 Document toevoegen")}</div>
                       <BijlageUploader
                         bestanden={documentMap[m.id]||[]}
                         setBestanden={nieuweFiles => setDocumentMap(p=>({...p,[m.id]: typeof nieuweFiles==="function" ? nieuweFiles(p[m.id]||[]) : nieuweFiles}))}
-                        label="Autoformulier, schadeformulier, foto..."
+                        label={tx("Autoformulier, schadeformulier, foto...")}
                       />
                       <div style={{display:"flex",gap:8,marginTop:10}}>
                         <button onClick={async()=>{
                           const docs = documentMap[m.id]||[];
-                          if(docs.length===0){ alert("Selecteer eerst een bestand"); return;}
+                          if(docs.length===0){ alert(tx("Selecteer eerst een bestand")); return;}
                           const urls = await uploadBijlages(docs,"auto-documenten");
-                          if(urls.length===0){ alert("Upload mislukt — probeer opnieuw"); return;}
+                          if(urls.length===0){ alert(tx("Upload mislukt — probeer opnieuw")); return;}
                           const bestaand = m.document_urls ? JSON.parse(m.document_urls) : [];
                           const nieuw = JSON.stringify([...bestaand,...urls]);
                           await supabase.from("auto_meldingen").update({document_urls:nieuw}).eq("id",m.id);
-                          showToast("✓ Document toegevoegd");
+                          showToast(tx("✓ Document toegevoegd"));
                           setToonDocumentMap(p=>({...p,[m.id]:false}));
                           setDocumentMap(p=>({...p,[m.id]:[]}));
                         }} style={{background:C.blauw,color:"white",border:"none",borderRadius:8,padding:"8px 18px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                          ✓ Uploaden
+                          {tx("✓ Uploaden")}
                         </button>
                         <button onClick={()=>setToonDocumentMap(p=>({...p,[m.id]:false}))}
                           style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"8px 12px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
-                          Annuleren
+                          {tx("Annuleren")}
                         </button>
                       </div>
                     </div>
                   ) : (
                     <button onClick={()=>setToonDocumentMap(p=>({...p,[m.id]:true}))}
                       style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"7px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                      📄 Document toevoegen
+                      {tx("📄 Document toevoegen")}
                     </button>
                   )}
                   </div>
@@ -1512,20 +1513,20 @@ function BoeteOpzoeken({ meldingen, autos }) {
   return (
     <div style={{maxWidth:680}}>
       <div style={{background:"white",border:`1px solid ${C.border}`,borderRadius:14,padding:28,marginBottom:20,boxShadow:"0 1px 4px rgba(0,0,0,.05)"}}>
-        <h3 style={{fontSize:16,fontWeight:800,color:C.blauw,marginBottom:4}}>🔍 Wie reed er op een bepaalde datum?</h3>
-        <p style={{fontSize:13,color:C.muted,marginBottom:20}}>Vul het kenteken en de datum van de boete in om te zien wie de auto op dat moment had.</p>
+        <h3 style={{fontSize:16,fontWeight:800,color:C.blauw,marginBottom:4}}>{tx("🔍 Wie reed er op een bepaalde datum?")}</h3>
+        <p style={{fontSize:13,color:C.muted,marginBottom:20}}>{tx("Vul het kenteken en de datum van de boete in om te zien wie de auto op dat moment had.")}</p>
 
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:16}}>
           <div>
-            <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Kenteken</label>
+            <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>{tx("Kenteken")}</label>
             <select value={kenteken} onChange={e=>setKenteken(e.target.value)}
               style={{width:"100%",border:`1.5px solid ${C.border}`,borderRadius:8,padding:"10px 14px",fontSize:14,fontFamily:"inherit",color:C.text,background:"white",outline:"none"}}>
-              <option value="">— Selecteer kenteken —</option>
+              <option value="">{tx("— Selecteer kenteken —")}</option>
               {uniekKentekens.map(k => <option key={k} value={k}>{k}</option>)}
             </select>
           </div>
           <div>
-            <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Datum boete</label>
+            <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>{tx("Datum boete")}</label>
             <WeekDatePicker value={datum} onChange={v=>setDatum(v)}
               style={{width:"100%",border:`1.5px solid ${C.border}`,borderRadius:8,padding:"10px 14px",fontSize:14,fontFamily:"inherit",color:C.text,background:"white",outline:"none",boxSizing:"border-box"}}/>
           </div>
@@ -1533,7 +1534,7 @@ function BoeteOpzoeken({ meldingen, autos }) {
 
         <button onClick={zoek} disabled={!kenteken||!datum}
           style={{background:kenteken&&datum?C.blauw:C.border,color:"white",border:"none",borderRadius:8,padding:"11px 28px",fontSize:14,fontWeight:700,cursor:kenteken&&datum?"pointer":"not-allowed",fontFamily:"inherit"}}>
-          🔍 Zoeken
+          {tx("🔍 Zoeken")}
         </button>
       </div>
 
@@ -1544,36 +1545,36 @@ function BoeteOpzoeken({ meldingen, autos }) {
               <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20,padding:"14px 18px",background:"#f0fdf4",border:"1.5px solid #86efac",borderRadius:10}}>
                 <span style={{fontSize:28}}>✅</span>
                 <div>
-                  <div style={{fontSize:13,color:"#166534",fontWeight:600}}>{resultaat.fallback ? "Huidig gekoppelde medewerker (geen uitgifte-log gevonden)" : "Bestuurder gevonden"}</div>
+                  <div style={{fontSize:13,color:"#166534",fontWeight:600}}>{resultaat.fallback ? tx("Huidig gekoppelde medewerker (geen uitgifte-log gevonden)") : tx("Bestuurder gevonden")}</div>
                   <div style={{fontSize:20,fontWeight:800,color:"#14532d",marginTop:2}}>{resultaat.bestuurder}</div>
-                  {resultaat.fallback && <div style={{fontSize:11,color:"#166534",marginTop:4}}>⚠️ Geen uitgifte-registratie gevonden voor deze datum — dit is de huidige koppeling.</div>}
+                  {resultaat.fallback && <div style={{fontSize:11,color:"#166534",marginTop:4}}>{tx("⚠️ Geen uitgifte-registratie gevonden voor deze datum — dit is de huidige koppeling.")}</div>}
                 </div>
               </div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:20}}>
                 <div style={{padding:"12px 16px",background:C.bg,borderRadius:8}}>
-                  <div style={{fontSize:11,color:C.muted,fontWeight:600,marginBottom:3}}>AUTO</div>
+                  <div style={{fontSize:11,color:C.muted,fontWeight:600,marginBottom:3}}>{tx("AUTO")}</div>
                   <div style={{fontSize:13,fontWeight:700,color:C.text}}>{resultaat.auto?.kenteken}</div>
                   <div style={{fontSize:12,color:C.muted}}>{resultaat.auto?.merk_model||"—"}</div>
                 </div>
                 <div style={{padding:"12px 16px",background:C.bg,borderRadius:8}}>
-                  <div style={{fontSize:11,color:C.muted,fontWeight:600,marginBottom:3}}>UITGEGEVEN OP</div>
+                  <div style={{fontSize:11,color:C.muted,fontWeight:600,marginBottom:3}}>{tx("UITGEGEVEN OP")}</div>
                   <div style={{fontSize:13,fontWeight:700,color:C.text}}>{resultaat.fallback ? fmtDate(resultaat.uitgifteDatumAuto) : fmtDate(resultaat.uitgifte.created_at)}</div>
-                  <div style={{fontSize:12,color:C.muted}}>{resultaat.fallback ? "datum uit auto-registratie" : fmtTime(resultaat.uitgifte.created_at)}</div>
+                  <div style={{fontSize:12,color:C.muted}}>{resultaat.fallback ? tx("datum uit auto-registratie") : fmtTime(resultaat.uitgifte.created_at)}</div>
                 </div>
               </div>
             </>
           ) : (
             <div style={{padding:"16px 18px",background:"#fff7ed",border:"1.5px solid #fed7aa",borderRadius:10,marginBottom:resultaat.alleAuto?.length?16:0}}>
               <span style={{fontSize:20}}>⚠️</span>
-              <span style={{fontSize:14,color:"#92400e",fontWeight:600,marginLeft:10}}>{resultaat.reden || "Op deze datum was de auto niet uitgegeven."}</span>
-              {resultaat.inname && <div style={{fontSize:12,color:C.muted,marginTop:6}}>Auto was al terug ingenomen op {fmtFull(resultaat.inname.created_at)}</div>}
+              <span style={{fontSize:14,color:"#92400e",fontWeight:600,marginLeft:10}}>{resultaat.reden || tx("Op deze datum was de auto niet uitgegeven.")}</span>
+              {resultaat.inname && <div style={{fontSize:12,color:C.muted,marginTop:6}}>{tx("Auto was al terug ingenomen op")} {fmtFull(resultaat.inname.created_at)}</div>}
             </div>
           )}
 
           {/* Historie rond die datum */}
           {resultaat.alleAuto?.length > 0 && (
             <div>
-              <div style={{fontSize:12,fontWeight:700,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:10,marginTop:resultaat.gevonden?0:16}}>Historie voor {resultaat.auto?.kenteken||kenteken}</div>
+              <div style={{fontSize:12,fontWeight:700,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:10,marginTop:resultaat.gevonden?0:16}}>{tx("Historie voor")} {resultaat.auto?.kenteken||kenteken}</div>
               <div style={{display:"grid",gap:8}}>
                 {resultaat.alleAuto.slice(-10).reverse().map((m,i) => {
                   const isUitgifte = m.actie==="uitgifte";
@@ -1586,11 +1587,11 @@ function BoeteOpzoeken({ meldingen, autos }) {
                       <span style={{fontSize:16}}>{isUitgifte?"🚗":isInname?"🔑":m.actie==="storing"?"⚠️":"📋"}</span>
                       <div style={{flex:1}}>
                         <div style={{fontSize:13,fontWeight:600,color:C.text}}>
-                          {isUitgifte?"Uitgegeven aan":isInname?"Ingenomen van":m.actie} {m.naam_medewerker||""}
+                          {isUitgifte?tx("Uitgegeven aan"):isInname?tx("Ingenomen van"):m.actie} {m.naam_medewerker||""}
                         </div>
                         <div style={{fontSize:11,color:C.muted}}>{fmtFull(m.created_at)} · {m.ingediend_door}</div>
                       </div>
-                      {isDatumDag && <span style={{fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:10,background:"#fef08a",color:"#713f12"}}>boetedatum</span>}
+                      {isDatumDag && <span style={{fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:10,background:"#fef08a",color:"#713f12"}}>{tx("boetedatum")}</span>}
                     </div>
                   );
                 })}
@@ -1611,7 +1612,7 @@ function AutoBeheer({ autos, gearchiveerdeAutos=[], onAdd, onUpdate, onArchiveer
   const [saving, setSaving] = useState(false);
 
   async function voegToe() {
-    if (!nieuw.kenteken.trim() || !nieuw.merk_model.trim()) { showToast("Vul kenteken en auto in","err"); return; }
+    if (!nieuw.kenteken.trim() || !nieuw.merk_model.trim()) { showToast(tx("Vul kenteken en auto in"),"err"); return; }
     setSaving(true);
     await onAdd({...nieuw, kenteken: nieuw.kenteken.toUpperCase().trim()});
     setSaving(false);
@@ -1622,16 +1623,16 @@ function AutoBeheer({ autos, gearchiveerdeAutos=[], onAdd, onUpdate, onArchiveer
   return (
     <div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-        <h3 style={{fontSize:16,fontWeight:800,color:C.blauw}}>Auto's beheren ({autos.length})</h3>
+        <h3 style={{fontSize:16,fontWeight:800,color:C.blauw}}>{tx("Auto's beheren (")}{autos.length})</h3>
         <button onClick={()=>setToonNieuwe(!toonNieuwe)}
           style={{background:C.blauw,color:"white",border:"none",borderRadius:8,padding:"9px 18px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-          + Auto toevoegen
+          {tx("+ Auto toevoegen")}
         </button>
       </div>
 
       {toonNieuwe && (
         <div className="card" style={{marginBottom:16,borderTop:`3px solid ${C.groen}`}}>
-          <div style={{fontWeight:700,fontSize:13,color:C.groen,marginBottom:14}}>Nieuwe auto toevoegen</div>
+          <div style={{fontWeight:700,fontSize:13,color:C.groen,marginBottom:14}}>{tx("Nieuwe auto toevoegen")}</div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:12}}>
             {[
               {label:"Kenteken *",      key:"kenteken",      ph:"34-GD-HV"},
@@ -1641,23 +1642,23 @@ function AutoBeheer({ autos, gearchiveerdeAutos=[], onAdd, onUpdate, onArchiveer
               {label:"Naam medewerker", key:"naam_medewerker",ph:"Wie heeft de auto"},
             ].map(f=>(
               <div key={f.key}>
-                <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>{f.label}</label>
+                <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>{tx(f.label)}</label>
                 <input value={nieuw[f.key]} onChange={e=>setNieuw(p=>({...p,[f.key]:e.target.value}))} placeholder={f.ph}
                   style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"9px 12px",fontSize:13,outline:"none",fontFamily:"inherit"}}/>
               </div>
             ))}
             <div>
-              <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>APK datum</label>
+              <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>{tx("APK datum")}</label>
               <WeekDatePicker value={nieuw.apk_datum} onChange={v=>setNieuw(p=>({...p,apk_datum:v}))}
                 style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"9px 12px",fontSize:13,outline:"none",fontFamily:"inherit"}}/>
             </div>
             <div>
-              <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Datum uitgifte</label>
+              <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>{tx("Datum uitgifte")}</label>
               <WeekDatePicker value={nieuw.datum_uitgifte} onChange={v=>setNieuw(p=>({...p,datum_uitgifte:v}))}
                 style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"9px 12px",fontSize:13,outline:"none",fontFamily:"inherit"}}/>
             </div>
             <div>
-              <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Status</label>
+              <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>{tx("Status")}</label>
               <select value={nieuw.status} onChange={e=>setNieuw(p=>({...p,status:e.target.value}))}
                 style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"9px 12px",fontSize:13,outline:"none",appearance:"none",fontFamily:"inherit"}}>
                 {AUTO_STATUSSEN.map(s=><option key={s}>{s}</option>)}
@@ -1667,11 +1668,11 @@ function AutoBeheer({ autos, gearchiveerdeAutos=[], onAdd, onUpdate, onArchiveer
           <div style={{display:"flex",gap:10}}>
             <button onClick={voegToe} disabled={saving}
               style={{background:C.blauw,color:"white",border:"none",borderRadius:8,padding:"10px 24px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-              {saving?"⏳ Opslaan...":"✓ Toevoegen"}
+              {saving?tx("⏳ Opslaan..."):tx("✓ Toevoegen")}
             </button>
             <button onClick={()=>setToonNieuwe(false)}
               style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"10px 16px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
-              Annuleren
+              {tx("Annuleren")}
             </button>
           </div>
         </div>
@@ -1679,7 +1680,7 @@ function AutoBeheer({ autos, gearchiveerdeAutos=[], onAdd, onUpdate, onArchiveer
 
       <div className="card" style={{padding:0,overflow:"hidden"}}>
         <div style={{display:"grid",gridTemplateColumns:"120px 1fr 130px 100px 100px 120px 80px",padding:"10px 16px",fontSize:10,fontWeight:700,color:C.muted,letterSpacing:".6px",textTransform:"uppercase",borderBottom:`1px solid ${C.border}`,background:C.bg}}>
-          <span>Kenteken</span><span>Auto</span><span>Medewerker</span><span>Vestiging</span><span>APK</span><span>Status</span><span>Acties</span>
+          <span>{tx("Kenteken")}</span><span>{tx("Auto")}</span><span>{tx("Medewerker")}</span><span>{tx("Vestiging")}</span><span>{tx("APK")}</span><span>{tx("Status")}</span><span>{tx("Acties")}</span>
         </div>
         {autos.map((a,i) => {
           const c = AUTO_STATUS_MAP[a.status]||{bg:C.bg,text:C.muted};
@@ -1692,7 +1693,7 @@ function AutoBeheer({ autos, gearchiveerdeAutos=[], onAdd, onUpdate, onArchiveer
               <span style={{color:C.muted}}>{a.naam_medewerker||"—"}</span>
               <span style={{color:C.muted}}>{a.vestiging||"—"}</span>
               <span style={{color:a.apk_datum&&new Date(a.apk_datum)<new Date()?"#ef4444":C.muted}}>{a.apk_datum?fmtDate(a.apk_datum):"—"}</span>
-              <span style={{padding:"3px 8px",borderRadius:6,background:c.bg,color:c.text,fontSize:10,fontWeight:700}}>{a.status}</span>
+              <span style={{padding:"3px 8px",borderRadius:6,background:c.bg,color:c.text,fontSize:10,fontWeight:700}}>{tx(a.status)}</span>
               <div style={{display:"flex",gap:4}}>
                 <button onClick={()=>setBewerkId(a.id)} style={{background:"white",border:`1px solid ${C.border}`,borderRadius:6,padding:"4px 8px",cursor:"pointer",fontSize:11}}>✏️</button>
                 <button onClick={async()=>{if(window.confirm(`${a.kenteken} archiveren?`)){await onArchiveer(a.id,a.kenteken);}}} style={{background:"#f59e0b",color:"white",border:"none",borderRadius:6,padding:"4px 8px",cursor:"pointer",fontSize:11}}>🗃</button>
@@ -1705,7 +1706,7 @@ function AutoBeheer({ autos, gearchiveerdeAutos=[], onAdd, onUpdate, onArchiveer
       {gearchiveerdeAutos.length > 0 && (
         <div style={{marginTop:24}}>
           <div style={{fontWeight:700,fontSize:13,color:"#6b7280",marginBottom:10,borderTop:"2px dashed #e5e7eb",paddingTop:16}}>
-            🗃 Gearchiveerde auto's ({gearchiveerdeAutos.length})
+            {tx("🗃 Gearchiveerde auto's (")}{gearchiveerdeAutos.length})
           </div>
           {gearchiveerdeAutos.map(a => (
             <div key={a.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 16px",background:"#f9fafb",borderRadius:8,marginBottom:6,border:"1px solid #e5e7eb"}}>
@@ -1715,7 +1716,7 @@ function AutoBeheer({ autos, gearchiveerdeAutos=[], onAdd, onUpdate, onArchiveer
               </div>
               <button onClick={async()=>{if(window.confirm(a.kenteken + " terugzetten?")){await onTerugzetten(a.id,a.kenteken);}}}
                 style={{background:"#10b981",color:"white",border:"none",borderRadius:6,padding:"4px 12px",cursor:"pointer",fontSize:11}}>
-                ↩ Terugzetten
+                {tx("↩ Terugzetten")}
               </button>
             </div>
           ))}
@@ -1740,13 +1741,13 @@ function AutoBewerken({ auto, onSave, onCancel, saving }) {
           {label:"Datum uitgifte",key:"datum_uitgifte", type:"date"},
         ].map(f=>(
           <div key={f.key}>
-            <label style={{fontSize:10,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>{f.label}</label>
+            <label style={{fontSize:10,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>{tx(f.label)}</label>
             <input type={f.type||"text"} value={v[f.key]||""} onChange={e=>setV(p=>({...p,[f.key]:e.target.value}))}
               style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:6,color:C.text,padding:"7px 10px",fontSize:12,outline:"none",fontFamily:"inherit"}}/>
           </div>
         ))}
         <div>
-          <label style={{fontSize:10,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>Status</label>
+          <label style={{fontSize:10,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>{tx("Status")}</label>
           <select value={v.status||"Beschikbaar"} onChange={e=>setV(p=>({...p,status:e.target.value}))}
             style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:6,color:C.text,padding:"7px 10px",fontSize:12,outline:"none",appearance:"none",fontFamily:"inherit"}}>
             {AUTO_STATUSSEN.map(s=><option key={s}>{s}</option>)}
@@ -1756,11 +1757,11 @@ function AutoBewerken({ auto, onSave, onCancel, saving }) {
       <div style={{display:"flex",gap:8}}>
         <button onClick={()=>onSave(v)} disabled={saving}
           style={{background:C.blauw,color:"white",border:"none",borderRadius:8,padding:"8px 20px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-          {saving?"⏳":"✓ Opslaan"}
+          {saving?"⏳":tx("✓ Opslaan")}
         </button>
         <button onClick={onCancel}
           style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"8px 14px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
-          Annuleren
+          {tx("Annuleren")}
         </button>
       </div>
     </div>

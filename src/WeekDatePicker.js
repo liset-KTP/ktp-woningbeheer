@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { tx } from "./i18n";
 
 // ─── Kleuren (zelfde huisstijl als de rest van de app) ────────────────────────
 const WD = {
@@ -142,7 +143,7 @@ export default function WeekDatePicker({ value, onChange, className = "fi", styl
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "26px repeat(7,1fr)", gap: 2, marginBottom: 2 }}>
-            <div style={{ fontSize: 10, color: "#94a3b8", textAlign: "center", fontWeight: 700 }}>Wk</div>
+            <div style={{ fontSize: 10, color: "#94a3b8", textAlign: "center", fontWeight: 700 }}>{tx("Wk")}</div>
             {DAGEN.map(d => (
               <div key={d} style={{ fontSize: 10, fontWeight: 700, color: WD.muted, textAlign: "center" }}>{d}</div>
             ))}
@@ -176,11 +177,11 @@ export default function WeekDatePicker({ value, onChange, className = "fi", styl
           <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8, paddingTop: 8, borderTop: `1px solid ${WD.bg}` }}>
             <button type="button" onClick={() => { onChange(""); setOpen(false); }}
               style={{ fontSize: 11, color: WD.muted, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}>
-              Wissen
+              {tx("Wissen")}
             </button>
             <button type="button" onClick={() => kiesDag(new Date())}
               style={{ fontSize: 11, color: WD.groen, background: "none", border: "none", cursor: "pointer", fontWeight: 700, fontFamily: "inherit" }}>
-              Vandaag
+              {tx("Vandaag")}
             </button>
           </div>
         </div>

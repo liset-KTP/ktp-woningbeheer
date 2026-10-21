@@ -19,6 +19,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { supabase } from "./supabaseClient";
+import { tx } from "./i18n";
 
 const KLEUR = {
   blauw: "#1B3A6B", groen: "#357a2b", rood: "#b91c1c", oranje: "#b45309",
@@ -181,7 +182,7 @@ export function MedewerkerKiezer({
           {nieuwToegestaan && waarde.trim() && (
             <div onMouseDown={e => { e.preventDefault(); setOpen(false); }}
               style={{ padding: "9px 12px", cursor: "pointer", fontSize: 13, color: KLEUR.blauw, fontWeight: 700 }}>
-              + Nieuwe medewerker: "{normaliseerNaam(waarde)}"
+              {tx("+ Nieuwe medewerker: \"")}{normaliseerNaam(waarde)}"
             </div>
           )}
         </div>
@@ -189,14 +190,14 @@ export function MedewerkerKiezer({
 
       {/* Status onder het veld */}
       {exact && (
-        <div style={{ fontSize: 11, color: KLEUR.groen, marginTop: 4, fontWeight: 600 }}>✓ Bestaande medewerker{exact.info ? ` (${exact.info})` : ""}</div>
+        <div style={{ fontSize: 11, color: KLEUR.groen, marginTop: 4, fontWeight: 600 }}>{tx("✓ Bestaande medewerker")}{exact.info ? ` (${exact.info})` : ""}</div>
       )}
       {!exact && waarde.trim() && lijkend.length > 0 && (
         <div style={{ fontSize: 12, marginTop: 6, background: "#fef3c7", border: "1px solid #fcd34d", borderRadius: 6, padding: "6px 10px", color: KLEUR.oranje }}>
-          ⚠️ Bedoel je:{" "}
+          {tx("⚠️ Bedoel je:")}{" "}
           {lijkend.map((l, i) => (
             <span key={l.naam}>
-              {i > 0 && " of "}
+              {i > 0 && tx(" of ")}
               <button type="button" onClick={() => kies(l.naam)}
                 style={{ background: "none", border: "none", padding: 0, color: KLEUR.blauw, fontWeight: 700, textDecoration: "underline", cursor: "pointer", fontFamily: "inherit", fontSize: 12 }}>
                 {l.naam}
@@ -212,8 +213,8 @@ export function MedewerkerKiezer({
       {!exact && waarde.trim() && !probleem && lijkend.length === 0 && (
         <div style={{ fontSize: 11, color: nieuwToegestaan ? KLEUR.muted : KLEUR.oranje, marginTop: 4, fontWeight: nieuwToegestaan ? 400 : 600 }}>
           {nieuwToegestaan
-            ? "Nieuwe medewerker — controleer de spelling (zoals in paspoort/Cockpit)"
-            : "⚠️ Niet gevonden als bewoner — kies uit de lijst of controleer de naam"}
+            ? tx("Nieuwe medewerker — controleer de spelling (zoals in paspoort/Cockpit)")
+            : tx("⚠️ Niet gevonden als bewoner — kies uit de lijst of controleer de naam")}
         </div>
       )}
     </div>

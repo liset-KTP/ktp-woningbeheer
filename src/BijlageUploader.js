@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { supabase } from "./supabaseClient";
+import { tx } from "./i18n";
 
 const C = {
   blauw:"#1B3A6B", groen:"#4A9B3C", bg:"#f0f4f8",
@@ -35,7 +36,7 @@ export function BijlageUploader({ bestanden, setBestanden, label = "📎 Foto's 
   return (
     <div>
       <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>
-        {label}
+        {tx(label)}
       </label>
       <label style={{display:"block",cursor:"pointer"}}>
         <div onDragOver={e=>{e.preventDefault();setDragOver(true);}}
@@ -43,8 +44,8 @@ export function BijlageUploader({ bestanden, setBestanden, label = "📎 Foto's 
           onDrop={e=>{e.preventDefault();setDragOver(false);handleFiles(e.dataTransfer.files);}}
           style={{border:`2px dashed ${dragOver?C.blauw:C.border}`,borderRadius:10,padding:"16px",textAlign:"center",background:dragOver?C.blauw+"08":C.bg,transition:"all .2s"}}>
           <div style={{fontSize:28,marginBottom:6}}>📸</div>
-          <div style={{fontSize:13,fontWeight:600,color:C.blauw,marginBottom:4}}>Klik of sleep bestanden hierheen</div>
-          <div style={{fontSize:11,color:C.muted}}>Foto's, PDF's of documenten (max 50MB per bestand)</div>
+          <div style={{fontSize:13,fontWeight:600,color:C.blauw,marginBottom:4}}>{tx("Klik of sleep bestanden hierheen")}</div>
+          <div style={{fontSize:11,color:C.muted}}>{tx("Foto's, PDF's of documenten (max 50MB per bestand)")}</div>
           <input type="file" multiple accept="image/*,.pdf,.doc,.docx" onChange={e=>handleFiles(e.target.files)} style={{display:"none"}}/>
         </div>
       </label>
@@ -69,7 +70,7 @@ export function BijlageUploader({ bestanden, setBestanden, label = "📎 Foto's 
               <div key={i} style={{display:"inline-flex",alignItems:"center",gap:6,background:C.bg,border:`1px solid ${C.border}`,borderRadius:20,padding:"4px 10px",fontSize:12}}>
                 <span>📄</span>
                 <span>{b.naam.length>20?b.naam.slice(0,20)+"...":b.naam}</span>
-                <span style={{color:C.muted,fontSize:11}}>({Math.round(b.grootte/1024)}KB)</span>
+                <span style={{color:C.muted,fontSize:11}}>({Math.round(b.grootte/1024)}{tx("KB)")}</span>
                 <button onClick={()=>setBestanden(prev=>prev.filter((_,j)=>j!==i))}
                   style={{background:"none",border:"none",color:"#ef4444",cursor:"pointer",fontSize:14,lineHeight:1,padding:"0 2px"}}>×</button>
               </div>
@@ -106,7 +107,7 @@ export function BijlageWeergave({ bijlages }) {
           {docs.map((b,i) => (
             <a key={i} href={b.url} target="_blank" rel="noopener noreferrer"
               style={{display:"inline-flex",alignItems:"center",gap:6,background:C.bg,border:`1px solid ${C.border}`,borderRadius:20,padding:"4px 10px",fontSize:12,color:C.blauw,textDecoration:"none"}}>
-              📄 {b.naam?.length>20?b.naam.slice(0,20)+"...":b.naam||"Bijlage"}
+              📄 {b.naam?.length>20?b.naam.slice(0,20)+"...":b.naam||tx("Bijlage")}
             </a>
           ))}
         </div>
@@ -114,7 +115,7 @@ export function BijlageWeergave({ bijlages }) {
       {lightbox && (
         <div onClick={()=>setLightbox(null)}
           style={{position:"fixed",inset:0,background:"rgba(0,0,0,.85)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",cursor:"zoom-out"}}>
-          <img src={lightbox} alt="Bijlage" style={{maxWidth:"90vw",maxHeight:"90vh",objectFit:"contain",borderRadius:12}}/>
+          <img src={lightbox} alt={tx("Bijlage")} style={{maxWidth:"90vw",maxHeight:"90vh",objectFit:"contain",borderRadius:12}}/>
           <button onClick={()=>setLightbox(null)}
             style={{position:"absolute",top:20,right:20,background:"white",border:"none",borderRadius:"50%",width:36,height:36,fontSize:20,cursor:"pointer",lineHeight:1}}>×</button>
         </div>

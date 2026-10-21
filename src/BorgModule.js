@@ -3,6 +3,7 @@ import { supabase } from "./supabaseClient";
 import { BijlageUploader, BijlageWeergave, uploadBijlages } from "./BijlageUploader";
 import WeekDatePicker from "./WeekDatePicker";
 import { MedewerkerKiezer, naamProbleem, normaliseerNaam, vernieuwMedewerkerNamen } from "./MedewerkerKiezer";
+import { tx } from "./i18n";
 
 const C = {
   blauw:"#1B3A6B", blauwLight:"#2a52a0",
@@ -156,7 +157,7 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
       aangemaakt_door: gebruiker.naam,
     }]).select().single();
 
-    if (error) { showToast("Fout bij aanmaken borgplan", "err"); return false; }
+    if (error) { showToast(tx("Fout bij aanmaken borgplan"), "err"); return false; }
 
     // Termijnen aanmaken
     const termijnRows = t.map((term, i) => {
@@ -196,7 +197,7 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
         await supabase.from("borg_plannen").update({ ingehouden: nieuwIngehouden }).eq("id", plan.id);
       }
     }
-    showToast("✓ Verwerkt");
+    showToast(tx("✓ Verwerkt"));
     await loadAll();
   }
 
@@ -206,7 +207,7 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
       const { data: bestaand } = await supabase.from("borg_extra")
         .select("id").eq("plan_id", planId).eq("type", "terugbetalen");
       if (bestaand && bestaand.length > 0) {
-        showToast("⚠️ Er is al een terugbetaling geregistreerd voor dit borgplan. Verwijder eerst de bestaande.");
+        showToast(tx("⚠️ Er is al een terugbetaling geregistreerd voor dit borgplan. Verwijder eerst de bestaande."));
         return;
       }
     }
@@ -223,7 +224,7 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
       verwerkt_door: isAlIngehouden ? gebruiker.naam : null,
       verwerkt_op: isAlIngehouden ? new Date().toISOString() : null,
     }]);
-    showToast("✓ Extra post toegevoegd");
+    showToast(tx("✓ Extra post toegevoegd"));
     await loadAll();
   }
 
@@ -233,7 +234,7 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
       verwerkt_door: gebruiker.naam,
       verwerkt_op: new Date().toISOString(),
     }).eq("id", id);
-    showToast("✓ Verwerkt");
+    showToast(tx("✓ Verwerkt"));
     await loadAll();
   }
 
@@ -243,7 +244,7 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
       verwerkt_door: null,
       verwerkt_op: null,
     }).eq("id", id);
-    showToast("↩ Extra post teruggezet naar open");
+    showToast(tx("↩ Extra post teruggezet naar open"));
     await loadAll();
   }
 
@@ -262,7 +263,7 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
       const nieuwIngehouden = Math.max(0, Number(plan.ingehouden) - Number(termijn.bedrag));
       await supabase.from("borg_plannen").update({ ingehouden: nieuwIngehouden }).eq("id", plan.id);
     }
-    showToast("↩ Termijn teruggezet naar open");
+    showToast(tx("↩ Termijn teruggezet naar open"));
     await loadAll();
   }
 
@@ -276,7 +277,7 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
       showToast("⚠️ Wijzigen mislukt (week al bezet?): " + error.message);
       return;
     }
-    showToast("✓ Termijn bijgewerkt");
+    showToast(tx("✓ Termijn bijgewerkt"));
     await loadAll();
   }
 
@@ -302,7 +303,7 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
         return;
       }
     }
-    showToast("✓ Alle termijnen 1 week opgeschoven");
+    showToast(tx("✓ Alle termijnen 1 week opgeschoven"));
     await loadAll();
   }
 
@@ -321,7 +322,7 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
     const openSleutelTermijnen = sleutelTermijnen.filter(t => t.status === "open").sort((a,b)=>(a.jaar-b.jaar)||(a.week_nummer-b.week_nummer));
 
     if (verwerkteSleutelTermijnen.length > 0) {
-      showToast("⚠️ Er is al een sleuteltermijn ingehouden — pas dit handmatig aan via een extra post (terugbetalen/inhouden), niet automatisch.", "err");
+      showToast(tx("⚠️ Er is al een sleuteltermijn ingehouden — pas dit handmatig aan via een extra post (terugbetalen/inhouden), niet automatisch."), "err");
       return;
     }
 
@@ -387,7 +388,7 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
       gedaan_door: gebruiker?.naam || "?",
       extra: { borg_plan_id: planId, naam: plan?.naam_medewerker },
     }]);
-    showToast("✓ Borgplan gearchiveerd");
+    showToast(tx("✓ Borgplan gearchiveerd"));
     await loadAll();
   }
 
@@ -416,7 +417,7 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
       if (terug > 0) {
         const { data: bestaand } = await supabase.from("borg_extra").select("id").eq("plan_id", planId).eq("type", "terugbetalen");
         if (bestaand && bestaand.length > 0) {
-          showToast("⚠️ Er staat al een terugbetaling voor dit plan — niets afgesloten. Controleer eerst 'Terug te betalen'.");
+          showToast(tx("⚠️ Er staat al een terugbetaling voor dit plan — niets afgesloten. Controleer eerst 'Terug te betalen'."));
           return;
         }
         await supabase.from("borg_extra").insert([{
@@ -460,11 +461,11 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
     const nieuw = huidig ? huidig + `
 [${datum} - ${gebruiker.naam}] ${tekst}` : `[${datum} - ${gebruiker.naam}] ${tekst}`;
     await supabase.from("borg_plannen").update({ opmerkingen: nieuw }).eq("id", planId);
-    showToast("✓ Opmerking toegevoegd");
+    showToast(tx("✓ Opmerking toegevoegd"));
     await loadAll();
   }
 
-  if (loading) return <div style={{textAlign:"center",padding:"60px",color:C.muted}}>⏳ Laden...</div>;
+  if (loading) return <div style={{textAlign:"center",padding:"60px",color:C.muted}}>{tx("⏳ Laden...")}</div>;
 
   const nu = new Date();
   const huidigeWeek = getWeekNr(nu);
@@ -490,22 +491,22 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
       {/* Header */}
       <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:24}}>
         <div>
-          <h2 style={{fontSize:20,fontWeight:800,color:C.blauw,marginBottom:3}}>🛡️ Borgbeheer & inhoudingen</h2>
+          <h2 style={{fontSize:20,fontWeight:800,color:C.blauw,marginBottom:3}}>{tx("🛡️ Borgbeheer & inhoudingen")}</h2>
           <p style={{fontSize:13,color:C.muted}}>
-            {plannen.filter(p=>p.status==="actief").length} actieve plannen ·
-            {" "}€{plannen.filter(p=>p.status==="actief").reduce((s,p)=>s+Number(p.totaal_borg)-Number(p.ingehouden),0).toFixed(2)} nog in te houden ·
-            {" "}{dezeWeek.length} termijnen deze week
+            {plannen.filter(p=>p.status==="actief").length} {tx("actieve plannen ·")}
+            {" "}€{plannen.filter(p=>p.status==="actief").reduce((s,p)=>s+Number(p.totaal_borg)-Number(p.ingehouden),0).toFixed(2)} {tx("nog in te houden ·")}
+            {" "}{dezeWeek.length} {tx("termijnen deze week")}
           </p>
         </div>
         {isBackoffice && (
           <div style={{display:"flex",gap:10}}>
             <button onClick={()=>{setToonLosseInhouding(true);setToonNieuw(false);}}
               style={{background:"#f59e0b",color:"white",border:"none",borderRadius:8,padding:"10px 20px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
-              💸 Losse inhouding
+              {tx("💸 Losse inhouding")}
             </button>
             <button onClick={()=>{setToonNieuw(true);setToonLosseInhouding(false);}}
               style={{background:C.blauw,color:"white",border:"none",borderRadius:8,padding:"10px 20px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
-              + Nieuw borgplan
+              {tx("+ Nieuw borgplan")}
             </button>
           </div>
         )}
@@ -515,10 +516,10 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
       {dezeWeek.length > 0 && (
         <div style={{background:"#fef3c7",border:"1px solid #fcd34d",borderRadius:12,padding:"14px 18px",marginBottom:20}}>
           <div style={{fontWeight:700,color:"#b45309",marginBottom:4}}>
-            ⚠️ Week {huidigeWeek} — {dezeWeek.length} borg termijn{dezeWeek.length>1?"en":""} te verwerken
+            {tx("⚠️ Week")} {huidigeWeek} — {dezeWeek.length} {tx("borg termijn")}{dezeWeek.length>1?tx("en"):""} {tx("te verwerken")}
           </div>
           <div style={{fontSize:13,color:"#b45309"}}>
-            Totaal: €{dezeWeek.reduce((s,t)=>s+Number(t.bedrag),0).toFixed(2)} in te houden
+            {tx("Totaal: €")}{dezeWeek.reduce((s,t)=>s+Number(t.bedrag),0).toFixed(2)} {tx("in te houden")}
           </div>
         </div>
       )}
@@ -577,7 +578,7 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
         {tabs.map(t=>(
           <button key={t.id} onClick={()=>setSubTab(t.id)}
             style={{background:"none",border:"none",padding:"10px 18px",fontSize:13,fontWeight:700,color:subTab===t.id?C.blauw:C.muted,borderBottom:subTab===t.id?`3px solid ${C.blauw}`:"3px solid transparent",marginBottom:-2,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
-            {t.label}
+            {tx(t.label)}
           </button>
         ))}
       </div>
@@ -585,9 +586,9 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
       {/* Zoekbalk */}
       <div style={{marginBottom:20}}>
         <input value={zoek} onChange={e=>setZoek(e.target.value)}
-          placeholder="🔍 Zoek op naam medewerker..."
+          placeholder={tx("🔍 Zoek op naam medewerker...")}
           style={{width:"100%",background:"white",border:`1.5px solid ${zoek?C.blauw:C.border}`,borderRadius:8,color:C.text,padding:"9px 14px",fontSize:13,outline:"none",fontFamily:"inherit",boxSizing:"border-box",transition:"border .2s"}}/>
-        {zoek && <div style={{fontSize:12,color:C.muted,marginTop:5}}>Zoekresultaten voor "<strong>{zoek}</strong>"</div>}
+        {zoek && <div style={{fontSize:12,color:C.muted,marginTop:5}}>{tx("Zoekresultaten voor \"")}<strong>{zoek}</strong>"</div>}
       </div>
 
       {subTab==="wekenoverzicht" && (
@@ -667,17 +668,17 @@ function WekenOverzicht({ termijnen, plannen, isBackoffice, onVerwerk, readonly 
   if (weken.length === 0) return (
     <div style={{textAlign:"center",padding:"60px",color:C.muted}}>
       <div style={{fontSize:36,marginBottom:8}}>🎉</div>
-      <div>Geen openstaande borginhoudingen</div>
+      <div>{tx("Geen openstaande borginhoudingen")}</div>
     </div>
   );
 
   return (
     <div>
       <div style={{marginBottom:20}}>
-        <h3 style={{fontSize:16,fontWeight:800,color:C.blauw}}>📊 Borginhoudingen per week</h3>
+        <h3 style={{fontSize:16,fontWeight:800,color:C.blauw}}>{tx("📊 Borginhoudingen per week")}</h3>
         <p style={{fontSize:13,color:C.muted,marginTop:4}}>
-          Totaal openstaand: <strong style={{color:C.oranje}}>€{openTermijnen.reduce((s,t)=>s+Number(t.bedrag),0).toFixed(2)}</strong>
-          {" · "}{openTermijnen.length} termijnen · {weken.length} weken
+          {tx("Totaal openstaand:")} <strong style={{color:C.oranje}}>€{openTermijnen.reduce((s,t)=>s+Number(t.bedrag),0).toFixed(2)}</strong>
+          {" · "}{openTermijnen.length} {tx("termijnen ·")} {weken.length} {tx("weken")}
         </p>
       </div>
 
@@ -693,21 +694,21 @@ function WekenOverzicht({ termijnen, plannen, isBackoffice, onVerwerk, readonly 
             {/* Week header */}
             <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:10}}>
               <div style={{background:isDezeWeek?C.oranje:C.blauw,color:"white",borderRadius:8,padding:"4px 14px",fontSize:12,fontWeight:700}}>
-                Week {week}
+                {tx("Week")} {week}
               </div>
-              {isDezeWeek && <span style={{fontSize:12,fontWeight:700,color:C.oranje}}>← DEZE WEEK</span>}
+              {isDezeWeek && <span style={{fontSize:12,fontWeight:700,color:C.oranje}}>{tx("← DEZE WEEK")}</span>}
               <span style={{fontSize:12,color:C.muted}}>
-                Ma {fmtDate(maandag)} · Do {fmtDate(donderdag)}
+                {tx("Ma")} {fmtDate(maandag)} {tx("· Do")} {fmtDate(donderdag)}
               </span>
               <span style={{fontSize:13,fontWeight:800,color:C.text,marginLeft:"auto"}}>
-                Totaal: <span style={{color:C.oranje}}>€{totaal.toFixed(2)}</span>
+                {tx("Totaal:")} <span style={{color:C.oranje}}>€{totaal.toFixed(2)}</span>
               </span>
             </div>
 
             {/* Tabel */}
             <div style={{background:"white",border:`1px solid ${C.border}`,borderRadius:10,overflow:"hidden"}}>
               <div style={{display:"grid",gridTemplateColumns:"1fr 160px 120px 100px",padding:"8px 16px",fontSize:10,fontWeight:700,color:C.muted,letterSpacing:".6px",textTransform:"uppercase",background:C.bg,borderBottom:`1px solid ${C.border}`}}>
-                <span>Medewerker</span><span>Omschrijving</span><span>Bedrag</span><span>Actie</span>
+                <span>{tx("Medewerker")}</span><span>{tx("Omschrijving")}</span><span>{tx("Bedrag")}</span><span>{tx("Actie")}</span>
               </div>
               {weekTermijnen.map((t,i) => {
                 const plan = plannen.find(p=>p.id===t.plan_id);
@@ -715,17 +716,17 @@ function WekenOverzicht({ termijnen, plannen, isBackoffice, onVerwerk, readonly 
                   <div key={t.id} style={{display:"grid",gridTemplateColumns:"1fr 160px 120px 100px",padding:"12px 16px",fontSize:13,borderBottom:i<weekTermijnen.length-1?`1px solid ${C.border}`:"none",alignItems:"center",background:i%2===0?"white":C.bg+"40"}}>
                     <div>
                       <div style={{fontWeight:700,color:C.text}}>{t.naam_medewerker}</div>
-                      {plan?.kamer && <div style={{fontSize:11,color:C.muted}}>Kamer {plan.kamer}</div>}
+                      {plan?.kamer && <div style={{fontSize:11,color:C.muted}}>{tx("Kamer")} {plan.kamer}</div>}
                     </div>
                     <span style={{fontSize:12,color:C.muted}}>{t.omschrijving}</span>
                     <span style={{fontWeight:800,color:C.oranje}}>€{Number(t.bedrag).toFixed(2)}</span>
                     {isBackoffice && !readonly ? (
                       <button onClick={()=>onVerwerk(t.id,"")}
                         style={{background:C.groen,color:"white",border:"none",borderRadius:6,padding:"5px 12px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                        ✓ Verwerkt
+                        {tx("✓ Verwerkt")}
                       </button>
                     ) : (
-                      <span style={{fontSize:11,color:C.muted,fontStyle:"italic"}}>Openstaand</span>
+                      <span style={{fontSize:11,color:C.muted,fontStyle:"italic"}}>{tx("Openstaand")}</span>
                     )}
                   </div>
                 );
@@ -751,7 +752,7 @@ function WeekOverzicht({ dezeWeek, volgendeWeek, plannen, huidigeWeek, huidigJaa
           <div>
             <div style={{fontWeight:700,fontSize:15,color:C.text}}>{t.naam_medewerker}</div>
             <div style={{fontSize:12,color:C.muted,marginTop:2}}>
-              {t.omschrijving} · Week {t.week_nummer}/{t.jaar}
+              {t.omschrijving} {tx("· Week")} {t.week_nummer}/{t.jaar}
               {plan?.kamer && ` · Kamer ${plan.kamer}`}
             </div>
             {t.opmerking && <div style={{fontSize:12,color:C.muted,fontStyle:"italic",marginTop:4}}>💬 "{t.opmerking}"</div>}
@@ -759,26 +760,26 @@ function WeekOverzicht({ dezeWeek, volgendeWeek, plannen, huidigeWeek, huidigJaa
           <div style={{display:"flex",alignItems:"center",gap:12}}>
             <div style={{textAlign:"right"}}>
               <div style={{fontSize:22,fontWeight:800,color:C.oranje}}>€{Number(t.bedrag).toFixed(2)}</div>
-              <div style={{fontSize:11,color:C.muted}}>inhouden</div>
+              <div style={{fontSize:11,color:C.muted}}>{tx("inhouden")}</div>
             </div>
             {t.status==="verwerkt" ? (
               <div style={{display:"flex",gap:6,alignItems:"center"}}>
                 <div style={{textAlign:"right"}}>
-                  <span style={{background:"#f0fdf4",color:C.groen,fontSize:11,fontWeight:700,padding:"4px 10px",borderRadius:20,border:"1px solid #bbf7d0"}}>✓ VERWERKT</span>
+                  <span style={{background:"#f0fdf4",color:C.groen,fontSize:11,fontWeight:700,padding:"4px 10px",borderRadius:20,border:"1px solid #bbf7d0"}}>{tx("✓ VERWERKT")}</span>
                   {t.verwerkt_op && (
                     <div style={{fontSize:11,color:C.muted,marginTop:3}}>
                       {fmtDate(t.verwerkt_op)}{t.verwerkt_door ? ` · ${t.verwerkt_door}` : ""}
                     </div>
                   )}
                 </div>
-                {isBackoffice && <button onClick={()=>onZetTerug(t.id)} title="Terugzetten" style={{background:"white",border:`1px solid ${C.oranje}`,color:C.oranje,borderRadius:6,padding:"4px 8px",fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>↩</button>}
+                {isBackoffice && <button onClick={()=>onZetTerug(t.id)} title={tx("Terugzetten")} style={{background:"white",border:`1px solid ${C.oranje}`,color:C.oranje,borderRadius:6,padding:"4px 8px",fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>↩</button>}
               </div>
             ) : isBackoffice && (
               <div style={{display:"flex",gap:6,alignItems:"center"}}>
                 {toonOpmerking[t.id] ? (
                   <div style={{display:"flex",gap:8,alignItems:"center"}}>
                     <input value={opmerkingMap[t.id]||""} onChange={e=>setOpmerkingMap(p=>({...p,[t.id]:e.target.value}))}
-                      placeholder="Opmerking (optioneel)..." autoFocus
+                      placeholder={tx("Opmerking (optioneel)...")} autoFocus
                       style={{background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"7px 12px",fontSize:13,outline:"none",fontFamily:"inherit",width:200}}/>
                     <button onClick={()=>{ onVerwerk(t.id, opmerkingMap[t.id]); setToonOpmerking(p=>({...p,[t.id]:false})); }}
                       style={{background:C.groen,color:"white",border:"none",borderRadius:8,padding:"8px 16px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
@@ -789,7 +790,7 @@ function WeekOverzicht({ dezeWeek, volgendeWeek, plannen, huidigeWeek, huidigJaa
                   <>
                     <button onClick={()=>setToonOpmerking(p=>({...p,[t.id]:true}))}
                       style={{background:C.groen,color:"white",border:"none",borderRadius:8,padding:"8px 16px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                      ✓ Verwerkt
+                      {tx("✓ Verwerkt")}
                     </button>
                     {onSchuifWeekOp && (
                       <button
@@ -798,9 +799,9 @@ function WeekOverzicht({ dezeWeek, volgendeWeek, plannen, huidigeWeek, huidigJaa
                             onSchuifWeekOp(t.plan_id);
                           }
                         }}
-                        title="Deze week niet mogelijk (niet/te weinig gewerkt) — schuif alle openstaande termijnen van dit plan 1 week door"
+                        title={tx("Deze week niet mogelijk (niet/te weinig gewerkt) — schuif alle openstaande termijnen van dit plan 1 week door")}
                         style={{background:"white",border:`1.5px solid ${C.oranje}`,color:C.oranje,borderRadius:8,padding:"8px 12px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
-                        ⏭ Kan niet – schuif door
+                        {tx("⏭ Kan niet – schuif door")}
                       </button>
                     )}
                   </>
@@ -818,16 +819,16 @@ function WeekOverzicht({ dezeWeek, volgendeWeek, plannen, huidigeWeek, huidigJaa
       {/* Deze week */}
       <div style={{marginBottom:28}}>
         <h3 style={{fontSize:16,fontWeight:800,color:C.blauw,marginBottom:4}}>
-          📅 Week {huidigeWeek} — {dezeWeek.length} termijn{dezeWeek.length!==1?"en":""}
+          {tx("📅 Week")} {huidigeWeek} — {dezeWeek.length} {tx("termijn")}{dezeWeek.length!==1?tx("en"):""}
         </h3>
         <div style={{fontSize:13,color:C.muted,marginBottom:16}}>
-          Totaal in te houden: <strong style={{color:C.oranje}}>€{dezeWeek.reduce((s,t)=>s+Number(t.bedrag),0).toFixed(2)}</strong>
-          {" · "}Al verwerkt: <strong style={{color:C.groen}}>€{dezeWeek.filter(t=>t.status==="verwerkt").reduce((s,t)=>s+Number(t.bedrag),0).toFixed(2)}</strong>
+          {tx("Totaal in te houden:")} <strong style={{color:C.oranje}}>€{dezeWeek.reduce((s,t)=>s+Number(t.bedrag),0).toFixed(2)}</strong>
+          {" · "}{tx("Al verwerkt:")} <strong style={{color:C.groen}}>€{dezeWeek.filter(t=>t.status==="verwerkt").reduce((s,t)=>s+Number(t.bedrag),0).toFixed(2)}</strong>
         </div>
         {dezeWeek.length === 0 ? (
           <div style={{textAlign:"center",padding:"40px",color:C.muted,background:"white",borderRadius:12,border:`1px solid ${C.border}`}}>
             <div style={{fontSize:36,marginBottom:8}}>🎉</div>
-            <div>Geen borginhoudingen deze week</div>
+            <div>{tx("Geen borginhoudingen deze week")}</div>
           </div>
         ) : dezeWeek.map(t => <TermijnRij key={t.id} t={t}/>)}
       </div>
@@ -836,10 +837,10 @@ function WeekOverzicht({ dezeWeek, volgendeWeek, plannen, huidigeWeek, huidigJaa
       {volgendeWeek.length > 0 && (
         <div>
           <h3 style={{fontSize:16,fontWeight:800,color:C.muted,marginBottom:4}}>
-            📅 Week {huidigeWeek+1} — preview
+            {tx("📅 Week")} {huidigeWeek+1} {tx("— preview")}
           </h3>
           <div style={{fontSize:13,color:C.muted,marginBottom:16}}>
-            Verwacht: <strong>€{volgendeWeek.reduce((s,t)=>s+Number(t.bedrag),0).toFixed(2)}</strong>
+            {tx("Verwacht:")} <strong>€{volgendeWeek.reduce((s,t)=>s+Number(t.bedrag),0).toFixed(2)}</strong>
           </div>
           {volgendeWeek.map(t => {
             const plan = plannen.find(p=>p.id===t.plan_id);
@@ -881,7 +882,7 @@ function PlannenOverzicht({ plannen, termijnen, extras, houses, isBackoffice, on
       {plannen.length === 0 && (
         <div style={{textAlign:"center",padding:"60px",color:C.muted}}>
           <div style={{fontSize:36,marginBottom:8}}>👤</div>
-          <div>Geen actieve borgplannen</div>
+          <div>{tx("Geen actieve borgplannen")}</div>
         </div>
       )}
       {groepen.map(({naam, plannen: groepPlannen}) => {
@@ -908,12 +909,12 @@ function PlannenOverzicht({ plannen, termijnen, extras, houses, isBackoffice, on
               <div>
                 <div style={{fontWeight:800,fontSize:15,color:"white"}}>{naam}</div>
                 <div style={{fontSize:12,color:"rgba(255,255,255,.75)",marginTop:2}}>
-                  {groepPlannen.length} borgplannen · €{totaalBorg.toFixed(2)} totaal
+                  {groepPlannen.length} {tx("borgplannen · €")}{totaalBorg.toFixed(2)} {tx("totaal")}
                 </div>
               </div>
               <div style={{textAlign:"right"}}>
                 <div style={{fontWeight:800,fontSize:16,color:"white"}}>€{nogTeGaan.toFixed(2)}</div>
-                <div style={{fontSize:11,color:"rgba(255,255,255,.75)"}}>nog in te houden</div>
+                <div style={{fontSize:11,color:"rgba(255,255,255,.75)"}}>{tx("nog in te houden")}</div>
               </div>
             </div>
             {/* Plannen per type */}
@@ -986,11 +987,11 @@ function VertrekInfo({ plan, onNeemOver }) {
   }, [plan.id, plan.woning_id, plan.kamer, plan.aankomst_datum, plan.naam_medewerker]);
 
   const box = { background:"white", border:`1px solid ${C.border}`, borderRadius:8, padding:"10px 12px", marginBottom:10, fontSize:12, color:C.text };
-  if (laden) return <div style={box}>⏳ Vertrekgegevens ophalen…</div>;
+  if (laden) return <div style={box}>{tx("⏳ Vertrekgegevens ophalen…")}</div>;
   const { melding, taak, logs, naamAfwijkend } = info || {};
   if (!melding) return (
     <div style={{...box, borderColor:"#fecaca", background:"#fef2f2"}}>
-      ⚠️ Geen vertrekmelding gevonden voor deze kamer. Controleer eerst of het vertrek wel is gemeld en gecontroleerd.
+      {tx("⚠️ Geen vertrekmelding gevonden voor deze kamer. Controleer eerst of het vertrek wel is gemeld en gecontroleerd.")}
     </div>
   );
 
@@ -1007,30 +1008,30 @@ function VertrekInfo({ plan, onNeemOver }) {
 
   return (
     <div style={box}>
-      <div style={{fontWeight:700,marginBottom:6}}>📋 Info vertrek</div>
+      <div style={{fontWeight:700,marginBottom:6}}>{tx("📋 Info vertrek")}</div>
       {naamAfwijkend && (
-        <div style={{color:C.oranje,marginBottom:6}}>⚠️ Gevonden op kamer, maar naam in melding wijkt af: "{melding.medewerker}". Controleer of dit de juiste is.</div>
+        <div style={{color:C.oranje,marginBottom:6}}>{tx("⚠️ Gevonden op kamer, maar naam in melding wijkt af: \"")}{melding.medewerker}{tx("\". Controleer of dit de juiste is.")}</div>
       )}
       <div style={{color:C.muted,marginBottom:6}}>
-        Vertrekdatum <strong style={{color:C.text}}>{fmtD(melding.datum)}</strong>
-        {" · "}gemeld door {melding.ingediend_door || "?"}
-        {" · "}sleutel terug: {CONTROLE_LABEL[melding.sleutel_terug] || melding.sleutel_terug || "—"}
-        {" · "}kamer schoon: {CONTROLE_LABEL[melding.kamer_schoon] || melding.kamer_schoon || "—"}
+        {tx("Vertrekdatum")} <strong style={{color:C.text}}>{fmtD(melding.datum)}</strong>
+        {" · "}{tx("gemeld door")} {melding.ingediend_door || "?"}
+        {" · "}{tx("sleutel terug:")} {CONTROLE_LABEL[melding.sleutel_terug] || melding.sleutel_terug || "—"}
+        {" · "}{tx("kamer schoon:")} {CONTROLE_LABEL[melding.kamer_schoon] || melding.kamer_schoon || "—"}
       </div>
-      {melding.opmerkingen && <div style={{marginBottom:6}}>💬 Melder: <em>"{melding.opmerkingen}"</em></div>}
+      {melding.opmerkingen && <div style={{marginBottom:6}}>{tx("💬 Melder:")} <em>"{melding.opmerkingen}"</em></div>}
 
       {taak ? (
         <div style={{borderTop:`1px solid ${C.border}`,paddingTop:6,marginTop:6}}>
           <div style={{fontWeight:600,marginBottom:4}}>
-            🧹 Controle huismeester — {taak.status === "gedaan"
-              ? <span style={{color:C.groen}}>afgerond door {taak.afgehandeld_door} op {fmtD(taak.afgehandeld_op)}</span>
-              : <span style={{color:C.rood}}>NOG NIET afgerond</span>}
+            {tx("🧹 Controle huismeester —")} {taak.status === "gedaan"
+              ? <span style={{color:C.groen}}>{tx("afgerond door")} {taak.afgehandeld_door} {tx("op")} {fmtD(taak.afgehandeld_op)}</span>
+              : <span style={{color:C.rood}}>{tx("NOG NIET afgerond")}</span>}
           </div>
           {(ei.woning_schoon || ei.sleutel_terug) && (
-            <div style={{marginBottom:4}}>🧹 Schoon: <strong>{ei.woning_schoon || "—"}</strong> · 🔑 Sleutel terug: <strong>{ei.sleutel_terug || "—"}</strong></div>
+            <div style={{marginBottom:4}}>{tx("🧹 Schoon:")} <strong>{ei.woning_schoon || "—"}</strong> {tx("· 🔑 Sleutel terug:")} <strong>{ei.sleutel_terug || "—"}</strong></div>
           )}
           {hmOpmerking && <div style={{fontSize:13,fontWeight:600,color:C.text,background:"#fffbeb",borderRadius:6,padding:"6px 8px",marginBottom:6}}>"{hmOpmerking}"</div>}
-          {taak.geblokkeerd && taak.blokkade_reden && <div style={{color:C.rood,marginBottom:4}}>⛔ Blokkade: {taak.blokkade_reden}</div>}
+          {taak.geblokkeerd && taak.blokkade_reden && <div style={{color:C.rood,marginBottom:4}}>{tx("⛔ Blokkade:")} {taak.blokkade_reden}</div>}
           {logs.length > 0 && (
             <div style={{color:C.muted}}>
               {logs.map(l => (
@@ -1040,17 +1041,17 @@ function VertrekInfo({ plan, onNeemOver }) {
           )}
         </div>
       ) : (
-        <div style={{color:C.rood,marginTop:6}}>⚠️ Geen controletaak huismeester gevonden bij deze vertrekmelding.</div>
+        <div style={{color:C.rood,marginTop:6}}>{tx("⚠️ Geen controletaak huismeester gevonden bij deze vertrekmelding.")}</div>
       )}
 
       {bijlages.length > 0
         ? <BijlageWeergave bijlages={bijlages}/>
-        : <div style={{color:C.oranje,marginTop:6}}>📷 Geen foto's bij melding of controle.</div>}
+        : <div style={{color:C.oranje,marginTop:6}}>{tx("📷 Geen foto's bij melding of controle.")}</div>}
 
       {onNeemOver && hmOpmerking && (
         <button onClick={()=>onNeemOver(redenTekst)}
           style={{marginTop:8,background:"white",border:`1.5px solid ${C.blauw}`,color:C.blauw,borderRadius:8,padding:"5px 10px",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-          ↳ Neem opmerking huismeester over als reden
+          {tx("↳ Neem opmerking huismeester over als reden")}
         </button>
       )}
     </div>
@@ -1110,7 +1111,7 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
           {!gegroepeerd && <div style={{fontWeight:800,fontSize:16,color:C.text}}>{plan.naam_medewerker}</div>}
           {gegroepeerd && (
             <div style={{fontWeight:700,fontSize:13,color:C.blauw,marginBottom:2}}>
-              {plan.heeft_fiets && !plan.sleutels ? "🚲 Fietsborg" : plan.sleutels && !plan.heeft_fiets ? "🔑 Sleutelborg" : `🔑 ${plan.sleutels} sleutel${plan.sleutels>1?"s":""}${plan.heeft_fiets?" + 🚲 fiets":""}`}
+              {plan.heeft_fiets && !plan.sleutels ? tx("🚲 Fietsborg") : plan.sleutels && !plan.heeft_fiets ? tx("🔑 Sleutelborg") : `🔑 ${plan.sleutels} sleutel${plan.sleutels>1?"s":""}${plan.heeft_fiets?" + 🚲 fiets":""}`}
             </div>
           )}
           <div style={{fontSize:12,color:C.muted,marginTop:gegroepeerd?0:3}}>
@@ -1119,14 +1120,14 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
             {plan.aankomst_datum ? ` · Aankomst ${fmtDate(plan.aankomst_datum)}` : ""}
           </div>
           {!gegroepeerd && <div style={{fontSize:12,color:C.muted,marginTop:2}}>
-            🔑 {plan.sleutels} sleutel{plan.sleutels>1?"s":""}
-            {plan.heeft_fiets ? " · 🚲 Fiets" : ""}
+            🔑 {plan.sleutels} {tx("sleutel")}{plan.sleutels>1?"s":""}
+            {plan.heeft_fiets ? tx(" · 🚲 Fiets") : ""}
           </div>}
         </div>
         <div style={{textAlign:"right"}}>
           <div style={{fontSize:22,fontWeight:800,color:C.blauw}}>€{totaalSchuld.toFixed(2)}</div>
-          <div style={{fontSize:11,color:C.muted}}>totale schuld</div>
-          <div style={{fontSize:13,color:C.groen,fontWeight:600,marginTop:2}}>€{totaalIngehouden.toFixed(2)} ingehouden</div>
+          <div style={{fontSize:11,color:C.muted}}>{tx("totale schuld")}</div>
+          <div style={{fontSize:13,color:C.groen,fontWeight:600,marginTop:2}}>€{totaalIngehouden.toFixed(2)} {tx("ingehouden")}</div>
         </div>
       </div>
 
@@ -1136,15 +1137,15 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
           <div style={{height:"100%",background:pct===100?C.groen:C.blauw,borderRadius:99,width:`${pct}%`,transition:"width .5s"}}/>
         </div>
         <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:C.muted,marginTop:4}}>
-          <span>{pct.toFixed(0)}% ingehouden</span>
-          <span>Nog €{nogInTehouden.toFixed(2)} te gaan</span>
+          <span>{pct.toFixed(0)}{tx("% ingehouden")}</span>
+          <span>{tx("Nog €")}{nogInTehouden.toFixed(2)} {tx("te gaan")}</span>
         </div>
       </div>
 
       {/* Toggle details */}
       <button onClick={()=>setToonDetails(!toonDetails)}
         style={{background:"none",border:"none",color:C.blauw,fontSize:13,cursor:"pointer",fontFamily:"inherit",padding:"4px 0",marginBottom:8,fontWeight:600}}>
-        {toonDetails?"▲":"▼"} Termijnen bekijken ({termijnen.length})
+        {toonDetails?"▲":"▼"} {tx("Termijnen bekijken (")}{termijnen.length})
       </button>
 
       {toonDetails && (
@@ -1154,7 +1155,7 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
               <div>
                 <span style={{color:t.status==="verwerkt"?C.groen:C.muted,marginRight:8}}>{t.status==="verwerkt"?"✓":"○"}</span>
                 <span style={{color:C.text}}>{t.omschrijving}</span>
-                <span style={{color:C.muted,fontSize:11,marginLeft:8}}>Week {t.week_nummer}/{t.jaar}</span>
+                <span style={{color:C.muted,fontSize:11,marginLeft:8}}>{tx("Week")} {t.week_nummer}/{t.jaar}</span>
                 {t.status==="verwerkt" && t.verwerkt_op && (
                   <span style={{color:C.groen,fontSize:11,marginLeft:8}}>
                     · {fmtDate(t.verwerkt_op)}{t.verwerkt_door ? ` door ${t.verwerkt_door}` : ""}
@@ -1171,7 +1172,7 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
                         style={{background:C.groen,color:"white",border:"none",borderRadius:6,padding:"4px 10px",fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>✓</button>
                     ) : (
                       <button onClick={()=>onZetTerug(t.id)}
-                        title="Terugzetten naar open"
+                        title={tx("Terugzetten naar open")}
                         style={{background:"white",border:`1px solid ${C.oranje}`,color:C.oranje,borderRadius:6,padding:"4px 8px",fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>↩</button>
                     )}
                   </div>
@@ -1183,14 +1184,14 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
           {/* Extra posten */}
           {extras.length > 0 && (
             <div style={{marginTop:10}}>
-              <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".6px",textTransform:"uppercase",marginBottom:6}}>Extra posten</div>
+              <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".6px",textTransform:"uppercase",marginBottom:6}}>{tx("Extra posten")}</div>
               {extras.map(e=>(
                 <div key={e.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${C.border}`,fontSize:13}}>
                   <div>
                     <span style={{color:e.status==="verwerkt"?C.groen:C.muted,marginRight:8}}>{e.status==="verwerkt"?"✓":"○"}</span>
                     <span style={{color:C.text}}>{e.omschrijving}</span>
                     <span style={{fontSize:11,marginLeft:8,color:e.type==="terugbetalen"?C.groen:e.type==="al_ingehouden"?C.groen:e.type==="boete"?"#dc2626":e.type==="tankbon"?"#7c3aed":"#ef4444"}}>
-                      {e.type==="terugbetalen"?"↩ terug":e.type==="al_ingehouden"?"✓ al ingehouden":e.type==="boete"?"🚨 boete":e.type==="tankbon"?"⛽ tankbon":"↪ inhouden"}
+                      {e.type==="terugbetalen"?tx("↩ terug"):e.type==="al_ingehouden"?tx("✓ al ingehouden"):e.type==="boete"?tx("🚨 boete"):e.type==="tankbon"?tx("⛽ tankbon"):tx("↪ inhouden")}
                     </span>
                     {e.status==="verwerkt" && e.verwerkt_op && (
                       <span style={{color:C.groen,fontSize:11,marginLeft:8}}>
@@ -1204,7 +1205,7 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
                       {e.bijlage_url && (
                         <div>
                           <a href={e.bijlage_url} target="_blank" rel="noopener noreferrer"
-                            style={{fontSize:11,color:C.blauw,textDecoration:"none"}}>📎 bijlage</a>
+                            style={{fontSize:11,color:C.blauw,textDecoration:"none"}}>{tx("📎 bijlage")}</a>
                         </div>
                       )}
                     </div>
@@ -1213,7 +1214,7 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
                         style={{background:C.groen,color:"white",border:"none",borderRadius:6,padding:"4px 10px",fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>✓</button>
                     )}
                     {e.status==="verwerkt" && isBackoffice && (
-                      <button onClick={()=>onZetExtraTerug(e.id)} title="Terugzetten naar open"
+                      <button onClick={()=>onZetExtraTerug(e.id)} title={tx("Terugzetten naar open")}
                         style={{background:"white",border:`1px solid ${C.oranje}`,color:C.oranje,borderRadius:6,padding:"4px 8px",fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>↩</button>
                     )}
                   </div>
@@ -1235,26 +1236,26 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
       {/* Opmerking toevoegen — voor iedereen */}
       {toonOpmerkingForm ? (
         <div style={{background:C.bg,border:`1px solid ${C.border}`,borderRadius:10,padding:14,marginBottom:12}}>
-          <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Opmerking / vraag toevoegen</label>
+          <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>{tx("Opmerking / vraag toevoegen")}</label>
           <input value={opmerkingTekst} onChange={e=>setOpmerkingTekst(e.target.value)}
-            placeholder="bijv. medewerker heeft gevraagd om uitstel..."
+            placeholder={tx("bijv. medewerker heeft gevraagd om uitstel...")}
             autoFocus
             style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"9px 12px",fontSize:13,outline:"none",fontFamily:"inherit",boxSizing:"border-box",marginBottom:10}}/>
           <div style={{display:"flex",gap:8}}>
             <button onClick={()=>{ if(opmerkingTekst.trim()){ onOpmerking(plan.id, opmerkingTekst.trim()); setOpmerkingTekst(""); setToonOpmerkingForm(false); }}}
               style={{background:C.blauw,color:"white",border:"none",borderRadius:8,padding:"8px 18px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-              ✓ Opslaan
+              {tx("✓ Opslaan")}
             </button>
             <button onClick={()=>setToonOpmerkingForm(false)}
               style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"8px 12px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
-              Annuleren
+              {tx("Annuleren")}
             </button>
           </div>
         </div>
       ) : (
         <button onClick={()=>setToonOpmerkingForm(true)}
           style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"7px 14px",fontSize:12,cursor:"pointer",fontFamily:"inherit",marginBottom:12}}>
-          💬 Opmerking toevoegen
+          {tx("💬 Opmerking toevoegen")}
         </button>
       )}
 
@@ -1264,32 +1265,32 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
           {!toonExtra ? (
             <button onClick={()=>setToonExtra(true)}
               style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"8px 14px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>
-              ➕ Extra post
+              {tx("➕ Extra post")}
             </button>
           ) : (
             <div style={{width:"100%",background:C.bg,border:`1px solid ${C.border}`,borderRadius:10,padding:14}}>
               <div style={{display:"grid",gridTemplateColumns:"1fr 120px 120px",gap:10,marginBottom:10}}>
-                <input value={extraOmschr} onChange={e=>setExtraOmschr(e.target.value)} placeholder="Omschrijving (bijv. schade deur)"
+                <input value={extraOmschr} onChange={e=>setExtraOmschr(e.target.value)} placeholder={tx("Omschrijving (bijv. schade deur)")}
                   style={{background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"8px 12px",fontSize:13,outline:"none",fontFamily:"inherit"}}/>
-                <input type="number" value={extraBedrag} onChange={e=>setExtraBedrag(e.target.value)} placeholder="€ bedrag"
+                <input type="number" value={extraBedrag} onChange={e=>setExtraBedrag(e.target.value)} placeholder={tx("€ bedrag")}
                   style={{background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"8px 12px",fontSize:13,outline:"none",fontFamily:"inherit"}}/>
                 <select value={extraType} onChange={e=>setExtraType(e.target.value)}
                   style={{background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"8px 12px",fontSize:13,outline:"none",appearance:"none",fontFamily:"inherit"}}>
-                  <option value="inhouden">↪ Inhouden</option>
-                  <option value="terugbetalen">↩ Terugbetalen</option>
-                  <option value="al_ingehouden">✓ Al ingehouden</option>
-                  <option value="boete">🚨 Boete</option>
-                  <option value="tankbon">⛽ Tankbon</option>
+                  <option value="inhouden">{tx("↪ Inhouden")}</option>
+                  <option value="terugbetalen">{tx("↩ Terugbetalen")}</option>
+                  <option value="al_ingehouden">{tx("✓ Al ingehouden")}</option>
+                  <option value="boete">{tx("🚨 Boete")}</option>
+                  <option value="tankbon">{tx("⛽ Tankbon")}</option>
                 </select>
               </div>
               {/* Bijlage upload */}
               <div style={{marginBottom:10}}>
-                <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>BIJLAGE (optioneel)</label>
+                <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>{tx("BIJLAGE (optioneel)")}</label>
                 <label style={{display:"inline-flex",alignItems:"center",gap:8,cursor:"pointer",background:C.bg,border:`1.5px dashed ${C.border}`,borderRadius:8,padding:"7px 14px",fontSize:12,color:C.muted}}>
-                  📎 {extraBijlage ? extraBijlage.name : "Foto of PDF toevoegen"}
+                  📎 {extraBijlage ? extraBijlage.name : tx("Foto of PDF toevoegen")}
                   <input type="file" accept="image/*,.pdf" onChange={e=>setExtraBijlage(e.target.files[0]||null)} style={{display:"none"}}/>
                 </label>
-                {extraBijlage && <button onClick={()=>setExtraBijlage(null)} style={{marginLeft:8,background:"none",border:"none",color:"#ef4444",cursor:"pointer",fontSize:12}}>× verwijderen</button>}
+                {extraBijlage && <button onClick={()=>setExtraBijlage(null)} style={{marginLeft:8,background:"none",border:"none",color:"#ef4444",cursor:"pointer",fontSize:12}}>{tx("× verwijderen")}</button>}
               </div>
               <div style={{display:"flex",gap:8}}>
                 <button onClick={async()=>{
@@ -1310,11 +1311,11 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
                   setUploadingBijlage(false);
                 }} disabled={uploadingBijlage}
                   style={{background:C.blauw,color:"white",border:"none",borderRadius:8,padding:"8px 18px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                  {uploadingBijlage ? "⏳ Uploaden..." : "✓ Toevoegen"}
+                  {uploadingBijlage ? tx("⏳ Uploaden...") : tx("✓ Toevoegen")}
                 </button>
                 <button onClick={()=>setToonExtra(false)}
                   style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"8px 12px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
-                  Annuleren
+                  {tx("Annuleren")}
                 </button>
               </div>
             </div>
@@ -1322,17 +1323,16 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
           {/* Week opschuiven */}
           <button onClick={()=>onSchuifWeekOp(plan.id)}
             style={{background:"white",border:`1.5px solid #f59e0b`,color:"#b45309",borderRadius:8,padding:"8px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-            📅 Week opschuiven
+            {tx("📅 Week opschuiven")}
           </button>
 
           {/* Sleutels aanpassen (bv. medewerker verhuisd naar kamer met minder/meer sleutels) */}
           {toonSleutelsWijzig ? (
             <div style={{width:"100%",background:C.bg,border:`1px solid ${C.border}`,borderRadius:10,padding:14,marginTop:4}}>
-              <div style={{fontWeight:700,fontSize:13,color:C.text,marginBottom:8}}>🔑 Sleutels aanpassen</div>
+              <div style={{fontWeight:700,fontSize:13,color:C.text,marginBottom:8}}>{tx("🔑 Sleutels aanpassen")}</div>
               {heeftVerwerkteSleutelTermijn ? (
                 <div style={{fontSize:12,color:C.rood,marginBottom:10}}>
-                  ⚠️ Er is al een sleuteltermijn ingehouden bij dit plan. Dit kan niet automatisch herberekend worden —
-                  regel het verschil handmatig via "➕ Extra post" (inhouden of terugbetalen).
+                  {tx("⚠️ Er is al een sleuteltermijn ingehouden bij dit plan. Dit kan niet automatisch herberekend worden — regel het verschil handmatig via \"➕ Extra post\" (inhouden of terugbetalen).")}
                 </div>
               ) : (
                 <>
@@ -1340,13 +1340,13 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
                     {[[0,"Geen","€0"],[1,"1 sleutel","€100"],[2,"2 sleutels","€180"]].map(([n,l,prijs])=>(
                       <div key={n} onClick={()=>setNieuweSleutels(n)}
                         style={{flex:1,border:`2px solid ${nieuweSleutels===n?C.blauw:C.border}`,borderRadius:8,padding:"8px",textAlign:"center",cursor:"pointer",background:nieuweSleutels===n?C.blauw+"10":"white"}}>
-                        <div style={{fontWeight:700,fontSize:12,color:nieuweSleutels===n?C.blauw:C.muted}}>{l}</div>
+                        <div style={{fontWeight:700,fontSize:12,color:nieuweSleutels===n?C.blauw:C.muted}}>{tx(l)}</div>
                         <div style={{fontSize:11,color:C.muted}}>{prijs}</div>
                       </div>
                     ))}
                   </div>
                   <div style={{fontSize:11,color:C.muted,marginBottom:10}}>
-                    Alleen de nog openstaande sleuteltermijnen worden vervangen. Fiets- en extra posten blijven ongewijzigd.
+                    {tx("Alleen de nog openstaande sleuteltermijnen worden vervangen. Fiets- en extra posten blijven ongewijzigd.")}
                   </div>
                 </>
               )}
@@ -1358,36 +1358,36 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
                       setToonSleutelsWijzig(false);
                     }}
                     style={{background:C.blauw,color:"white",border:"none",borderRadius:8,padding:"8px 16px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                    ✓ Toepassen
+                    {tx("✓ Toepassen")}
                   </button>
                 )}
                 <button onClick={()=>{ setToonSleutelsWijzig(false); setNieuweSleutels(plan.sleutels ?? 0); }}
                   style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"8px 12px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>
-                  Annuleren
+                  {tx("Annuleren")}
                 </button>
               </div>
             </div>
           ) : (
             <button onClick={()=>{ setNieuweSleutels(plan.sleutels ?? 0); setToonSleutelsWijzig(true); }}
               style={{background:"white",border:`1.5px solid ${C.blauw}`,color:C.blauw,borderRadius:8,padding:"8px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-              🔑 Sleutels aanpassen
+              {tx("🔑 Sleutels aanpassen")}
             </button>
           )}
 
           {/* Vertrokken – afsluiten (borg vervalt of terugbetalen) */}
           {onVertrek && (toonVertrek ? (
             <div style={{width:"100%",background:"#fffbeb",border:"1px solid #fde68a",borderRadius:10,padding:14,marginTop:4}}>
-              <div style={{fontWeight:700,fontSize:13,color:C.text,marginBottom:8}}>🚪 Vertrokken – borgplan afsluiten</div>
+              <div style={{fontWeight:700,fontSize:13,color:C.text,marginBottom:8}}>{tx("🚪 Vertrokken – borgplan afsluiten")}</div>
               <div style={{fontSize:12,color:C.muted,marginBottom:10}}>
-                Ingehouden: <strong style={{color:C.groen}}>€{totaalIngehouden.toFixed(2)}</strong>
-                {" · "}Nog open (vervalt, wordt niet meer ingehouden): <strong style={{color:C.oranje}}>€{nogInTehouden.toFixed(2)}</strong>
+                {tx("Ingehouden:")} <strong style={{color:C.groen}}>€{totaalIngehouden.toFixed(2)}</strong>
+                {" · "}{tx("Nog open (vervalt, wordt niet meer ingehouden):")} <strong style={{color:C.oranje}}>€{nogInTehouden.toFixed(2)}</strong>
               </div>
               <VertrekInfo plan={plan} onNeemOver={tekst=>setVertrekReden(tekst)}/>
               <div style={{display:"flex",gap:10,marginBottom:10,flexWrap:"wrap"}}>
                 {[["vervalt","🔒 Borg vervalt","Niet terugbetalen"],["gedeeltelijk","➗ Deels terug","Zelf bedrag invullen"],["terugbetalen","💶 Volledig terug",`€${totaalIngehouden.toFixed(2)} retour`]].map(([k,l,sub])=>(
                   <div key={k} onClick={()=>setVertrekKeuze(k)}
                     style={{flex:1,minWidth:140,border:`2px solid ${vertrekKeuze===k?C.blauw:C.border}`,borderRadius:8,padding:"8px",textAlign:"center",cursor:"pointer",background:vertrekKeuze===k?C.blauw+"10":"white"}}>
-                    <div style={{fontWeight:700,fontSize:12,color:vertrekKeuze===k?C.blauw:C.muted}}>{l}</div>
+                    <div style={{fontWeight:700,fontSize:12,color:vertrekKeuze===k?C.blauw:C.muted}}>{tx(l)}</div>
                     <div style={{fontSize:11,color:C.muted}}>{sub}</div>
                   </div>
                 ))}
@@ -1399,22 +1399,22 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
                     style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"8px 12px",fontSize:13,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
                   {deelsBedragOk && (
                     <div style={{fontSize:11,color:C.muted,marginTop:4}}>
-                      €{Number(vertrekTerugBedrag).toFixed(2)} terug · €{(totaalIngehouden-Number(vertrekTerugBedrag)).toFixed(2)} blijft ingehouden
+                      €{Number(vertrekTerugBedrag).toFixed(2)} {tx("terug · €")}{(totaalIngehouden-Number(vertrekTerugBedrag)).toFixed(2)} {tx("blijft ingehouden")}
                     </div>
                   )}
                   {vertrekTerugBedrag !== "" && !deelsBedragOk && (
-                    <div style={{fontSize:11,color:C.rood,marginTop:4}}>Bedrag moet tussen €0,01 en €{totaalIngehouden.toFixed(2)} liggen (bij volledig: kies "Volledig terug").</div>
+                    <div style={{fontSize:11,color:C.rood,marginTop:4}}>{tx("Bedrag moet tussen €0,01 en €")}{totaalIngehouden.toFixed(2)} {tx("liggen (bij volledig: kies \"Volledig terug\").")}</div>
                   )}
                 </div>
               )}
               {vertrekHeeftTerug && (
                 <div style={{marginBottom:10}}>
-                  <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".6px",textTransform:"uppercase",marginBottom:6}}>Terugbetaling *</div>
+                  <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".6px",textTransform:"uppercase",marginBottom:6}}>{tx("Terugbetaling *")}</div>
                   <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
                     {[["direct","✓ Direct verwerkt in verloning","Wordt meteen afgevinkt"],["later","⏳ Nog niet verwerkt","Komt in 'Terug te betalen'"]].map(([k,l,sub])=>(
                       <div key={k} onClick={()=>setVertrekUitbetaling(k)}
                         style={{flex:1,minWidth:140,border:`2px solid ${vertrekUitbetaling===k?C.groen:C.border}`,borderRadius:8,padding:"8px",textAlign:"center",cursor:"pointer",background:vertrekUitbetaling===k?C.groen+"10":"white"}}>
-                        <div style={{fontWeight:700,fontSize:12,color:vertrekUitbetaling===k?C.groen:C.muted}}>{l}</div>
+                        <div style={{fontWeight:700,fontSize:12,color:vertrekUitbetaling===k?C.groen:C.muted}}>{tx(l)}</div>
                         <div style={{fontSize:11,color:C.muted}}>{sub}</div>
                       </div>
                     ))}
@@ -1422,7 +1422,7 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
                 </div>
               )}
               <input value={vertrekReden} onChange={e=>setVertrekReden(e.target.value)}
-                placeholder={vertrekKeuze==="terugbetalen" ? "Reden (bijv. controle akkoord)" : vertrekKeuze==="gedeeltelijk" ? "Reden inhouding (bijv. schoonmaakkosten €50, kapotte lamp...)" : "Reden (bijv. sleutel niet ingeleverd, schade kamer...)"}
+                placeholder={vertrekKeuze==="terugbetalen" ? tx("Reden (bijv. controle akkoord)") : vertrekKeuze==="gedeeltelijk" ? tx("Reden inhouding (bijv. schoonmaakkosten €50, kapotte lamp...)") : tx("Reden (bijv. sleutel niet ingeleverd, schade kamer...)")}
                 style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"8px 12px",fontSize:13,outline:"none",fontFamily:"inherit",boxSizing:"border-box",marginBottom:8}}/>
               <div style={{display:"flex",gap:8}}>
                 <button disabled={!vertrekKanAfsluiten}
@@ -1439,43 +1439,43 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
                     setToonVertrek(false); setVertrekReden(""); setVertrekTerugBedrag(""); setVertrekUitbetaling("");
                   }}
                   style={{background:vertrekKanAfsluiten?C.blauw:C.border,color:"white",border:"none",borderRadius:8,padding:"8px 16px",fontSize:12,fontWeight:600,cursor:vertrekKanAfsluiten?"pointer":"not-allowed",fontFamily:"inherit"}}>
-                  ✓ Afsluiten
+                  {tx("✓ Afsluiten")}
                 </button>
                 <button onClick={()=>{ setToonVertrek(false); setVertrekReden(""); setVertrekTerugBedrag(""); setVertrekUitbetaling(""); }}
                   style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"8px 12px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>
-                  Annuleren
+                  {tx("Annuleren")}
                 </button>
               </div>
             </div>
           ) : (
             <button onClick={()=>{ setVertrekKeuze("vervalt"); setVertrekUitbetaling(""); setToonVertrek(true); }}
               style={{background:"white",border:`1.5px solid ${C.blauw}`,color:C.blauw,borderRadius:8,padding:"8px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-              🚪 Vertrokken – afsluiten
+              {tx("🚪 Vertrokken – afsluiten")}
             </button>
           ))}
 
           {/* Archiveren met reden (alleen voor test / fout ingevoerd) */}
           {toonArchiveer ? (
             <div style={{width:"100%",background:"#fef2f2",border:"1px solid #fecaca",borderRadius:10,padding:14,marginTop:4}}>
-              <div style={{fontWeight:700,fontSize:13,color:C.rood,marginBottom:8}}>🗑 Borgplan archiveren</div>
+              <div style={{fontWeight:700,fontSize:13,color:C.rood,marginBottom:8}}>{tx("🗑 Borgplan archiveren")}</div>
               <input value={archiveerReden} onChange={e=>setArchiveerReden(e.target.value)}
-                placeholder="Reden (bijv. test, fout ingevoerd...)" autoFocus
+                placeholder={tx("Reden (bijv. test, fout ingevoerd...)")} autoFocus
                 style={{width:"100%",background:"white",border:"1.5px solid #fecaca",borderRadius:8,color:C.text,padding:"8px 12px",fontSize:13,outline:"none",fontFamily:"inherit",boxSizing:"border-box",marginBottom:8}}/>
               <div style={{display:"flex",gap:8}}>
                 <button onClick={()=>{ if(archiveerReden.trim()){ onArchiveer(plan.id, archiveerReden.trim()); setToonArchiveer(false); setArchiveerReden(""); }}}
                   style={{background:C.rood,color:"white",border:"none",borderRadius:8,padding:"8px 16px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                  ✓ Archiveren
+                  {tx("✓ Archiveren")}
                 </button>
                 <button onClick={()=>setToonArchiveer(false)}
                   style={{background:"white",border:"1px solid #fecaca",color:C.rood,borderRadius:8,padding:"8px 12px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>
-                  Annuleren
+                  {tx("Annuleren")}
                 </button>
               </div>
             </div>
           ) : (
             <button onClick={()=>setToonArchiveer(true)}
               style={{background:"white",border:`1.5px solid ${C.rood}`,color:C.rood,borderRadius:8,padding:"8px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-              🗑 Archiveren
+              {tx("🗑 Archiveren")}
             </button>
           )}
         </div>
@@ -1489,14 +1489,14 @@ function TerugBetalen({ extras, plannen, isBackoffice, onVerwerk }) {
   if (extras.length === 0) return (
     <div style={{textAlign:"center",padding:"60px",color:C.muted}}>
       <div style={{fontSize:36,marginBottom:8}}>🎉</div>
-      <div>Geen borg te retourneren</div>
+      <div>{tx("Geen borg te retourneren")}</div>
     </div>
   );
   return (
     <div>
       <div style={{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:12,padding:"14px 18px",marginBottom:20}}>
         <div style={{fontWeight:700,color:C.groen}}>
-          💶 {extras.length} terugbetaling{extras.length>1?"en":""} — Totaal: €{extras.reduce((s,e)=>s+Number(e.bedrag),0).toFixed(2)}
+          💶 {extras.length} {tx("terugbetaling")}{extras.length>1?tx("en"):""} {tx("— Totaal: €")}{extras.reduce((s,e)=>s+Number(e.bedrag),0).toFixed(2)}
         </div>
       </div>
       {extras.map(e=>{
@@ -1507,17 +1507,17 @@ function TerugBetalen({ extras, plannen, isBackoffice, onVerwerk }) {
               <div>
                 <div style={{fontWeight:700,fontSize:15,color:C.text}}>{e.naam_medewerker}</div>
                 <div style={{fontSize:13,color:C.muted,marginTop:3}}>{e.omschrijving}</div>
-                {plan && <div style={{fontSize:12,color:C.muted,marginTop:2}}>Plan aangemaakt door {plan.aangemaakt_door}</div>}
+                {plan && <div style={{fontSize:12,color:C.muted,marginTop:2}}>{tx("Plan aangemaakt door")} {plan.aangemaakt_door}</div>}
               </div>
               <div style={{display:"flex",alignItems:"center",gap:16}}>
                 <div style={{textAlign:"right"}}>
                   <div style={{fontSize:22,fontWeight:800,color:C.groen}}>€{Number(e.bedrag).toFixed(2)}</div>
-                  <div style={{fontSize:11,color:C.muted}}>terug te betalen</div>
+                  <div style={{fontSize:11,color:C.muted}}>{tx("terug te betalen")}</div>
                 </div>
                 {isBackoffice && (
                   <button onClick={()=>onVerwerk(e.id)}
                     style={{background:C.groen,color:"white",border:"none",borderRadius:8,padding:"10px 18px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                    ✓ Uitbetaald
+                    {tx("✓ Uitbetaald")}
                   </button>
                 )}
               </div>
@@ -1532,7 +1532,7 @@ function TerugBetalen({ extras, plannen, isBackoffice, onVerwerk }) {
 // ─── ARCHIEF ─────────────────────────────────────────────────────────────────
 function Archief({ plannen, termijnen, extras, houses }) {
   if (plannen.length === 0) return (
-    <div style={{textAlign:"center",padding:"60px",color:C.muted}}>Geen afgesloten plannen</div>
+    <div style={{textAlign:"center",padding:"60px",color:C.muted}}>{tx("Geen afgesloten plannen")}</div>
   );
   return (
     <div style={{display:"grid",gap:12}}>
@@ -1574,13 +1574,13 @@ function ArchiefKaart({ plan, termijnen, extras, huis }) {
         <div>
           <div style={{fontWeight:700,fontSize:14,color:C.text}}>{plan.naam_medewerker}</div>
           <div style={{fontSize:12,color:C.muted}}>{huis?`${huis.adres}`:""}{plan.kamer?` K${plan.kamer}`:""}</div>
-          <div style={{fontSize:12,color:C.muted}}>🔑 {plan.sleutels} sleutel{plan.sleutels>1?"s":""}{plan.heeft_fiets?" · 🚲 Fiets":""}</div>
+          <div style={{fontSize:12,color:C.muted}}>🔑 {plan.sleutels} {tx("sleutel")}{plan.sleutels>1?"s":""}{plan.heeft_fiets?tx(" · 🚲 Fiets"):""}</div>
         </div>
         <div style={{textAlign:"right"}}>
-          <div style={{fontWeight:700,color:kleur}}>{label}</div>
-          <div style={{fontSize:12,color:C.muted}}>€{Number(plan.totaal_borg).toFixed(2)} totaal · <span style={{color:C.groen}}>€{ingeh.toFixed(2)} ingehouden</span>{verv>0 && <> · <span style={{color:C.oranje}}>€{verv.toFixed(2)} vervallen</span></>}</div>
-          {terugB>0 && <div style={{fontSize:12,color:C.groen}}>€{terugB.toFixed(2)} terug{terugOpen?" (nog uit te betalen)":" ✓ uitbetaald"}</div>}
-          {plan.vertrek_datum && <div style={{fontSize:11,color:C.muted}}>Vertrek: {new Date(plan.vertrek_datum).toLocaleDateString("nl-NL")}</div>}
+          <div style={{fontWeight:700,color:kleur}}>{tx(label)}</div>
+          <div style={{fontSize:12,color:C.muted}}>€{Number(plan.totaal_borg).toFixed(2)} {tx("totaal ·")} <span style={{color:C.groen}}>€{ingeh.toFixed(2)} {tx("ingehouden")}</span>{verv>0 && <> · <span style={{color:C.oranje}}>€{verv.toFixed(2)} {tx("vervallen")}</span></>}</div>
+          {terugB>0 && <div style={{fontSize:12,color:C.groen}}>€{terugB.toFixed(2)} {tx("terug")}{terugOpen?tx(" (nog uit te betalen)"):tx(" ✓ uitbetaald")}</div>}
+          {plan.vertrek_datum && <div style={{fontSize:11,color:C.muted}}>{tx("Vertrek:")} {new Date(plan.vertrek_datum).toLocaleDateString("nl-NL")}</div>}
         </div>
       </div>
       {plan.opmerkingen && (
@@ -1590,20 +1590,20 @@ function ArchiefKaart({ plan, termijnen, extras, huis }) {
       {(t.length>0 || ex.length>0) && (
         <button onClick={()=>setOpen(!open)}
           style={{background:"none",border:"none",color:C.blauw,fontSize:13,cursor:"pointer",fontFamily:"inherit",padding:"8px 0 0",fontWeight:600}}>
-          {open?"▲":"▼"} Termijnen bekijken ({aantalIngeh} van {t.length} ingehouden{ex.length>0?` · ${ex.length} extra post${ex.length>1?"en":""}`:""})
+          {open?"▲":"▼"} {tx("Termijnen bekijken (")}{aantalIngeh} {tx("van")} {t.length} {tx("ingehouden")}{ex.length>0?` · ${ex.length} extra post${ex.length>1?"en":""}`:""})
         </button>
       )}
 
       {open && (
         <div style={{marginTop:8}}>
-          {t.length===0 && <div style={{fontSize:12,color:C.muted,padding:"6px 0"}}>Geen termijnen.</div>}
+          {t.length===0 && <div style={{fontSize:12,color:C.muted,padding:"6px 0"}}>{tx("Geen termijnen.")}</div>}
           {t.map(x=>{
             const st = termStatus(x.status);
             return (
               <div key={x.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:`1px solid ${C.border}`,fontSize:13,gap:8}}>
                 <div>
                   <span style={{color:st.kleur,marginRight:8,fontWeight:700}}>{st.icoon}</span>
-                  <span style={{fontWeight:600,color:C.text}}>Week {x.week_nummer}/{x.jaar}</span>
+                  <span style={{fontWeight:600,color:C.text}}>{tx("Week")} {x.week_nummer}/{x.jaar}</span>
                   {x.omschrijving && <span style={{color:C.muted,marginLeft:8}}>{x.omschrijving}</span>}
                   <span style={{color:st.kleur,fontSize:11,marginLeft:8}}>
                     {st.tekst}{x.status==="verwerkt" && x.verwerkt_op ? ` · ${fmtDate(x.verwerkt_op)}${x.verwerkt_door?` door ${x.verwerkt_door}`:""}` : ""}
@@ -1617,16 +1617,16 @@ function ArchiefKaart({ plan, termijnen, extras, huis }) {
 
           {ex.length>0 && (
             <div style={{marginTop:10}}>
-              <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".6px",textTransform:"uppercase",marginBottom:4}}>Extra posten</div>
+              <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".6px",textTransform:"uppercase",marginBottom:4}}>{tx("Extra posten")}</div>
               {ex.map(e=>(
                 <div key={e.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:`1px solid ${C.border}`,fontSize:13,gap:8}}>
                   <div>
                     <span style={{color:e.status==="verwerkt"?C.groen:C.muted,marginRight:8}}>{e.status==="verwerkt"?"✓":"○"}</span>
                     <span style={{color:C.text}}>{e.omschrijving}</span>
                     <span style={{fontSize:11,marginLeft:8,color:e.type==="terugbetalen"||e.type==="al_ingehouden"?C.groen:C.rood}}>
-                      {e.type==="terugbetalen"?"↩ terug":e.type==="al_ingehouden"?"✓ al ingehouden":e.type==="boete"?"🚨 boete":e.type==="tankbon"?"⛽ tankbon":"↪ inhouden"}
+                      {e.type==="terugbetalen"?tx("↩ terug"):e.type==="al_ingehouden"?tx("✓ al ingehouden"):e.type==="boete"?tx("🚨 boete"):e.type==="tankbon"?tx("⛽ tankbon"):tx("↪ inhouden")}
                     </span>
-                    {e.status && e.status!=="verwerkt" && <span style={{fontSize:11,color:C.muted,marginLeft:6}}>({e.status})</span>}
+                    {e.status && e.status!=="verwerkt" && <span style={{fontSize:11,color:C.muted,marginLeft:6}}>({tx(e.status)})</span>}
                     {e.status==="verwerkt" && e.verwerkt_op && (
                       <span style={{color:C.groen,fontSize:11,marginLeft:8}}>· {fmtDate(e.verwerkt_op)}{e.verwerkt_door?` door ${e.verwerkt_door}`:""}</span>
                     )}
@@ -1662,8 +1662,8 @@ function LosseInhoudingForm({ onSubmit, onAnnuleer }) {
   async function handleSubmit() {
     const naamFout = naamProbleem(naam);
     if (naamFout) { alert(naamFout); return; }
-    if (!bedrag || Number(bedrag) <= 0) { alert("Vul een geldig bedrag in"); return; }
-    if (!omschrijving.trim()) { alert("Vul een omschrijving in"); return; }
+    if (!bedrag || Number(bedrag) <= 0) { alert(tx("Vul een geldig bedrag in")); return; }
+    if (!omschrijving.trim()) { alert(tx("Vul een omschrijving in")); return; }
     setSaving(true);
     let bijlageUrls = [];
     if (bijlages.length > 0) {
@@ -1676,32 +1676,32 @@ function LosseInhoudingForm({ onSubmit, onAnnuleer }) {
 
   return (
     <div style={{background:"white",border:"2px solid #f59e0b",borderRadius:12,padding:20,marginBottom:20}}>
-      <div style={{fontWeight:800,fontSize:15,color:"#b45309",marginBottom:4}}>💸 Losse inhouding toevoegen</div>
-      <div style={{fontSize:13,color:"#b45309",marginBottom:16}}>Voor eenmalige inhoudingen zonder borgplan — bijv. boete, schade, terugvordering.</div>
+      <div style={{fontWeight:800,fontSize:15,color:"#b45309",marginBottom:4}}>{tx("💸 Losse inhouding toevoegen")}</div>
+      <div style={{fontSize:13,color:"#b45309",marginBottom:16}}>{tx("Voor eenmalige inhoudingen zonder borgplan — bijv. boete, schade, terugvordering.")}</div>
 
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
         <div>
-          <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Naam medewerker *</label>
-          <MedewerkerKiezer value={naam} onChange={setNaam} autoFocus placeholder="Voor- en achternaam (typ om te zoeken)"/>
+          <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>{tx("Naam medewerker *")}</label>
+          <MedewerkerKiezer value={naam} onChange={setNaam} autoFocus placeholder={tx("Voor- en achternaam (typ om te zoeken)")}/>
         </div>
         <div>
-          <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Bedrag (€) *</label>
-          <input type="number" step="0.01" min="0.01" value={bedrag} onChange={e=>setBedrag(e.target.value)} placeholder="bijv. 75.00"
+          <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>{tx("Bedrag (€) *")}</label>
+          <input type="number" step="0.01" min="0.01" value={bedrag} onChange={e=>setBedrag(e.target.value)} placeholder={tx("bijv. 75.00")}
             style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"10px 14px",fontSize:14,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
         </div>
         <div style={{gridColumn:"1/-1"}}>
-          <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Omschrijving / reden *</label>
-          <input value={omschrijving} onChange={e=>setOmschrijving(e.target.value)} placeholder="bijv. Boete te laat, schade kamer, terugvordering..."
+          <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>{tx("Omschrijving / reden *")}</label>
+          <input value={omschrijving} onChange={e=>setOmschrijving(e.target.value)} placeholder={tx("bijv. Boete te laat, schade kamer, terugvordering...")}
             style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"10px 14px",fontSize:14,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
         </div>
         <div style={{gridColumn:"1/-1"}}>
-          <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Inhouden in week</label>
+          <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>{tx("Inhouden in week")}</label>
           <div style={{display:"flex",alignItems:"center",gap:12}}>
             <button onClick={()=>setWeek(w=>Math.max(1,w-1))}
               style={{background:C.bg,border:`1.5px solid ${C.border}`,borderRadius:8,padding:"8px 14px",fontSize:16,cursor:"pointer",fontFamily:"inherit"}}>‹</button>
             <div style={{textAlign:"center",flex:1}}>
-              <div style={{fontWeight:800,fontSize:18,color:"#b45309"}}>Week {week}</div>
-              <div style={{fontSize:12,color:C.muted}}>Ma {fmtDate(maandag)} · Do {fmtDate(donderdag)}</div>
+              <div style={{fontWeight:800,fontSize:18,color:"#b45309"}}>{tx("Week")} {week}</div>
+              <div style={{fontSize:12,color:C.muted}}>{tx("Ma")} {fmtDate(maandag)} {tx("· Do")} {fmtDate(donderdag)}</div>
             </div>
             <button onClick={()=>setWeek(w=>Math.min(52,w+1))}
               style={{background:C.bg,border:`1.5px solid ${C.border}`,borderRadius:8,padding:"8px 14px",fontSize:16,cursor:"pointer",fontFamily:"inherit"}}>›</button>
@@ -1713,25 +1713,25 @@ function LosseInhoudingForm({ onSubmit, onAnnuleer }) {
         <BijlageUploader
           bestanden={bijlages}
           setBestanden={setBijlages}
-          label="📎 Bijlage toevoegen (factuur, bon, foto)"
+          label={tx("📎 Bijlage toevoegen (factuur, bon, foto)")}
         />
       </div>
 
       {naam && bedrag && omschrijving && (
         <div style={{background:"#fffbeb",border:"1px solid #fcd34d",borderRadius:10,padding:"12px 16px",marginBottom:14,fontSize:13,color:"#b45309"}}>
-          💸 <strong>{naam}</strong> — €{bedrag} inhouden in week {week} voor: {omschrijving}
-          {bijlages.length > 0 && <span style={{marginLeft:8}}>· 📎 {bijlages.length} bijlage{bijlages.length>1?"s":""}</span>}
+          💸 <strong>{naam}</strong> — €{bedrag} {tx("inhouden in week")} {week} {tx("voor:")} {omschrijving}
+          {bijlages.length > 0 && <span style={{marginLeft:8}}>· 📎 {bijlages.length} {tx("bijlage")}{bijlages.length>1?"s":""}</span>}
         </div>
       )}
 
       <div style={{display:"flex",gap:10}}>
         <button onClick={handleSubmit} disabled={saving||!naam.trim()||!bedrag||!omschrijving.trim()}
           style={{background:saving||!naam.trim()||!bedrag||!omschrijving.trim()?"#d1d5db":"#f59e0b",color:"white",border:"none",borderRadius:8,padding:"11px 24px",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
-          {saving?"⏳ Opslaan...":"💸 Inhouding inplannen"}
+          {saving?tx("⏳ Opslaan..."):tx("💸 Inhouding inplannen")}
         </button>
         <button onClick={onAnnuleer}
           style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"11px 18px",fontSize:14,cursor:"pointer",fontFamily:"inherit"}}>
-          Annuleren
+          {tx("Annuleren")}
         </button>
       </div>
     </div>
@@ -1754,7 +1754,7 @@ function NieuwBorgPlan({ houses, onSubmit, onAnnuleer }) {
   async function handleSubmit() {
     const naamFout = naamProbleem(naam);
     if (naamFout) { alert(naamFout); return; }
-    if (sleutels === null && !heeftFiets) { alert("Selecteer minimaal 1 sleutel of fiets"); return; }
+    if (sleutels === null && !heeftFiets) { alert(tx("Selecteer minimaal 1 sleutel of fiets")); return; }
     setSaving(true);
     await onSubmit({ naam_medewerker: normaliseerNaam(naam), woning_id: woningId ? Number(woningId) : null, kamer, aankomst_datum: aankomst || null, sleutels: sleutels !== null ? Number(sleutels) : 0, heeft_fiets: heeftFiets });
     vernieuwMedewerkerNamen();
@@ -1763,31 +1763,31 @@ function NieuwBorgPlan({ houses, onSubmit, onAnnuleer }) {
 
   return (
     <div style={{background:"white",border:`2px solid ${C.blauw}`,borderRadius:12,padding:20,marginBottom:20}}>
-      <div style={{fontWeight:800,fontSize:15,color:C.blauw,marginBottom:16}}>🔐 Nieuw borgplan aanmaken</div>
+      <div style={{fontWeight:800,fontSize:15,color:C.blauw,marginBottom:16}}>{tx("🔐 Nieuw borgplan aanmaken")}</div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
         <div>
-          <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Naam medewerker *</label>
-          <MedewerkerKiezer value={naam} onChange={setNaam} houses={houses} placeholder="Voor- en achternaam (typ om te zoeken)"/>
+          <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>{tx("Naam medewerker *")}</label>
+          <MedewerkerKiezer value={naam} onChange={setNaam} houses={houses} placeholder={tx("Voor- en achternaam (typ om te zoeken)")}/>
         </div>
         <div>
-          <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Aankomstdatum</label>
+          <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>{tx("Aankomstdatum")}</label>
           <WeekDatePicker value={aankomst} onChange={v=>setAankomst(v)}
             style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"10px 14px",fontSize:14,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
         </div>
         <div>
-          <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Woning</label>
+          <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>{tx("Woning")}</label>
           <select value={woningId} onChange={e=>setWoningId(e.target.value)}
             style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"10px 14px",fontSize:14,outline:"none",appearance:"none",fontFamily:"inherit"}}>
-            <option value="">Selecteer woning</option>
+            <option value="">{tx("Selecteer woning")}</option>
             {houses.map(h=><option key={h.id} value={h.id}>{h.adres}, {h.stad}</option>)}
           </select>
         </div>
         <div>
-          <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>Kamer</label>
+          <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>{tx("Kamer")}</label>
           <select value={kamer} onChange={e=>setKamer(e.target.value)}
             style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"10px 14px",fontSize:14,outline:"none",appearance:"none",fontFamily:"inherit"}}>
-            <option value="">Selecteer kamer</option>
-            {(geselecteerdeHuis?.kamers||[]).map(k=><option key={k.k} value={k.k}>Kamer {k.k}{k.naam?` — ${k.naam}`:""}</option>)}
+            <option value="">{tx("Selecteer kamer")}</option>
+            {(geselecteerdeHuis?.kamers||[]).map(k=><option key={k.k} value={k.k}>{tx("Kamer")} {k.k}{k.naam?` — ${k.naam}`:""}</option>)}
           </select>
         </div>
       </div>
@@ -1795,24 +1795,24 @@ function NieuwBorgPlan({ houses, onSubmit, onAnnuleer }) {
       {/* Sleutels + fiets */}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:16}}>
         <div>
-          <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:8,display:"block"}}>Aantal sleutels</label>
+          <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:8,display:"block"}}>{tx("Aantal sleutels")}</label>
           <div style={{display:"flex",gap:8}}>
             {[[0,"Geen","🚫","€0"],[1,"1 sleutel","🔑","€100"],[2,"2 sleutels","🔑🔑","€180"]].map(([n,l,icon,prijs])=>(
               <div key={n} onClick={()=>setSleutels(n)}
                 style={{flex:1,border:`2px solid ${sleutels===n?C.blauw:C.border}`,borderRadius:10,padding:"12px",textAlign:"center",cursor:"pointer",background:sleutels===n?C.blauw+"10":"white"}}>
                 <div style={{fontSize:20,marginBottom:4}}>{icon}</div>
-                <div style={{fontWeight:700,fontSize:13,color:sleutels===n?C.blauw:C.muted}}>{l}</div>
+                <div style={{fontWeight:700,fontSize:13,color:sleutels===n?C.blauw:C.muted}}>{tx(l)}</div>
                 <div style={{fontSize:11,color:C.muted}}>{prijs}</div>
               </div>
             ))}
           </div>
         </div>
         <div>
-          <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:8,display:"block"}}>Fiets</label>
+          <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:8,display:"block"}}>{tx("Fiets")}</label>
           <div onClick={()=>setHeeftFiets(!heeftFiets)}
             style={{border:`2px solid ${heeftFiets?C.groen:C.border}`,borderRadius:10,padding:"12px",textAlign:"center",cursor:"pointer",background:heeftFiets?C.groen+"10":"white"}}>
             <div style={{fontSize:20,marginBottom:4}}>🚲</div>
-            <div style={{fontWeight:700,fontSize:13,color:heeftFiets?C.groen:C.muted}}>{heeftFiets?"Ja, heeft fiets":"Geen fiets"}</div>
+            <div style={{fontWeight:700,fontSize:13,color:heeftFiets?C.groen:C.muted}}>{heeftFiets?tx("Ja, heeft fiets"):tx("Geen fiets")}</div>
             {heeftFiets && <div style={{fontSize:11,color:C.muted}}>+€100</div>}
           </div>
         </div>
@@ -1820,15 +1820,15 @@ function NieuwBorgPlan({ houses, onSubmit, onAnnuleer }) {
 
       {/* Preview */}
       <div style={{background:"#eff6ff",border:"1px solid #bfdbfe",borderRadius:10,padding:14,marginBottom:16}}>
-        <div style={{fontWeight:700,color:C.blauw,marginBottom:8}}>📋 Borgplan overzicht</div>
+        <div style={{fontWeight:700,color:C.blauw,marginBottom:8}}>{tx("📋 Borgplan overzicht")}</div>
         {termijnen.map((t,i)=>(
           <div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:13,padding:"4px 0",borderBottom:i<termijnen.length-1?`1px solid ${C.border}`:"none"}}>
-            <span style={{color:C.text}}>Week {i+2} — {t.omschrijving}</span>
+            <span style={{color:C.text}}>{tx("Week")} {i+2} — {t.omschrijving}</span>
             <span style={{fontWeight:700,color:C.blauw}}>€{t.bedrag}</span>
           </div>
         ))}
         <div style={{display:"flex",justifyContent:"space-between",fontSize:14,fontWeight:800,color:C.blauw,marginTop:10,paddingTop:8,borderTop:`2px solid ${C.blauw}`}}>
-          <span>Totaal</span>
+          <span>{tx("Totaal")}</span>
           <span>€{totaal}</span>
         </div>
       </div>
@@ -1836,11 +1836,11 @@ function NieuwBorgPlan({ houses, onSubmit, onAnnuleer }) {
       <div style={{display:"flex",gap:10}}>
         <button onClick={handleSubmit} disabled={saving||!naam.trim()}
           style={{background:saving||!naam.trim()?C.border:C.blauw,color:"white",border:"none",borderRadius:8,padding:"11px 24px",fontSize:14,fontWeight:700,cursor:saving||!naam.trim()?"not-allowed":"pointer",fontFamily:"inherit"}}>
-          {saving?"⏳ Aanmaken...":"✓ Borgplan aanmaken"}
+          {saving?tx("⏳ Aanmaken..."):tx("✓ Borgplan aanmaken")}
         </button>
         <button onClick={onAnnuleer}
           style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"11px 18px",fontSize:14,cursor:"pointer",fontFamily:"inherit"}}>
-          Annuleren
+          {tx("Annuleren")}
         </button>
       </div>
     </div>
