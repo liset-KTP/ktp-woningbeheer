@@ -8738,5 +8738,40 @@
   "en": "🪪 Driving licence checked",
   "ro": "🪪 Permis de conducere verificat",
   "pl": "🪪 Prawo jazdy sprawdzone"
+ },
+ "⚠️ Let op: deze auto is gereserveerd voor {0}": {
+  "en": "⚠️ Note: this car is reserved for {0}",
+  "ro": "⚠️ Atenție: această mașină este rezervată pentru {0}",
+  "pl": "⚠️ Uwaga: ten samochód jest zarezerwowany dla {0}"
+ },
+ "📅 Gereserveerd voor {0}": {
+  "en": "📅 Reserved for {0}",
+  "ro": "📅 Rezervată pentru {0}",
+  "pl": "📅 Zarezerwowany dla {0}"
+ },
+ "Vul de verwachte uitgiftedatum in": {
+  "en": "Enter the expected handover date",
+  "ro": "Completați data estimată de predare",
+  "pl": "Podaj przewidywaną datę wydania"
+ },
+ "Verwachte uitgiftedatum *": {
+  "en": "Expected handover date *",
+  "ro": "Data estimată de predare *",
+  "pl": "Przewidywana data wydania *"
+ },
+ "⚠️ Deze auto staat nu op \"{0}\" ({1}). Na opslaan staat hij op Gereserveerd voor de nieuwe medewerker.": {
+  "en": "⚠️ This car is currently \"{0}\" ({1}). After saving it will be Reserved for the new employee.",
+  "ro": "⚠️ Această mașină are acum statusul \"{0}\" ({1}). După salvare va fi Rezervată pentru noul angajat.",
+  "pl": "⚠️ Ten samochód ma teraz status \"{0}\" ({1}). Po zapisaniu będzie Zarezerwowany dla nowego pracownika."
+ },
+ "⚠️ Deze auto staat nu op \"{0}\". Na opslaan staat hij op Gereserveerd.": {
+  "en": "⚠️ This car is currently \"{0}\". After saving it will be Reserved.",
+  "ro": "⚠️ Această mașină are acum statusul \"{0}\". După salvare va fi Rezervată.",
+  "pl": "⚠️ Ten samochód ma teraz status \"{0}\". Po zapisaniu będzie Zarezerwowany."
+ },
+ "Reserveer een auto voor een medewerker — de auto komt op Gereserveerd te staan": {
+  "en": "Reserve a car for an employee — the car will be set to Reserved",
+  "ro": "Rezervați o mașină pentru un angajat — mașina va avea statusul Rezervată",
+  "pl": "Zarezerwuj samochód dla pracownika — samochód otrzyma status Zarezerwowany"
  }
 }

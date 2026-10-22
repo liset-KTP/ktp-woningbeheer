@@ -176,10 +176,12 @@ export function AutoModule({ gebruiker, showToast }) {
     if (m.kenteken && m.actie !== "geannuleerd") {
       const auto = autos.find(a => a.kenteken === m.kenteken);
       if (auto) {
-        const nieuweStatus = m.actie === "uitgifte" ? "Lopend" : m.actie === "storing" ? auto.status : "Beschikbaar";
+        // Reservering: auto op "Gereserveerd" zetten op naam van de medewerker; datum_uitgifte blijft ongemoeid
+        // (die wordt pas gezet bij de echte uitgifte via de wizard).
+        const nieuweStatus = m.actie === "uitgifte" ? "Lopend" : m.actie === "reservering" ? "Gereserveerd" : m.actie === "storing" ? auto.status : "Beschikbaar";
         await supabase.from("autos").update({
           status: nieuweStatus,
-          naam_medewerker: m.actie === "uitgifte" ? m.naam_medewerker : (m.actie === "storing" ? auto.naam_medewerker : null),
+          naam_medewerker: (m.actie === "uitgifte" || m.actie === "reservering") ? m.naam_medewerker : (m.actie === "storing" ? auto.naam_medewerker : null),
           datum_uitgifte: m.actie === "uitgifte" ? (m.datum_tijd ? m.datum_tijd.slice(0,10) : new Date().toISOString().slice(0,10)) : (m.actie === "inname" ? null : undefined),
         }).eq("id", auto.id);
       }
@@ -189,6 +191,7 @@ export function AutoModule({ gebruiker, showToast }) {
     const actieTekst = {
       uitgifte: "🚗 Auto uitgifte", inname: "🔑 Auto inname",
       storing: "🔧 Auto storing/schade", geannuleerd: "❌ Auto geannuleerd",
+      reservering: "📅 Auto gereserveerd",
     };
     const heeftKosten = m.actie === "inname" && m.kosten_inhouden !== null && m.kosten_inhouden !== undefined && Number(m.kosten_inhouden) > 0;
     const heeftAfwijking = (!!m.afwijking_gevonden && Array.isArray(afwijkingen) && afwijkingen.length > 0) || heeftKosten;
@@ -204,7 +207,7 @@ export function AutoModule({ gebruiker, showToast }) {
       medewerker:    m.naam_medewerker,
       woning:        `Kenteken: ${m.kenteken}`,
       kamer:         m.locatie ? `Locatie: ${m.locatie}` : "—",
-      datum:         m.datum_tijd ? new Date(m.datum_tijd).toLocaleDateString("nl-NL") : "—",
+      datum:         m.datum_tijd ? (m.actie === "reservering" ? "Verwachte uitgifte: " : "") + new Date(m.datum_tijd).toLocaleDateString("nl-NL") : "—",
       ingediend_door: gebruiker.naam,
       opmerkingen:   opmerkingenDelen.length > 0 ? opmerkingenDelen.join(" · ") : "—",
     });
@@ -846,10 +849,25 @@ function AutoHandoverWizard({ autos, gebruiker, actie, onSubmit, showToast }) {
         <div className="card" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:18,marginBottom:16}}>
           <div>
             <label style={lbl}>{tx("Kenteken *")}</label>
-            <select style={{...inp,appearance:"none"}} value={kenteken} onChange={e=>setKenteken(e.target.value)}>
+            <select style={{...inp,appearance:"none"}} value={kenteken} onChange={e=>{
+              const k = e.target.value; setKenteken(k);
+              // Gereserveerde auto uitgeven → naam van de reservering alvast invullen (alleen als het veld nog leeg is)
+              const gek = autos.find(a => a.kenteken === k);
+              if (actie === "uitgifte" && gek?.status === "Gereserveerd" && gek.naam_medewerker && !naamMedewerker) setNaamMedewerker(gek.naam_medewerker);
+            }}>
               <option value="">{tx("Selecteer auto")}</option>
               {autos.map(a=><option key={a.id} value={a.kenteken}>{tx(a.kenteken)} — {tx(a.merk_model)} [{tx(a.status)}]</option>)}
             </select>
+            {(() => {
+              const gek = autos.find(a => a.kenteken === kenteken);
+              if (actie !== "uitgifte" || gek?.status !== "Gereserveerd" || !gek.naam_medewerker) return null;
+              const andereNaam = naamMedewerker && normaliseerNaam(naamMedewerker) !== normaliseerNaam(gek.naam_medewerker);
+              return (
+                <div style={{marginTop:6,fontSize:12,fontWeight:600,color:andereNaam?"#b91c1c":"#b45309"}}>
+                  {andereNaam ? txv("⚠️ Let op: deze auto is gereserveerd voor {0}", gek.naam_medewerker) : txv("📅 Gereserveerd voor {0}", gek.naam_medewerker)}
+                </div>
+              );
+            })()}
           </div>
           <div>
             <label style={lbl}>{tx("Naam medewerker (bestuurder) *")}</label>
@@ -1003,7 +1021,7 @@ function AutoHandoverWizard({ autos, gebruiker, actie, onSubmit, showToast }) {
   );
 }
 
-// ─── STORING / GEANNULEERD FORM (eenvoudige melding, geen handtekening nodig) ─
+// ─── STORING / GEANNULEERD / RESERVERING FORM (eenvoudige melding, geen handtekening nodig) ─
 function AutoStoringForm({ autos, gebruiker, actie, onSubmit, showToast }) {
   const [kenteken, setKenteken] = useState("");
   const [naamMedewerker, setNaamMedewerker] = useState("");
@@ -1014,15 +1032,19 @@ function AutoStoringForm({ autos, gebruiker, actie, onSubmit, showToast }) {
   const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  const isReservering = actie === "reservering";
+  const gekozenAuto = autos.find(a => a.kenteken === kenteken);
+
   async function handleSubmit() {
     if (!kenteken) { showToast(tx("Selecteer een kenteken"),"err"); return; }
+    if (isReservering && !datumTijd) { showToast(tx("Vul de verwachte uitgiftedatum in"),"err"); return; }
     { const naamFout = naamProbleem(naamMedewerker); if (naamFout) { showToast(naamFout,"err"); return; } }
     setSaving(true);
     let docUrls = [];
     if (documenten.length > 0) docUrls = await uploadBijlages(documenten, "auto-documenten");
     const ok = await onSubmit({
       actie, kenteken, naam_medewerker: normaliseerNaam(naamMedewerker),
-      datum_tijd: datumTijd, kilometerstand: kilometerstand || null,
+      datum_tijd: datumTijd, kilometerstand: isReservering ? null : (kilometerstand || null),
       opmerkingen: opmerkingen || null,
       document_urls: docUrls.length > 0 ? JSON.stringify(docUrls) : null,
     });
@@ -1056,14 +1078,24 @@ function AutoStoringForm({ autos, gebruiker, actie, onSubmit, showToast }) {
           <MedewerkerKiezer value={naamMedewerker} onChange={setNaamMedewerker} placeholder={tx("Voor- en achternaam (typ om te zoeken)")}/>
         </div>
         <div>
-          <label style={lbl}>{tx("Datum + Tijd *")}</label>
+          <label style={lbl}>{isReservering ? tx("Verwachte uitgiftedatum *") : tx("Datum + Tijd *")}</label>
           <input type="datetime-local" style={inp} value={datumTijd} onChange={e=>setDatumTijd(e.target.value)}/>
         </div>
-        <div>
-          <label style={lbl}>{tx("Kilometerstand")}</label>
-          <input style={inp} value={kilometerstand} onChange={e=>setKilometerstand(e.target.value)} placeholder={tx("bijv. 45230")} type="number"/>
-        </div>
+        {!isReservering && (
+          <div>
+            <label style={lbl}>{tx("Kilometerstand")}</label>
+            <input style={inp} value={kilometerstand} onChange={e=>setKilometerstand(e.target.value)} placeholder={tx("bijv. 45230")} type="number"/>
+          </div>
+        )}
       </div>
+
+      {isReservering && gekozenAuto && gekozenAuto.status !== "Beschikbaar" && (
+        <div className="card" style={{marginBottom:16,background:"#fef3c7",border:"1px solid #fcd34d",color:"#b45309",fontSize:13,fontWeight:600}}>
+          {gekozenAuto.naam_medewerker
+            ? txv("⚠️ Deze auto staat nu op \"{0}\" ({1}). Na opslaan staat hij op Gereserveerd voor de nieuwe medewerker.", tx(gekozenAuto.status), gekozenAuto.naam_medewerker)
+            : txv("⚠️ Deze auto staat nu op \"{0}\". Na opslaan staat hij op Gereserveerd.", tx(gekozenAuto.status))}
+        </div>
+      )}
 
       {actie === "storing" && (
         <div className="card" style={{marginBottom:16,borderTop:`3px solid #f59e0b`}}>
@@ -1111,13 +1143,14 @@ function AutoMeldingForm({ autos, gebruiker, onSubmit, showToast }) {
   const acties = [
     { id:"uitgifte",    icon:"🚗", label:"UITGIFTE",       color:C.groen },
     { id:"inname",      icon:"🔑", label:"INNAME",         color:C.blauw },
+    { id:"reservering", icon:"📅", label:"RESERVERING",    color:"#8b5cf6" },
     { id:"storing",     icon:"🔧", label:"SCHADE/STORING", color:"#f59e0b" },
     { id:"geannuleerd", icon:"❌", label:"GEANNULEERD",    color:"#ef4444" },
   ];
 
   return (
     <div style={{maxWidth:700,margin:"0 auto"}}>
-      <SH titel={tx("Auto formulier")} sub={actie==="uitgifte"||actie==="inname" ? tx("Digitaal uitgifte-/innameformulier — inclusief handtekeningen, vervangt het papieren formulier") : tx("Geef een storing of annulering door")} />
+      <SH titel={tx("Auto formulier")} sub={actie==="uitgifte"||actie==="inname" ? tx("Digitaal uitgifte-/innameformulier — inclusief handtekeningen, vervangt het papieren formulier") : actie==="reservering" ? tx("Reserveer een auto voor een medewerker — de auto komt op Gereserveerd te staan") : tx("Geef een storing of annulering door")} />
 
       {/* Actie kiezen */}
       <div className="card" style={{marginBottom:16,borderTop:`3px solid ${C.blauw}`}}>
@@ -1183,11 +1216,12 @@ function AutoLog({ meldingen, autos, onUpdate, gebruiker, isBackoffice, onReacti
     filter === "uitgifte" ? m.actie === "uitgifte" :
     filter === "inname" ? m.actie === "inname" :
     filter === "storing" ? m.actie === "storing" :
+    filter === "reservering" ? m.actie === "reservering" :
     filter === "afwijking" ? !!m.afwijking_gevonden : true
   );
 
-  const actiKleur = { uitgifte:C.groen, inname:C.blauw, storing:"#f59e0b", geannuleerd:"#ef4444" };
-  const actiIcon  = { uitgifte:"🚗", inname:"🔑", storing:"🔧", geannuleerd:"❌" };
+  const actiKleur = { uitgifte:C.groen, inname:C.blauw, storing:"#f59e0b", geannuleerd:"#ef4444", reservering:"#8b5cf6" };
+  const actiIcon  = { uitgifte:"🚗", inname:"🔑", storing:"🔧", geannuleerd:"❌", reservering:"📅" };
 
   function exportCSV() {
     let csv = "Datum,Tijd,Actie,Kenteken,Medewerker,Tank vol,Schoon,Formulier,Rijbewijs,KM stand,Locatie,Door,Getekend,Afwijking,Schadepunten,Kosten inhouden,Opmerkingen\n";
@@ -1217,7 +1251,7 @@ function AutoLog({ meldingen, autos, onUpdate, gebruiker, isBackoffice, onReacti
       </div>
 
       <div style={{display:"flex",gap:6,marginBottom:20,flexWrap:"wrap"}}>
-        {[["alle","Alle"],["open","Open"],["uitgifte","Uitgifte"],["inname","Inname"],["storing","Schade/Storing"],["afwijking","⚠️ Met afwijking"]].map(([v,l])=>(
+        {[["alle","Alle"],["open","Open"],["uitgifte","Uitgifte"],["inname","Inname"],["reservering","Reservering"],["storing","Schade/Storing"],["afwijking","⚠️ Met afwijking"]].map(([v,l])=>(
           <button key={v} onClick={()=>setFilter(v)}
             style={{background:filter===v?C.blauw:"white",color:filter===v?"white":C.muted,border:`1.5px solid ${filter===v?C.blauw:C.border}`,borderRadius:20,padding:"6px 16px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
             {tx(l)}
@@ -1259,7 +1293,7 @@ function AutoLog({ meldingen, autos, onUpdate, gebruiker, isBackoffice, onReacti
                   {m.kilometerstand && txv(" · 🛣 {0} km", m.kilometerstand)}
                   {m.locatie && ` · 📍 ${m.locatie}`}
                 </div>
-                {m.actie !== "geannuleerd" && (
+                {m.actie !== "geannuleerd" && m.actie !== "reservering" && (
                   <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:6}}>
                     {checkItem(m.tank_vol,"⛽ Tank vol")}
                     {checkItem(m.schoon,"🧹 Schoon")}
