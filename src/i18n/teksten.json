@@ -8773,5 +8773,10 @@
   "en": "Reserve a car for an employee — the car will be set to Reserved",
   "ro": "Rezervați o mașină pentru un angajat — mașina va avea statusul Rezervată",
   "pl": "Zarezerwuj samochód dla pracownika — samochód otrzyma status Zarezerwowany"
+ },
+ "🧯 SNF": {
+  "en": "🧯 SNF",
+  "ro": "🧯 SNF",
+  "pl": "🧯 SNF"
  }
 }

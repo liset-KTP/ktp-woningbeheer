@@ -29,6 +29,7 @@ import { HandleidingModule } from "./HandleidingModule";
 import { KledingModule, KledingUitgifteInline } from "./KledingModule";
 import { CodesModule } from "./CodesModule";
 import HuurcontractenModule from "./HuurcontractenModule";
+import SnfModule from "./SnfModule";
 import WeekDatePicker from "./WeekDatePicker";
 import { MedewerkerKiezer, naamProbleem, normaliseerNaam, vernieuwMedewerkerNamen } from "./MedewerkerKiezer";
 import { tx, zetTaal, dbTekst, txv } from "./i18n";
@@ -1785,6 +1786,7 @@ function App() {
               <button className={`tp ${tab==="dagplanning"?"act":""}`} onClick={()=>setTab("dagplanning")}>{tx("📅 Mijn dag")} {totalNotifs>0&&<Notif n={totalNotifs}/>}</button>
               <button className={`tp ${tab==="taken"?"act":""}`} onClick={()=>setTab("taken")}>{tx("📋 Taken & Meldingen")} {(openTaken.length+openMeldingen.filter(m=>m.voor_rol==="huismeester"||!m.voor_rol).length)>0&&<Notif n={openTaken.length+openMeldingen.filter(m=>m.voor_rol==="huismeester"||!m.voor_rol).length}/>}</button>
               <button className={`tp ${tab==="woningen"?"act":""}`} onClick={()=>setTab("woningen")}>{tx("🏠 Woningen")}</button>
+              <button className={`tp ${tab==="snf"?"act":""}`} onClick={()=>setTab("snf")}>{tx("🧯 SNF")}</button>
               <button className={`tp ${tab==="codes"?"act":""}`} onClick={()=>setTab("codes")}>{tx("🔑 Codes")}</button>
               <button className={`tp ${tab==="autos"?"act":""}`} onClick={()=>setTab("autos")}>{tx("🚗 Auto's")} {ongelzenAutoReacties>0&&<Notif n={ongelzenAutoReacties}/>}</button>
               <button className={`tp ${tab==="fietsen"?"act":""}`} onClick={()=>setTab("fietsen")}>{tx("🚲 Fietsen")}</button>
@@ -1800,6 +1802,7 @@ function App() {
               <button className={`tp ${tab==="mijn_overzicht"?"act":""}`} onClick={()=>setTab("mijn_overzicht")}>{tx("📊 Mijn overzicht")} {mijnOverzichtOpen>0&&<Notif n={mijnOverzichtOpen}/>}</button>
               <button className={`tp ${tab==="huurbetalingen"?"act":""}`} onClick={()=>setTab("huurbetalingen")}>{tx("💶 Huur")}</button>
               <button className={`tp ${tab==="woningen"?"act":""}`} onClick={()=>setTab("woningen")}>{tx("🏠 Woningen")}</button>
+              <button className={`tp ${tab==="snf"?"act":""}`} onClick={()=>setTab("snf")}>{tx("🧯 SNF")}</button>
               <button className={`tp ${tab==="codes"?"act":""}`} onClick={()=>setTab("codes")}>{tx("🔑 Codes")}</button>
               <button className={`tp ${tab==="autos"?"act":""}`} onClick={()=>setTab("autos")}>{tx("🚗 Auto's")}</button>
               <button className={`tp ${tab==="fietsen"?"act":""}`} onClick={()=>setTab("fietsen")}>{tx("🚲 Fietsen")}</button>
@@ -1819,6 +1822,7 @@ function App() {
               <button className={`tp ${tab==="fietsen"?"act":""}`} onClick={()=>setTab("fietsen")}>{tx("🚲 Fietsen")}</button>
               <button className={`tp ${tab==="huurbetalingen"?"act":""}`} onClick={()=>setTab("huurbetalingen")}>{tx("💶 Huur")}</button>
               <button className={`tp ${tab==="huurcontracten"?"act":""}`} onClick={()=>setTab("huurcontracten")}>{tx("📄 Huurcontracten")}</button>
+              <button className={`tp ${tab==="snf"?"act":""}`} onClick={()=>setTab("snf")}>{tx("🧯 SNF")}</button>
               <button className={`tp ${tab==="borg"?"act":""}`} onClick={()=>setTab("borg")}>{tx("🛡️ Inhoudingen")}</button>
               <button className={`tp ${tab==="log"?"act":""}`} onClick={()=>setTab("log")}>{tx("📝 Log")}</button>
               <button className={`tp ${tab==="huismeesterplanning"?"act":""}`} onClick={()=>setTab("huismeesterplanning")}>{tx("📅 Planning")}</button>
@@ -1845,6 +1849,7 @@ function App() {
         {tab==="huurbetalingen"&&<HuurbetalingenModule gebruiker={gebruiker} showToast={showToast} readonly={rol!=="backoffice"&&rol!=="financieel"}/>}
         {tab==="berichten"&&<BerichtenModule gebruiker={gebruiker} houses={houses} taken={taken} meldingen={meldingen} autos={[]}/>}
         {rol==="backoffice"&&tab==="huurcontracten"&&<HuurcontractenModule gebruiker={gebruiker} houses={houses} showToast={showToast}/>}
+        {(rol==="backoffice"||rol==="huismeester"||rol==="financieel")&&tab==="snf"&&<SnfModule gebruiker={gebruiker} sessieToken={sessieToken} houses={houses} gebruikers={gebruikers} showToast={showToast}/>}
         {tab==="borg"&&<BorgModule gebruiker={gebruiker} houses={houses} showToast={showToast} readonly={rol!=="backoffice"}/>}
         {tab==="handleiding"&&<HandleidingModule gebruiker={gebruiker}/>}
         {tab==="kleding"&&<KledingModule gebruiker={gebruiker} showToast={showToast}/>}
