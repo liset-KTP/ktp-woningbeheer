@@ -1381,8 +1381,13 @@ function App() {
   }
 
   async function addTaak(taak) {
-    const { error } = await supabase.from("taken").insert([{...taak, aangemaakt_door: gebruiker.naam, status:"open"}]);
+    const { data: nieuw, error } = await supabase.from("taken").insert([{...taak, aangemaakt_door: gebruiker.naam, status:"open"}]).select("id").maybeSingle();
     if (error) { showToast(tx("Fout bij opslaan taak"),"err"); return false; }
+    // Log (2026-10-27): handmatig aangemaakte taken kwamen niet in het Log-overzicht
+    // zolang niemand ze had aangeraakt — daardoor niet terug te vinden (Vitens-taak Morsweg).
+    const huis = houses.find(h=>h.id===taak.woning_id);
+    const rolLabel = taak.voor_rol ? ` (voor ${taak.voor_rol})` : "";
+    logActiviteit("taak_aangemaakt", `➕ Taak aangemaakt: ${taak.titel||"?"}${rolLabel}${huis?` — ${huis.adres}`:" — Algemeen"}${taak.kamer?` K${taak.kamer}`:""}`, {taak_id:nieuw?.id||null, voor_rol:taak.voor_rol||null});
     showToast(tx("✓ Taak toegevoegd")); await loadTaken(); return true;
   }
 
@@ -8175,7 +8180,7 @@ function LogView({meldingen,houses,activiteiten,taken=[],onVernieuw}) {
 
   const typeKleur = {
     aankomst:C.groen, vertrek:"#ef4444", reservering:C.blauw, verhuizing:"#7c3aed", overig:C.muted,
-    melding_status:C.groen, taak_gedaan:C.blauw, checklist:"#7c3aed", kamer_wijziging:"#f59e0b", gebruiker:C.muted,
+    melding_status:C.groen, taak_gedaan:C.blauw, taak_aangemaakt:C.blauw, checklist:"#7c3aed", kamer_wijziging:"#f59e0b", gebruiker:C.muted,
     uitgifte:"#0891b2", inname:"#0e7490", storing:"#dc2626", schade:"#b91c1c",
     fiets_uitgifte:"#059669", fiets_inname:"#047857",
     borg_plan:"#7c3aed", huurschuld:"#d97706", huurbetaling:"#16a34a",
