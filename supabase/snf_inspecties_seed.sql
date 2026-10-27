@@ -3,8 +3,8 @@
 -- Koppelt aan de bestaande woning; bestaat die niet, dan wordt er niets aangemaakt.
 -- Veilig om opnieuw te draaien (slaat over als het rapport al bestaat).
 -- ============================================================
--- SNF-controle ligt bij Liane (backoffice blijft achtervang)
-UPDATE public.gebruikers SET snf_controleur = true WHERE lower(trim(naam)) = 'liane' AND actief;
+-- SNF-controle ligt bij Liane (backoffice blijft achtervang). Liane krijgt dezelfde functie als Johan (financieel).
+UPDATE public.gebruikers SET snf_controleur = true, rol = 'financieel' WHERE lower(trim(naam)) = 'liane' AND actief;
 
 DO $$
 declare v_woning int; v_johan int; v_insp bigint;
