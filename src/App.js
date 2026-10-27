@@ -1077,6 +1077,18 @@ function App() {
       }
     }
 
+    // BUGFIX (27-10-2026, Marcin Jurczyk + Katarzyna Bulinska, Morsweg 3 K1.2/K1, meldingen
+    // #540 e.v.): een vertrek-aankondiging werd via "✓ Zelf afgehandeld" op de meldingkaart
+    // gesloten (notitie "."). Daarmee werd het vertrek nooit gemeld → geen controletaak voor de
+    // huismeester, kamer niet vrijgegeven, en de taak "Vertrek bevestigen" bleef open met een
+    // "Is vertrokken"-knop die niet meer werkte. De taak-route was al dichtgezet (20-10-2026,
+    // zie updateTaak), de melding-route niet. Alleen backoffice mag een aankondiging nog los
+    // sluiten (bijv. medewerker blijft toch).
+    if ((newStatus==="verwerkt"||newStatus==="afgehandeld") && m?.type==="vertrek_aankondiging" && gebruiker?.rol!=="backoffice") {
+      showToast(tx("Een vertrek-aankondiging sluit je niet zelf af. Gebruik \"🧳 Is vertrokken\" op de taak \"Vertrek bevestigen\" — blijft de medewerker toch, kies daar \"Kan niet\"."), "err");
+      return;
+    }
+
     // Check (2026-08-25): een melding mag niet stilzwijgend op "afgehandeld"/"verwerkt" gezet
     // worden terwijl een automatisch aangemaakte controletaak (bijv. "Kamer controleren na
     // vertrek") nog open staat — anders oogt alles klaar terwijl de kamer nooit fysiek is
@@ -4404,8 +4416,11 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
   const [startAankondiging, setStartAankondiging] = useState(null);
   useEffect(()=>{ if (subTab !== "nieuw") setStartAankondiging(null); }, [subTab]);
   const vertrekMeldenVanTaak = (t) => {
-    const a = meldingen.find(m => m.id === t.melding_id && m.type === "vertrek_aankondiging" && m.status === "open");
-    if (!a) { showToast(tx("Aankondiging niet (meer) open — meld het vertrek handmatig via Nieuwe melding"), "err"); return; }
+    // Ook als de aankondiging al (ten onrechte) gesloten is: de taak staat dan nog open en het
+    // vertrek is nooit gemeld. Koppelen is veilig — het sluiten van de aankondiging in
+    // addMelding filtert op status "open", de bijbehorende taak wordt wel afgesloten.
+    const a = meldingen.find(m => m.id === t.melding_id && m.type === "vertrek_aankondiging" && m.status !== "geannuleerd");
+    if (!a) { showToast(tx("Aankondiging niet gevonden — meld het vertrek handmatig via Nieuwe melding"), "err"); return; }
     setStartAankondiging(a);
     setSubTab("nieuw");
   };
@@ -4974,7 +4989,12 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
         </div>
       )}
       {/* Zelf afhandelen — collega */}
-      {isCollegaRol && isLopend && (
+      {isCollegaRol && isLopend && m.type==="vertrek_aankondiging" && (
+        <div style={{marginTop:8,fontSize:12,color:"#b45309",background:"#fef3c7",border:"1px solid #fde68a",borderRadius:8,padding:"8px 10px"}}>
+          {tx("Is de medewerker vertrokken? Ga naar de taak \"Vertrek bevestigen\" en klik op \"🧳 Is vertrokken\". Dan krijgt de huismeester zijn controletaak en wordt de kamer vrijgegeven.")}
+        </div>
+      )}
+      {isCollegaRol && isLopend && m.type!=="vertrek_aankondiging" && (
         <div style={{marginTop:8}}>
           {toonZelfAf ? (
             <div style={{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:10,padding:14}}>
@@ -4991,7 +5011,7 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
                 style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"8px 12px",fontSize:13,outline:"none",fontFamily:"inherit",boxSizing:"border-box",resize:"vertical",marginBottom:10}}/>
               <div style={{display:"flex",gap:8}}>
                 <button disabled={zelfAfBezig} onClick={async()=>{
-                  if(!zelfAfTekst.trim()){ showToast(tx("Vul in wat je gedaan hebt"),"err"); return; }
+                  if((zelfAfTekst.match(/[\p{L}\d]/gu)||[]).length<5){ showToast(tx("Vul in wat je gedaan hebt"),"err"); return; }
                   setZelfAfBezig(true);
                   await onUpdate(m.id,"afgehandeld",`Zelf afgehandeld door ${gebruiker?.naam}: ${zelfAfTekst.trim()}`);
                   setZelfAfBezig(false); setToonZelfAf(false); setZelfAfTekst("");
