@@ -5472,7 +5472,7 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast, inlin
                   </div>
                 )}
                 {/* Controle checkboxes voor verhuizing taken */}
-                {((t.titel?.includes("Kamer controleren") && isHuismeester) || (t.titel?.includes("Verhuizing voltooid") && (isHuismeester || isCollega || isBackoffice))) && !gedaan && (
+                {((t.titel?.includes("Kamer controleren") && (isHuismeester || isBackoffice || (isCollega && t.voor_rol === "collega"))) || (t.titel?.includes("Verhuizing voltooid") && (isHuismeester || isCollega || isBackoffice))) && !gedaan && (
                   <div style={{marginTop:10,background:"#fffbeb",border:"1px solid #fcd34d",borderRadius:10,padding:"12px 14px"}}>
                     <div style={{fontSize:12,fontWeight:700,color:"#b45309",marginBottom:10}}>{tx("✅ Controlepunten afvinken")}</div>
                     {(t.titel?.includes("Verhuizing voltooid") ? [
