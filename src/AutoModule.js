@@ -46,8 +46,14 @@ const AUTO_STATUS_MAP = {
 function fmtDate(d) { if(!d) return ""; const dt=typeof d==="string"?new Date(d):d; return dt.toLocaleDateString("nl-NL",{day:"2-digit",month:"2-digit",year:"numeric"}); }
 function fmtTime(d) { if(!d) return ""; const dt=typeof d==="string"?new Date(d):d; return dt.toLocaleTimeString("nl-NL",{hour:"2-digit",minute:"2-digit"}); }
 function fmtFull(d) { if(!d) return ""; return `${fmtDate(d)} ${fmtTime(d)}`; }
-function todayISO() { return new Date().toISOString().slice(0,10); }
-function nowISO() { return new Date().toISOString().slice(0,16); }
+// Lokale (Nederlandse) tijd als "YYYY-MM-DDTHH:MM" voor <input type="datetime-local">.
+// NIET toISOString() gebruiken: dat is UTC en loopt 1 uur (winter) / 2 uur (zomer) achter.
+function lokaalISO(d = new Date()) { return new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().slice(0,16); }
+function todayISO() { return lokaalISO().slice(0,10); }
+function nowISO() { return lokaalISO(); }
+// Zet de lokale invoer ("2026-10-26T16:45") om naar een echt tijdstip met tijdzone voor de database.
+// Zonder deze stap slaat Supabase 16:45 op als 16:45 UTC en toont de app later 17:45.
+function naarDbTijd(lokaal) { if (!lokaal) return null; const d = new Date(lokaal); return isNaN(d) ? lokaal : d.toISOString(); }
 
 // Genereert een kant-en-klaar bericht (kopiëren/plakken in Cockpit) na uitgifte/inname,
 // zodat de medewerker altijd schriftelijk bevestigd krijgt wat er is afgesproken/getekend.
@@ -169,7 +175,7 @@ export function AutoModule({ gebruiker, showToast }) {
   async function addAutoMelding(m) {
     // "afwijkingen" is alleen voor de e-mailtekst — geen kolom in de database
     const { afwijkingen, ...opslagData } = m;
-    const { error } = await supabase.from("auto_meldingen").insert([{...opslagData, ingediend_door: gebruiker.naam, status:"open"}]);
+    const { error } = await supabase.from("auto_meldingen").insert([{...opslagData, datum_tijd: naarDbTijd(opslagData.datum_tijd), ingediend_door: gebruiker.naam, status:"open"}]);
     if (error) { showToast(tx("Fout bij opslaan"),"err"); return false; }
 
     // Annulering van een reservering: auto terug naar Beschikbaar en naam leegmaken.
