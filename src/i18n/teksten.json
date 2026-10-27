@@ -8773,5 +8773,725 @@
   "en": "Reserve a car for an employee — the car will be set to Reserved",
   "ro": "Rezervați o mașină pentru un angajat — mașina va avea statusul Rezervată",
   "pl": "Zarezerwuj samochód dla pracownika — samochód otrzyma status Zarezerwowany"
+ },
+ "🧯 SNF": {
+  "en": "🧯 SNF",
+  "ro": "🧯 SNF",
+  "pl": "🧯 SNF"
+ },
+ "Actie (wat moet er gebeuren)": {
+  "en": "Action (what needs to be done)",
+  "ro": "Acțiune (ce trebuie făcut)",
+  "pl": "Działanie (co trzeba zrobić)"
+ },
+ "Actie mislukt": {
+  "en": "Action failed",
+  "ro": "Acțiunea a eșuat",
+  "pl": "Akcja nie powiodła się"
+ },
+ "Actie:": {
+  "en": "Action:",
+  "ro": "Acțiune:",
+  "pl": "Działanie:"
+ },
+ "Administratief": {
+  "en": "Administrative",
+  "ro": "Administrativ",
+  "pl": "Administracyjnie"
+ },
+ "Afgekeurd / heropend:": {
+  "en": "Rejected / reopened:",
+  "ro": "Respins / redeschis:",
+  "pl": "Odrzucone / ponownie otwarte:"
+ },
+ "Afgekeurd — punt staat weer open": {
+  "en": "Rejected — item is open again",
+  "ro": "Respins — punctul este din nou deschis",
+  "pl": "Odrzucono — punkt jest znów otwarty"
+ },
+ "Afgerond": {
+  "en": "Completed",
+  "ro": "Finalizat",
+  "pl": "Zakończone"
+ },
+ "Afkeuren kan alleen met een reden": {
+  "en": "Rejecting requires a reason",
+  "ro": "Respingerea necesită un motiv",
+  "pl": "Odrzucenie wymaga podania powodu"
+ },
+ "Alle eigenaren": {
+  "en": "All owners",
+  "ro": "Toți responsabilii",
+  "pl": "Wszyscy odpowiedzialni"
+ },
+ "Alleen een gecontroleerd punt kan heropend worden": {
+  "en": "Only a checked item can be reopened",
+  "ro": "Doar un punct verificat poate fi redeschis",
+  "pl": "Tylko sprawdzony punkt można ponownie otworzyć"
+ },
+ "Ander rapport uploaden": {
+  "en": "Upload another report",
+  "ro": "Încarcă alt raport",
+  "pl": "Prześlij inny raport"
+ },
+ "Bestand \"{0}\" intrekken? Geef een reden (het bestand blijft bewaard voor de audit).": {
+  "en": "Withdraw file \"{0}\"? Give a reason (the file is kept for the audit).",
+  "ro": "Retragi fișierul \"{0}\"? Indică un motiv (fișierul rămâne păstrat pentru audit).",
+  "pl": "Wycofać plik \"{0}\"? Podaj powód (plik zostaje zachowany na potrzeby audytu)."
+ },
+ "Bestand niet gevonden": {
+  "en": "File not found",
+  "ro": "Fișierul nu a fost găsit",
+  "pl": "Nie znaleziono pliku"
+ },
+ "Bestand niet gevonden in opslag — upload opnieuw": {
+  "en": "File not found in storage — upload again",
+  "ro": "Fișierul nu a fost găsit în stocare — încarcă din nou",
+  "pl": "Nie znaleziono pliku w magazynie — prześlij ponownie"
+ },
+ "Bewijs ({0})": {
+  "en": "Evidence ({0})",
+  "ro": "Dovezi ({0})",
+  "pl": "Dowody ({0})"
+ },
+ "Bewijs ingetrokken": {
+  "en": "Evidence withdrawn",
+  "ro": "Dovadă retrasă",
+  "pl": "Dowód wycofany"
+ },
+ "Bewijs intrekken kan alleen bij een open punt": {
+  "en": "Evidence can only be withdrawn on an open item",
+  "ro": "Dovezile pot fi retrase doar la un punct deschis",
+  "pl": "Dowód można wycofać tylko przy otwartym punkcie"
+ },
+ "Bewijs niet gevonden": {
+  "en": "Evidence not found",
+  "ro": "Dovada nu a fost găsită",
+  "pl": "Nie znaleziono dowodu"
+ },
+ "Bewijs toevoegen kan alleen bij een open punt": {
+  "en": "Evidence can only be added to an open item",
+  "ro": "Dovezile pot fi adăugate doar la un punct deschis",
+  "pl": "Dowód można dodać tylko do otwartego punktu"
+ },
+ "Brandveiligheid": {
+  "en": "Fire safety",
+  "ro": "Siguranță la incendiu",
+  "pl": "Bezpieczeństwo pożarowe"
+ },
+ "Categorie": {
+  "en": "Category",
+  "ro": "Categorie",
+  "pl": "Kategoria"
+ },
+ "Deadline": {
+  "en": "Deadline",
+  "ro": "Termen limită",
+  "pl": "Termin"
+ },
+ "Deadline * (standaard +6 weken)": {
+  "en": "Deadline * (default +6 weeks)",
+  "ro": "Termen limită * (implicit +6 săptămâni)",
+  "pl": "Termin * (domyślnie +6 tygodni)"
+ },
+ "Eigenaar": {
+  "en": "Owner",
+  "ro": "Responsabil",
+  "pl": "Odpowiedzialny"
+ },
+ "Eigenaar:": {
+  "en": "Owner:",
+  "ro": "Responsabil:",
+  "pl": "Odpowiedzialny:"
+ },
+ "Ernst *": {
+  "en": "Severity *",
+  "ro": "Gravitate *",
+  "pl": "Waga *"
+ },
+ "Gecontroleerd": {
+  "en": "Checked",
+  "ro": "Verificat",
+  "pl": "Sprawdzone"
+ },
+ "Gecontroleerd door": {
+  "en": "Checked by",
+  "ro": "Verificat de",
+  "pl": "Sprawdzone przez"
+ },
+ "Geef een reden": {
+  "en": "Give a reason",
+  "ro": "Indică un motiv",
+  "pl": "Podaj powód"
+ },
+ "Geen antwoord": {
+  "en": "No response",
+  "ro": "Niciun răspuns",
+  "pl": "Brak odpowiedzi"
+ },
+ "Geen herstelpunten.": {
+  "en": "No repair items.",
+  "ro": "Niciun punct de remediere.",
+  "pl": "Brak punktów do naprawy."
+ },
+ "Geen openstaande punten 🎉": {
+  "en": "No open items 🎉",
+  "ro": "Niciun punct deschis 🎉",
+  "pl": "Brak otwartych punktów 🎉"
+ },
+ "Geen rapport geüpload": {
+  "en": "No report uploaded",
+  "ro": "Niciun raport încărcat",
+  "pl": "Nie przesłano raportu"
+ },
+ "Geen rechten": {
+  "en": "No permission",
+  "ro": "Fără drepturi",
+  "pl": "Brak uprawnień"
+ },
+ "Geen toegang": {
+  "en": "No access",
+  "ro": "Fără acces",
+  "pl": "Brak dostępu"
+ },
+ "Geschiedenis ({0})": {
+  "en": "History ({0})",
+  "ro": "Istoric ({0})",
+  "pl": "Historia ({0})"
+ },
+ "Herinspectie": {
+  "en": "Re-inspection",
+  "ro": "Reinspecție",
+  "pl": "Ponowna inspekcja"
+ },
+ "Heropenen kan alleen met een reden": {
+  "en": "Reopening requires a reason",
+  "ro": "Redeschiderea necesită un motiv",
+  "pl": "Ponowne otwarcie wymaga podania powodu"
+ },
+ "Hersteld door": {
+  "en": "Repaired by",
+  "ro": "Remediat de",
+  "pl": "Naprawione przez"
+ },
+ "Hersteld — wacht op controle": {
+  "en": "Repaired — awaiting check",
+  "ro": "Remediat — așteaptă verificarea",
+  "pl": "Naprawione — czeka na sprawdzenie"
+ },
+ "Herstelpunt niet gevonden": {
+  "en": "Repair item not found",
+  "ro": "Punctul de remediere nu a fost găsit",
+  "pl": "Nie znaleziono punktu do naprawy"
+ },
+ "Herstelpunten ({0})": {
+  "en": "Repair items ({0})",
+  "ro": "Puncte de remediere ({0})",
+  "pl": "Punkty do naprawy ({0})"
+ },
+ "Herstelpunten per woning: bewijs uploaden → controleur keurt goed (vier ogen).": {
+  "en": "Repair items per house: upload evidence → checker approves (four-eyes).",
+  "ro": "Puncte de remediere pe locuință: încarcă dovezi → verificatorul aprobă (principiul celor patru ochi).",
+  "pl": "Punkty do naprawy na mieszkanie: prześlij dowód → kontroler zatwierdza (zasada czterech oczu)."
+ },
+ "Huisvesting": {
+  "en": "Housing",
+  "ro": "Locuire",
+  "pl": "Zakwaterowanie"
+ },
+ "Hygiëne": {
+  "en": "Hygiene",
+  "ro": "Igienă",
+  "pl": "Higiena"
+ },
+ "Informatie": {
+  "en": "Information",
+  "ro": "Informații",
+  "pl": "Informacje"
+ },
+ "Inspecteur": {
+  "en": "Inspector",
+  "ro": "Inspector",
+  "pl": "Inspektor"
+ },
+ "Inspecteur:": {
+  "en": "Inspector:",
+  "ro": "Inspector:",
+  "pl": "Inspektor:"
+ },
+ "Inspectie niet gevonden": {
+  "en": "Inspection not found",
+  "ro": "Inspecția nu a fost găsită",
+  "pl": "Nie znaleziono inspekcji"
+ },
+ "Inspectie {0}": {
+  "en": "Inspection {0}",
+  "ro": "Inspecție {0}",
+  "pl": "Inspekcja {0}"
+ },
+ "Inspectie-instelling": {
+  "en": "Inspection body",
+  "ro": "Organism de inspecție",
+  "pl": "Jednostka inspekcyjna"
+ },
+ "Inspectiedatum": {
+  "en": "Inspection date",
+  "ro": "Data inspecției",
+  "pl": "Data inspekcji"
+ },
+ "Inspectiedatum *": {
+  "en": "Inspection date *",
+  "ro": "Data inspecției *",
+  "pl": "Data inspekcji *"
+ },
+ "Inspectienummer": {
+  "en": "Inspection number",
+  "ro": "Număr inspecție",
+  "pl": "Numer inspekcji"
+ },
+ "Interne deadline": {
+  "en": "Internal deadline",
+  "ro": "Termen intern",
+  "pl": "Termin wewnętrzny"
+ },
+ "Interne deadline * (standaard −14 dagen)": {
+  "en": "Internal deadline * (default −14 days)",
+  "ro": "Termen intern * (implicit −14 zile)",
+  "pl": "Termin wewnętrzny * (domyślnie −14 dni)"
+ },
+ "Laden mislukt: ": {
+  "en": "Loading failed: ",
+  "ro": "Încărcarea a eșuat: ",
+  "pl": "Ładowanie nie powiodło się: "
+ },
+ "Major": {
+  "en": "Major",
+  "ro": "Major",
+  "pl": "Poważne"
+ },
+ "Major + minor": {
+  "en": "Major + minor",
+  "ro": "Major + minor",
+  "pl": "Poważne + drobne"
+ },
+ "Minor": {
+  "en": "Minor",
+  "ro": "Minor",
+  "pl": "Drobne"
+ },
+ "Nog geen inspecties ingevoerd.": {
+  "en": "No inspections entered yet.",
+  "ro": "Nicio inspecție introdusă încă.",
+  "pl": "Nie wprowadzono jeszcze inspekcji."
+ },
+ "Norm {0}": {
+  "en": "Standard {0}",
+  "ro": "Normă {0}",
+  "pl": "Norma {0}"
+ },
+ "Normnummer (bv. 6.3)": {
+  "en": "Standard number (e.g. 6.3)",
+  "ro": "Număr normă (ex. 6.3)",
+  "pl": "Numer normy (np. 6.3)"
+ },
+ "Omschrijving inspecteur *": {
+  "en": "Inspector's description *",
+  "ro": "Descrierea inspectorului *",
+  "pl": "Opis inspektora *"
+ },
+ "Omschrijving van de inspecteur is verplicht.": {
+  "en": "The inspector's description is required.",
+  "ro": "Descrierea inspectorului este obligatorie.",
+  "pl": "Opis inspektora jest wymagany."
+ },
+ "Onbekende actie": {
+  "en": "Unknown action",
+  "ro": "Acțiune necunoscută",
+  "pl": "Nieznana akcja"
+ },
+ "Open + wacht op controle": {
+  "en": "Open + awaiting check",
+  "ro": "Deschis + așteaptă verificarea",
+  "pl": "Otwarte + czeka na sprawdzenie"
+ },
+ "Punt heropend": {
+  "en": "Item reopened",
+  "ro": "Punct redeschis",
+  "pl": "Punkt ponownie otwarty"
+ },
+ "Punt staat niet op hersteld (al gecontroleerd of nog open?)": {
+  "en": "Item is not marked repaired (already checked or still open?)",
+  "ro": "Punctul nu este marcat ca remediat (deja verificat sau încă deschis?)",
+  "pl": "Punkt nie jest oznaczony jako naprawiony (już sprawdzony lub nadal otwarty?)"
+ },
+ "Punten": {
+  "en": "Items",
+  "ro": "Puncte",
+  "pl": "Punkty"
+ },
+ "Rapportnummer": {
+  "en": "Report number",
+  "ro": "Număr raport",
+  "pl": "Numer raportu"
+ },
+ "Sessie verlopen — log opnieuw in": {
+  "en": "Session expired — log in again",
+  "ro": "Sesiunea a expirat — autentifică-te din nou",
+  "pl": "Sesja wygasła — zaloguj się ponownie"
+ },
+ "Toelichting (optioneel)": {
+  "en": "Explanation (optional)",
+  "ro": "Explicație (opțional)",
+  "pl": "Wyjaśnienie (opcjonalnie)"
+ },
+ "Uitslag": {
+  "en": "Result",
+  "ro": "Rezultat",
+  "pl": "Wynik"
+ },
+ "Uitslag *": {
+  "en": "Result *",
+  "ro": "Rezultat *",
+  "pl": "Wynik *"
+ },
+ "Upload eerst bewijs voordat je het punt op hersteld zet": {
+  "en": "Upload evidence before marking the item repaired",
+  "ro": "Încarcă dovezi înainte de a marca punctul ca remediat",
+  "pl": "Prześlij dowód, zanim oznaczysz punkt jako naprawiony"
+ },
+ "Upload eerst bewijs.": {
+  "en": "Upload evidence first.",
+  "ro": "Încarcă mai întâi dovezi.",
+  "pl": "Najpierw prześlij dowód."
+ },
+ "Upload mislukt: ": {
+  "en": "Upload failed: ",
+  "ro": "Încărcarea a eșuat: ",
+  "pl": "Przesyłanie nie powiodło się: "
+ },
+ "Veiligheid": {
+  "en": "Safety",
+  "ro": "Siguranță",
+  "pl": "Bezpieczeństwo"
+ },
+ "Vereist bewijs": {
+  "en": "Required evidence",
+  "ro": "Dovezi necesare",
+  "pl": "Wymagany dowód"
+ },
+ "Vereist bewijs:": {
+  "en": "Required evidence:",
+  "ro": "Dovezi necesare:",
+  "pl": "Wymagany dowód:"
+ },
+ "Vervolgactie": {
+  "en": "Follow-up action",
+  "ro": "Acțiune ulterioară",
+  "pl": "Dalsze działanie"
+ },
+ "Vier-ogenprincipe: controleren mag alleen door iemand anders dan wie het punt hersteld heeft": {
+  "en": "Four-eyes principle: the check must be done by someone other than the person who repaired the item",
+  "ro": "Principiul celor patru ochi: verificarea trebuie făcută de altcineva decât cel care a remediat punctul",
+  "pl": "Zasada czterech oczu: sprawdzenia musi dokonać ktoś inny niż osoba, która naprawiła punkt"
+ },
+ "Voldoet": {
+  "en": "Compliant",
+  "ro": "Conform",
+  "pl": "Spełnia"
+ },
+ "Voldoet niet": {
+  "en": "Not compliant",
+  "ro": "Neconform",
+  "pl": "Nie spełnia"
+ },
+ "Vul woning, inspectiedatum en deadlines in.": {
+  "en": "Fill in house, inspection date and deadlines.",
+  "ro": "Completează locuința, data inspecției și termenele.",
+  "pl": "Uzupełnij mieszkanie, datę inspekcji i terminy."
+ },
+ "Waarom afgekeurd? (verplicht — de eigenaar ziet deze reden)": {
+  "en": "Why rejected? (required — the owner will see this reason)",
+  "ro": "De ce a fost respins? (obligatoriu — responsabilul vede acest motiv)",
+  "pl": "Dlaczego odrzucono? (wymagane — odpowiedzialny zobaczy ten powód)"
+ },
+ "Waarom heropenen? (verplicht)": {
+  "en": "Why reopen? (required)",
+  "ro": "De ce redeschizi? (obligatoriu)",
+  "pl": "Dlaczego ponownie otworzyć? (wymagane)"
+ },
+ "Wacht op controle": {
+  "en": "Awaiting check",
+  "ro": "Așteaptă verificarea",
+  "pl": "Czeka na sprawdzenie"
+ },
+ "Wacht op controle.": {
+  "en": "Awaiting check.",
+  "ro": "Așteaptă verificarea.",
+  "pl": "Czeka na sprawdzenie."
+ },
+ "Woning *": {
+  "en": "House *",
+  "ro": "Locuință *",
+  "pl": "Mieszkanie *"
+ },
+ "aangemaakt": {
+  "en": "created",
+  "ro": "creat",
+  "pl": "utworzono"
+ },
+ "administratief": {
+  "en": "administrative",
+  "ro": "administrativ",
+  "pl": "administracyjnie"
+ },
+ "afgekeurd": {
+  "en": "rejected",
+  "ro": "respins",
+  "pl": "odrzucono"
+ },
+ "afgerond": {
+  "en": "completed",
+  "ro": "finalizat",
+  "pl": "zakończone"
+ },
+ "automatisch": {
+  "en": "automatic",
+  "ro": "automat",
+  "pl": "automatycznie"
+ },
+ "deadline {0} (intern {1})": {
+  "en": "deadline {0} (internal {1})",
+  "ro": "termen {0} (intern {1})",
+  "pl": "termin {0} (wewnętrzny {1})"
+ },
+ "deadline {0} · intern {1}": {
+  "en": "deadline {0} · internal {1}",
+  "ro": "termen {0} · intern {1}",
+  "pl": "termin {0} · wewnętrzny {1}"
+ },
+ "gecontroleerd": {
+  "en": "checked",
+  "ro": "verificat",
+  "pl": "sprawdzone"
+ },
+ "goedgekeurd": {
+  "en": "approved",
+  "ro": "aprobat",
+  "pl": "zatwierdzono"
+ },
+ "herinspectie": {
+  "en": "re-inspection",
+  "ro": "reinspecție",
+  "pl": "ponowna inspekcja"
+ },
+ "heropend": {
+  "en": "reopened",
+  "ro": "redeschis",
+  "pl": "ponownie otwarto"
+ },
+ "hersteld": {
+  "en": "repaired",
+  "ro": "remediat",
+  "pl": "naprawione"
+ },
+ "hersteld gemeld": {
+  "en": "reported repaired",
+  "ro": "raportat ca remediat",
+  "pl": "zgłoszono naprawę"
+ },
+ "ingetrokken door {0}:": {
+  "en": "withdrawn by {0}:",
+  "ro": "retras de {0}:",
+  "pl": "wycofane przez {0}:"
+ },
+ "inspecteur {0}": {
+  "en": "inspector {0}",
+  "ro": "inspector {0}",
+  "pl": "inspektor {0}"
+ },
+ "intrekken": {
+  "en": "withdraw",
+  "ro": "retrage",
+  "pl": "wycofaj"
+ },
+ "nog {0} dg": {
+  "en": "{0} days left",
+  "ro": "încă {0} zile",
+  "pl": "zostało {0} dni"
+ },
+ "woning #{0}": {
+  "en": "house #{0}",
+  "ro": "locuința #{0}",
+  "pl": "mieszkanie #{0}"
+ },
+ "{0} dg over deadline": {
+  "en": "{0} days past deadline",
+  "ro": "{0} zile peste termen",
+  "pl": "{0} dni po terminie"
+ },
+ "{0} open · {1} te controleren · {2} klaar": {
+  "en": "{0} open · {1} to check · {2} done",
+  "ro": "{0} deschise · {1} de verificat · {2} gata",
+  "pl": "{0} otwarte · {1} do sprawdzenia · {2} gotowe"
+ },
+ "{0} wacht op controle": {
+  "en": "{0} awaiting check",
+  "ro": "{0} așteaptă verificarea",
+  "pl": "{0} czeka na sprawdzenie"
+ },
+ "— kies woning —": {
+  "en": "— choose house —",
+  "ro": "— alege locuința —",
+  "pl": "— wybierz mieszkanie —"
+ },
+ "— niemand —": {
+  "en": "— nobody —",
+  "ro": "— nimeni —",
+  "pl": "— nikt —"
+ },
+ "↩ Heropenen": {
+  "en": "↩ Reopen",
+  "ro": "↩ Redeschide",
+  "pl": "↩ Otwórz ponownie"
+ },
+ "✅ Goedkeuren": {
+  "en": "✅ Approve",
+  "ro": "✅ Aprobă",
+  "pl": "✅ Zatwierdź"
+ },
+ "✏️ Wijzigen": {
+  "en": "✏️ Edit",
+  "ro": "✏️ Modifică",
+  "pl": "✏️ Edytuj"
+ },
+ "✓ Goedgekeurd": {
+  "en": "✓ Approved",
+  "ro": "✓ Aprobat",
+  "pl": "✓ Zatwierdzono"
+ },
+ "✓ Hersteld gemeld — wacht op controle": {
+  "en": "✓ Reported repaired — awaiting check",
+  "ro": "✓ Raportat ca remediat — așteaptă verificarea",
+  "pl": "✓ Zgłoszono naprawę — czeka na sprawdzenie"
+ },
+ "✓ Rapport opgeslagen": {
+  "en": "✓ Report saved",
+  "ro": "✓ Raport salvat",
+  "pl": "✓ Raport zapisany"
+ },
+ "✓ {0} bestand(en) geüpload": {
+  "en": "✓ {0} file(s) uploaded",
+  "ro": "✓ {0} fișier(e) încărcat(e)",
+  "pl": "✓ Przesłano plików: {0}"
+ },
+ "✔ Hersteld melden": {
+  "en": "✔ Report repaired",
+  "ro": "✔ Raportează remedierea",
+  "pl": "✔ Zgłoś naprawę"
+ },
+ "❌ Afkeuren": {
+  "en": "❌ Reject",
+  "ro": "❌ Respinge",
+  "pl": "❌ Odrzuć"
+ },
+ "➕ Nieuwe inspectie": {
+  "en": "➕ New inspection",
+  "ro": "➕ Inspecție nouă",
+  "pl": "➕ Nowa inspekcja"
+ },
+ "➕ Punt toevoegen": {
+  "en": "➕ Add item",
+  "ro": "➕ Adaugă punct",
+  "pl": "➕ Dodaj punkt"
+ },
+ "🏠 Overzicht woningen": {
+  "en": "🏠 Houses overview",
+  "ro": "🏠 Prezentare locuințe",
+  "pl": "🏠 Przegląd mieszkań"
+ },
+ "👀 Jij hebt dit hersteld gemeld — iemand anders moet controleren (vier ogen).": {
+  "en": "👀 You reported this repaired — someone else must check it (four-eyes).",
+  "ro": "👀 Tu ai raportat remedierea — altcineva trebuie să verifice (principiul celor patru ochi).",
+  "pl": "👀 To Ty zgłosiłeś naprawę — sprawdzić musi ktoś inny (zasada czterech oczu)."
+ },
+ "📄 Rapport openen": {
+  "en": "📄 Open report",
+  "ro": "📄 Deschide raportul",
+  "pl": "📄 Otwórz raport"
+ },
+ "📋 Openstaande punten": {
+  "en": "📋 Open items",
+  "ro": "📋 Puncte deschise",
+  "pl": "📋 Otwarte punkty"
+ },
+ "📎 Rapport (PDF) uploaden": {
+  "en": "📎 Upload report (PDF)",
+  "ro": "📎 Încarcă raportul (PDF)",
+  "pl": "📎 Prześlij raport (PDF)"
+ },
+ "📷 Foto / bestand toevoegen": {
+  "en": "📷 Add photo / file",
+  "ro": "📷 Adaugă foto / fișier",
+  "pl": "📷 Dodaj zdjęcie / plik"
+ },
+ "🔄 Vernieuwen": {
+  "en": "🔄 Refresh",
+  "ro": "🔄 Reîmprospătează",
+  "pl": "🔄 Odśwież"
+ },
+ "🧯 SNF-inspecties": {
+  "en": "🧯 SNF inspections",
+  "ro": "🧯 Inspecții SNF",
+  "pl": "🧯 Inspekcje SNF"
+ },
+ "✓ Inspectie opgeslagen": {
+  "en": "✓ Inspection saved",
+  "ro": "✓ Inspecție salvată",
+  "pl": "✓ Inspekcja zapisana"
+ },
+ "✓ Inspectie aangemaakt — voeg nu de herstelpunten toe": {
+  "en": "✓ Inspection created — now add the repair items",
+  "ro": "✓ Inspecție creată — adaugă acum punctele de remediere",
+  "pl": "✓ Utworzono inspekcję — teraz dodaj punkty do naprawy"
+ },
+ "Inspectie wijzigen": {
+  "en": "Edit inspection",
+  "ro": "Modifică inspecția",
+  "pl": "Edytuj inspekcję"
+ },
+ "Nieuwe inspectie": {
+  "en": "New inspection",
+  "ro": "Inspecție nouă",
+  "pl": "Nowa inspekcja"
+ },
+ "✓ Punt opgeslagen": {
+  "en": "✓ Item saved",
+  "ro": "✓ Punct salvat",
+  "pl": "✓ Punkt zapisany"
+ },
+ "✓ Punt toegevoegd": {
+  "en": "✓ Item added",
+  "ro": "✓ Punct adăugat",
+  "pl": "✓ Dodano punkt"
+ },
+ "Herstelpunt wijzigen": {
+  "en": "Edit repair item",
+  "ro": "Modifică punctul de remediere",
+  "pl": "Edytuj punkt do naprawy"
+ },
+ "Nieuw herstelpunt": {
+  "en": "New repair item",
+  "ro": "Punct de remediere nou",
+  "pl": "Nowy punkt do naprawy"
+ },
+ "voldoet": {
+  "en": "compliant",
+  "ro": "conform",
+  "pl": "spełnia"
+ },
+ "voldoet niet": {
+  "en": "not compliant",
+  "ro": "neconform",
+  "pl": "nie spełnia"
  }
 }
