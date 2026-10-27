@@ -270,11 +270,19 @@ ON CONFLICT (id) DO UPDATE SET public = false;
 -- Wie mag wat:
 --   inspectie/herstelpunt aanmaken/wijzigen ............ backoffice
 --   bewijs uploaden, "hersteld" zetten ................. eigenaar van het punt, huismeester, backoffice
---   goedkeuren/afkeuren/heropenen ...................... backoffice (en niet degene die hersteld heeft)
---   bestanden bekijken ................................. backoffice, huismeester, financieel
+--   goedkeuren/afkeuren/heropenen ...................... SNF-controleur (gebruikers.snf_controleur, bv. Liane)
+--                                                        + backoffice als achtervang; nooit wie hersteld heeft
+--   bestanden bekijken ................................. backoffice, huismeester, financieel, SNF-controleur
+ALTER TABLE public.gebruikers ADD COLUMN IF NOT EXISTS snf_controleur boolean NOT NULL DEFAULT false;
+
 CREATE OR REPLACE FUNCTION public._snf_mag_herstellen(g public.gebruikers, p_punt public.snf_herstelpunten)
 RETURNS boolean LANGUAGE sql STABLE SET search_path TO 'public' AS $$
   select g.rol in ('backoffice','huismeester') or g.id = p_punt.eigenaar_id
+$$;
+
+CREATE OR REPLACE FUNCTION public._snf_mag_controleren(g public.gebruikers)
+RETURNS boolean LANGUAGE sql STABLE SET search_path TO 'public' AS $$
+  select g.rol = 'backoffice' or coalesce(g.snf_controleur, false)
 $$;
 
 CREATE OR REPLACE FUNCTION public.snf_inspectie_opslaan(p_token uuid, p_id bigint, p_data jsonb)
@@ -357,7 +365,8 @@ CREATE OR REPLACE FUNCTION public.snf_herstelpunt_controleren(p_token uuid, p_id
 RETURNS json LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public' AS $$
 declare g public.gebruikers;
 begin
-  g := public._app_actor(p_token, array['backoffice'], case when p_goedgekeurd then 'goedgekeurd' else 'afgekeurd' end, p_reden);
+  g := public._app_actor(p_token, null, case when p_goedgekeurd then 'goedgekeurd' else 'afgekeurd' end, p_reden);
+  if not public._snf_mag_controleren(g) then return json_build_object('ok', false, 'fout', 'Geen rechten'); end if;
   if p_goedgekeurd then
     update public.snf_herstelpunten set status = 'gecontroleerd', gecontroleerd_door_id = g.id, gecontroleerd_op = now(), afkeur_reden = null
      where id = p_id and status = 'hersteld';
@@ -375,7 +384,8 @@ CREATE OR REPLACE FUNCTION public.snf_herstelpunt_heropenen(p_token uuid, p_id b
 RETURNS json LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public' AS $$
 declare g public.gebruikers;
 begin
-  g := public._app_actor(p_token, array['backoffice'], 'heropend', p_reden);
+  g := public._app_actor(p_token, null, 'heropend', p_reden);
+  if not public._snf_mag_controleren(g) then return json_build_object('ok', false, 'fout', 'Geen rechten'); end if;
   update public.snf_herstelpunten set status = 'open', afkeur_reden = nullif(trim(p_reden), '')
    where id = p_id and status = 'gecontroleerd';
   if not found then return json_build_object('ok', false, 'fout', 'Alleen een gecontroleerd punt kan heropend worden'); end if;
@@ -394,7 +404,7 @@ begin
   if g.id is null then return json_build_object('ok', false, 'fout', 'Sessie verlopen — log opnieuw in'); end if;
   v_ext := lower(coalesce(nullif(substring(p_bestandsnaam from '\.([A-Za-z0-9]{1,8})$'), ''), 'bin'));
   if p_actie = 'download' then
-    if g.rol not in ('backoffice','huismeester','financieel') then return json_build_object('ok', false, 'fout', 'Geen rechten'); end if;
+    if g.rol not in ('backoffice','huismeester','financieel') and not public._snf_mag_controleren(g) then return json_build_object('ok', false, 'fout', 'Geen rechten'); end if;
     if p_soort = 'bewijs' and exists (select 1 from public.snf_bewijs where bestand = p_pad)
        or p_soort = 'rapport' and exists (select 1 from public.snf_inspecties where rapport_pdf = p_pad) then
       return json_build_object('ok', true, 'pad', p_pad);
@@ -472,6 +482,7 @@ end $$;
 -- Hulpfuncties en triggerfuncties niet los aanroepbaar vanuit de app
 REVOKE ALL ON FUNCTION public._app_actor(uuid, text[], text, text) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public._snf_mag_herstellen(public.gebruikers, public.snf_herstelpunten) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public._snf_mag_controleren(public.gebruikers) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.snf_inspectie_herbereken(bigint) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.log_statuswijziging() FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.snf_herstelpunt_regels() FROM PUBLIC, anon, authenticated;

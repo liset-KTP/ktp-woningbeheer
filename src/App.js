@@ -293,6 +293,9 @@ function App() {
   const [autoMeldingenApp, setAutoMeldingenApp] = useState([]);
   const [ongelzenAutoReacties, setOngelzenAutoReacties] = useState(0);
   const [ongelzenBerichten, setOngelzenBerichten] = useState(0);
+  // SNF-controleur (gebruikers.snf_controleur, bv. Liane): ziet de SNF-tab en mag herstelpunten goed-/afkeuren.
+  // Apart opgehaald: ontbreekt de kolom (nog), dan faalt alleen dit en niet de gebruikerslijst/login.
+  const [snfControleur, setSnfControleur] = useState(false);
   const [loading, setLoading] = useState(true);
   const [tab, setTabState] = useState("melding");
   function setTab(t) {
@@ -660,6 +663,12 @@ function App() {
     window.addEventListener("focus", opVoorgrond);
     return () => { actief = false; clearInterval(iv); document.removeEventListener("visibilitychange", opVoorgrond); window.removeEventListener("focus", opVoorgrond); };
   }, [sessieToken]);
+  useEffect(() => {
+    const id = sessie?.gebruiker?.id;
+    if (!id) { setSnfControleur(false); return; }
+    supabase.from("gebruikers").select("snf_controleur").eq("id", id).maybeSingle()
+      .then(({ data }) => setSnfControleur(!!data?.snf_controleur), () => setSnfControleur(false));
+  }, [sessie?.gebruiker?.id]);
   // Gebruikersbeheer loopt via beveiligde databasefuncties (alleen backoffice, gecontroleerd op sessie)
   async function gebruikerRpc(fn, params, okTekst) {
     const { data, error } = await supabase.rpc(fn, { p_token: sessieToken, ...params });
@@ -1769,6 +1778,7 @@ function App() {
             {rol==="collega" && (<>
               <button className={`tp ${tab==="taken"?"act":""}`} onClick={()=>setTab("taken")}>{tx("📋 Taken & Meldingen")} {(openTaken.length+mijnMeldingenOpenAantal)>0&&<Notif n={openTaken.length+mijnMeldingenOpenAantal}/>}</button>
               <button className={`tp ${tab==="mijn_overzicht"?"act":""}`} onClick={()=>setTab("mijn_overzicht")}>{tx("📊 Mijn overzicht")} {mijnOverzichtOpen>0&&<Notif n={mijnOverzichtOpen}/>}</button>
+              {snfControleur&&<button className={`tp ${tab==="snf"?"act":""}`} onClick={()=>setTab("snf")}>{tx("🧯 SNF")}</button>}
               <button className={`tp ${tab==="woningen"?"act":""}`} onClick={()=>setTab("woningen")}>{tx("🏠 Woningen")}</button>
               <button className={`tp ${tab==="codes"?"act":""}`} onClick={()=>setTab("codes")}>{tx("🔑 Codes")}</button>
               <button className={`tp ${tab==="autos"?"act":""}`} onClick={()=>setTab("autos")}>{tx("🚗 Auto's")} {ongelzenAutoReacties>0&&<Notif n={ongelzenAutoReacties}/>}</button>
@@ -1849,7 +1859,7 @@ function App() {
         {tab==="huurbetalingen"&&<HuurbetalingenModule gebruiker={gebruiker} showToast={showToast} readonly={rol!=="backoffice"&&rol!=="financieel"}/>}
         {tab==="berichten"&&<BerichtenModule gebruiker={gebruiker} houses={houses} taken={taken} meldingen={meldingen} autos={[]}/>}
         {rol==="backoffice"&&tab==="huurcontracten"&&<HuurcontractenModule gebruiker={gebruiker} houses={houses} showToast={showToast}/>}
-        {(rol==="backoffice"||rol==="huismeester"||rol==="financieel")&&tab==="snf"&&<SnfModule gebruiker={gebruiker} sessieToken={sessieToken} houses={houses} gebruikers={gebruikers} showToast={showToast}/>}
+        {(rol==="backoffice"||rol==="huismeester"||rol==="financieel"||snfControleur)&&tab==="snf"&&<SnfModule gebruiker={gebruiker} sessieToken={sessieToken} houses={houses} gebruikers={gebruikers} magControleren={snfControleur} showToast={showToast}/>}
         {tab==="borg"&&<BorgModule gebruiker={gebruiker} houses={houses} showToast={showToast} readonly={rol!=="backoffice"}/>}
         {tab==="handleiding"&&<HandleidingModule gebruiker={gebruiker}/>}
         {tab==="kleding"&&<KledingModule gebruiker={gebruiker} showToast={showToast}/>}

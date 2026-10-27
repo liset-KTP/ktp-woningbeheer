@@ -1,16 +1,19 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "./supabaseClient";
+import { tx, txv } from "./i18n";
 
 // ─── SNF-INSPECTIES ──────────────────────────────────────────────────────────
-// Herstelpunten uit SNF-inspecties (Normec VRO) per woning: bewijs uploaden, backoffice controleert.
+// Herstelpunten uit SNF-inspecties (Normec VRO) per woning: bewijs uploaden, SNF-controleur (Liane) of
+// backoffice controleert.
 //
 // Alle schrijfacties lopen via databasefuncties (snf_*) met het sessietoken; de database
 // controleert rechten, statusovergangen en het vier-ogenprincipe (zie supabase/snf_inspecties.sql).
 // Bestanden staan in de privé bucket "snf-bewijs": uploaden/openen via Edge Function snf-bestand.
 //
-// Status herstelpunt: open → hersteld (bewijs geüpload) → gecontroleerd (backoffice, niet dezelfde persoon)
+// Status herstelpunt: open → hersteld (bewijs geüpload) → gecontroleerd (controleur, niet dezelfde persoon)
 //                     hersteld → afgekeurd = terug naar open met reden
 // Inspectie wordt automatisch "afgerond" als alle punten gecontroleerd zijn.
+// Teksten via tx()/txv(): vertalingen in src/i18n/teksten.json (huismeester werkt in eigen taal).
 
 const C = {
   blauw:"#1B3A6B", groen:"#4A9B3C", bg:"#f0f4f8", card:"#ffffff", border:"#d1dbe8",
@@ -35,11 +38,11 @@ function dagenTot(iso) { if (!iso) return null; return Math.round((new Date(iso+
 // Kleurcode inspectie: groen = alles gecontroleerd; rood = interne deadline verstreken of < 14 dagen tot deadline;
 // oranje = < 28 dagen tot deadline; grijs = op schema.
 export function snfKleur(insp) {
-  if (insp.status === "afgerond") return { kleur:C.groen, label:"Afgerond" };
+  if (insp.status === "afgerond") return { kleur:C.groen, label:tx("Afgerond") };
   const dl = dagenTot(insp.deadline);
-  if (dagenTot(insp.interne_deadline) < 0 || dl < 14) return { kleur:C.rood, label: dl < 0 ? `${-dl} dg over deadline` : `nog ${dl} dg` };
-  if (dl < 28) return { kleur:C.oranje, label:`nog ${dl} dg` };
-  return { kleur:C.grijs, label:`nog ${dl} dg` };
+  if (dagenTot(insp.interne_deadline) < 0 || dl < 14) return { kleur:C.rood, label: dl < 0 ? txv("{0} dg over deadline", -dl) : txv("nog {0} dg", dl) };
+  if (dl < 28) return { kleur:C.oranje, label:txv("nog {0} dg", dl) };
+  return { kleur:C.grijs, label:txv("nog {0} dg", dl) };
 }
 
 function Badge({ kleur, children, title }) {
@@ -55,12 +58,12 @@ async function bestandFunctie(body) {
   if (error) {
     let fout = error.message;
     try { const j = await error.context.json(); fout = j?.fout || fout; } catch {}
-    return { ok:false, fout };
+    return { ok:false, fout: tx(fout) };
   }
-  return data || { ok:false, fout:"Geen antwoord" };
+  return data ? { ...data, fout: tx(data.fout) } : { ok:false, fout:tx("Geen antwoord") };
 }
 
-export default function SnfModule({ gebruiker, sessieToken, houses, gebruikers, showToast }) {
+export default function SnfModule({ gebruiker, sessieToken, houses, gebruikers, magControleren, showToast }) {
   const [inspecties, setInspecties] = useState([]);
   const [punten, setPunten] = useState([]);
   const [bewijs, setBewijs] = useState([]);
@@ -77,7 +80,7 @@ export default function SnfModule({ gebruiker, sessieToken, houses, gebruikers, 
   const huisMap = useMemo(() => Object.fromEntries((houses || []).map(h => [h.id, h])), [houses]);
   const gebrMap = useMemo(() => Object.fromEntries((gebruikers || []).map(g => [g.id, g])), [gebruikers]);
   const naamVan = id => id ? (gebrMap[id]?.naam || `#${id}`) : "—";
-  const adresVan = id => huisMap[id] ? `${huisMap[id].adres}, ${huisMap[id].stad}` : `woning #${id}`;
+  const adresVan = id => huisMap[id] ? `${huisMap[id].adres}, ${huisMap[id].stad}` : txv("woning #{0}", id);
   const magHerstellen = p => isBackoffice || rol === "huismeester" || gebruiker?.id === p.eigenaar_id;
 
   const laad = useCallback(async () => {
@@ -89,7 +92,7 @@ export default function SnfModule({ gebruiker, sessieToken, houses, gebruikers, 
       supabase.from("status_log").select("*").in("bron", ["snf_herstelpunt","snf_inspectie"]).order("op"),
     ]);
     const fout = [a, b, c, d].find(r => r.error);
-    if (fout) toastRef.current("Laden mislukt: " + fout.error.message, "err");
+    if (fout) toastRef.current(tx("Laden mislukt: ") + fout.error.message, "err");
     setInspecties(a.data || []); setPunten(b.data || []); setBewijs(c.data || []); setLog(d.data || []);
     setLaden(false);
   }, []);
@@ -100,7 +103,7 @@ export default function SnfModule({ gebruiker, sessieToken, houses, gebruikers, 
     setBezig(true);
     const { data, error } = await supabase.rpc(fn, { p_token: sessieToken, ...params });
     setBezig(false);
-    if (error || !data?.ok) { showToast(data?.fout || error?.message || "Actie mislukt", "err"); return null; }
+    if (error || !data?.ok) { showToast(tx(data?.fout) || error?.message || tx("Actie mislukt"), "err"); return null; }
     if (okTekst) showToast(okTekst);
     await laad();
     return data;
@@ -117,7 +120,7 @@ export default function SnfModule({ gebruiker, sessieToken, houses, gebruikers, 
     const r = await bestandFunctie({ token: sessieToken, actie:"upload", soort, id, bestandsnaam: file.name });
     if (!r.ok) { showToast(r.fout, "err"); return null; }
     const { error } = await supabase.storage.from("snf-bewijs").uploadToSignedUrl(r.pad, r.uploadToken, file, { contentType: file.type || undefined });
-    if (error) { showToast("Upload mislukt: " + error.message, "err"); return null; }
+    if (error) { showToast(tx("Upload mislukt: ") + error.message, "err"); return null; }
     return r.pad;
   }
 
@@ -129,10 +132,10 @@ export default function SnfModule({ gebruiker, sessieToken, houses, gebruikers, 
       if (!pad) continue;
       const { data, error } = await supabase.rpc("snf_bewijs_toevoegen", { p_token: sessieToken, p_herstelpunt_id: punt.id,
         p_pad: pad, p_bestandsnaam: f.name, p_mime: f.type || null, p_grootte: f.size });
-      if (error || !data?.ok) showToast(data?.fout || error?.message, "err"); else n++;
+      if (error || !data?.ok) showToast(tx(data?.fout) || error?.message, "err"); else n++;
     }
     setBezig(false);
-    if (n) showToast(`✓ ${n} bestand(en) geüpload`);
+    if (n) showToast(txv("✓ {0} bestand(en) geüpload", n));
     await laad();
   }
 
@@ -140,7 +143,7 @@ export default function SnfModule({ gebruiker, sessieToken, houses, gebruikers, 
     setBezig(true);
     const pad = await upload("rapport", insp.id, file);
     setBezig(false);
-    if (pad) await rpc("snf_rapport_koppelen", { p_inspectie_id: insp.id, p_pad: pad }, "✓ Rapport opgeslagen");
+    if (pad) await rpc("snf_rapport_koppelen", { p_inspectie_id: insp.id, p_pad: pad }, tx("✓ Rapport opgeslagen"));
   }
 
   const puntenPer = useMemo(() => {
@@ -151,17 +154,17 @@ export default function SnfModule({ gebruiker, sessieToken, houses, gebruikers, 
   const inspMap = useMemo(() => Object.fromEntries(inspecties.map(i => [i.id, i])), [inspecties]);
   const detail = detailId ? inspMap[detailId] : null;
 
-  const ctx = { gebruiker, isBackoffice, naamVan, adresVan, magHerstellen, bewijs, log, bezig, rpc, openBestand,
+  const ctx = { gebruiker, isBackoffice, magControleren: isBackoffice || !!magControleren, naamVan, adresVan, magHerstellen, bewijs, log, bezig, rpc, openBestand,
     uploadBewijs, uploadRapport, gebruikers, houses, puntenPer, inspMap, openDetail: id => setDetailId(id) };
 
   return (
     <div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",gap:10,flexWrap:"wrap",marginBottom:12}}>
         <div>
-          <div style={{fontSize:20,fontWeight:800,color:C.text}}>🧯 SNF-inspecties</div>
-          <div style={{fontSize:12,color:C.muted}}>Herstelpunten per woning: bewijs uploaden → backoffice controleert (vier ogen).</div>
+          <div style={{fontSize:20,fontWeight:800,color:C.text}}>{tx("🧯 SNF-inspecties")}</div>
+          <div style={{fontSize:12,color:C.muted}}>{tx("Herstelpunten per woning: bewijs uploaden → controleur keurt goed (vier ogen).")}</div>
         </div>
-        <button style={btn("white", C.blauw)} onClick={laad} disabled={laden}>🔄 Vernieuwen</button>
+        <button style={btn("white", C.blauw)} onClick={laad} disabled={laden}>{tx("🔄 Vernieuwen")}</button>
       </div>
 
       {detail ? (
@@ -170,10 +173,10 @@ export default function SnfModule({ gebruiker, sessieToken, houses, gebruikers, 
         <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12}}>
           {[["overzicht","🏠 Overzicht woningen"],["punten","📋 Openstaande punten"], ...(isBackoffice ? [["nieuw","➕ Nieuwe inspectie"]] : [])].map(([k,l]) => (
             <button key={k} onClick={()=>setView(k)}
-              style={{...btn(view===k ? C.blauw : "white", view===k ? "white" : C.text), border:`1px solid ${view===k ? C.blauw : C.border}`}}>{l}</button>
+              style={{...btn(view===k ? C.blauw : "white", view===k ? "white" : C.text), border:`1px solid ${view===k ? C.blauw : C.border}`}}>{tx(l)}</button>
           ))}
         </div>
-        {laden ? <div style={{color:C.muted,padding:20}}>Laden…</div>
+        {laden ? <div style={{color:C.muted,padding:20}}>{tx("Laden…")}</div>
           : view === "overzicht" ? <Overzicht inspecties={inspecties} ctx={ctx} />
           : view === "punten" ? <OpenPunten punten={punten} ctx={ctx} />
           : <InspectieForm ctx={ctx} onKlaar={id => { setView("overzicht"); if (id) setDetailId(id); }} />}
@@ -191,7 +194,7 @@ function Overzicht({ inspecties, ctx }) {
     return Object.values(laatste).map(i => ({ i, k: snfKleur(i), p: ctx.puntenPer[i.id] || [] }))
       .sort((a,b) => volgorde[a.k.kleur] - volgorde[b.k.kleur] || a.i.deadline.localeCompare(b.i.deadline));
   }, [inspecties, ctx.puntenPer]);
-  if (!rijen.length) return <Kaart style={{color:C.muted,textAlign:"center"}}>Nog geen inspecties ingevoerd.</Kaart>;
+  if (!rijen.length) return <Kaart style={{color:C.muted,textAlign:"center"}}>{tx("Nog geen inspecties ingevoerd.")}</Kaart>;
   return (
     <div style={{display:"flex",flexDirection:"column",gap:8}}>
       {rijen.map(({ i, k, p }) => {
@@ -203,13 +206,13 @@ function Overzicht({ inspecties, ctx }) {
             style={{background:C.card,border:`1px solid ${C.border}`,borderLeft:`6px solid ${k.kleur}`,borderRadius:10,padding:"10px 12px",cursor:"pointer",display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
             <div style={{flex:"1 1 220px",minWidth:0}}>
               <div style={{fontWeight:800,fontSize:14,color:C.text}}>{ctx.adresVan(i.woning_id)}</div>
-              <div style={{fontSize:12,color:C.muted}}>Inspectie {fmt(i.inspectiedatum)} · {i.uitslag === "voldoet" ? "voldoet" : "voldoet niet"}{i.vervolgactie ? ` · ${i.vervolgactie}` : ""}</div>
+              <div style={{fontSize:12,color:C.muted}}>{txv("Inspectie {0}", fmt(i.inspectiedatum))} · {tx(i.uitslag === "voldoet" ? "voldoet" : "voldoet niet")}{i.vervolgactie ? ` · ${tx(i.vervolgactie)}` : ""}</div>
             </div>
             <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
               {majors > 0 && <Badge kleur={C.rood}>{majors} major</Badge>}
               {minors > 0 && <Badge kleur={C.oranje}>{minors} minor</Badge>}
-              {wacht > 0 && <Badge kleur={C.paars}>{wacht} wacht op controle</Badge>}
-              <span style={{fontSize:12,color:C.muted}}>deadline {fmt(i.deadline)} · intern {fmt(i.interne_deadline)}</span>
+              {wacht > 0 && <Badge kleur={C.paars}>{txv("{0} wacht op controle", wacht)}</Badge>}
+              <span style={{fontSize:12,color:C.muted}}>{txv("deadline {0} · intern {1}", fmt(i.deadline), fmt(i.interne_deadline))}</span>
               <Badge kleur={k.kleur}>{k.label}</Badge>
             </div>
           </div>
@@ -236,8 +239,8 @@ function OpenPunten({ punten, ctx }) {
   const woningen = [...new Set(Object.values(ctx.inspMap).map(i => i.woning_id))];
   const sel = (k, opties, leeg) => (
     <select style={{...inp, width:"auto", minWidth:140}} value={f[k]} onChange={e=>setF(x=>({...x,[k]:e.target.value}))}>
-      <option value="">{leeg}</option>
-      {opties.map(([v,l]) => <option key={v} value={v}>{l}</option>)}
+      <option value="">{tx(leeg)}</option>
+      {opties.map(([v,l]) => <option key={v} value={v}>{tx(l)}</option>)}
     </select>
   );
   return (
@@ -248,7 +251,7 @@ function OpenPunten({ punten, ctx }) {
         {sel("ernst", [["major","Major"],["minor","Minor"]], "Major + minor")}
         {sel("status", [["open","Open"],["hersteld","Wacht op controle"]], "Open + wacht op controle")}
       </div>
-      {!lijst.length ? <Kaart style={{color:C.muted,textAlign:"center"}}>Geen openstaande punten 🎉</Kaart> : (
+      {!lijst.length ? <Kaart style={{color:C.muted,textAlign:"center"}}>{tx("Geen openstaande punten 🎉")}</Kaart> : (
         <div style={{display:"flex",flexDirection:"column",gap:6}}>
           {lijst.map(({ p, i }) => {
             const k = snfKleur(i);
@@ -260,10 +263,10 @@ function OpenPunten({ punten, ctx }) {
                 </div>
                 <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap",marginTop:4,fontSize:12,color:C.muted}}>
                   <Badge kleur={p.ernst === "major" ? C.rood : C.oranje}>{p.ernst}</Badge>
-                  <Badge kleur={STATUS_KLEUR[p.status]}>{STATUS_LABEL[p.status]}</Badge>
-                  {p.status === "open" && p.afkeur_reden && <Badge kleur={C.rood} title={p.afkeur_reden}>afgekeurd</Badge>}
+                  <Badge kleur={STATUS_KLEUR[p.status]}>{tx(STATUS_LABEL[p.status])}</Badge>
+                  {p.status === "open" && p.afkeur_reden && <Badge kleur={C.rood} title={p.afkeur_reden}>{tx("afgekeurd")}</Badge>}
                   <span>{ctx.adresVan(i.woning_id)}</span>·<span>👤 {ctx.naamVan(p.eigenaar_id)}</span>·
-                  <span>deadline {fmt(i.deadline)} (intern {fmt(i.interne_deadline)})</span>
+                  <span>{txv("deadline {0} (intern {1})", fmt(i.deadline), fmt(i.interne_deadline))}</span>
                 </div>
               </div>
             );
@@ -283,34 +286,34 @@ function InspectieDetail({ insp, punten, ctx, onTerug }) {
   const inspLog = ctx.log.filter(l => l.bron === "snf_inspectie" && l.bron_id === insp.id);
   return (
     <div>
-      <button style={{...btn("white", C.blauw), border:`1px solid ${C.border}`, marginBottom:10}} onClick={onTerug}>← Terug</button>
+      <button style={{...btn("white", C.blauw), border:`1px solid ${C.border}`, marginBottom:10}} onClick={onTerug}>{tx("← Terug")}</button>
       <Kaart style={{borderLeft:`6px solid ${k.kleur}`,marginBottom:12}}>
         {bewerken ? <InspectieForm insp={insp} ctx={ctx} onKlaar={()=>setBewerken(false)} /> : (<>
           <div style={{display:"flex",justifyContent:"space-between",gap:8,flexWrap:"wrap"}}>
             <div>
               <div style={{fontSize:17,fontWeight:800,color:C.text}}>{ctx.adresVan(insp.woning_id)}</div>
-              <div style={{fontSize:12,color:C.muted}}>{insp.inspectie_instelling}{insp.inspecteur ? ` · inspecteur ${insp.inspecteur}` : ""}</div>
+              <div style={{fontSize:12,color:C.muted}}>{insp.inspectie_instelling}{insp.inspecteur ? ` · ${txv("inspecteur {0}", insp.inspecteur)}` : ""}</div>
             </div>
             <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
-              <Badge kleur={k.kleur}>{insp.status === "afgerond" ? "Afgerond" : k.label}</Badge>
-              {ctx.isBackoffice && <button style={btn("white", C.blauw)} onClick={()=>setBewerken(true)}>✏️ Wijzigen</button>}
+              <Badge kleur={k.kleur}>{k.label}</Badge>
+              {ctx.isBackoffice && <button style={btn("white", C.blauw)} onClick={()=>setBewerken(true)}>{tx("✏️ Wijzigen")}</button>}
             </div>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:"6px 14px",marginTop:10,fontSize:13,color:C.text}}>
             <Veld l="Inspectiedatum" v={fmt(insp.inspectiedatum)} />
             <Veld l="Rapportnummer" v={insp.rapportnummer || "—"} />
             <Veld l="Inspectienummer" v={insp.inspectienummer || "—"} />
-            <Veld l="Uitslag" v={insp.uitslag === "voldoet" ? "Voldoet" : "Voldoet niet"} />
-            <Veld l="Vervolgactie" v={insp.vervolgactie || "—"} />
+            <Veld l="Uitslag" v={tx(insp.uitslag === "voldoet" ? "Voldoet" : "Voldoet niet")} />
+            <Veld l="Vervolgactie" v={insp.vervolgactie ? tx(insp.vervolgactie) : "—"} />
             <Veld l="Deadline" v={fmt(insp.deadline)} />
             <Veld l="Interne deadline" v={fmt(insp.interne_deadline)} />
-            <Veld l="Punten" v={`${telling("open")} open · ${telling("hersteld")} te controleren · ${telling("gecontroleerd")} klaar`} />
+            <Veld l="Punten" v={txv("{0} open · {1} te controleren · {2} klaar", telling("open"), telling("hersteld"), telling("gecontroleerd"))} />
           </div>
           {insp.opmerking && <div style={{fontSize:12,color:C.muted,marginTop:8}}>📝 {insp.opmerking}</div>}
           <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginTop:10}}>
             {insp.rapport_pdf
-              ? <button style={btn("white", C.blauw)} onClick={()=>ctx.openBestand("rapport", insp.rapport_pdf)}>📄 Rapport openen</button>
-              : <span style={{fontSize:12,color:C.muted}}>Geen rapport geüpload</span>}
+              ? <button style={btn("white", C.blauw)} onClick={()=>ctx.openBestand("rapport", insp.rapport_pdf)}>{tx("📄 Rapport openen")}</button>
+              : <span style={{fontSize:12,color:C.muted}}>{tx("Geen rapport geüpload")}</span>}
             {ctx.isBackoffice && <BestandKnop label={insp.rapport_pdf ? "Ander rapport uploaden" : "📎 Rapport (PDF) uploaden"} accept="application/pdf"
               disabled={ctx.bezig} onKies={fs => ctx.uploadRapport(insp, fs[0])} />}
           </div>
@@ -319,27 +322,27 @@ function InspectieDetail({ insp, punten, ctx, onTerug }) {
       </Kaart>
 
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-        <div style={{fontSize:15,fontWeight:800,color:C.text}}>Herstelpunten ({punten.length})</div>
-        {ctx.isBackoffice && !nieuwPunt && <button style={btn(C.groen)} onClick={()=>setNieuwPunt(true)}>➕ Punt toevoegen</button>}
+        <div style={{fontSize:15,fontWeight:800,color:C.text}}>{txv("Herstelpunten ({0})", punten.length)}</div>
+        {ctx.isBackoffice && !nieuwPunt && <button style={btn(C.groen)} onClick={()=>setNieuwPunt(true)}>{tx("➕ Punt toevoegen")}</button>}
       </div>
       {nieuwPunt && <Kaart style={{marginBottom:10}}><PuntForm inspectieId={insp.id} ctx={ctx} onKlaar={()=>setNieuwPunt(false)} /></Kaart>}
       <div style={{display:"flex",flexDirection:"column",gap:8}}>
         {[...punten].sort((a,b) => (a.ernst === b.ernst ? 0 : a.ernst === "major" ? -1 : 1) || (a.normnummer || "").localeCompare(b.normnummer || "", "nl", { numeric:true }))
           .map(p => <PuntKaart key={p.id} p={p} ctx={ctx} />)}
-        {!punten.length && <Kaart style={{color:C.muted,textAlign:"center"}}>Geen herstelpunten.</Kaart>}
+        {!punten.length && <Kaart style={{color:C.muted,textAlign:"center"}}>{tx("Geen herstelpunten.")}</Kaart>}
       </div>
     </div>
   );
 }
 
 function Veld({ l, v }) {
-  return <div><div style={{fontSize:10.5,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:".5px"}}>{l}</div><div>{v}</div></div>;
+  return <div><div style={{fontSize:10.5,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:".5px"}}>{tx(l)}</div><div>{v}</div></div>;
 }
 
 function BestandKnop({ label, accept, multiple, disabled, onKies }) {
   const ref = useRef(null);
   return (<>
-    <button style={btn(C.blauw)} disabled={disabled} onClick={()=>ref.current?.click()}>{label}</button>
+    <button style={btn(C.blauw)} disabled={disabled} onClick={()=>ref.current?.click()}>{tx(label)}</button>
     <input ref={ref} type="file" accept={accept} multiple={multiple} style={{display:"none"}}
       onChange={e => { const fs = Array.from(e.target.files || []); e.target.value = ""; if (fs.length) onKies(fs); }} />
   </>);
@@ -350,14 +353,14 @@ function Geschiedenis({ rijen }) {
   return (
     <div style={{marginTop:8}}>
       <button onClick={()=>setOpen(!open)} style={{background:"none",border:"none",padding:0,color:C.blauw,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
-        {open ? "▲" : "▼"} Geschiedenis ({rijen.length})
+        {open ? "▲" : "▼"} {txv("Geschiedenis ({0})", rijen.length)}
       </button>
       {open && (
         <div style={{marginTop:4,fontSize:12,color:C.text,borderLeft:`2px solid ${C.border}`,paddingLeft:8}}>
           {rijen.map(l => (
             <div key={l.id} style={{marginBottom:3}}>
-              <span style={{color:C.muted}}>{fmtTijd(l.op)}</span> · <b>{l.door_naam || "Systeem"}</b> · {ACTIE_LABEL[l.actie] || l.actie}
-              {l.van ? ` (${l.van} → ${l.naar})` : ""}{l.reden ? ` — “${l.reden}”` : ""}
+              <span style={{color:C.muted}}>{fmtTijd(l.op)}</span> · <b>{l.door_naam || tx("Systeem")}</b> · {tx(ACTIE_LABEL[l.actie] || l.actie)}
+              {l.van ? ` (${tx(l.van)} → ${tx(l.naar)})` : ""}{l.reden ? ` — “${l.reden}”` : ""}
             </div>
           ))}
         </div>
@@ -376,16 +379,16 @@ function PuntKaart({ p, ctx }) {
   const zelfHersteld = p.hersteld_door_id === ctx.gebruiker?.id;
 
   function afkeuren() {
-    const reden = window.prompt("Waarom afgekeurd? (verplicht — de eigenaar ziet deze reden)");
-    if (reden && reden.trim()) ctx.rpc("snf_herstelpunt_controleren", { p_id: p.id, p_goedgekeurd: false, p_reden: reden.trim() }, "Afgekeurd — punt staat weer open");
+    const reden = window.prompt(tx("Waarom afgekeurd? (verplicht — de eigenaar ziet deze reden)"));
+    if (reden && reden.trim()) ctx.rpc("snf_herstelpunt_controleren", { p_id: p.id, p_goedgekeurd: false, p_reden: reden.trim() }, tx("Afgekeurd — punt staat weer open"));
   }
   function heropenen() {
-    const reden = window.prompt("Waarom heropenen? (verplicht)");
-    if (reden && reden.trim()) ctx.rpc("snf_herstelpunt_heropenen", { p_id: p.id, p_reden: reden.trim() }, "Punt heropend");
+    const reden = window.prompt(tx("Waarom heropenen? (verplicht)"));
+    if (reden && reden.trim()) ctx.rpc("snf_herstelpunt_heropenen", { p_id: p.id, p_reden: reden.trim() }, tx("Punt heropend"));
   }
   function intrekken(b) {
-    const reden = window.prompt(`Bestand "${b.bestandsnaam}" intrekken? Geef een reden (het bestand blijft bewaard voor de audit).`);
-    if (reden && reden.trim()) ctx.rpc("snf_bewijs_intrekken", { p_bewijs_id: b.id, p_reden: reden.trim() }, "Bewijs ingetrokken");
+    const reden = window.prompt(txv("Bestand \"{0}\" intrekken? Geef een reden (het bestand blijft bewaard voor de audit).", b.bestandsnaam));
+    if (reden && reden.trim()) ctx.rpc("snf_bewijs_intrekken", { p_bewijs_id: b.id, p_reden: reden.trim() }, tx("Bewijs ingetrokken"));
   }
 
   if (bewerken) return <Kaart><PuntForm punt={p} inspectieId={p.inspectie_id} ctx={ctx} onKlaar={()=>setBewerken(false)} /></Kaart>;
@@ -394,39 +397,39 @@ function PuntKaart({ p, ctx }) {
       <div style={{display:"flex",justifyContent:"space-between",gap:8,flexWrap:"wrap"}}>
         <div style={{flex:"1 1 260px"}}>
           <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center",marginBottom:4}}>
-            {p.normnummer && <b style={{color:C.text}}>Norm {p.normnummer}</b>}
-            {p.categorie && <span style={{fontSize:12,color:C.muted}}>{p.categorie}</span>}
+            {p.normnummer && <b style={{color:C.text}}>{txv("Norm {0}", p.normnummer)}</b>}
+            {p.categorie && <span style={{fontSize:12,color:C.muted}}>{tx(p.categorie)}</span>}
             <Badge kleur={p.ernst === "major" ? C.rood : C.oranje}>{p.ernst}</Badge>
-            <Badge kleur={STATUS_KLEUR[p.status]}>{STATUS_LABEL[p.status]}</Badge>
+            <Badge kleur={STATUS_KLEUR[p.status]}>{tx(STATUS_LABEL[p.status])}</Badge>
           </div>
-          <div style={{fontSize:13,color:C.text}}><b>Inspecteur:</b> {p.omschrijving_inspecteur}</div>
-          {p.actie && <div style={{fontSize:13,color:C.text}}><b>Actie:</b> {p.actie}</div>}
-          {p.vereist_bewijs && <div style={{fontSize:13,color:C.text}}><b>Vereist bewijs:</b> {p.vereist_bewijs}</div>}
-          <div style={{fontSize:12,color:C.muted,marginTop:3}}>👤 Eigenaar: {ctx.naamVan(p.eigenaar_id)}{p.opmerking ? ` · 📝 ${p.opmerking}` : ""}</div>
+          <div style={{fontSize:13,color:C.text}}><b>{tx("Inspecteur:")}</b> {p.omschrijving_inspecteur}</div>
+          {p.actie && <div style={{fontSize:13,color:C.text}}><b>{tx("Actie:")}</b> {p.actie}</div>}
+          {p.vereist_bewijs && <div style={{fontSize:13,color:C.text}}><b>{tx("Vereist bewijs:")}</b> {p.vereist_bewijs}</div>}
+          <div style={{fontSize:12,color:C.muted,marginTop:3}}>👤 {tx("Eigenaar:")} {ctx.naamVan(p.eigenaar_id)}{p.opmerking ? ` · 📝 ${p.opmerking}` : ""}</div>
         </div>
         {ctx.isBackoffice && <div><button style={btn("white", C.blauw)} onClick={()=>setBewerken(true)}>✏️</button></div>}
       </div>
 
       {p.status === "open" && p.afkeur_reden && (
         <div style={{background:C.rood+"12",border:`1px solid ${C.rood}40`,borderRadius:8,padding:8,fontSize:12.5,color:C.text,marginTop:8}}>
-          ❌ <b>Afgekeurd / heropend:</b> {p.afkeur_reden}
+          ❌ <b>{tx("Afgekeurd / heropend:")}</b> {p.afkeur_reden}
         </div>
       )}
-      {p.hersteld_door_id && <div style={{fontSize:12,color:C.text,marginTop:6}}>🔧 Hersteld door <b>{ctx.naamVan(p.hersteld_door_id)}</b> op {fmtTijd(p.hersteld_op)}</div>}
-      {p.gecontroleerd_door_id && <div style={{fontSize:12,color:C.text}}>✅ Gecontroleerd door <b>{ctx.naamVan(p.gecontroleerd_door_id)}</b> op {fmtTijd(p.gecontroleerd_op)}</div>}
+      {p.hersteld_door_id && <div style={{fontSize:12,color:C.text,marginTop:6}}>🔧 {tx("Hersteld door")} <b>{ctx.naamVan(p.hersteld_door_id)}</b> · {fmtTijd(p.hersteld_op)}</div>}
+      {p.gecontroleerd_door_id && <div style={{fontSize:12,color:C.text}}>✅ {tx("Gecontroleerd door")} <b>{ctx.naamVan(p.gecontroleerd_door_id)}</b> · {fmtTijd(p.gecontroleerd_op)}</div>}
 
       {/* Bewijs */}
       <div style={{marginTop:8,paddingTop:8,borderTop:`1px dashed ${C.border}`}}>
-        <div style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",marginBottom:4}}>Bewijs ({actief.length})</div>
+        <div style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",marginBottom:4}}>{txv("Bewijs ({0})", actief.length)}</div>
         {bestanden.map(b => (
           <div key={b.id} style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap",fontSize:12.5,marginBottom:3,opacity:b.ingetrokken_op ? .55 : 1}}>
             <button onClick={()=>ctx.openBestand("bewijs", b.bestand)} style={{background:"none",border:"none",padding:0,color:C.blauw,fontWeight:700,cursor:"pointer",fontFamily:"inherit",textDecoration:b.ingetrokken_op ? "line-through" : "underline",fontSize:12.5}}>
               {b.mime_type?.startsWith("image/") ? "🖼️" : "📄"} {b.bestandsnaam}
             </button>
             <span style={{color:C.muted}}>{ctx.naamVan(b.geupload_door_id)} · {fmtTijd(b.geupload_op)}</span>
-            {b.ingetrokken_op && <span style={{color:C.rood}}>ingetrokken door {ctx.naamVan(b.ingetrokken_door_id)}: {b.ingetrokken_reden}</span>}
+            {b.ingetrokken_op && <span style={{color:C.rood}}>{txv("ingetrokken door {0}:", ctx.naamVan(b.ingetrokken_door_id))} {b.ingetrokken_reden}</span>}
             {!b.ingetrokken_op && p.status === "open" && (ctx.isBackoffice || b.geupload_door_id === ctx.gebruiker?.id) &&
-              <button onClick={()=>intrekken(b)} style={{...btn("white", C.rood), padding:"2px 7px", fontSize:11}}>intrekken</button>}
+              <button onClick={()=>intrekken(b)} style={{...btn("white", C.rood), padding:"2px 7px", fontSize:11}}>{tx("intrekken")}</button>}
           </div>
         ))}
         {p.status === "open" && magHerstellen && (
@@ -439,22 +442,22 @@ function PuntKaart({ p, ctx }) {
       {/* Acties */}
       <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center",marginTop:8}}>
         {p.status === "open" && magHerstellen && (<>
-          <input style={{...inp, flex:"1 1 200px", width:"auto"}} placeholder="Toelichting (optioneel)" value={opmerking} onChange={e=>setOpmerking(e.target.value)} />
+          <input style={{...inp, flex:"1 1 200px", width:"auto"}} placeholder={tx("Toelichting (optioneel)")} value={opmerking} onChange={e=>setOpmerking(e.target.value)} />
           <button style={btn(actief.length ? C.groen : C.grijs)} disabled={ctx.bezig || !actief.length}
-            title={actief.length ? "" : "Upload eerst bewijs"}
-            onClick={()=>ctx.rpc("snf_herstelpunt_hersteld", { p_id: p.id, p_opmerking: opmerking.trim() || null }, "✓ Hersteld gemeld — backoffice controleert")}>
-            ✔ Hersteld melden
+            title={actief.length ? "" : tx("Upload eerst bewijs.")}
+            onClick={()=>ctx.rpc("snf_herstelpunt_hersteld", { p_id: p.id, p_opmerking: opmerking.trim() || null }, tx("✓ Hersteld gemeld — wacht op controle"))}>
+            {tx("✔ Hersteld melden")}
           </button>
-          {!actief.length && <span style={{fontSize:12,color:C.muted}}>Upload eerst bewijs.</span>}
+          {!actief.length && <span style={{fontSize:12,color:C.muted}}>{tx("Upload eerst bewijs.")}</span>}
         </>)}
-        {p.status === "hersteld" && ctx.isBackoffice && (zelfHersteld ? (
-          <span style={{fontSize:12,color:C.oranje,fontWeight:700}}>👀 Jij hebt dit hersteld gemeld — een andere backoffice-collega moet controleren.</span>
+        {p.status === "hersteld" && ctx.magControleren && (zelfHersteld ? (
+          <span style={{fontSize:12,color:C.oranje,fontWeight:700}}>{tx("👀 Jij hebt dit hersteld gemeld — iemand anders moet controleren (vier ogen).")}</span>
         ) : (<>
-          <button style={btn(C.groen)} disabled={ctx.bezig} onClick={()=>ctx.rpc("snf_herstelpunt_controleren", { p_id: p.id, p_goedgekeurd: true }, "✓ Goedgekeurd")}>✅ Goedkeuren</button>
-          <button style={btn(C.rood)} disabled={ctx.bezig} onClick={afkeuren}>❌ Afkeuren</button>
+          <button style={btn(C.groen)} disabled={ctx.bezig} onClick={()=>ctx.rpc("snf_herstelpunt_controleren", { p_id: p.id, p_goedgekeurd: true }, tx("✓ Goedgekeurd"))}>{tx("✅ Goedkeuren")}</button>
+          <button style={btn(C.rood)} disabled={ctx.bezig} onClick={afkeuren}>{tx("❌ Afkeuren")}</button>
         </>))}
-        {p.status === "hersteld" && !ctx.isBackoffice && <span style={{fontSize:12,color:C.muted}}>Wacht op controle door backoffice.</span>}
-        {p.status === "gecontroleerd" && ctx.isBackoffice && <button style={btn("white", C.rood)} disabled={ctx.bezig} onClick={heropenen}>↩ Heropenen</button>}
+        {p.status === "hersteld" && !ctx.magControleren && <span style={{fontSize:12,color:C.muted}}>{tx("Wacht op controle.")}</span>}
+        {p.status === "gecontroleerd" && ctx.magControleren && <button style={btn("white", C.rood)} disabled={ctx.bezig} onClick={heropenen}>{tx("↩ Heropenen")}</button>}
       </div>
       {puntLog.length > 0 && <Geschiedenis rijen={puntLog} />}
     </Kaart>
@@ -475,21 +478,21 @@ function InspectieForm({ insp, ctx, onKlaar }) {
     return n;
   });
   async function opslaan() {
-    if (!v.woning_id || !v.inspectiedatum || !v.deadline || !v.interne_deadline) { alert("Vul woning, inspectiedatum en deadlines in."); return; }
-    const r = await ctx.rpc("snf_inspectie_opslaan", { p_id: insp?.id || null, p_data: { ...v, woning_id: Number(v.woning_id) } }, insp ? "✓ Inspectie opgeslagen" : "✓ Inspectie aangemaakt — voeg nu de herstelpunten toe");
+    if (!v.woning_id || !v.inspectiedatum || !v.deadline || !v.interne_deadline) { alert(tx("Vul woning, inspectiedatum en deadlines in.")); return; }
+    const r = await ctx.rpc("snf_inspectie_opslaan", { p_id: insp?.id || null, p_data: { ...v, woning_id: Number(v.woning_id) } }, tx(insp ? "✓ Inspectie opgeslagen" : "✓ Inspectie aangemaakt — voeg nu de herstelpunten toe"));
     if (r) onKlaar(r.id);
   }
   const veld = (k, label, type="text") => (
-    <div><label style={lbl}>{label}</label><input type={type} style={inp} value={v[k] || ""} onChange={e=>zet(k, e.target.value)} /></div>
+    <div><label style={lbl}>{tx(label)}</label><input type={type} style={inp} value={v[k] || ""} onChange={e=>zet(k, e.target.value)} /></div>
   );
   return (
     <Kaart>
-      <div style={{fontSize:15,fontWeight:800,color:C.text,marginBottom:10}}>{insp ? "Inspectie wijzigen" : "Nieuwe inspectie"}</div>
+      <div style={{fontSize:15,fontWeight:800,color:C.text,marginBottom:10}}>{tx(insp ? "Inspectie wijzigen" : "Nieuwe inspectie")}</div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:10}}>
         <div>
-          <label style={lbl}>Woning *</label>
+          <label style={lbl}>{tx("Woning *")}</label>
           <select style={inp} value={v.woning_id} onChange={e=>zet("woning_id", e.target.value)}>
-            <option value="">— kies woning —</option>
+            <option value="">{tx("— kies woning —")}</option>
             {(ctx.houses || []).map(h => <option key={h.id} value={h.id}>{h.adres}, {h.stad}</option>)}
           </select>
         </div>
@@ -499,24 +502,24 @@ function InspectieForm({ insp, ctx, onKlaar }) {
         {veld("inspectie_instelling", "Inspectie-instelling")}
         {veld("inspecteur", "Inspecteur")}
         <div>
-          <label style={lbl}>Uitslag *</label>
+          <label style={lbl}>{tx("Uitslag *")}</label>
           <select style={inp} value={v.uitslag} onChange={e=>zet("uitslag", e.target.value)}>
-            <option value="voldoet_niet">Voldoet niet</option><option value="voldoet">Voldoet</option>
+            <option value="voldoet_niet">{tx("Voldoet niet")}</option><option value="voldoet">{tx("Voldoet")}</option>
           </select>
         </div>
         <div>
-          <label style={lbl}>Vervolgactie</label>
+          <label style={lbl}>{tx("Vervolgactie")}</label>
           <select style={inp} value={v.vervolgactie} onChange={e=>zet("vervolgactie", e.target.value)}>
-            <option value="">—</option><option value="administratief">Administratief</option><option value="herinspectie">Herinspectie</option>
+            <option value="">—</option><option value="administratief">{tx("Administratief")}</option><option value="herinspectie">{tx("Herinspectie")}</option>
           </select>
         </div>
         {veld("deadline", "Deadline * (standaard +6 weken)", "date")}
         {veld("interne_deadline", "Interne deadline * (standaard −14 dagen)", "date")}
       </div>
-      <div style={{marginTop:10}}><label style={lbl}>Opmerking</label><textarea style={{...inp, minHeight:50}} value={v.opmerking || ""} onChange={e=>zet("opmerking", e.target.value)} /></div>
+      <div style={{marginTop:10}}><label style={lbl}>{tx("Opmerking")}</label><textarea style={{...inp, minHeight:50}} value={v.opmerking || ""} onChange={e=>zet("opmerking", e.target.value)} /></div>
       <div style={{display:"flex",gap:8,marginTop:12}}>
-        <button style={btn(C.groen)} disabled={ctx.bezig} onClick={opslaan}>💾 Opslaan</button>
-        <button style={{...btn("white", C.text), border:`1px solid ${C.border}`}} onClick={()=>onKlaar(null)}>Annuleren</button>
+        <button style={btn(C.groen)} disabled={ctx.bezig} onClick={opslaan}>{tx("💾 Opslaan")}</button>
+        <button style={{...btn("white", C.text), border:`1px solid ${C.border}`}} onClick={()=>onKlaar(null)}>{tx("Annuleren")}</button>
       </div>
     </Kaart>
   );
@@ -530,43 +533,43 @@ function PuntForm({ punt, inspectieId, ctx, onKlaar }) {
   // Eigenaar: wie het herstel regelt. Collega's zitten niet in de SNF-module, dus niet in de lijst.
   const kandidaten = (ctx.gebruikers || []).filter(g => g.rol !== "collega");
   async function opslaan() {
-    if (!v.omschrijving_inspecteur.trim()) { alert("Omschrijving van de inspecteur is verplicht."); return; }
+    if (!v.omschrijving_inspecteur.trim()) { alert(tx("Omschrijving van de inspecteur is verplicht.")); return; }
     const r = await ctx.rpc("snf_herstelpunt_opslaan", { p_id: punt?.id || null,
-      p_data: { ...v, inspectie_id: inspectieId, eigenaar_id: v.eigenaar_id ? Number(v.eigenaar_id) : null } }, punt ? "✓ Punt opgeslagen" : "✓ Punt toegevoegd");
+      p_data: { ...v, inspectie_id: inspectieId, eigenaar_id: v.eigenaar_id ? Number(v.eigenaar_id) : null } }, tx(punt ? "✓ Punt opgeslagen" : "✓ Punt toegevoegd"));
     if (r) onKlaar();
   }
-  const veld = (k, label) => <div><label style={lbl}>{label}</label><input style={inp} value={v[k] || ""} onChange={e=>zet(k, e.target.value)} /></div>;
+  const veld = (k, label) => <div><label style={lbl}>{tx(label)}</label><input style={inp} value={v[k] || ""} onChange={e=>zet(k, e.target.value)} /></div>;
   return (
     <div>
-      <div style={{fontSize:14,fontWeight:800,color:C.text,marginBottom:8}}>{punt ? "Herstelpunt wijzigen" : "Nieuw herstelpunt"}</div>
+      <div style={{fontSize:14,fontWeight:800,color:C.text,marginBottom:8}}>{tx(punt ? "Herstelpunt wijzigen" : "Nieuw herstelpunt")}</div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:10}}>
         {veld("normnummer", "Normnummer (bv. 6.3)")}
         <div>
-          <label style={lbl}>Categorie</label>
+          <label style={lbl}>{tx("Categorie")}</label>
           <input style={inp} list="snf-categorieen" value={v.categorie || ""} onChange={e=>zet("categorie", e.target.value)} />
           <datalist id="snf-categorieen">{CATEGORIEEN.map(c => <option key={c} value={c} />)}</datalist>
         </div>
         <div>
-          <label style={lbl}>Ernst *</label>
+          <label style={lbl}>{tx("Ernst *")}</label>
           <select style={inp} value={v.ernst} onChange={e=>zet("ernst", e.target.value)}><option value="major">Major</option><option value="minor">Minor</option></select>
         </div>
         <div>
-          <label style={lbl}>Eigenaar</label>
+          <label style={lbl}>{tx("Eigenaar")}</label>
           <select style={inp} value={v.eigenaar_id || ""} onChange={e=>zet("eigenaar_id", e.target.value)}>
-            <option value="">— niemand —</option>
+            <option value="">{tx("— niemand —")}</option>
             {kandidaten.map(g => <option key={g.id} value={g.id}>{g.naam} ({g.rol})</option>)}
           </select>
         </div>
       </div>
       <div style={{display:"grid",gap:10,marginTop:10}}>
-        <div><label style={lbl}>Omschrijving inspecteur *</label><textarea style={{...inp, minHeight:50}} value={v.omschrijving_inspecteur || ""} onChange={e=>zet("omschrijving_inspecteur", e.target.value)} /></div>
+        <div><label style={lbl}>{tx("Omschrijving inspecteur *")}</label><textarea style={{...inp, minHeight:50}} value={v.omschrijving_inspecteur || ""} onChange={e=>zet("omschrijving_inspecteur", e.target.value)} /></div>
         {veld("actie", "Actie (wat moet er gebeuren)")}
         {veld("vereist_bewijs", "Vereist bewijs")}
         {veld("opmerking", "Opmerking")}
       </div>
       <div style={{display:"flex",gap:8,marginTop:12}}>
-        <button style={btn(C.groen)} disabled={ctx.bezig} onClick={opslaan}>💾 Opslaan</button>
-        <button style={{...btn("white", C.text), border:`1px solid ${C.border}`}} onClick={onKlaar}>Annuleren</button>
+        <button style={btn(C.groen)} disabled={ctx.bezig} onClick={opslaan}>{tx("💾 Opslaan")}</button>
+        <button style={{...btn("white", C.text), border:`1px solid ${C.border}`}} onClick={onKlaar}>{tx("Annuleren")}</button>
       </div>
     </div>
   );
