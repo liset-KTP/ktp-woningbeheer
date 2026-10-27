@@ -172,6 +172,15 @@ export function AutoModule({ gebruiker, showToast }) {
     const { error } = await supabase.from("auto_meldingen").insert([{...opslagData, ingediend_door: gebruiker.naam, status:"open"}]);
     if (error) { showToast(tx("Fout bij opslaan"),"err"); return false; }
 
+    // Annulering van een reservering: auto terug naar Beschikbaar en naam leegmaken.
+    // Alleen als de auto nu echt op Gereserveerd staat — een lopende uitgifte blijft ongemoeid.
+    if (m.kenteken && m.actie === "geannuleerd") {
+      const auto = autos.find(a => a.kenteken === m.kenteken);
+      if (auto && auto.status === "Gereserveerd") {
+        await supabase.from("autos").update({ status: "Beschikbaar", naam_medewerker: null }).eq("id", auto.id);
+      }
+    }
+
     // Auto status bijwerken
     if (m.kenteken && m.actie !== "geannuleerd") {
       const auto = autos.find(a => a.kenteken === m.kenteken);
