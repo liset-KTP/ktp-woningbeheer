@@ -9493,5 +9493,10 @@
   "en": "not compliant",
   "ro": "neconform",
   "pl": "nie spełnia"
+ },
+ "🚪 Geen sleutel (deur zonder slot)": {
+  "en": "🚪 No key (door without lock)",
+  "ro": "🚪 Fără cheie (ușă fără încuietoare)",
+  "pl": "🚪 Brak klucza (drzwi bez zamka)"
  }
 }

@@ -1492,6 +1492,7 @@ function App() {
         if (t.notitie.indexOf('[✓ sleutel1]') > -1) extraLog += ' | Sleutel 1 ingeleverd ✓';
         if (t.notitie.indexOf('[✓ sleutel2]') > -1) extraLog += ' | Sleutel 2 ingeleverd ✓';
         if (t.notitie.indexOf('[✓ kamer_klaar]') > -1) extraLog += ' | Kamer klaar ✓';
+        if (t.notitie.indexOf('[✓ geen_sleutel]') > -1) extraLog += ' | Geen sleutel (deur zonder slot)';
       }
       if (updates.extra_info) {
         try {
@@ -2864,7 +2865,10 @@ function controleOntbreekt(t) {
   const tweeSleutels = /2 sleutels/.test(`${t.omschrijving||""} ${t.huismeester_opmerking||""}`);
   const punten = [["schoon","Kamer schoon"],["sleutel1","Sleutel 1 ingeleverd"]];
   if (tweeSleutels) punten.push(["sleutel2","Sleutel 2 ingeleverd"]);
-  return punten.filter(([k]) => !n.includes(`[✓ ${k}]`)).map(([,l]) => l);
+  const geenSleutel = n.includes("[✓ geen_sleutel]");
+  return punten
+    .filter(([k]) => !(geenSleutel && (k === "sleutel1" || k === "sleutel2")))
+    .filter(([k]) => !n.includes(`[✓ ${k}]`)).map(([,l]) => l);
 }
 
 // ─── VERTREK CONTROLE MODAL ───────────────────────────────────────────────────
@@ -5518,11 +5522,13 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast, inlin
                     {(t.titel?.includes("Verhuizing voltooid") ? [
                       {key:"sleutel1", label:"🔑 Sleutel 1 uitgereikt"},
                       {key:"sleutel2", label:"🔑 Sleutel 2 uitgereikt (indien 2 sleutels)"},
+                      {key:"geen_sleutel", label:"🚪 Geen sleutel (deur zonder slot)"},
                       {key:"kamer_klaar", label:"🏠 Kamer klaar voor bewoning"},
                     ] : [
                       {key:"schoon", label:"🧹 Kamer schoon"},
                       {key:"sleutel1", label:"🔑 Sleutel 1 ingeleverd"},
                       {key:"sleutel2", label:"🔑 Sleutel 2 ingeleverd (indien van toepassing)"},
+                      {key:"geen_sleutel", label:"🚪 Geen sleutel (deur zonder slot)"},
                     ]).map(({key, label}) => {
                       const checked = (t.notitie||"").includes(`[✓ ${key}]`);
                       return (
@@ -5539,9 +5545,12 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast, inlin
                           // BUGFIX (13-10-2026, Dirtu): sleutel2 is "indien van toepassing" en mag de afronding
                           // niet blokkeren. Bij 1 sleutel werd de kamer anders nooit vrijgegeven, terwijl de taak
                           // wél op gedaan kwam (via de gewone gedaan-knop) en de melding automatisch dichtging.
+                          // "Geen sleutel (deur zonder slot)" telt als vervanger van sleutel 1 (28-10-2026, Pelkowski):
+                          // zonder deze optie vinkten collega's sleutel 1 af terwijl er geen sleutel was.
                           const alleKeys = t.titel?.includes("Verhuizing voltooid") ? ["sleutel1","kamer_klaar"] : ["schoon","sleutel1"];
-                          const wasAlAfgevinkt = alleKeys.every(k => (t.notitie||"").includes("[✓ "+k+"]"));
-                          const alleAfgevinkt = alleKeys.every(k => nieuwNotitie.includes("[✓ "+k+"]"));
+                          const isAf = (n, k) => n.includes("[✓ "+k+"]") || (k === "sleutel1" && n.includes("[✓ geen_sleutel]"));
+                          const wasAlAfgevinkt = alleKeys.every(k => isAf(t.notitie||"", k));
+                          const alleAfgevinkt = alleKeys.every(k => isAf(nieuwNotitie, k));
                           if (alleAfgevinkt && !wasAlAfgevinkt) {
                             const isVertrek = t.titel?.includes("na vertrek");
                             const isVerhuizingControle = t.titel?.includes("Kamer controleren na verhuizing");
