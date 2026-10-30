@@ -9498,5 +9498,20 @@
   "en": "🚪 No key (door without lock)",
   "ro": "🚪 Fără cheie (ușă fără încuietoare)",
   "pl": "🚪 Brak klucza (drzwi bez zamka)"
+ },
+ "🏠 Medewerker woont nu in deze (nieuwe) kamer": {
+  "en": "🏠 Employee now lives in this (new) room",
+  "ro": "🏠 Angajatul locuiește acum în această cameră (nouă)",
+  "pl": "🏠 Pracownik mieszka teraz w tym (nowym) pokoju"
+ },
+ "Dit gaat over de NIEUWE kamer: {0} K{1}. De oude kamer controleert de huismeester in een aparte taak.": {
+  "en": "This is about the NEW room: {0} R{1}. The house manager checks the old room in a separate task.",
+  "ro": "Este vorba despre camera NOUĂ: {0} C{1}. Administratorul verifică camera veche într-o sarcină separată.",
+  "pl": "Dotyczy NOWEGO pokoju: {0} P{1}. Stary pokój sprawdza opiekun domu w osobnym zadaniu."
+ },
+ "Geen slot op de deur? Kies \"Geen sleutel\". Vink alles af en klik daarna op ✓ Gedaan.": {
+  "en": "No lock on the door? Choose \"No key\". Tick everything off and then click ✓ Done.",
+  "ro": "Ușa nu are încuietoare? Alege „Fără cheie\". Bifează tot și apoi apasă ✓ Gata.",
+  "pl": "Brak zamka w drzwiach? Wybierz „Brak klucza\". Odhacz wszystko i kliknij ✓ Gotowe."
  }
 }

@@ -1002,7 +1002,7 @@ function App() {
         // Taak 3: Collega — sleutel uitreiken bij nieuwe kamer (was huismeester, sinds 29-09-2026 collega)
         {
           titel: `Verhuizing voltooid — sleutel uitreiken ${m.medewerker}`,
-          omschrijving: `${m.medewerker} trekt in bij ${naarHuisVerh?.adres||""} K${m.kamer}. Reik sleutel(s) uit en controleer of alles klaar is.`,
+          omschrijving: `${m.medewerker} trekt in bij ${naarHuisVerh?.adres||""} K${m.kamer} (nieuwe kamer). Reik sleutel(s) uit of kies "Geen sleutel" als er geen slot op zit, vink "Medewerker woont nu in deze kamer" af en klik op ✓ Gedaan.`,
           woning_id: m.huisId || null,
           kamer: m.kamer || null,
           prioriteit: "hoog",
@@ -1491,7 +1491,7 @@ function App() {
         if (t.notitie.indexOf('[✓ schoon]') > -1) extraLog += ' | Kamer schoon ✓';
         if (t.notitie.indexOf('[✓ sleutel1]') > -1) extraLog += ' | Sleutel 1 ingeleverd ✓';
         if (t.notitie.indexOf('[✓ sleutel2]') > -1) extraLog += ' | Sleutel 2 ingeleverd ✓';
-        if (t.notitie.indexOf('[✓ kamer_klaar]') > -1) extraLog += ' | Kamer klaar ✓';
+        if (t.notitie.indexOf('[✓ kamer_klaar]') > -1) extraLog += ' | Woont in nieuwe kamer ✓';
         if (t.notitie.indexOf('[✓ geen_sleutel]') > -1) extraLog += ' | Geen sleutel (deur zonder slot)';
       }
       if (updates.extra_info) {
@@ -2860,8 +2860,15 @@ function isVertrekBevestigTaak(titel) {
 // mee als er volgens de taak 2 sleutels verwacht worden.
 function controleOntbreekt(t) {
   const titel = t?.titel || "";
-  if (!titel.includes("Kamer controleren")) return [];
   const n = t.notitie || "";
+  // 29-10-2026: ook bij "Verhuizing voltooid" — anders kon de taak dicht zonder dat de nieuwe kamer op Bezet kwam
+  if (titel.includes("Verhuizing voltooid")) {
+    const mis = [];
+    if (!n.includes("[✓ sleutel1]") && !n.includes("[✓ geen_sleutel]")) mis.push("Sleutel uitgereikt (of geen slot)");
+    if (!n.includes("[✓ kamer_klaar]")) mis.push("Medewerker woont nu in deze kamer");
+    return mis;
+  }
+  if (!titel.includes("Kamer controleren")) return [];
   const tweeSleutels = /2 sleutels/.test(`${t.omschrijving||""} ${t.huismeester_opmerking||""}`);
   const punten = [["schoon","Kamer schoon"],["sleutel1","Sleutel 1 ingeleverd"]];
   if (tweeSleutels) punten.push(["sleutel2","Sleutel 2 ingeleverd"]);
@@ -5519,11 +5526,18 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast, inlin
                 {((t.titel?.includes("Kamer controleren") && (isHuismeester || isBackoffice || (isCollega && t.voor_rol === "collega"))) || (t.titel?.includes("Verhuizing voltooid") && (isHuismeester || isCollega || isBackoffice))) && !gedaan && (
                   <div style={{marginTop:10,background:"#fffbeb",border:"1px solid #fcd34d",borderRadius:10,padding:"12px 14px"}}>
                     <div style={{fontSize:12,fontWeight:700,color:"#b45309",marginBottom:10}}>{tx("✅ Controlepunten afvinken")}</div>
+                    {/* 29-10-2026 (vraag Hans): duidelijk maken dat dit over de NIEUWE kamer gaat en hoe je afrondt */}
+                    {t.titel?.includes("Verhuizing voltooid") && (
+                      <div style={{fontSize:12,color:"#92400e",marginBottom:8,lineHeight:1.5}}>
+                        {txv("Dit gaat over de NIEUWE kamer: {0} K{1}. De oude kamer controleert de huismeester in een aparte taak.", huis?.adres||"?", t.kamer||"?")}<br/>
+                        {tx("Geen slot op de deur? Kies \"Geen sleutel\". Vink alles af en klik daarna op ✓ Gedaan.")}
+                      </div>
+                    )}
                     {(t.titel?.includes("Verhuizing voltooid") ? [
                       {key:"sleutel1", label:"🔑 Sleutel 1 uitgereikt"},
                       {key:"sleutel2", label:"🔑 Sleutel 2 uitgereikt (indien 2 sleutels)"},
                       {key:"geen_sleutel", label:"🚪 Geen sleutel (deur zonder slot)"},
-                      {key:"kamer_klaar", label:"🏠 Kamer klaar voor bewoning"},
+                      {key:"kamer_klaar", label:"🏠 Medewerker woont nu in deze (nieuwe) kamer"},
                     ] : [
                       {key:"schoon", label:"🧹 Kamer schoon"},
                       {key:"sleutel1", label:"🔑 Sleutel 1 ingeleverd"},
@@ -5606,13 +5620,13 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast, inlin
 
                             // 1. Bericht naar backoffice
                             const berichtTekst = isVerhuizingVoltooid
-                              ? `Verhuizing voltooid voor ${medewerkerNaam}: sleutel(s) uitgereikt ✓, kamer klaar ✓. Check of extra borg of km-vergoeding aanpassing nodig is.`
+                              ? `Verhuizing voltooid voor ${medewerkerNaam}: ${nieuwNotitie.includes("[✓ geen_sleutel]") ? "geen sleutel (deur zonder slot)" : "sleutel(s) uitgereikt ✓"}, woont in nieuwe kamer ✓. Borg loopt door — NIET terugbetalen. Check of extra borg of km-vergoeding aanpassing nodig is.`
                               : `Kamer ${t.kamer||""} is gecontroleerd en klaar: kamer schoon ✓, sleutel(s) ingeleverd ✓. Borg kan worden terugbetaald.`;
                             await supabase.from("berichten").insert([{
                               tekst: berichtTekst,
                               van: gebruiker?.naam||"Huismeester",
                               aan: null,
-                              onderwerp: `✅ Kamer klaar + borg terugbetalen — ${medewerkerNaam}`,
+                              onderwerp: isVerhuizingVoltooid ? `✅ Verhuizing voltooid — ${medewerkerNaam}` : `✅ Kamer klaar + borg terugbetalen — ${medewerkerNaam}`,
                               koppeling_type: "taak",
                               koppeling_id: t.id,
                               koppeling_label: t.titel,
@@ -5644,7 +5658,16 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast, inlin
                             }
 
                             // 3. Mail sturen
-                            stuurMail({
+                            stuurMail(isVerhuizingVoltooid ? {
+                              type: "✅ Verhuizing voltooid",
+                              type_icon: "✅",
+                              medewerker: medewerkerNaam || "—",
+                              woning: huis ? `${huis.adres}, ${huis.stad}` : "—",
+                              kamer: `Kamer ${t.kamer||""}`,
+                              datum: new Date().toISOString().slice(0,10),
+                              ingediend_door: gebruiker?.naam||"Collega",
+                              opmerkingen: `${nieuwNotitie.includes("[✓ geen_sleutel]") ? "Geen sleutel (deur zonder slot)" : "Sleutel(s) uitgereikt ✓"} · Woont in nieuwe kamer ✓ · Borg loopt door (niet terugbetalen)`,
+                            } : {
                               type: "✅ Kamer klaar + borg terugbetalen",
                               type_icon: "✅",
                               medewerker: medewerkerNaam || "—",
