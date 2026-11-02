@@ -9513,5 +9513,250 @@
   "en": "No lock on the door? Choose \"No key\". Tick everything off and then click ✓ Done.",
   "ro": "Ușa nu are încuietoare? Alege „Fără cheie\". Bifează tot și apoi apasă ✓ Gata.",
   "pl": "Brak zamka w drzwiach? Wybierz „Brak klucza\". Odhacz wszystko i kliknij ✓ Gotowe."
+ },
+ "SNF: {0} open": {
+  "en": "SNF: {0} open",
+  "ro": "SNF: {0} deschise",
+  "pl": "SNF: {0} otwarte"
+ },
+ "⚠ {0} afwijking(en) open": {
+  "en": "⚠ {0} deviation(s) open",
+  "ro": "⚠ {0} abatere(i) deschise",
+  "pl": "⚠ {0} odchylenie(a) otwarte"
+ },
+ "🧯 Dit is het SNF-logboek: verplicht 1× per kwartaal. Klopt iets niet? Klik ⚠ en schrijf op wat je ziet. Is het opgelost? Vul in wat er gedaan is en door wie.": {
+  "en": "🧯 This is the SNF logbook: required once per quarter. Something not right? Click ⚠ and write down what you see. Fixed? Fill in what was done and by whom.",
+  "ro": "🧯 Acesta este registrul SNF: obligatoriu o dată pe trimestru. Ceva nu este în regulă? Apasă ⚠ și scrie ce vezi. S-a rezolvat? Completează ce s-a făcut și de către cine.",
+  "pl": "🧯 To jest dziennik SNF: obowiązkowo raz na kwartał. Coś jest nie tak? Kliknij ⚠ i zapisz, co widzisz. Naprawione? Wpisz, co zrobiono i kto to zrobił."
+ },
+ "Verplicht volgens de SNF-norm": {
+  "en": "Required by the SNF standard",
+  "ro": "Obligatoriu conform normei SNF",
+  "pl": "Wymagane przez normę SNF"
+ },
+ "Wat is er gedaan om het op te lossen? (verplicht)": {
+  "en": "What was done to fix it? (required)",
+  "ro": "Ce s-a făcut pentru rezolvare? (obligatoriu)",
+  "pl": "Co zrobiono, aby to naprawić? (wymagane)"
+ },
+ "Opgelost door (naam of bedrijf)": {
+  "en": "Fixed by (name or company)",
+  "ro": "Rezolvat de (nume sau firmă)",
+  "pl": "Naprawione przez (imię lub firma)"
+ },
+ "✓ Oplossing invullen": {
+  "en": "✓ Enter solution",
+  "ro": "✓ Completează soluția",
+  "pl": "✓ Wpisz rozwiązanie"
+ },
+ "Afwijking melden": {
+  "en": "Report deviation",
+  "ro": "Raportează abatere",
+  "pl": "Zgłoś odchylenie"
+ },
+ "{0} keuring(en) verlopen": {
+  "en": "{0} inspection(s) expired",
+  "ro": "{0} verificare(ări) expirate",
+  "pl": "{0} przegląd(y) przeterminowane"
+ },
+ "{0} keuring(en) binnen 60 dagen": {
+  "en": "{0} inspection(s) due within 60 days",
+  "ro": "{0} verificare(ări) în următoarele 60 de zile",
+  "pl": "{0} przegląd(y) w ciągu 60 dni"
+ },
+ "{0} woning(en): blusser- of CV-keuring niet ingevuld": {
+  "en": "{0} house(s): extinguisher or boiler inspection not filled in",
+  "ro": "{0} locuință(e): verificarea stingătorului sau a centralei necompletată",
+  "pl": "{0} dom(y): przegląd gaśnicy lub kotła nieuzupełniony"
+ },
+ "{0} woning(en) zonder volledige kwartaalcontrole vorig kwartaal": {
+  "en": "{0} house(s) without a complete quarterly check last quarter",
+  "ro": "{0} locuință(e) fără control trimestrial complet în trimestrul trecut",
+  "pl": "{0} dom(y) bez pełnej kontroli kwartalnej w poprzednim kwartale"
+ },
+ "Opslaan mislukt: ": {
+  "en": "Saving failed: ",
+  "ro": "Salvarea a eșuat: ",
+  "pl": "Zapis nie powiódł się: "
+ },
+ "niet gedaan": {
+  "en": "not done",
+  "ro": "nefăcut",
+  "pl": "nie wykonano"
+ },
+ "nog doen": {
+  "en": "to do",
+  "ro": "de făcut",
+  "pl": "do zrobienia"
+ },
+ "SNF-norm 3A.1:": {
+  "en": "SNF standard 3A.1:",
+  "ro": "Norma SNF 3A.1:",
+  "pl": "Norma SNF 3A.1:"
+ },
+ "minimaal 4× per jaar een controle van woning en omgeving, vastgelegd met datum, controleur, bevinding, oplossing en wie het oploste. Bron: de kwartaalchecklist van de huismeester.": {
+  "en": "at least 4× a year a check of the house and surroundings, recorded with date, inspector, finding, solution and who fixed it. Source: the caretaker's quarterly checklist.",
+  "ro": "cel puțin de 4× pe an un control al locuinței și împrejurimilor, înregistrat cu data, controlorul, constatarea, soluția și cine a rezolvat. Sursa: lista de verificare trimestrială a administratorului.",
+  "pl": "co najmniej 4× w roku kontrola domu i otoczenia, zapisana z datą, kontrolerem, ustaleniem, rozwiązaniem i osobą, która to naprawiła. Źródło: kwartalna lista kontrolna gospodarza."
+ },
+ "⬇ Exporteren voor auditor (CSV)": {
+  "en": "⬇ Export for auditor (CSV)",
+  "ro": "⬇ Export pentru auditor (CSV)",
+  "pl": "⬇ Eksport dla audytora (CSV)"
+ },
+ "Afwijkingen {0} ({1})": {
+  "en": "Deviations {0} ({1})",
+  "ro": "Abateri {0} ({1})",
+  "pl": "Odchylenia {0} ({1})"
+ },
+ "Geen afwijkingen geregistreerd.": {
+  "en": "No deviations recorded.",
+  "ro": "Nicio abatere înregistrată.",
+  "pl": "Brak zarejestrowanych odchyleń."
+ },
+ "n.v.t.": {
+  "en": "n/a",
+  "ro": "n/a",
+  "pl": "n/d"
+ },
+ "datum ontbreekt": {
+  "en": "date missing",
+  "ro": "lipsește data",
+  "pl": "brak daty"
+ },
+ "{0} dg verlopen": {
+  "en": "{0} days overdue",
+  "ro": "expirat de {0} zile",
+  "pl": "{0} dni po terminie"
+ },
+ "Brandblusser: onderhoud elke 2 jaar door een REOB-bedrijf (etiket); schuim vervangen na 5 jaar, poeder/CO2 na 10 jaar. CV-ketel/geiser: elke 2 jaar gekeurd (factuur, rapport of sticker). Vul na elke keuring de nieuwe datum in.": {
+  "en": "Fire extinguisher: serviced every 2 years by a REOB company (label); replace foam after 5 years, powder/CO2 after 10 years. Boiler/water heater: inspected every 2 years (invoice, report or sticker). Enter the new date after every inspection.",
+  "ro": "Stingător: întreținere la fiecare 2 ani de o firmă REOB (etichetă); spuma se înlocuiește după 5 ani, pulberea/CO2 după 10 ani. Centrală/boiler: verificare la fiecare 2 ani (factură, raport sau etichetă). Completează data nouă după fiecare verificare.",
+  "pl": "Gaśnica: serwis co 2 lata przez firmę REOB (etykieta); pianowa do wymiany po 5 latach, proszkowa/CO2 po 10 latach. Kocioł/podgrzewacz: przegląd co 2 lata (faktura, raport lub naklejka). Po każdym przeglądzie wpisz nową datę."
+ },
+ "➕ Keuring": {
+  "en": "➕ Inspection",
+  "ro": "➕ Verificare",
+  "pl": "➕ Przegląd"
+ },
+ "nog niet ingevuld": {
+  "en": "not filled in yet",
+  "ro": "încă necompletat",
+  "pl": "jeszcze nieuzupełnione"
+ },
+ "Invullen": {
+  "en": "Fill in",
+  "ro": "Completează",
+  "pl": "Uzupełnij"
+ },
+ "laatst {0} · volgende {1}": {
+  "en": "last {0} · next {1}",
+  "ro": "ultima {0} · următoarea {1}",
+  "pl": "ostatni {0} · następny {1}"
+ },
+ "vervangen uiterlijk {0}": {
+  "en": "replace by {0}",
+  "ro": "de înlocuit până la {0}",
+  "pl": "wymienić do {0}"
+ },
+ "Kies woning en soort.": {
+  "en": "Choose house and type.",
+  "ro": "Alege locuința și tipul.",
+  "pl": "Wybierz dom i rodzaj."
+ },
+ "Vul de datum van de laatste keuring in (of vink n.v.t. aan).": {
+  "en": "Enter the date of the last inspection (or tick n/a).",
+  "ro": "Completează data ultimei verificări (sau bifează n/a).",
+  "pl": "Wpisz datę ostatniego przeglądu (lub zaznacz n/d)."
+ },
+ "✓ Keuring opgeslagen": {
+  "en": "✓ Inspection saved",
+  "ro": "✓ Verificare salvată",
+  "pl": "✓ Przegląd zapisany"
+ },
+ "Deze keuring verwijderen?": {
+  "en": "Delete this inspection?",
+  "ro": "Ștergi această verificare?",
+  "pl": "Usunąć ten przegląd?"
+ },
+ "Keuring verwijderd": {
+  "en": "Inspection deleted",
+  "ro": "Verificare ștearsă",
+  "pl": "Przegląd usunięty"
+ },
+ "Soort *": {
+  "en": "Type *",
+  "ro": "Tip *",
+  "pl": "Rodzaj *"
+ },
+ "Niet van toepassing in deze woning (bv. geen gastoestel)": {
+  "en": "Not applicable in this house (e.g. no gas appliance)",
+  "ro": "Nu se aplică în această locuință (ex. fără aparat pe gaz)",
+  "pl": "Nie dotyczy tego domu (np. brak urządzenia gazowego)"
+ },
+ "🗑 Verwijderen": {
+  "en": "🗑 Delete",
+  "ro": "🗑 Șterge",
+  "pl": "🗑 Usuń"
+ },
+ "📒 Logboek kwartaalcontrole": {
+  "en": "📒 Quarterly check logbook",
+  "ro": "📒 Registru control trimestrial",
+  "pl": "📒 Dziennik kontroli kwartalnej"
+ },
+ "🗓 Keuringen": {
+  "en": "🗓 Inspections",
+  "ro": "🗓 Verificări",
+  "pl": "🗓 Przeglądy"
+ },
+ "Brandblusser (onderhoud)": {
+  "en": "Fire extinguisher (service)",
+  "ro": "Stingător (întreținere)",
+  "pl": "Gaśnica (serwis)"
+ },
+ "CV-ketel / geiser": {
+  "en": "Boiler / water heater",
+  "ro": "Centrală / boiler",
+  "pl": "Kocioł / podgrzewacz"
+ },
+ "Brandmeldinstallatie": {
+  "en": "Fire alarm system",
+  "ro": "Sistem de alarmă la incendiu",
+  "pl": "Instalacja sygnalizacji pożaru"
+ },
+ "Omschrijving (bv. blusser keuken 6L schuim)": {
+  "en": "Description (e.g. kitchen extinguisher 6L foam)",
+  "ro": "Descriere (ex. stingător bucătărie 6L spumă)",
+  "pl": "Opis (np. gaśnica kuchnia 6L piana)"
+ },
+ "Laatste keuring *": {
+  "en": "Last inspection *",
+  "ro": "Ultima verificare *",
+  "pl": "Ostatni przegląd *"
+ },
+ "Interval (maanden)": {
+  "en": "Interval (months)",
+  "ro": "Interval (luni)",
+  "pl": "Odstęp (miesiące)"
+ },
+ "Vervangen uiterlijk (schuim 5 jr, poeder 10 jr)": {
+  "en": "Replace by (foam 5 yrs, powder 10 yrs)",
+  "ro": "De înlocuit până la (spumă 5 ani, pulbere 10 ani)",
+  "pl": "Wymienić do (piana 5 lat, proszek 10 lat)"
+ },
+ "Keuringsbedrijf": {
+  "en": "Inspection company",
+  "ro": "Firma de verificare",
+  "pl": "Firma przeglądowa"
+ },
+ "Keuring wijzigen": {
+  "en": "Edit inspection",
+  "ro": "Modifică verificarea",
+  "pl": "Edytuj przegląd"
+ },
+ "Nieuwe keuring": {
+  "en": "New inspection",
+  "ro": "Verificare nouă",
+  "pl": "Nowy przegląd"
  }
 }

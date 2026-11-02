@@ -3615,9 +3615,11 @@ function WoningKaartDag({ huis, kleur, hTaken, hMeldingen, checklistItems, check
   const periodeQ  = `Q${Math.ceil(wnNum / 13)}-${jaarNum}`;
 
   // ─── Items per type ───────────────────────────────────────────────────────
-  const weekItems = checklistItems.filter(i => i.type === "wekelijks"   && i.actief);
-  const items4W   = checklistItems.filter(i => i.type === "4wekelijks"  && i.actief);
-  const itemsQ    = checklistItems.filter(i => i.type === "kwartaal"    && i.actief);
+  // SNF-verplichte items (checklist_items.snf_norm gevuld) altijd bovenaan
+  const snfEerst = (a, b) => (a.snf_norm ? 0 : 1) - (b.snf_norm ? 0 : 1);
+  const weekItems = checklistItems.filter(i => i.type === "wekelijks"   && i.actief).sort(snfEerst);
+  const items4W   = checklistItems.filter(i => i.type === "4wekelijks"  && i.actief).sort(snfEerst);
+  const itemsQ    = checklistItems.filter(i => i.type === "kwartaal"    && i.actief).sort(snfEerst);
 
   // ─── Bestaande checklists ─────────────────────────────────────────────────
   const chkWeek = checklists.find(c => c.woning_id === huis.id && c.week_jaar === weekJaar  && c.type === "wekelijks");
@@ -3628,6 +3630,10 @@ function WoningKaartDag({ huis, kleur, hTaken, hMeldingen, checklistItems, check
   const afg4W   = chk4W?.items   || [];
   const afgQ    = chkQ?.items    || [];
   const opmWeek = chkWeek?.items_opmerkingen || {};
+  // Kwartaal = SNF-logboek (norm 3A.1): afwijkingen per item { bevinding, oplossing, opgelost_door, ... }
+  const afwQ    = chkQ?.items_opmerkingen || {};
+  const openAfwQ = Object.values(afwQ).filter(a => a && typeof a === "object" && a.bevinding && !a.opgelost_op).length;
+  const [afwForm, setAfwForm] = useState({});   // { [itemId]: { bevinding, oplossing, opgelost_door } }
 
   // ─── Klaar-flags ─────────────────────────────────────────────────────────
   const weekKlaar = weekItems.length > 0 && weekItems.every(i => afgWeek.includes(i.id));
@@ -3637,7 +3643,7 @@ function WoningKaartDag({ huis, kleur, hTaken, hMeldingen, checklistItems, check
   // Badge counts voor header
   const openTakenCount  = hTaken.filter(t => t.status === "open").length;
   const openCheckWeek   = weekItems.filter(i => !afgWeek.includes(i.id)).length;
-  const allesKlaar      = openTakenCount === 0 && hMeldingen.length === 0 && weekKlaar && w4Klaar && qKlaar;
+  const allesKlaar      = openTakenCount === 0 && hMeldingen.length === 0 && weekKlaar && w4Klaar && qKlaar && openAfwQ === 0;
 
   // ─── Toggle helpers ───────────────────────────────────────────────────────
   async function toggleItem(type, periodeKey, bestaand, afgevinkt, itemId) {
@@ -3665,12 +3671,30 @@ function WoningKaartDag({ huis, kleur, hTaken, hMeldingen, checklistItems, check
     setToonOpmerkingItem(p => ({...p, [itemId]: false}));
   }
 
+  // SNF-logboek: afwijking melden (item telt dan als gecontroleerd) of oplossing vastleggen
+  async function slaAfwijkingOp(itemId, wijziging) {
+    setSaving(true);
+    const huidig = (afwQ[itemId] && typeof afwQ[itemId] === "object") ? afwQ[itemId] : {};
+    const nieuweAfw = { ...afwQ };
+    if (wijziging === null) delete nieuweAfw[itemId]; else nieuweAfw[itemId] = { ...huidig, ...wijziging };
+    const nieuwItems = afgQ.includes(itemId) ? afgQ : [...afgQ, itemId];
+    const nu = new Date().toISOString();
+    if (chkQ) {
+      await supabase.from("checklists").update({ items: nieuwItems, items_opmerkingen: nieuweAfw, bijgewerkt_door: naam, updated_at: nu }).eq("id", chkQ.id);
+    } else {
+      await supabase.from("checklists").insert([{ sleutel: `${huis.id}-kwartaal-${periodeQ}`, type: "kwartaal", week_jaar: periodeQ, woning_id: huis.id, items: nieuwItems, items_opmerkingen: nieuweAfw, aangemaakt_door: naam, bijgewerkt_door: naam }]);
+    }
+    setSaving(false);
+    setAfwForm(p => ({ ...p, [itemId]: undefined }));
+  }
+
   const typeConfig = {
     wekelijks:  { label: "Wekelijks",   icon: "📋", kleur: C.blauw,    items: weekItems, bestaand: chkWeek, afgevinkt: afgWeek, periodeKey: weekJaar,  klaarFlag: weekKlaar,  periodeLabel: txv("Week {0}", wnNum) },
     "4wekelijks":{ label: "4-wekelijks", icon: "📅", kleur: "#7c3aed", items: items4W,   bestaand: chk4W,   afgevinkt: afg4W,  periodeKey: periode4W, klaarFlag: w4Klaar,   periodeLabel: txv("Periode {0} (wk {1}–{2})", Math.ceil(wnNum/4), (Math.ceil(wnNum/4)-1)*4+1, Math.ceil(wnNum/4)*4) },
-    kwartaal:   { label: "Kwartaal",    icon: "🏆", kleur: "#f59e0b",  items: itemsQ,   bestaand: chkQ,    afgevinkt: afgQ,   periodeKey: periodeQ,  klaarFlag: qKlaar,    periodeLabel: `Q${Math.ceil(wnNum/13)} ${jaarNum}` },
+    kwartaal:   { label: "Kwartaal",    icon: "🏆", kleur: "#f59e0b",  items: itemsQ,   bestaand: chkQ,    afgevinkt: afgQ,   periodeKey: periodeQ,  klaarFlag: qKlaar && openAfwQ === 0, periodeLabel: `Q${Math.ceil(wnNum/13)} ${jaarNum}` },
   };
   const actieveConfig = typeConfig[checklistTab];
+  const snfOpen = cfg => cfg.items.filter(i => i.snf_norm && !cfg.afgevinkt.includes(i.id)).length;
 
   return (
     <>
@@ -3774,6 +3798,12 @@ function WoningKaartDag({ huis, kleur, hTaken, hMeldingen, checklistItems, check
                     {!done && cfg.items.length > 0 && cfg.afgevinkt.length > 0 && !isActief && (
                       <span style={{marginLeft:4,fontSize:10,opacity:.7}}>{tx(cfg.afgevinkt.length)}/{tx(cfg.items.length)}</span>
                     )}
+                    {snfOpen(cfg) > 0 && (
+                      <div style={{fontSize:9.5,fontWeight:800,marginTop:2,color:isActief?"white":"#dc2626"}}>{txv("SNF: {0} open", snfOpen(cfg))}</div>
+                    )}
+                    {key === "kwartaal" && openAfwQ > 0 && (
+                      <div style={{fontSize:9.5,fontWeight:800,marginTop:2,color:isActief?"white":"#dc2626"}}>{txv("⚠ {0} afwijking(en) open", openAfwQ)}</div>
+                    )}
                   </button>
                 );
               })}
@@ -3785,6 +3815,11 @@ function WoningKaartDag({ huis, kleur, hTaken, hMeldingen, checklistItems, check
               {saving && <span>⏳</span>}
               {actieveConfig.klaarFlag && <span style={{color:C.groen,fontWeight:700}}>{tx("✓ Alles afgerond voor deze periode")}</span>}
             </div>
+            {checklistTab === "kwartaal" && !actieveConfig.klaarFlag && (
+              <div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:8,padding:"8px 10px",fontSize:11.5,color:"#7f1d1d",marginBottom:10,lineHeight:1.45}}>
+                {tx("🧯 Dit is het SNF-logboek: verplicht 1× per kwartaal. Klopt iets niet? Klik ⚠ en schrijf op wat je ziet. Is het opgelost? Vul in wat er gedaan is en door wie.")}
+              </div>
+            )}
 
             {/* Items */}
             {actieveConfig.klaarFlag ? (
@@ -3815,8 +3850,48 @@ function WoningKaartDag({ huis, kleur, hTaken, hMeldingen, checklistItems, check
                             style={{fontSize:13,color:gedaan?actieveConfig.kleur:C.text,textDecoration:gedaan?"line-through":"none",lineHeight:1.4,cursor:"pointer"}}>
                             {dbTekst(item)}
                           </span>
+                          {item.snf_norm && <span title={tx("Verplicht volgens de SNF-norm")} style={{marginLeft:6,fontSize:9.5,fontWeight:800,padding:"1px 6px",borderRadius:20,background:"#fee2e2",color:"#b91c1c",border:"1px solid #fca5a5",whiteSpace:"nowrap"}}>SNF {item.snf_norm}</span>}
                           {opmerking && !toonOpm && <div style={{fontSize:11,color:C.blauw,marginTop:2,fontStyle:"italic"}}>💬 {tx(opmerking)}</div>}
+                          {checklistTab === "kwartaal" && (() => {
+                            const afw = (afwQ[item.id] && typeof afwQ[item.id] === "object") ? afwQ[item.id] : null;
+                            const f = afwForm[item.id];
+                            if (f) return (
+                              <div style={{marginTop:6,display:"flex",flexDirection:"column",gap:5}}>
+                                {!afw && <input value={f.bevinding||""} onChange={e=>setAfwForm(p=>({...p,[item.id]:{...f,bevinding:e.target.value}}))} autoFocus
+                                  placeholder={tx("Wat is er niet in orde? (verplicht)")} style={{border:"1.5px solid #f59e0b",borderRadius:7,padding:"6px 9px",fontSize:12,fontFamily:"inherit"}}/>}
+                                {afw && <>
+                                  <input value={f.oplossing||""} onChange={e=>setAfwForm(p=>({...p,[item.id]:{...f,oplossing:e.target.value}}))} autoFocus
+                                    placeholder={tx("Wat is er gedaan om het op te lossen? (verplicht)")} style={{border:`1.5px solid ${C.groen}`,borderRadius:7,padding:"6px 9px",fontSize:12,fontFamily:"inherit"}}/>
+                                  <input value={f.opgelost_door||""} onChange={e=>setAfwForm(p=>({...p,[item.id]:{...f,opgelost_door:e.target.value}}))}
+                                    placeholder={tx("Opgelost door (naam of bedrijf)")} style={{border:`1px solid ${C.border}`,borderRadius:7,padding:"6px 9px",fontSize:12,fontFamily:"inherit"}}/>
+                                </>}
+                                <div style={{display:"flex",gap:6}}>
+                                  <button disabled={saving} onClick={()=>{
+                                      if (!afw) { if (!(f.bevinding||"").trim()) return; slaAfwijkingOp(item.id, { bevinding: f.bevinding.trim(), gemeld_door: naam, gemeld_op: new Date().toISOString() }); }
+                                      else { if (!(f.oplossing||"").trim() || !(f.opgelost_door||"").trim()) return; slaAfwijkingOp(item.id, { oplossing: f.oplossing.trim(), opgelost_door: f.opgelost_door.trim(), opgelost_op: new Date().toISOString(), vastgelegd_door: naam }); }
+                                    }}
+                                    style={{background:afw?C.groen:"#f59e0b",color:"white",border:"none",borderRadius:6,padding:"5px 12px",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{tx("✓ Opslaan")}</button>
+                                  <button onClick={()=>setAfwForm(p=>({...p,[item.id]:undefined}))}
+                                    style={{background:"white",border:`1px solid ${C.border}`,color:C.muted,borderRadius:6,padding:"5px 10px",fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>{tx("Annuleren")}</button>
+                                </div>
+                              </div>
+                            );
+                            if (!afw) return null;
+                            return (
+                              <div style={{marginTop:4,fontSize:11.5,lineHeight:1.45}}>
+                                <div style={{color:"#b45309"}}>⚠ {afw.bevinding} <span style={{color:C.muted}}>— {afw.gemeld_door}, {afw.gemeld_op ? new Date(afw.gemeld_op).toLocaleDateString("nl-NL") : ""}</span></div>
+                                {afw.opgelost_op
+                                  ? <div style={{color:C.groen}}>✓ {afw.oplossing} <span style={{color:C.muted}}>— {afw.opgelost_door}, {new Date(afw.opgelost_op).toLocaleDateString("nl-NL")}</span></div>
+                                  : <button onClick={()=>setAfwForm(p=>({...p,[item.id]:{oplossing:"",opgelost_door:naam}}))}
+                                      style={{marginTop:3,background:C.groen,color:"white",border:"none",borderRadius:6,padding:"4px 10px",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{tx("✓ Oplossing invullen")}</button>}
+                              </div>
+                            );
+                          })()}
                         </div>
+                        {checklistTab === "kwartaal" && !afwForm[item.id] && !(afwQ[item.id] && typeof afwQ[item.id] === "object") && (
+                          <button onClick={()=>setAfwForm(p=>({...p,[item.id]:{bevinding:""}}))} title={tx("Afwijking melden")}
+                            style={{background:"none",border:"none",color:"#f59e0b",fontSize:15,cursor:"pointer",padding:"2px 6px",flexShrink:0}}>⚠</button>
+                        )}
                         {checklistTab === "wekelijks" && (
                           <button onClick={()=>{ setToonOpmerkingItem(p=>({...p,[item.id]:!p[item.id]})); setOpmerkingItem(p=>({...p,[item.id]:opmerking})); }}
                             style={{background:"none",border:"none",color:opmerking?C.blauw:C.muted,fontSize:14,cursor:"pointer",padding:"2px 6px",flexShrink:0}}>💬</button>
