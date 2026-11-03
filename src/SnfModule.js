@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "./supabaseClient";
-import { tx, txv } from "./i18n";
+import { tx, txv, dbTekst } from "./i18n";
 
 // ─── SNF-INSPECTIES ──────────────────────────────────────────────────────────
 // Herstelpunten uit SNF-inspecties (Normec VRO) per woning: bewijs uploaden, SNF-controleur (Liane) of
@@ -68,8 +68,11 @@ export default function SnfModule({ gebruiker, sessieToken, houses, gebruikers, 
   const [punten, setPunten] = useState([]);
   const [bewijs, setBewijs] = useState([]);
   const [log, setLog] = useState([]);
+  const [keuringen, setKeuringen] = useState([]);
+  const [kwartaalLijsten, setKwartaalLijsten] = useState([]);
+  const [kwartaalItems, setKwartaalItems] = useState([]);
   const [laden, setLaden] = useState(true);
-  const [view, setView] = useState("overzicht");   // overzicht | punten | nieuw
+  const [view, setView] = useState("overzicht");   // overzicht | punten | logboek | keuringen | nieuw
   const [detailId, setDetailId] = useState(null);
   const [bezig, setBezig] = useState(false);
   const toastRef = useRef(showToast);
@@ -85,15 +88,19 @@ export default function SnfModule({ gebruiker, sessieToken, houses, gebruikers, 
 
   const laad = useCallback(async () => {
     setLaden(true);
-    const [a, b, c, d] = await Promise.all([
+    const [a, b, c, d, e, f, g] = await Promise.all([
       supabase.from("snf_inspecties").select("*").order("inspectiedatum", { ascending:false }),
       supabase.from("snf_herstelpunten").select("*").order("id"),
       supabase.from("snf_bewijs").select("*").order("geupload_op"),
       supabase.from("status_log").select("*").in("bron", ["snf_herstelpunt","snf_inspectie"]).order("op"),
+      supabase.from("snf_keuringen").select("*").order("woning_id"),
+      supabase.from("checklists").select("*").eq("type", "kwartaal"),
+      supabase.from("checklist_items").select("*").eq("type", "kwartaal"),
     ]);
-    const fout = [a, b, c, d].find(r => r.error);
+    const fout = [a, b, c, d, e, f, g].find(r => r.error);
     if (fout) toastRef.current(tx("Laden mislukt: ") + fout.error.message, "err");
     setInspecties(a.data || []); setPunten(b.data || []); setBewijs(c.data || []); setLog(d.data || []);
+    setKeuringen(e.data || []); setKwartaalLijsten(f.data || []); setKwartaalItems(g.data || []);
     setLaden(false);
   }, []);
   useEffect(() => { laad(); }, [laad]);
@@ -154,6 +161,18 @@ export default function SnfModule({ gebruiker, sessieToken, houses, gebruikers, 
   const inspMap = useMemo(() => Object.fromEntries(inspecties.map(i => [i.id, i])), [inspecties]);
   const detail = detailId ? inspMap[detailId] : null;
 
+  // Signalen bovenaan: verlopen keuringen en woningen zonder SNF-kwartaalcontrole vorig kwartaal
+  const actieveHuizen = useMemo(() => (houses || []).filter(h => !h.gearchiveerd), [houses]);
+  const keurSignaal = useMemo(() => {
+    const st = keuringen.map(keuringStatus);
+    return { verlopen: st.filter(x => x.niveau === "rood").length, binnenkort: st.filter(x => x.niveau === "oranje").length,
+      ontbreekt: actieveHuizen.filter(h => KEURING_VERPLICHT.some(s => !keuringen.some(k => k.woning_id === h.id && k.soort === s))).length };
+  }, [keuringen, actieveHuizen]);
+  const kwSignaal = useMemo(() => {
+    const vorige = vorigKwartaal();
+    return actieveHuizen.filter(h => !kwartaalStatus(kwartaalLijsten, kwartaalItems, h.id, vorige).klaar).length;
+  }, [actieveHuizen, kwartaalLijsten, kwartaalItems]);
+
   const ctx = { gebruiker, isBackoffice, magControleren: isBackoffice || !!magControleren, naamVan, adresVan, magHerstellen, bewijs, log, bezig, rpc, openBestand,
     uploadBewijs, uploadRapport, gebruikers, houses, puntenPer, inspMap, openDetail: id => setDetailId(id) };
 
@@ -171,14 +190,24 @@ export default function SnfModule({ gebruiker, sessieToken, houses, gebruikers, 
         <InspectieDetail insp={detail} punten={puntenPer[detail.id] || []} ctx={ctx} onTerug={()=>setDetailId(null)} />
       ) : (<>
         <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12}}>
-          {[["overzicht","🏠 Overzicht woningen"],["punten","📋 Openstaande punten"], ...(isBackoffice ? [["nieuw","➕ Nieuwe inspectie"]] : [])].map(([k,l]) => (
+          {[["overzicht","🏠 Overzicht woningen"],["punten","📋 Openstaande punten"],["logboek","📒 Logboek kwartaalcontrole"],["keuringen","🗓 Keuringen"], ...(isBackoffice ? [["nieuw","➕ Nieuwe inspectie"]] : [])].map(([k,l]) => (
             <button key={k} onClick={()=>setView(k)}
               style={{...btn(view===k ? C.blauw : "white", view===k ? "white" : C.text), border:`1px solid ${view===k ? C.blauw : C.border}`}}>{tx(l)}</button>
           ))}
         </div>
+        {!laden && (keurSignaal.verlopen + keurSignaal.binnenkort + keurSignaal.ontbreekt + kwSignaal) > 0 && (
+          <div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:10,padding:"9px 12px",marginBottom:12,fontSize:12.5,color:"#7f1d1d",display:"flex",gap:14,flexWrap:"wrap"}}>
+            {keurSignaal.verlopen > 0 && <span onClick={()=>setView("keuringen")} style={{cursor:"pointer"}}>🔴 {txv("{0} keuring(en) verlopen", keurSignaal.verlopen)}</span>}
+            {keurSignaal.binnenkort > 0 && <span onClick={()=>setView("keuringen")} style={{cursor:"pointer"}}>🟠 {txv("{0} keuring(en) binnen 60 dagen", keurSignaal.binnenkort)}</span>}
+            {keurSignaal.ontbreekt > 0 && <span onClick={()=>setView("keuringen")} style={{cursor:"pointer"}}>⚪ {txv("{0} woning(en): blusser- of CV-keuring niet ingevuld", keurSignaal.ontbreekt)}</span>}
+            {kwSignaal > 0 && <span onClick={()=>setView("logboek")} style={{cursor:"pointer"}}>📒 {txv("{0} woning(en) zonder volledige kwartaalcontrole vorig kwartaal", kwSignaal)}</span>}
+          </div>
+        )}
         {laden ? <div style={{color:C.muted,padding:20}}>{tx("Laden…")}</div>
           : view === "overzicht" ? <Overzicht inspecties={inspecties} ctx={ctx} />
           : view === "punten" ? <OpenPunten punten={punten} ctx={ctx} />
+          : view === "logboek" ? <Logboek huizen={actieveHuizen} lijsten={kwartaalLijsten} items={kwartaalItems} ctx={ctx} onWijzig={laad} />
+          : view === "keuringen" ? <Keuringen huizen={actieveHuizen} keuringen={keuringen} ctx={ctx} />
           : <InspectieForm ctx={ctx} onKlaar={id => { setView("overzicht"); if (id) setDetailId(id); }} />}
       </>)}
     </div>
@@ -570,6 +599,297 @@ function PuntForm({ punt, inspectieId, ctx, onKlaar }) {
       <div style={{display:"flex",gap:8,marginTop:12}}>
         <button style={btn(C.groen)} disabled={ctx.bezig} onClick={opslaan}>{tx("💾 Opslaan")}</button>
         <button style={{...btn("white", C.text), border:`1px solid ${C.border}`}} onClick={onKlaar}>{tx("Annuleren")}</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── 5. KWARTAALCONTROLE (SNF-norm 3A.1) ─────────────────────────────────────
+// Min. 4x per jaar controle van woning + omgeving, met logboek: datum, controleur, bevinding,
+// oplossing en wie het oploste. Bron: de kwartaalchecklist van de huismeester (tabel checklists,
+// type "kwartaal", week_jaar "Q<n>-<jaar>" op basis van ISO-week, zoals in App.js).
+// Afwijkingen staan in checklists.items_opmerkingen: { <item_id>: { bevinding, gemeld_door, gemeld_op, oplossing, opgelost_door, opgelost_op } }.
+
+function isoWeek(datum) {
+  const d = new Date(datum); d.setHours(0,0,0,0); d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
+  const week1 = new Date(d.getFullYear(), 0, 4);
+  return { week: 1 + Math.round(((d - week1) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7), jaar: d.getFullYear() };
+}
+function huidigKwartaal() { const { week, jaar } = isoWeek(new Date()); return { q: Math.min(4, Math.ceil(week / 13)), jaar }; }
+function vorigKwartaal() { const { q, jaar } = huidigKwartaal(); return q === 1 ? { q:4, jaar: jaar - 1 } : { q: q - 1, jaar }; }
+
+// Week 53 levert in de app "Q5-<jaar>" op: telt mee als Q4
+function lijstenVoor(lijsten, woningId, { q, jaar }) {
+  const sleutels = q === 4 ? [`Q4-${jaar}`, `Q5-${jaar}`] : [`Q${q}-${jaar}`];
+  return lijsten.filter(c => c.woning_id === woningId && sleutels.includes(c.week_jaar));
+}
+function afwijkingenVan(chk) {
+  return Object.entries(chk?.items_opmerkingen || {})
+    .filter(([, a]) => a && typeof a === "object" && a.bevinding)
+    .map(([id, a]) => ({ itemId: Number(id), ...a }));
+}
+export function kwartaalStatus(lijsten, items, woningId, periode) {
+  const chks = lijstenVoor(lijsten, woningId, periode);
+  const actief = items.filter(i => i.actief);
+  const gedaan = new Set(chks.flatMap(c => (c.items || []).filter(i => typeof i === "number")));
+  const aantal = actief.filter(i => gedaan.has(i.id)).length;
+  const laatste = chks.slice().sort((a,b) => (b.updated_at || "").localeCompare(a.updated_at || ""))[0];
+  const afw = chks.flatMap(afwijkingenVan);
+  return { chks, aantal, totaal: actief.length, klaar: actief.length > 0 && aantal >= actief.length,
+    datum: laatste?.updated_at, controleur: laatste?.bijgewerkt_door || laatste?.aangemaakt_door,
+    openAfw: afw.filter(a => !a.opgelost_op).length };
+}
+
+function Logboek({ huizen, lijsten, items, ctx, onWijzig }) {
+  const nu = huidigKwartaal();
+  const jaren = [...new Set([nu.jaar, ...lijsten.map(c => Number((c.week_jaar || "").split("-")[1])).filter(Boolean)])].sort((a,b) => b - a);
+  const [jaar, setJaar] = useState(nu.jaar);
+  const itemMap = Object.fromEntries(items.map(i => [i.id, i]));
+  const magOplossen = ctx.isBackoffice || ctx.gebruiker?.rol === "huismeester";
+
+  const afwijkingen = useMemo(() => {
+    const r = [];
+    for (const c of lijsten) {
+      const [qs, j] = (c.week_jaar || "").split("-");
+      if (Number(j) !== jaar) continue;
+      for (const a of afwijkingenVan(c)) r.push({ ...a, chk: c, kwartaal: qs === "Q5" ? "Q4" : qs });
+    }
+    return r.sort((a,b) => (a.opgelost_op ? 1 : 0) - (b.opgelost_op ? 1 : 0) || (b.gemeld_op || "").localeCompare(a.gemeld_op || ""));
+  }, [lijsten, jaar]);
+
+  async function oplossen(a) {
+    const oplossing = window.prompt(tx("Wat is er gedaan om het op te lossen? (verplicht)"));
+    if (!oplossing || !oplossing.trim()) return;
+    const door = window.prompt(tx("Opgelost door (naam of bedrijf)"), ctx.gebruiker?.naam || "");
+    if (!door || !door.trim()) return;
+    const opm = { ...(a.chk.items_opmerkingen || {}) };
+    opm[a.itemId] = { ...opm[a.itemId], oplossing: oplossing.trim(), opgelost_door: door.trim(), opgelost_op: new Date().toISOString(), vastgelegd_door: ctx.gebruiker?.naam };
+    const { error } = await supabase.from("checklists").update({ items_opmerkingen: opm, bijgewerkt_door: ctx.gebruiker?.naam, updated_at: new Date().toISOString() }).eq("id", a.chk.id);
+    if (error) { alert(tx("Opslaan mislukt: ") + error.message); return; }
+    onWijzig();
+  }
+
+  function exporteer() {
+    const cel = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const rijen = [["Woning","Kwartaal","Datum controle","Controleur","Items gecontroleerd","Normitem","Bevinding","Gemeld door","Gemeld op","Oplossing","Opgelost door","Opgelost op"]];
+    for (const h of huizen) for (const q of [1,2,3,4]) {
+      const st = kwartaalStatus(lijsten, items, h.id, { q, jaar });
+      if (!st.chks.length) continue;
+      const basis = [`${h.adres}, ${h.stad}`, `Q${q} ${jaar}`, st.datum ? fmt(st.datum) : "", st.controleur || "", `${st.aantal}/${st.totaal}`];
+      const afw = st.chks.flatMap(afwijkingenVan);
+      if (!afw.length) rijen.push([...basis, "", "Geen afwijkingen", "", "", "", "", ""]);
+      for (const a of afw) {
+        const it = itemMap[a.itemId];
+        rijen.push([...basis, it ? `${it.snf_norm ? "SNF " + it.snf_norm + " – " : ""}${it.tekst}` : `#${a.itemId}`, a.bevinding, a.gemeld_door,
+          a.gemeld_op ? fmt(a.gemeld_op) : "", a.oplossing || "", a.opgelost_door || "", a.opgelost_op ? fmt(a.opgelost_op) : ""]);
+      }
+    }
+    const blob = new Blob(["﻿" + rijen.map(r => r.map(cel).join(";")).join("\r\n")], { type:"text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const el = document.createElement("a"); el.href = url; el.download = `SNF-logboek-kwartaalcontrole-${jaar}.csv`; el.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function cel(h, q) {
+    const st = kwartaalStatus(lijsten, items, h.id, { q, jaar });
+    const voorbij = jaar < nu.jaar || (jaar === nu.jaar && q < nu.q);
+    const huidig = jaar === nu.jaar && q === nu.q;
+    let kleur = C.grijs, tekst = "—", sub = "";
+    if (st.klaar) { kleur = st.openAfw ? C.oranje : C.groen; tekst = `✓ ${fmt(st.datum)}`; sub = st.controleur || ""; }
+    else if (st.aantal > 0) { kleur = voorbij ? C.rood : C.oranje; tekst = `${st.aantal}/${st.totaal}`; sub = st.controleur || ""; }
+    else if (voorbij) { kleur = C.rood; tekst = tx("niet gedaan"); }
+    else if (huidig) { kleur = C.oranje; tekst = tx("nog doen"); }
+    return (
+      <td key={q} style={{padding:"6px 8px",borderBottom:`1px solid ${C.border}`,textAlign:"center",background:kleur+"14"}}>
+        <div style={{fontWeight:700,color:kleur,fontSize:12}}>{tekst}</div>
+        {sub && <div style={{fontSize:10.5,color:C.muted}}>{sub}</div>}
+        {st.openAfw > 0 && <div style={{fontSize:10.5,color:C.rood,fontWeight:700}}>{txv("⚠ {0} afwijking(en) open", st.openAfw)}</div>}
+      </td>
+    );
+  }
+
+  return (
+    <div>
+      <Kaart style={{marginBottom:10,fontSize:12.5,color:C.text,lineHeight:1.5}}>
+        <b>{tx("SNF-norm 3A.1:")}</b> {tx("minimaal 4× per jaar een controle van woning en omgeving, vastgelegd met datum, controleur, bevinding, oplossing en wie het oploste. Bron: de kwartaalchecklist van de huismeester.")}
+      </Kaart>
+      <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginBottom:10}}>
+        <select style={{...inp, width:"auto"}} value={jaar} onChange={e=>setJaar(Number(e.target.value))}>
+          {jaren.map(j => <option key={j} value={j}>{j}</option>)}
+        </select>
+        <button style={btn(C.blauw)} onClick={exporteer}>{tx("⬇ Exporteren voor auditor (CSV)")}</button>
+      </div>
+      <div style={{overflowX:"auto",background:C.card,border:`1px solid ${C.border}`,borderRadius:10}}>
+        <table style={{width:"100%",borderCollapse:"collapse",fontSize:12.5}}>
+          <thead><tr style={{background:C.bg}}>
+            <th style={{textAlign:"left",padding:"7px 8px"}}>{tx("Woning")}</th>
+            {[1,2,3,4].map(q => <th key={q} style={{padding:"7px 8px"}}>Q{q}</th>)}
+          </tr></thead>
+          <tbody>
+            {huizen.map(h => (
+              <tr key={h.id}>
+                <td style={{padding:"6px 8px",borderBottom:`1px solid ${C.border}`,fontWeight:700,color:C.text}}>{h.adres}, {h.stad}</td>
+                {[1,2,3,4].map(q => cel(h, q))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div style={{fontSize:15,fontWeight:800,color:C.text,margin:"16px 0 8px"}}>{txv("Afwijkingen {0} ({1})", jaar, afwijkingen.length)}</div>
+      {!afwijkingen.length ? <Kaart style={{color:C.muted,textAlign:"center"}}>{tx("Geen afwijkingen geregistreerd.")}</Kaart> : (
+        <div style={{display:"flex",flexDirection:"column",gap:6}}>
+          {afwijkingen.map(a => {
+            const it = itemMap[a.itemId];
+            return (
+              <div key={`${a.chk.id}-${a.itemId}`} style={{background:C.card,border:`1px solid ${C.border}`,borderLeft:`6px solid ${a.opgelost_op ? C.groen : C.rood}`,borderRadius:10,padding:"9px 12px",fontSize:12.5,color:C.text}}>
+                <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
+                  <b>{ctx.adresVan(a.chk.woning_id)}</b><span style={{color:C.muted}}>· {a.kwartaal} {jaar}</span>
+                  {it?.snf_norm && <Badge kleur={C.rood}>SNF {it.snf_norm}</Badge>}
+                  <span style={{color:C.muted}}>{it ? dbTekst(it) : `#${a.itemId}`}</span>
+                </div>
+                <div style={{marginTop:3}}>⚠ {a.bevinding} <span style={{color:C.muted}}>— {a.gemeld_door}, {a.gemeld_op ? fmt(a.gemeld_op) : ""}</span></div>
+                {a.opgelost_op
+                  ? <div style={{color:C.groen}}>✓ {a.oplossing} <span style={{color:C.muted}}>— {a.opgelost_door}, {fmt(a.opgelost_op)}</span></div>
+                  : magOplossen && <button style={{...btn(C.groen), marginTop:5}} onClick={()=>oplossen(a)}>{tx("✓ Oplossing invullen")}</button>}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── 6. KEURINGEN per woning ─────────────────────────────────────────────────
+// Brandblusser: onderhoud elke 2 jaar door REOB-bedrijf (norm 7.1), vervangen schuim 5 jr / poeder-CO2 10 jr.
+// CV-ketel/gaskachel/geiser: elke 2 jaar aantoonbaar gecontroleerd (norm 6.5).
+// Brandmeldinstallatie: jaarlijks (norm 7.5). Signaal: rood = verlopen, oranje = binnen 60 dagen of datum ontbreekt.
+const KEURING_SOORTEN = {
+  brandblusser:         { label:"Brandblusser (onderhoud)", interval:24, norm:"7.1" },
+  cv_geiser:            { label:"CV-ketel / geiser",        interval:24, norm:"6.5" },
+  brandmeldinstallatie: { label:"Brandmeldinstallatie",     interval:12, norm:"7.5" },
+  overig:               { label:"Overig",                   interval:12, norm:"" },
+};
+const KEURING_VERPLICHT = ["brandblusser", "cv_geiser"];
+
+export function keuringStatus(k) {
+  if (k.nvt) return { niveau:"groen", kleur:C.groen, label:tx("n.v.t.") };
+  if (!k.laatste_datum) return { niveau:"oranje", kleur:C.oranje, label:tx("datum ontbreekt") };
+  const d = Math.min(dagenTot(k.volgende_datum), k.vervangen_uiterlijk ? dagenTot(k.vervangen_uiterlijk) : Infinity);
+  if (d < 0) return { niveau:"rood", kleur:C.rood, label:txv("{0} dg verlopen", -d) };
+  if (d <= 60) return { niveau:"oranje", kleur:C.oranje, label:txv("nog {0} dg", d) };
+  return { niveau:"groen", kleur:C.groen, label:txv("nog {0} dg", d) };
+}
+
+function Keuringen({ huizen, keuringen, ctx }) {
+  const [form, setForm] = useState(null);   // null | { ...keuring }
+  const magBewerken = ctx.isBackoffice || ctx.gebruiker?.rol === "huismeester";
+  const perWoning = useMemo(() => {
+    const m = {};
+    for (const k of keuringen) (m[k.woning_id] ||= []).push(k);
+    return m;
+  }, [keuringen]);
+  const nieuw = (woning_id, soort) => setForm({ woning_id: String(woning_id), soort, omschrijving:"", laatste_datum:"", interval_maanden: KEURING_SOORTEN[soort].interval, vervangen_uiterlijk:"", nvt:false, bedrijf:"", opmerking:"" });
+  const volgorde = { rood:0, oranje:1, groen:2 };
+  const ergste = h => {
+    const ks = perWoning[h.id] || [];
+    const mist = KEURING_VERPLICHT.some(s => !ks.some(k => k.soort === s));
+    return Math.min(mist ? 1 : 3, ...ks.map(k => volgorde[keuringStatus(k).niveau]));
+  };
+
+  return (
+    <div>
+      <Kaart style={{marginBottom:10,fontSize:12.5,color:C.text,lineHeight:1.5}}>
+        {tx("Brandblusser: onderhoud elke 2 jaar door een REOB-bedrijf (etiket); schuim vervangen na 5 jaar, poeder/CO2 na 10 jaar. CV-ketel/geiser: elke 2 jaar gekeurd (factuur, rapport of sticker). Vul na elke keuring de nieuwe datum in.")}
+      </Kaart>
+      {form && <Kaart style={{marginBottom:10}}><KeuringForm v0={form} ctx={ctx} onKlaar={()=>setForm(null)} /></Kaart>}
+      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+        {[...huizen].sort((a,b) => ergste(a) - ergste(b) || a.adres.localeCompare(b.adres)).map(h => {
+          const ks = perWoning[h.id] || [];
+          const missend = KEURING_VERPLICHT.filter(s => !ks.some(k => k.soort === s));
+          return (
+            <Kaart key={h.id}>
+              <div style={{display:"flex",justifyContent:"space-between",gap:8,flexWrap:"wrap",marginBottom:6}}>
+                <b style={{color:C.text,fontSize:14}}>{h.adres}, {h.stad}</b>
+                {magBewerken && <button style={btn("white", C.blauw)} onClick={()=>nieuw(h.id, "brandblusser")}>{tx("➕ Keuring")}</button>}
+              </div>
+              {missend.map(s => (
+                <div key={s} style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",fontSize:12.5,padding:"5px 0",borderTop:`1px dashed ${C.border}`}}>
+                  <Badge kleur={C.oranje}>{tx("nog niet ingevuld")}</Badge>
+                  <span style={{color:C.text}}>{tx(KEURING_SOORTEN[s].label)} <span style={{color:C.muted}}>(SNF {KEURING_SOORTEN[s].norm})</span></span>
+                  {magBewerken && <button style={{...btn(C.blauw), padding:"3px 9px", fontSize:11}} onClick={()=>nieuw(h.id, s)}>{tx("Invullen")}</button>}
+                </div>
+              ))}
+              {ks.map(k => {
+                const st = keuringStatus(k);
+                return (
+                  <div key={k.id} style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",fontSize:12.5,padding:"5px 0",borderTop:`1px dashed ${C.border}`}}>
+                    <Badge kleur={st.kleur}>{st.label}</Badge>
+                    <span style={{color:C.text,fontWeight:700}}>{tx(KEURING_SOORTEN[k.soort]?.label || k.soort)}</span>
+                    {k.omschrijving && <span style={{color:C.text}}>{k.omschrijving}</span>}
+                    {!k.nvt && <span style={{color:C.muted}}>{txv("laatst {0} · volgende {1}", fmt(k.laatste_datum), fmt(k.volgende_datum))}{k.vervangen_uiterlijk ? ` · ${txv("vervangen uiterlijk {0}", fmt(k.vervangen_uiterlijk))}` : ""}</span>}
+                    {k.bedrijf && <span style={{color:C.muted}}>· {k.bedrijf}</span>}
+                    {k.opmerking && <span style={{color:C.muted}}>· 📝 {k.opmerking}</span>}
+                    {magBewerken && <button style={{...btn("white", C.blauw), padding:"3px 8px", fontSize:11}} onClick={()=>setForm({ ...k, woning_id:String(k.woning_id) })}>✏️</button>}
+                  </div>
+                );
+              })}
+            </Kaart>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function KeuringForm({ v0, ctx, onKlaar }) {
+  const [v, setV] = useState(v0);
+  const zet = (k, w) => setV(x => ({ ...x, [k]: w, ...(k === "soort" && !x.id ? { interval_maanden: KEURING_SOORTEN[w].interval } : {}) }));
+  async function opslaan() {
+    if (!v.woning_id || !v.soort) { alert(tx("Kies woning en soort.")); return; }
+    if (!v.nvt && !v.laatste_datum) { alert(tx("Vul de datum van de laatste keuring in (of vink n.v.t. aan).")); return; }
+    const r = await ctx.rpc("snf_keuring_opslaan", { p_id: v.id || null, p_data: { ...v, woning_id: Number(v.woning_id) } }, tx("✓ Keuring opgeslagen"));
+    if (r) onKlaar();
+  }
+  async function verwijder() {
+    if (!window.confirm(tx("Deze keuring verwijderen?"))) return;
+    const r = await ctx.rpc("snf_keuring_verwijderen", { p_id: v.id }, tx("Keuring verwijderd"));
+    if (r) onKlaar();
+  }
+  const veld = (k, label, type="text") => <div><label style={lbl}>{tx(label)}</label><input type={type} style={inp} value={v[k] ?? ""} onChange={e=>zet(k, e.target.value)} /></div>;
+  return (
+    <div>
+      <div style={{fontSize:14,fontWeight:800,color:C.text,marginBottom:8}}>{tx(v.id ? "Keuring wijzigen" : "Nieuwe keuring")}</div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(170px,1fr))",gap:10}}>
+        <div>
+          <label style={lbl}>{tx("Woning *")}</label>
+          <select style={inp} value={v.woning_id} onChange={e=>zet("woning_id", e.target.value)}>
+            <option value="">{tx("— kies woning —")}</option>
+            {(ctx.houses || []).filter(h => !h.gearchiveerd).map(h => <option key={h.id} value={h.id}>{h.adres}, {h.stad}</option>)}
+          </select>
+        </div>
+        <div>
+          <label style={lbl}>{tx("Soort *")}</label>
+          <select style={inp} value={v.soort} onChange={e=>zet("soort", e.target.value)}>
+            {Object.entries(KEURING_SOORTEN).map(([k, s]) => <option key={k} value={k}>{tx(s.label)}</option>)}
+          </select>
+        </div>
+        {veld("omschrijving", "Omschrijving (bv. blusser keuken 6L schuim)")}
+        {veld("laatste_datum", "Laatste keuring *", "date")}
+        {veld("interval_maanden", "Interval (maanden)", "number")}
+        {v.soort === "brandblusser" && veld("vervangen_uiterlijk", "Vervangen uiterlijk (schuim 5 jr, poeder 10 jr)", "date")}
+        {veld("bedrijf", "Keuringsbedrijf")}
+        {veld("opmerking", "Opmerking")}
+      </div>
+      <label style={{display:"flex",gap:6,alignItems:"center",fontSize:12.5,color:C.text,marginTop:10}}>
+        <input type="checkbox" checked={!!v.nvt} onChange={e=>zet("nvt", e.target.checked)} />
+        {tx("Niet van toepassing in deze woning (bv. geen gastoestel)")}
+      </label>
+      <div style={{display:"flex",gap:8,marginTop:12}}>
+        <button style={btn(C.groen)} disabled={ctx.bezig} onClick={opslaan}>{tx("💾 Opslaan")}</button>
+        <button style={{...btn("white", C.text), border:`1px solid ${C.border}`}} onClick={onKlaar}>{tx("Annuleren")}</button>
+        {v.id && ctx.isBackoffice && <button style={{...btn("white", C.rood), marginLeft:"auto"}} onClick={verwijder}>{tx("🗑 Verwijderen")}</button>}
       </div>
     </div>
   );
