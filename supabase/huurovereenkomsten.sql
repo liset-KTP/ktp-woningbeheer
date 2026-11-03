@@ -162,3 +162,52 @@ begin
 
   return json_build_object('nieuw', n_nieuw, 'verhuisd', n_verhuisd, 'vertrokken', n_vertrokken);
 end $function$;
+
+-- ============================================================
+-- 5. UITGIFTE AAN COLLEGA + HERINNERING (03-11-2026)
+-- Geprinte huurovereenkomst meegegeven aan een collega ter ondertekening.
+-- Na 7 dagen nog niet "getekend" -> bericht (💬 Berichten) aan die collega, elke 7 dagen opnieuw.
+-- Draait dagelijks om 07:00 UTC via pg_cron (job 'huurovereenkomsten_herinneringen').
+-- ============================================================
+ALTER TABLE public.huurovereenkomsten
+  ADD COLUMN IF NOT EXISTS uitgegeven_aan text,
+  ADD COLUMN IF NOT EXISTS uitgegeven_op date,
+  ADD COLUMN IF NOT EXISTS uitgegeven_door text,
+  ADD COLUMN IF NOT EXISTS herinnering_op date,
+  ADD COLUMN IF NOT EXISTS herinnering_aantal integer NOT NULL DEFAULT 0;
+
+CREATE OR REPLACE FUNCTION public.huurovereenkomsten_herinneringen()
+RETURNS integer LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public' AS $$
+declare r record; n int := 0; v_adres text; v_dagen int;
+begin
+  for r in select h.* from huurovereenkomsten h
+           where h.actief and h.status <> 'getekend'
+             and coalesce(trim(h.uitgegeven_aan),'') <> ''
+             and h.uitgegeven_op <= current_date - 7
+             and (h.herinnering_op is null or h.herinnering_op <= current_date - 7)
+  loop
+    select concat_ws(', ', w.adres, w.stad) into v_adres from woningen w where w.id = r.woning_id;
+    v_dagen := current_date - r.uitgegeven_op;
+    insert into berichten (tekst, van, aan, onderwerp, koppeling_type, koppeling_id, koppeling_label, gelezen_door)
+    values (
+      format('Op %s heb je de huurovereenkomst van %s (%s%s) meegekregen om te laten ondertekenen. Die is na %s dagen nog niet terug bij de backoffice. Lever de getekende huurovereenkomst zo snel mogelijk in bij %s. Lukt dat niet (bijv. medewerker weg of weigert te tekenen)? Laat het %s dan weten via een bericht.',
+             to_char(r.uitgegeven_op, 'DD-MM-YYYY'), r.naam_medewerker, coalesce(v_adres,'woning ?'),
+             case when r.kamer is not null then ' K' || r.kamer else '' end,
+             v_dagen, coalesce(r.uitgegeven_door,'de backoffice'), coalesce(r.uitgegeven_door,'de backoffice')),
+      'Systeem', trim(r.uitgegeven_aan),
+      format('📄 Huurovereenkomst nog niet terug — %s', r.naam_medewerker),
+      'huurcontract', r.id::int, r.naam_medewerker, '[]'::jsonb);
+    update huurovereenkomsten set herinnering_op = current_date, herinnering_aantal = herinnering_aantal + 1,
+      bijgewerkt_door = 'herinnering' where id = r.id;
+    insert into activiteiten (type, omschrijving, gedaan_door, extra)
+    values ('huurcontract', format('⏰ Herinnering huurovereenkomst %s gestuurd aan %s (%s dagen uitgegeven)', r.naam_medewerker, r.uitgegeven_aan, v_dagen),
+            'Systeem', jsonb_build_object('medewerker', r.naam_medewerker, 'huurcontract_id', r.id));
+    n := n + 1;
+  end loop;
+  return n;
+end $$;
+REVOKE ALL ON FUNCTION public.huurovereenkomsten_herinneringen() FROM PUBLIC, anon, authenticated;
+
+CREATE EXTENSION IF NOT EXISTS pg_cron;
+SELECT cron.unschedule(jobid) FROM cron.job WHERE jobname = 'huurovereenkomsten_herinneringen';
+SELECT cron.schedule('huurovereenkomsten_herinneringen', '0 7 * * *', 'select public.huurovereenkomsten_herinneringen()');
