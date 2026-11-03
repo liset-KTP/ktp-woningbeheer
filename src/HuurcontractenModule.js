@@ -127,13 +127,16 @@ function startInvoer(huis, c, vorige, vorigHuis) {
   };
 }
 
-function ContractDetail({ c, huis, vorige, vorigHuis, gebruiker, onOpslaan, onLog, showToast, bezig, invoer, setInvoer }) {
+function ContractDetail({ c, huis, vorige, vorigHuis, gebruiker, collegas = [], onOpslaan, onLog, showToast, bezig, invoer, setInvoer }) {
   const [f, setF] = useState(() => ({
     werkgever: c.werkgever || "", huurprijs: c.huurprijs ?? "", borg: c.borg ?? "", taal: c.taal || "",
     begindatum: c.begindatum || "", eerste_aankomst: c.eerste_aankomst || "", einddatum: c.einddatum || "",
     einddatum_handmatig: !!c.einddatum_handmatig, uit_dienst_datum: c.uit_dienst_datum || "", opmerking: c.opmerking || "",
   }));
   const [tekenDatum, setTekenDatum] = useState(vandaag());
+  // Geprint en meegegeven aan een collega ter ondertekening (na 7 dagen automatisch herinnering, zie huurovereenkomsten_herinneringen())
+  const [uitAan, setUitAan] = useState(c.uitgegeven_aan || "");
+  const [uitOp, setUitOp] = useState(c.uitgegeven_op || vandaag());
   // Alleen voor het Word-document; wordt bewust niet opgeslagen (privacy)
   const start = startInvoer(huis, c, vorige, vorigHuis);
   const { extra, info } = invoer || start;
@@ -206,7 +209,26 @@ function ContractDetail({ c, huis, vorige, vorigHuis, gebruiker, onOpslaan, onLo
         onLog(c, `✍️ Huurovereenkomst getekend op ${fmt(tekenDatum)} (${huis?.adres||"?"} K${c.kamer||"?"}, t/m ${fmt(eind)})`);
     } else if (nieuw === "te_maken") {
       if (window.confirm("Status terugzetten naar 'te maken'?"))
-        await onOpslaan(c, { status:"te_maken", getekend_op:null, getekend_door:null, verstuurd_op:null, verstuurd_door:null }, "Status teruggezet");
+        await onOpslaan(c, { status:"te_maken", getekend_op:null, getekend_door:null, verstuurd_op:null, verstuurd_door:null,
+          uitgegeven_aan:null, uitgegeven_op:null, uitgegeven_door:null, herinnering_op:null, herinnering_aantal:0 }, "Status teruggezet");
+    }
+  }
+  async function uitgeven() {
+    if (!uitAan) return showToast("Kies de collega", "err");
+    if (!uitOp || uitOp > vandaag()) return showToast("Ongeldige datum van uitgifte", "err");
+    if (gewijzigd) { const ok = await onOpslaan(c, naarDb(), null); if (!ok) return; }
+    const velden = { uitgegeven_aan: uitAan, uitgegeven_op: uitOp, uitgegeven_door: gebruiker?.naam || "?", herinnering_op: null, herinnering_aantal: 0 };
+    if (c.status === "te_maken") {
+      if (ontbr.length) return showToast("Eerst invullen: " + ontbr.join(", "), "err");
+      Object.assign(velden, { status: "verstuurd", verstuurd_op: uitOp, verstuurd_door: gebruiker?.naam || "?" });
+    }
+    if (await onOpslaan(c, velden, null))
+      onLog(c, `🖨️ Huurovereenkomst meegegeven aan ${uitAan} op ${fmt(uitOp)} ter ondertekening (${huis?.adres||"?"} K${c.kamer||"?"})`);
+  }
+  async function uitgifteWissen() {
+    if (!window.confirm(`Uitgifte aan ${c.uitgegeven_aan} wissen? Er gaan dan geen herinneringen meer.`)) return;
+    if (await onOpslaan(c, { uitgegeven_aan: null, uitgegeven_op: null, uitgegeven_door: null, herinnering_op: null, herinnering_aantal: 0 }, "Uitgifte gewist")) {
+      setUitAan(""); setUitOp(vandaag());
     }
   }
   async function eindeBrief() {
@@ -345,6 +367,35 @@ function ContractDetail({ c, huis, vorige, vorigHuis, gebruiker, onOpslaan, onLo
         </div>
       )}
 
+      {/* Geprint en meegegeven aan collega ter ondertekening */}
+      {c.actief && c.status !== "getekend" && (
+        <div style={{marginTop:14,background:"white",border:`1px solid ${C.border}`,borderRadius:9,padding:12}}>
+          <div style={{fontWeight:800,fontSize:13,color:C.text,marginBottom:8}}>🖨️ Meegegeven aan collega <span style={{fontWeight:400,color:C.muted,fontSize:12}}>· na 7 dagen niet getekend terug = automatisch bericht aan de collega (elke week opnieuw)</span></div>
+          {c.uitgegeven_aan ? (() => { const d = -dagenTot(c.uitgegeven_op); return (
+            <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap",fontSize:13}}>
+              <span>Bij <b>{c.uitgegeven_aan}</b> sinds {fmt(c.uitgegeven_op)} <span style={{color: d>7 ? C.rood : C.muted, fontWeight:700}}>({d} d)</span>{c.uitgegeven_door ? <span style={{color:C.muted}}> · door {c.uitgegeven_door}</span> : null}</span>
+              {c.herinnering_op && <Badge kleur={C.rood}>⏰ {c.herinnering_aantal}× herinnerd, laatst {fmt(c.herinnering_op)}</Badge>}
+              <button style={btn("white", C.muted)} disabled={bezig} onClick={uitgifteWissen}>✕ Wissen</button>
+            </div>); })() : (
+            <div style={{display:"flex",gap:8,alignItems:"flex-end",flexWrap:"wrap"}}>
+              <div style={{minWidth:160}}>
+                <span style={lbl}>Collega</span>
+                <select style={inp} value={uitAan} onChange={e=>setUitAan(e.target.value)}>
+                  <option value="">— kies —</option>
+                  {collegas.map(n => <option key={n} value={n}>{n}</option>)}
+                </select>
+              </div>
+              <div>
+                <span style={lbl}>Datum uitgifte</span>
+                <input type="date" style={{...inp,width:150}} value={uitOp} max={vandaag()} onChange={e=>setUitOp(e.target.value)} />
+              </div>
+              <button style={btn(C.paars)} disabled={bezig} onClick={uitgeven}>🖨️ Meegegeven</button>
+            </div>
+          )}
+          {!c.uitgegeven_aan && c.status === "te_maken" && <div style={{fontSize:11,color:C.muted,marginTop:6}}>Status gaat dan automatisch naar "verstuurd". Getekend terug? Vink hieronder "Getekend" af — dan stoppen de herinneringen.</div>}
+        </div>
+      )}
+
       {/* Acties */}
       {c.actief && (
         <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center",marginTop:14}}>
@@ -395,6 +446,11 @@ export default function HuurcontractenModule({ gebruiker, houses = [], showToast
   const [zoek, setZoek] = useState("");
   const [open, setOpen] = useState(null);
   const [docInvoer, setDocInvoer] = useState({});  // per contract-id, alleen in het geheugen
+  const [collegas, setCollegas] = useState([]);    // namen actieve gebruikers (uitgifte ter ondertekening)
+  useEffect(() => {
+    supabase.from("gebruikers").select("naam").eq("actief", true).order("naam")
+      .then(({ data }) => setCollegas((data || []).map(g => g.naam)));
+  }, []);
 
   // showToast is in App een nieuwe functie per render: via ref, anders draait de sync in een lus
   const toastRef = useRef(showToast);
@@ -442,7 +498,7 @@ export default function HuurcontractenModule({ gebruiker, houses = [], showToast
     const v = VIEWS.find(x => x.k === view);
     const q = zoek.trim().toLowerCase();
     let lijst = rijen.filter(v.f);
-    if (q) lijst = lijst.filter(c => c.naam_medewerker.toLowerCase().includes(q) || (huisMap[c.woning_id]?.adres || "").toLowerCase().includes(q));
+    if (q) lijst = lijst.filter(c => c.naam_medewerker.toLowerCase().includes(q) || (huisMap[c.woning_id]?.adres || "").toLowerCase().includes(q) || (c.uitgegeven_aan || "").toLowerCase().includes(q));
     if (view === "einde") lijst = [...lijst].sort((a,b) => (effectiefEinde(a)||"").localeCompare(effectiefEinde(b)||""));
     return lijst;
   }, [rijen, view, zoek, huisMap]);
@@ -471,7 +527,7 @@ export default function HuurcontractenModule({ gebruiker, houses = [], showToast
           </button>
         ))}
       </div>
-      <input style={{...inp, maxWidth:320, marginBottom:12}} placeholder="🔍 Zoek naam of adres" value={zoek} onChange={e=>setZoek(e.target.value)} />
+      <input style={{...inp, maxWidth:320, marginBottom:12}} placeholder="🔍 Zoek naam, adres of collega" value={zoek} onChange={e=>setZoek(e.target.value)} />
 
       {laden ? <div style={{color:C.muted,padding:20}}>Laden…</div> : zichtbaar.length === 0 ? (
         <div style={{color:C.muted,padding:20,textAlign:"center",background:C.card,borderRadius:10,border:`1px solid ${C.border}`}}>Niets in deze lijst 🎉</div>
@@ -494,13 +550,15 @@ export default function HuurcontractenModule({ gebruiker, houses = [], showToast
                     <span style={{fontSize:12,color:C.muted}}>{fmt(c.begindatum)} → {fmt(effectiefEinde(c))}</span>
                     {c.actief && <EindeBadge c={c} />}
                     <StatusBadge c={c} />
+                    {c.actief && c.status !== "getekend" && c.uitgegeven_aan && (() => { const d = -dagenTot(c.uitgegeven_op);
+                      return <Badge kleur={d>7 ? C.rood : C.paars} title={`Meegegeven op ${fmt(c.uitgegeven_op)}`}>🖨️ bij {c.uitgegeven_aan} · {d} d</Badge>; })()}
                     {c.status==="getekend" && (!c.in_cockpit || !c.in_onedrive) && <Badge kleur={C.oranje}>niet opgeslagen</Badge>}
                     {ontbr.length > 0 && <Badge kleur={C.rood} title={ontbr.join(", ")}>mist {ontbr.length}</Badge>}
                     <span style={{color:C.muted}}>{isOpen ? "▲" : "▼"}</span>
                   </div>
                 </div>
                 {isOpen && (() => { const vorige = c.vorige_id ? rijen.find(x => x.id === c.vorige_id) : null; const vorigHuis = vorige ? huisMap[vorige.woning_id] : null;
-                  return <ContractDetail key={c.id + c.bijgewerkt_op} c={c} huis={huis} vorige={vorige} vorigHuis={vorigHuis} gebruiker={gebruiker} onOpslaan={opslaan} onLog={log} showToast={showToast} bezig={bezig}
+                  return <ContractDetail key={c.id + c.bijgewerkt_op} c={c} huis={huis} vorige={vorige} vorigHuis={vorigHuis} gebruiker={gebruiker} collegas={collegas} onOpslaan={opslaan} onLog={log} showToast={showToast} bezig={bezig}
                   invoer={docInvoer[c.id]} setInvoer={fn => setDocInvoer(p => ({ ...p, [c.id]: fn(p[c.id] || startInvoer(huis, c, vorige, vorigHuis)) }))} />; })()}
               </div>
             );
