@@ -9829,11 +9829,6 @@
   "ro": "Cheie returnată",
   "pl": "Klucz zwrócony"
  },
- "Je hoeft hier niets meer te doen. Backoffice sluit deze melding af.": {
-  "en": "Nothing left to do here. The back office will close this report.",
-  "ro": "Nu mai trebuie să faci nimic aici. Back office-ul închide această sesizare.",
-  "pl": "Nie musisz tu już nic robić. Biuro zamknie to zgłoszenie."
- },
  "🔑 Kamer schoon en sleutels afvinken doe je in de taak:": {
   "en": "🔑 Tick off room clean and keys in the task:",
   "ro": "🔑 Bifezi camera curată și cheile în sarcina:",
@@ -9843,5 +9838,10 @@
   "en": "it is in your to-do under 📍 Today & to pick up.",
   "ro": "o găsești în lista De făcut la 📍 Azi & de preluat.",
   "pl": "znajdziesz je w swojej liście pod 📍 Dziś i do podjęcia."
+ },
+ "Je hoeft hier niets meer te doen.": {
+  "en": "Nothing left to do here.",
+  "ro": "Nu mai trebuie să faci nimic aici.",
+  "pl": "Nie musisz tu już nic robić."
  }
 }

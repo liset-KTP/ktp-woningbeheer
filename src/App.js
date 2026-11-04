@@ -1423,7 +1423,10 @@ function App() {
   async function cascadeMeldingAfhandelen(meldingId) {
     if (!meldingId) return;
     const { data: melding } = await supabase.from("meldingen").select("id,status,type,medewerker,woning_id,kamer,created_at").eq("id", meldingId).maybeSingle();
-    if (!melding || melding.status !== "open") return;
+    // 04-11-2026: ook "geaccepteerd" (ingepland) en "in_behandeling". Voorheen alleen "open",
+    // waardoor vertrekmelding #557 (Pavel Craciun) na een inplanactie eeuwig bleef hangen terwijl
+    // de kamercontrole al gedaan was — en backoffice ziet huismeester-meldingen niet om ze te sluiten.
+    if (!melding || !["open","geaccepteerd","in_behandeling"].includes(melding.status)) return;
     const { data: nogOpen } = await supabase.from("taken").select("id")
       .eq("melding_id", meldingId).in("voor_rol", ["huismeester", "collega"]).neq("status", "gedaan");
     if (nogOpen && nogOpen.length === 0) {
@@ -5124,7 +5127,7 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
               <div style={{fontSize:12,marginTop:2}}>
                 {tx("Kamer schoon")}: {ei.woning_schoon==="ja"?"✓":"✗"} · {tx("Sleutel terug")}: {ei.sleutel_terug==="ja"?"✓":"✗"} · {tx(ct.afgehandeld_door)}{ct.afgehandeld_op?` ${fmtDate(ct.afgehandeld_op)}`:""}
               </div>
-              <div style={{fontSize:12,marginTop:2,color:C.muted}}>{tx("Je hoeft hier niets meer te doen. Backoffice sluit deze melding af.")}</div>
+              <div style={{fontSize:12,marginTop:2,color:C.muted}}>{tx("Je hoeft hier niets meer te doen.")}</div>
             </>) : (<>
               <div style={{fontWeight:700}}>{tx("🔑 Kamer schoon en sleutels afvinken doe je in de taak:")}</div>
               <div style={{fontSize:12,marginTop:2}}>"{tx(ct.titel)}" — {tx("staat in je to-do onder 📍 Vandaag & nog oppakken.")}</div>
