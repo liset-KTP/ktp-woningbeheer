@@ -9778,5 +9778,35 @@
   "en": "{0} without a date — tick off right away, no need to plan",
   "ro": "{0} fără dată — bifează direct, nu trebuie planificat",
   "pl": "{0} bez daty — odhacz od razu, planowanie niepotrzebne"
+ },
+ "🔁 Opvolging": {
+  "en": "🔁 Follow-up",
+  "ro": "🔁 Continuare",
+  "pl": "🔁 Kontynuacja"
+ },
+ "STAND VAN ZAKEN *": {
+  "en": "CURRENT STATUS *",
+  "ro": "SITUAȚIA ACTUALĂ *",
+  "pl": "AKTUALNY STAN *"
+ },
+ "bijv. ontstopper gebruikt, morgen opnieuw kijken...": {
+  "en": "e.g. used drain cleaner, will check again tomorrow...",
+  "ro": "ex. am folosit soluție de desfundat, verific din nou mâine...",
+  "pl": "np. użyłem środka do udrażniania, jutro sprawdzę ponownie..."
+ },
+ "NIEUWE DATUM (optioneel)": {
+  "en": "NEW DATE (optional)",
+  "ro": "DATĂ NOUĂ (opțional)",
+  "pl": "NOWA DATA (opcjonalnie)"
+ },
+ "Vul de stand van zaken in": {
+  "en": "Fill in the current status",
+  "ro": "Completează situația actuală",
+  "pl": "Uzupełnij aktualny stan"
+ },
+ "✓ Opvolging opgeslagen": {
+  "en": "✓ Follow-up saved",
+  "ro": "✓ Continuare salvată",
+  "pl": "✓ Kontynuacja zapisana"
  }
 }

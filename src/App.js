@@ -5082,46 +5082,48 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
               relevanteMeldingen/magZienMelding/openMeldingen) en het inplannen is nu een taak
               voor backoffice — hij krijgt pas zelf een taak bij het daadwerkelijke vertrek. */}
           {isHuismeester && !toonNotitie && !toonZelfAf && m.type !== "aankomst" && m.type !== "vertrek_aankondiging" && (
+            // 04-11-2026: huismeester wijzigt de melding niet meer, maar geeft er een OPVOLGING aan:
+            // verplichte stand van zaken + optioneel een nieuwe datum. De oorspronkelijke melding
+            // blijft intact; de opvolging komt er gedateerd onder (zelfde formaat als "Opmerking
+            // toevoegen") en wordt gelogd. Geen onUpdate hier: die overschrijft notitie/afgehandeld_door.
             toonInplannen ? (
               <div style={{width:"100%",background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:10,padding:14}}>
-                <div style={{fontWeight:700,color:C.groen,fontSize:13,marginBottom:10}}>{m.status==="geaccepteerd" ? tx("📅 Verplaatsen") : tx("📅 Melding inplannen")}</div>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
-                  <div>
-                    <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>{tx("DATUM")}</label>
-                    <WeekDatePicker value={inplandatum} onChange={v=>setInplandatum(v)} autoFocus
-                      style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"8px 12px",fontSize:13,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
-                  </div>
-                  <div>
-                    <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>{tx("OPMERKING")}</label>
-                    <input value={inplanOpmerking} onChange={e=>setInplanOpmerking(e.target.value)} placeholder={tx("bijv. pak dit dinsdag op")}
-                      style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"8px 12px",fontSize:13,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
-                  </div>
+                <div style={{fontWeight:700,color:C.groen,fontSize:13,marginBottom:10}}>{tx("🔁 Opvolging")}</div>
+                <div style={{marginBottom:10}}>
+                  <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>{tx("STAND VAN ZAKEN *")}</label>
+                  <textarea value={inplanOpmerking} onChange={e=>setInplanOpmerking(e.target.value)} rows={2} autoFocus
+                    placeholder={tx("bijv. ontstopper gebruikt, morgen opnieuw kijken...")}
+                    style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"8px 12px",fontSize:13,outline:"none",fontFamily:"inherit",boxSizing:"border-box",resize:"vertical"}}/>
+                </div>
+                <div style={{marginBottom:10,maxWidth:260}}>
+                  <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>{tx("NIEUWE DATUM (optioneel)")}</label>
+                  <WeekDatePicker value={inplandatum} onChange={v=>setInplandatum(v)}
+                    style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"8px 12px",fontSize:13,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
                 </div>
                 <div style={{display:"flex",gap:8}}>
                   <button onClick={async()=>{
-                    if (m.status === "geaccepteerd") {
-                      // Verplaatsen (04-11-2026): alleen de datum aanpassen. Niet opnieuw via
-                      // onUpdate — die overschrijft notitie/afgehandeld_door van de melding.
-                      if (!inplandatum) { showToast(tx("Kies een datum"),"err"); return; }
-                      const { error } = await supabase.from("meldingen").update({ingepland_op:inplandatum,geaccepteerd_door:gebruiker.naam}).eq("id",m.id);
-                      if (error) { showToast(tx("Fout bij updaten"),"err"); return; }
-                      await supabase.from("activiteiten").insert([{ type:"melding_status", gedaan_door:gebruiker.naam, extra:{melding_id:m.id},
-                        omschrijving:`📅 Melding verplaatst: ${m.medewerker||"?"} — ${m.type} — ${huis?.adres||"?"} naar ${new Date(inplandatum).toLocaleDateString("nl-NL")}${inplanOpmerking?` (${inplanOpmerking})`:""}` }]);
-                      showToast(tx("✓ Status bijgewerkt"));
-                    } else {
-                      await onUpdate(m.id,"geaccepteerd",inplanOpmerking);
-                      if(inplandatum) await supabase.from("meldingen").update({ingepland_op:inplandatum,geaccepteerd_door:gebruiker.naam}).eq("id",m.id);
-                    }
-                    setToonInplannen(false);
+                    const tekst = inplanOpmerking.trim();
+                    if ((tekst.match(/[\p{L}\d]/gu)||[]).length < 5) { showToast(tx("Vul de stand van zaken in"),"err"); return; }
+                    const vandaagNL = new Date().toLocaleDateString("nl-NL");
+                    const datumNL = inplandatum ? new Date(inplandatum).toLocaleDateString("nl-NL") : null;
+                    const regel = `[${vandaagNL} - ${gebruiker.naam}] Opvolging: ${tekst}${datumNL?` → nieuwe datum ${datumNL}`:""}`;
+                    const updates = { opmerkingen: m.opmerkingen ? m.opmerkingen + "\n" + regel : regel };
+                    if (inplandatum) Object.assign(updates, { ingepland_op: inplandatum, status: "geaccepteerd", geaccepteerd_door: gebruiker.naam });
+                    const { error } = await supabase.from("meldingen").update(updates).eq("id", m.id);
+                    if (error) { showToast(tx("Fout bij updaten"),"err"); return; }
+                    await supabase.from("activiteiten").insert([{ type:"melding_opvolging", gedaan_door:gebruiker.naam, extra:{melding_id:m.id},
+                      omschrijving:`🔁 Opvolging melding: ${m.medewerker||"?"} — ${m.type} — ${huis?.adres||"?"}${m.kamer?` K${m.kamer}`:""}: ${tekst}${datumNL?` (nieuwe datum ${datumNL})`:""}` }]);
+                    showToast(tx("✓ Opvolging opgeslagen"));
+                    setToonInplannen(false); setInplanOpmerking(""); setInplandatum("");
                   }} style={{background:C.groen,color:"white",border:"none",borderRadius:8,padding:"8px 18px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                    {tx("✓ Inplannen")}
+                    {tx("✓ Opslaan")}
                   </button>
                   <button onClick={()=>setToonInplannen(false)} style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"8px 12px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>{tx("Annuleren")}</button>
                 </div>
               </div>
             ) : (
               <button onClick={()=>setToonInplannen(true)} style={{background:"#f0fdf4",border:`1.5px solid ${C.groen}`,color:C.groen,borderRadius:8,padding:"7px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                {m.status==="geaccepteerd" ? tx("📅 Verplaatsen") : tx("📅 Inplannen")}
+                {tx("🔁 Opvolging")}
               </button>
             )
           )}
@@ -5284,10 +5286,11 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
           </div>
         ) : (
           <div style={{display:"flex",gap:12,alignItems:"center"}}>
-            <button onClick={()=>{setToonBewerk(true);setBewerkData({});}}
+            {/* 04-11-2026: huismeester wijzigt meldingen niet, hij geeft een opvolging */}
+            {!isHuismeester && <button onClick={()=>{setToonBewerk(true);setBewerkData({});}}
               style={{background:"none",border:"none",color:C.muted,fontSize:12,cursor:"pointer",fontFamily:"inherit",padding:"4px 0",textDecoration:"underline"}}>
               {tx("✏️ Bewerken")}
-            </button>
+            </button>}
             {(m.wijzigingen||[]).length > 0 && (
               <span style={{fontSize:11,color:C.muted}}>({tx(m.wijzigingen.length)}{tx("x gewijzigd)")}</span>
             )}
@@ -5298,8 +5301,9 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
       {/* Foto toevoegen */}
       <FotoUploadMelding melding={m} gebruiker={gebruiker}/>
 
-      {/* Opmerking toevoegen — voor iedereen, ook na afhandeling */}
-      <div style={{marginTop:8}}>
+      {/* Opmerking toevoegen — voor iedereen, ook na afhandeling. Huismeester bij een lopende
+          melding: niet nodig, daar is "🔁 Opvolging" (zelfde opmerking + optioneel nieuwe datum). */}
+      {!(isHuismeester && isLopend && m.type!=="aankomst" && m.type!=="vertrek_aankondiging") && <div style={{marginTop:8}}>
         {toonOpmerkingCollega ? (
           <div style={{background:C.bg,border:`1px solid ${C.border}`,borderRadius:10,padding:12}}>
             <input value={opmerkingCollega} onChange={e=>setOpmerkingCollega(e.target.value)}
@@ -5330,7 +5334,7 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
             {tx("💬 Opmerking toevoegen")}
           </button>
         )}
-      </div>
+      </div>}
     </div>
   );
 }
