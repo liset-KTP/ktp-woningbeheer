@@ -91,8 +91,19 @@ function berekenTotaalVerschuldigd(schuld) {
     const start = new Date(schuld.startdatum);
     start.setHours(0,0,0,0);
     if (start.getDay() !== 1) { // 1 = maandag
-      const dagbedrag = schuld.tarief_dagen ? Number(schuld.tarief_dagen) : 20;
-      const dagenInPartieelWeek = Math.round((eersteMaandag - start) / (1000 * 60 * 60 * 24));
+      // tarief_dagen = 0 is een bewuste keuze (geen dagtarief) — alleen null/leeg valt terug op €20
+      const dagbedrag = (schuld.tarief_dagen !== null && schuld.tarief_dagen !== undefined && schuld.tarief_dagen !== "")
+        ? Number(schuld.tarief_dagen) : 20;
+      // Gelijk aan DB-view huurschulden_openstaand: voor schulden aangemaakt vanaf 27-10-2026
+      // tellen losse dagen maar t/m de einddatum
+      let tot = eersteMaandag;
+      if (schuld.einddatum && schuld.created_at && new Date(schuld.created_at) >= new Date("2026-10-26T23:00:00Z")) {
+        const naEind = new Date(schuld.einddatum);
+        naEind.setHours(0,0,0,0);
+        naEind.setDate(naEind.getDate() + 1);
+        if (naEind < tot) tot = naEind;
+      }
+      const dagenInPartieelWeek = Math.max(0, Math.round((tot - start) / (1000 * 60 * 60 * 24)));
       partieelBedrag = dagenInPartieelWeek * dagbedrag;
     }
   }
