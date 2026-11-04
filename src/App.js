@@ -5043,7 +5043,22 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
   // 04-11-2026: huismeester kan een lopende melding (ook al ingepland) zelf als gedaan
   // afvinken, met verplichte toelichting — voorheen had hij alleen "Inplannen" en daarna geen
   // enkele knop meer. Niet voor aankomst/reservering/vertrek_aankondiging (andere route).
-  const huismeesterMagAf = isHuismeester && !["aankomst","reservering","vertrek_aankondiging"].includes(m.type);
+  // 04-11-2026: bij vertrek/verhuizing doet de huismeester zijn werk (kamer schoon, sleutels)
+  // in de gekoppelde controletaak — niet op de melding. Cristi zocht de vinkjes op melding #557
+  // en vulde daar een "opvolging" in. Daarom: gekoppelde controletaak ophalen en tonen, en
+  // Opvolging/Gedaan op deze meldingtypes weghalen voor de huismeester.
+  const isKamerMelding = m.type === "vertrek" || m.type === "verhuizing";
+  const [controleTaken, setControleTaken] = useState(null);
+  useEffect(() => {
+    if (!isHuismeester || !isKamerMelding) return;
+    let actief = true;
+    supabase.from("taken").select("id,titel,status,afgehandeld_door,afgehandeld_op,extra_info")
+      .eq("melding_id", m.id).ilike("titel", "Kamer controleren%")
+      .then(({ data }) => { if (actief) setControleTaken(data || []); });
+    return () => { actief = false; };
+  }, [m.id, isHuismeester, isKamerMelding]);
+  const heeftControleTaak = (controleTaken || []).length > 0;
+  const huismeesterMagAf = isHuismeester && !["aankomst","reservering","vertrek_aankondiging"].includes(m.type) && !(isKamerMelding && heeftControleTaak);
 
   return (
     <div style={{background:"white",border:`1px solid ${C.border}`,borderLeft:`4px solid ${isOpen?kleur:C.muted}`,borderRadius:10,padding:"14px 18px",marginBottom:10,opacity:isOpen?1:.8}}>
@@ -5098,6 +5113,25 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
       {m.ingepland_op&&<div style={{fontSize:12,color:C.groen,fontWeight:600,marginBottom:6}}>{tx("📅 Ingepland op")} {fmtDate(m.ingepland_op)} {tx("door")} {tx(m.geaccepteerd_door)}</div>}
       {m.notitie&&<div style={{fontSize:13,color:C.blauw,background:C.blauw+"08",border:`1px solid ${C.blauw}20`,borderRadius:8,padding:"6px 10px",marginBottom:8}}>💬 {tx(m.notitie)}</div>}
 
+      {isHuismeester && isKamerMelding && heeftControleTaak && controleTaken.map(ct => {
+        let ei = {}; try { ei = ct.extra_info ? JSON.parse(ct.extra_info) : {}; } catch {}
+        const klaar = ct.status === "gedaan";
+        return (
+          <div key={ct.id} style={{marginTop:8,padding:"10px 12px",borderRadius:8,fontSize:13,
+            background:klaar?"#f0fdf4":"#fffbeb",border:`1px solid ${klaar?"#bbf7d0":"#fcd34d"}`,color:klaar?C.groen:"#92400e"}}>
+            {klaar ? (<>
+              <div style={{fontWeight:700}}>{tx("✅ Kamercontrole is al gedaan")}</div>
+              <div style={{fontSize:12,marginTop:2}}>
+                {tx("Kamer schoon")}: {ei.woning_schoon==="ja"?"✓":"✗"} · {tx("Sleutel terug")}: {ei.sleutel_terug==="ja"?"✓":"✗"} · {tx(ct.afgehandeld_door)}{ct.afgehandeld_op?` ${fmtDate(ct.afgehandeld_op)}`:""}
+              </div>
+              <div style={{fontSize:12,marginTop:2,color:C.muted}}>{tx("Je hoeft hier niets meer te doen. Backoffice sluit deze melding af.")}</div>
+            </>) : (<>
+              <div style={{fontWeight:700}}>{tx("🔑 Kamer schoon en sleutels afvinken doe je in de taak:")}</div>
+              <div style={{fontSize:12,marginTop:2}}>"{tx(ct.titel)}" — {tx("staat in je to-do onder 📍 Vandaag & nog oppakken.")}</div>
+            </>)}
+          </div>
+        );
+      })}
       {(isOpen || (isHuismeester && m.status === "geaccepteerd")) && (isBackoffice || isHuismeester) && (
         <div style={{marginTop:8,display:"flex",gap:8,flexWrap:"wrap"}}>
           {/* Huismeester kan inplannen — NIET voor aankomst: die heeft al een vaste
@@ -5107,7 +5141,7 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
               vertrek_aankondiging: de melding zelf is al weggehaald bij de huismeester (zie
               relevanteMeldingen/magZienMelding/openMeldingen) en het inplannen is nu een taak
               voor backoffice — hij krijgt pas zelf een taak bij het daadwerkelijke vertrek. */}
-          {isHuismeester && !toonNotitie && !toonZelfAf && m.type !== "aankomst" && m.type !== "vertrek_aankondiging" && (
+          {isHuismeester && !toonNotitie && !toonZelfAf && m.type !== "aankomst" && m.type !== "vertrek_aankondiging" && !(isKamerMelding && heeftControleTaak) && (
             // 04-11-2026: huismeester wijzigt de melding niet meer, maar geeft er een OPVOLGING aan:
             // verplichte stand van zaken + optioneel een nieuwe datum. De oorspronkelijke melding
             // blijft intact; de opvolging komt er gedateerd onder (zelfde formaat als "Opmerking
@@ -5130,7 +5164,10 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
                   <button onClick={async()=>{
                     const tekst = inplanOpmerking.trim();
                     if ((tekst.match(/[\p{L}\d]/gu)||[]).length < 5) { showToast(tx("Vul de stand van zaken in"),"err"); return; }
-                    const vandaagNL = new Date().toLocaleDateString("nl-NL");
+                    const nu = new Date();
+                    const vandaagISO = `${nu.getFullYear()}-${String(nu.getMonth()+1).padStart(2,"0")}-${String(nu.getDate()).padStart(2,"0")}`;
+                    if (inplandatum && inplandatum < vandaagISO) { showToast(tx("Kies een datum vanaf vandaag"),"err"); return; }
+                    const vandaagNL = nu.toLocaleDateString("nl-NL");
                     const datumNL = inplandatum ? new Date(inplandatum).toLocaleDateString("nl-NL") : null;
                     const regel = `[${vandaagNL} - ${gebruiker.naam}] Opvolging: ${tekst}${datumNL?` → nieuwe datum ${datumNL}`:""}`;
                     const updates = { opmerkingen: m.opmerkingen ? m.opmerkingen + "\n" + regel : regel };

@@ -9813,5 +9813,35 @@
   "en": "✓ Follow-up saved",
   "ro": "✓ Continuare salvată",
   "pl": "✓ Kontynuacja zapisana"
+ },
+ "Kies een datum vanaf vandaag": {
+  "en": "Choose a date from today onwards",
+  "ro": "Alege o dată începând de azi",
+  "pl": "Wybierz datę od dziś"
+ },
+ "✅ Kamercontrole is al gedaan": {
+  "en": "✅ Room check already done",
+  "ro": "✅ Verificarea camerei este deja făcută",
+  "pl": "✅ Kontrola pokoju już wykonana"
+ },
+ "Sleutel terug": {
+  "en": "Key returned",
+  "ro": "Cheie returnată",
+  "pl": "Klucz zwrócony"
+ },
+ "Je hoeft hier niets meer te doen. Backoffice sluit deze melding af.": {
+  "en": "Nothing left to do here. The back office will close this report.",
+  "ro": "Nu mai trebuie să faci nimic aici. Back office-ul închide această sesizare.",
+  "pl": "Nie musisz tu już nic robić. Biuro zamknie to zgłoszenie."
+ },
+ "🔑 Kamer schoon en sleutels afvinken doe je in de taak:": {
+  "en": "🔑 Tick off room clean and keys in the task:",
+  "ro": "🔑 Bifezi camera curată și cheile în sarcina:",
+  "pl": "🔑 Czystość pokoju i klucze odhaczasz w zadaniu:"
+ },
+ "staat in je to-do onder 📍 Vandaag & nog oppakken.": {
+  "en": "it is in your to-do under 📍 Today & to pick up.",
+  "ro": "o găsești în lista De făcut la 📍 Azi & de preluat.",
+  "pl": "znajdziesz je w swojej liście pod 📍 Dziś i do podjęcia."
  }
 }
