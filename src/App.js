@@ -3644,9 +3644,11 @@ function WoningKaartDag({ huis, kleur, hTaken, hMeldingen, checklistItems, check
   // ─── Items per type ───────────────────────────────────────────────────────
   // SNF-verplichte items (checklist_items.snf_norm gevuld) altijd bovenaan
   const snfEerst = (a, b) => (a.snf_norm ? 0 : 1) - (b.snf_norm ? 0 : 1);
-  const weekItems = checklistItems.filter(i => i.type === "wekelijks"   && i.actief).sort(snfEerst);
-  const items4W   = checklistItems.filter(i => i.type === "4wekelijks"  && i.actief).sort(snfEerst);
-  const itemsQ    = checklistItems.filter(i => i.type === "kwartaal"    && i.actief).sort(snfEerst);
+  // Centrale verwarming (bv. Am Busch): geen eigen CV-ketel, dus ketel-items vervallen voor deze woning
+  const geldtVoorWoning = i => !(i.alleen_eigen_cv && huis.centrale_verwarming);
+  const weekItems = checklistItems.filter(i => i.type === "wekelijks"   && i.actief && geldtVoorWoning(i)).sort(snfEerst);
+  const items4W   = checklistItems.filter(i => i.type === "4wekelijks"  && i.actief && geldtVoorWoning(i)).sort(snfEerst);
+  const itemsQ    = checklistItems.filter(i => i.type === "kwartaal"    && i.actief && geldtVoorWoning(i)).sort(snfEerst);
 
   // ─── Bestaande checklists ─────────────────────────────────────────────────
   const chkWeek = checklists.find(c => c.woning_id === huis.id && c.week_jaar === weekJaar  && c.type === "wekelijks");
@@ -3676,6 +3678,25 @@ function WoningKaartDag({ huis, kleur, hTaken, hMeldingen, checklistItems, check
   async function toggleItem(type, periodeKey, bestaand, afgevinkt, itemId) {
     setSaving(true);
     const nieuw = afgevinkt.includes(itemId) ? afgevinkt.filter(i => i !== itemId) : [...afgevinkt, itemId];
+    const sleutel = `${huis.id}-${type}-${periodeKey}`;
+    if (bestaand) {
+      await supabase.from("checklists").update({ items: nieuw, bijgewerkt_door: naam, updated_at: new Date().toISOString() }).eq("id", bestaand.id);
+    } else {
+      await supabase.from("checklists").insert([{ sleutel, type, week_jaar: periodeKey, woning_id: huis.id, items: nieuw, items_opmerkingen: {}, aangemaakt_door: naam, bijgewerkt_door: naam }]);
+    }
+    setSaving(false);
+  }
+
+  // Grote knop: alle nog open items van dit tabblad in één keer afvinken ("alles in orde")
+  async function allesInOrde(type, periodeKey, bestaand, afgevinkt, items) {
+    const open = items.filter(i => !afgevinkt.includes(i.id));
+    if (!open.length) return;
+    const vraag = type === "kwartaal"
+      ? tx("Heb je alle punten gecontroleerd en is alles in orde? Afwijkingen meld je eerst met ⚠.")
+      : tx("Heb je alle punten gecontroleerd en is alles in orde?");
+    if (!window.confirm(vraag)) return;
+    setSaving(true);
+    const nieuw = [...afgevinkt, ...open.map(i => i.id)];
     const sleutel = `${huis.id}-${type}-${periodeKey}`;
     if (bestaand) {
       await supabase.from("checklists").update({ items: nieuw, bijgewerkt_door: naam, updated_at: new Date().toISOString() }).eq("id", bestaand.id);
@@ -3942,6 +3963,17 @@ function WoningKaartDag({ huis, kleur, hTaken, hMeldingen, checklistItems, check
                     </div>
                   );
                 })}
+                {(() => {
+                  const nogOpen = actieveConfig.items.filter(i => !actieveConfig.afgevinkt.includes(i.id)).length;
+                  if (!nogOpen) return null;
+                  return (
+                    <button disabled={saving}
+                      onClick={() => allesInOrde(checklistTab, actieveConfig.periodeKey, actieveConfig.bestaand, actieveConfig.afgevinkt, actieveConfig.items)}
+                      style={{width:"100%",marginTop:12,background:actieveConfig.kleur,color:"white",border:"none",borderRadius:10,padding:"14px 12px",fontSize:15,fontWeight:800,cursor:"pointer",fontFamily:"inherit",opacity:saving?.6:1}}>
+                      {txv("✅ Alles in orde – {0} punt(en) afvinken", nogOpen)}
+                    </button>
+                  );
+                })()}
               </div>
             )}
           </div>

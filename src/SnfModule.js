@@ -166,11 +166,11 @@ export default function SnfModule({ gebruiker, sessieToken, houses, gebruikers, 
   const keurSignaal = useMemo(() => {
     const st = keuringen.map(keuringStatus);
     return { verlopen: st.filter(x => x.niveau === "rood").length, binnenkort: st.filter(x => x.niveau === "oranje").length,
-      ontbreekt: actieveHuizen.filter(h => KEURING_VERPLICHT.some(s => !keuringen.some(k => k.woning_id === h.id && k.soort === s))).length };
+      ontbreekt: actieveHuizen.filter(h => verplichtVoor(h).some(s => !keuringen.some(k => k.woning_id === h.id && k.soort === s))).length };
   }, [keuringen, actieveHuizen]);
   const kwSignaal = useMemo(() => {
     const vorige = vorigKwartaal();
-    return actieveHuizen.filter(h => !kwartaalStatus(kwartaalLijsten, kwartaalItems, h.id, vorige).klaar).length;
+    return actieveHuizen.filter(h => !kwartaalStatus(kwartaalLijsten, kwartaalItems, h.id, vorige, h).klaar).length;
   }, [actieveHuizen, kwartaalLijsten, kwartaalItems]);
 
   const ctx = { gebruiker, isBackoffice, magControleren: isBackoffice || !!magControleren, naamVan, adresVan, magHerstellen, bewijs, log, bezig, rpc, openBestand,
@@ -628,9 +628,10 @@ function afwijkingenVan(chk) {
     .filter(([, a]) => a && typeof a === "object" && a.bevinding)
     .map(([id, a]) => ({ itemId: Number(id), ...a }));
 }
-export function kwartaalStatus(lijsten, items, woningId, periode) {
+export function kwartaalStatus(lijsten, items, woningId, periode, huis) {
   const chks = lijstenVoor(lijsten, woningId, periode);
-  const actief = items.filter(i => i.actief);
+  // Centrale verwarming: ketel-items (alleen_eigen_cv) tellen niet mee voor deze woning
+  const actief = items.filter(i => i.actief && !(i.alleen_eigen_cv && huis?.centrale_verwarming));
   const gedaan = new Set(chks.flatMap(c => (c.items || []).filter(i => typeof i === "number")));
   const aantal = actief.filter(i => gedaan.has(i.id)).length;
   const laatste = chks.slice().sort((a,b) => (b.updated_at || "").localeCompare(a.updated_at || ""))[0];
@@ -673,7 +674,7 @@ function Logboek({ huizen, lijsten, items, ctx, onWijzig }) {
     const cel = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
     const rijen = [["Woning","Kwartaal","Datum controle","Controleur","Items gecontroleerd","Normitem","Bevinding","Gemeld door","Gemeld op","Oplossing","Opgelost door","Opgelost op"]];
     for (const h of huizen) for (const q of [1,2,3,4]) {
-      const st = kwartaalStatus(lijsten, items, h.id, { q, jaar });
+      const st = kwartaalStatus(lijsten, items, h.id, { q, jaar }, h);
       if (!st.chks.length) continue;
       const basis = [`${h.adres}, ${h.stad}`, `Q${q} ${jaar}`, st.datum ? fmt(st.datum) : "", st.controleur || "", `${st.aantal}/${st.totaal}`];
       const afw = st.chks.flatMap(afwijkingenVan);
@@ -691,7 +692,7 @@ function Logboek({ huizen, lijsten, items, ctx, onWijzig }) {
   }
 
   function cel(h, q) {
-    const st = kwartaalStatus(lijsten, items, h.id, { q, jaar });
+    const st = kwartaalStatus(lijsten, items, h.id, { q, jaar }, h);
     const voorbij = jaar < nu.jaar || (jaar === nu.jaar && q < nu.q);
     const huidig = jaar === nu.jaar && q === nu.q;
     let kleur = C.grijs, tekst = "—", sub = "";
@@ -772,6 +773,8 @@ const KEURING_SOORTEN = {
   overig:               { label:"Overig",                   interval:12, norm:"" },
 };
 const KEURING_VERPLICHT = ["brandblusser", "cv_geiser"];
+// Centrale verwarming (bv. Am Busch): geen eigen CV-ketel in de woning, dus geen CV-keuring per woning
+const verplichtVoor = h => KEURING_VERPLICHT.filter(s => !(s === "cv_geiser" && h?.centrale_verwarming));
 
 export function keuringStatus(k) {
   if (k.nvt) return { niveau:"groen", kleur:C.groen, label:tx("n.v.t.") };
@@ -790,11 +793,18 @@ function Keuringen({ huizen, keuringen, ctx }) {
     for (const k of keuringen) (m[k.woning_id] ||= []).push(k);
     return m;
   }, [keuringen]);
+  async function zetCentraal(h, aan) {
+    const { error } = await supabase.from("woningen").update({ centrale_verwarming: aan, bijgewerkt_door: ctx.gebruiker?.naam, updated_at: new Date().toISOString() }).eq("id", h.id);
+    if (error) { alert(tx("Opslaan mislukt: ") + error.message); return; }
+    h.centrale_verwarming = aan;   // direct tonen; realtime ververst daarna de woningenlijst
+    setTick(t => t + 1);
+  }
+  const [, setTick] = useState(0);
   const nieuw = (woning_id, soort) => setForm({ woning_id: String(woning_id), soort, omschrijving:"", laatste_datum:"", interval_maanden: KEURING_SOORTEN[soort].interval, vervangen_uiterlijk:"", nvt:false, bedrijf:"", opmerking:"" });
   const volgorde = { rood:0, oranje:1, groen:2 };
   const ergste = h => {
     const ks = perWoning[h.id] || [];
-    const mist = KEURING_VERPLICHT.some(s => !ks.some(k => k.soort === s));
+    const mist = verplichtVoor(h).some(s => !ks.some(k => k.soort === s));
     return Math.min(mist ? 1 : 3, ...ks.map(k => volgorde[keuringStatus(k).niveau]));
   };
 
@@ -807,13 +817,21 @@ function Keuringen({ huizen, keuringen, ctx }) {
       <div style={{display:"flex",flexDirection:"column",gap:8}}>
         {[...huizen].sort((a,b) => ergste(a) - ergste(b) || a.adres.localeCompare(b.adres)).map(h => {
           const ks = perWoning[h.id] || [];
-          const missend = KEURING_VERPLICHT.filter(s => !ks.some(k => k.soort === s));
+          const missend = verplichtVoor(h).filter(s => !ks.some(k => k.soort === s));
           return (
             <Kaart key={h.id}>
               <div style={{display:"flex",justifyContent:"space-between",gap:8,flexWrap:"wrap",marginBottom:6}}>
                 <b style={{color:C.text,fontSize:14}}>{h.adres}, {h.stad}</b>
                 {magBewerken && <button style={btn("white", C.blauw)} onClick={()=>nieuw(h.id, "brandblusser")}>{tx("➕ Keuring")}</button>}
               </div>
+              {ctx.isBackoffice ? (
+                <label style={{display:"flex",gap:6,alignItems:"center",fontSize:12,color:C.muted,marginBottom:4}}>
+                  <input type="checkbox" checked={!!h.centrale_verwarming} onChange={e=>zetCentraal(h, e.target.checked)} />
+                  {tx("Centrale verwarming (geen eigen CV-ketel): ketelpunten vervallen in de checklist")}
+                </label>
+              ) : h.centrale_verwarming ? (
+                <div style={{fontSize:12,color:C.muted,marginBottom:4}}>{tx("🔥 Centrale verwarming: geen eigen CV-ketel")}</div>
+              ) : null}
               {missend.map(s => (
                 <div key={s} style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",fontSize:12.5,padding:"5px 0",borderTop:`1px dashed ${C.border}`}}>
                   <Badge kleur={C.oranje}>{tx("nog niet ingevuld")}</Badge>
