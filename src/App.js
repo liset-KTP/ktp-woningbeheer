@@ -3465,7 +3465,12 @@ function huismeesterTodoItems(taken, meldingen) {
   const m = meldingen.filter(m =>
     (m.voor_rol === "huismeester" || m.voor_rol === "iedereen" || !m.voor_rol) &&
     (m.status === "open" || m.status === "geaccepteerd") &&
-    m.type !== "reservering" && m.type !== "aankomst" && m.type !== "vertrek_aankondiging");
+    m.type !== "reservering" && m.type !== "aankomst" && m.type !== "vertrek_aankondiging" &&
+    // 04-11-2026: vertrek/verhuizing met een eigen controletaak (taken.melding_id) niet óók als
+    // melding tonen. Zijn werk is die taak (staat zelf in de lijst zolang hij open is); de
+    // melding afsluiten is daarna een administratieve stap voor backoffice. Voorheen bleef zo'n
+    // melding (bv. #557, controletaak al gedaan) eindeloos op zijn to-do zonder afvinkknop.
+    !((m.type === "vertrek" || m.type === "verhuizing") && taken.some(x => x.melding_id === m.id)));
   return [...t.map(x => ({ soort: "taak", item: x })), ...m.map(x => ({ soort: "melding", item: x }))];
 }
 
@@ -3489,7 +3494,7 @@ function HuismeesterTodoView({ taken, meldingen, houses, gebruiker, onAddTaak, o
     { key: "vandaag", titel: "📍 Vandaag",               kleur: C.groen,   uitleg: "" },
     { key: "week",    titel: "📅 Rest van deze week",    kleur: C.blauw,   uitleg: "" },
     { key: "later",   titel: "🗓️ Later",                 kleur: C.muted,   uitleg: "" },
-    { key: "geen",    titel: "⚪ Nog inplannen",          kleur: "#b45309", uitleg: "Nog geen datum — pak op en kies een dag" },
+    { key: "geen",    titel: "⚪ Nog inplannen",          kleur: "#b45309", uitleg: "Nog geen datum — direct afvinken mag, inplannen hoeft niet" },
   ];
   const groepVan = x => {
     const d = planDatum(x);
@@ -5005,6 +5010,10 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
   const isCollegaRol = gebruiker?.rol === "collega" || gebruiker?.rol === "financieel";
   const isLopend = m.status === "open" || m.status === "geaccepteerd" || m.status === "in_behandeling";
   const zwaarType = ["aankomst","vertrek","verhuizing","reservering"].includes(m.type);
+  // 04-11-2026: huismeester kan een lopende melding (ook al ingepland) zelf als gedaan
+  // afvinken, met verplichte toelichting — voorheen had hij alleen "Inplannen" en daarna geen
+  // enkele knop meer. Niet voor aankomst/reservering/vertrek_aankondiging (andere route).
+  const huismeesterMagAf = isHuismeester && !["aankomst","reservering","vertrek_aankondiging"].includes(m.type);
 
   return (
     <div style={{background:"white",border:`1px solid ${C.border}`,borderLeft:`4px solid ${isOpen?kleur:C.muted}`,borderRadius:10,padding:"14px 18px",marginBottom:10,opacity:isOpen?1:.8}}>
@@ -5059,7 +5068,7 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
       {m.ingepland_op&&<div style={{fontSize:12,color:C.groen,fontWeight:600,marginBottom:6}}>{tx("📅 Ingepland op")} {fmtDate(m.ingepland_op)} {tx("door")} {tx(m.geaccepteerd_door)}</div>}
       {m.notitie&&<div style={{fontSize:13,color:C.blauw,background:C.blauw+"08",border:`1px solid ${C.blauw}20`,borderRadius:8,padding:"6px 10px",marginBottom:8}}>💬 {tx(m.notitie)}</div>}
 
-      {isOpen && (isBackoffice || isHuismeester) && (
+      {(isOpen || (isHuismeester && m.status === "geaccepteerd")) && (isBackoffice || isHuismeester) && (
         <div style={{marginTop:8,display:"flex",gap:8,flexWrap:"wrap"}}>
           {/* Huismeester kan inplannen — NIET voor aankomst: die heeft al een vaste
               datum (m.datum) en een automatisch aangemaakte taak "Aankomst begeleiden"
@@ -5068,10 +5077,10 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
               vertrek_aankondiging: de melding zelf is al weggehaald bij de huismeester (zie
               relevanteMeldingen/magZienMelding/openMeldingen) en het inplannen is nu een taak
               voor backoffice — hij krijgt pas zelf een taak bij het daadwerkelijke vertrek. */}
-          {isHuismeester && !toonNotitie && m.type !== "aankomst" && m.type !== "vertrek_aankondiging" && (
+          {isHuismeester && !toonNotitie && !toonZelfAf && m.type !== "aankomst" && m.type !== "vertrek_aankondiging" && (
             toonInplannen ? (
               <div style={{width:"100%",background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:10,padding:14}}>
-                <div style={{fontWeight:700,color:C.groen,fontSize:13,marginBottom:10}}>{tx("📅 Melding inplannen")}</div>
+                <div style={{fontWeight:700,color:C.groen,fontSize:13,marginBottom:10}}>{m.status==="geaccepteerd" ? tx("📅 Verplaatsen") : tx("📅 Melding inplannen")}</div>
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
                   <div>
                     <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>{tx("DATUM")}</label>
@@ -5086,8 +5095,19 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
                 </div>
                 <div style={{display:"flex",gap:8}}>
                   <button onClick={async()=>{
-                    await onUpdate(m.id,"geaccepteerd",inplanOpmerking);
-                    if(inplandatum) await supabase.from("meldingen").update({ingepland_op:inplandatum,geaccepteerd_door:gebruiker.naam}).eq("id",m.id);
+                    if (m.status === "geaccepteerd") {
+                      // Verplaatsen (04-11-2026): alleen de datum aanpassen. Niet opnieuw via
+                      // onUpdate — die overschrijft notitie/afgehandeld_door van de melding.
+                      if (!inplandatum) { showToast(tx("Kies een datum"),"err"); return; }
+                      const { error } = await supabase.from("meldingen").update({ingepland_op:inplandatum,geaccepteerd_door:gebruiker.naam}).eq("id",m.id);
+                      if (error) { showToast(tx("Fout bij updaten"),"err"); return; }
+                      await supabase.from("activiteiten").insert([{ type:"melding_status", gedaan_door:gebruiker.naam, extra:{melding_id:m.id},
+                        omschrijving:`📅 Melding verplaatst: ${m.medewerker||"?"} — ${m.type} — ${huis?.adres||"?"} naar ${new Date(inplandatum).toLocaleDateString("nl-NL")}${inplanOpmerking?` (${inplanOpmerking})`:""}` }]);
+                      showToast(tx("✓ Status bijgewerkt"));
+                    } else {
+                      await onUpdate(m.id,"geaccepteerd",inplanOpmerking);
+                      if(inplandatum) await supabase.from("meldingen").update({ingepland_op:inplandatum,geaccepteerd_door:gebruiker.naam}).eq("id",m.id);
+                    }
                     setToonInplannen(false);
                   }} style={{background:C.groen,color:"white",border:"none",borderRadius:8,padding:"8px 18px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
                     {tx("✓ Inplannen")}
@@ -5097,7 +5117,7 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
               </div>
             ) : (
               <button onClick={()=>setToonInplannen(true)} style={{background:"#f0fdf4",border:`1.5px solid ${C.groen}`,color:C.groen,borderRadius:8,padding:"7px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                {tx("📅 Inplannen")}
+                {m.status==="geaccepteerd" ? tx("📅 Verplaatsen") : tx("📅 Inplannen")}
               </button>
             )
           )}
@@ -5127,11 +5147,11 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
           {tx("Is de medewerker vertrokken? Ga naar de taak \"Vertrek bevestigen\" en klik op \"🧳 Is vertrokken\". Dan krijgt de huismeester zijn controletaak en wordt de kamer vrijgegeven.")}
         </div>
       )}
-      {isCollegaRol && isLopend && m.type!=="vertrek_aankondiging" && (
+      {(isCollegaRol || huismeesterMagAf) && isLopend && m.type!=="vertrek_aankondiging" && !toonInplannen && (
         <div style={{marginTop:8}}>
           {toonZelfAf ? (
             <div style={{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:10,padding:14}}>
-              <div style={{fontWeight:700,color:C.groen,fontSize:13,marginBottom:8}}>{tx("✓ Zelf afgehandeld")}</div>
+              <div style={{fontWeight:700,color:C.groen,fontSize:13,marginBottom:8}}>{isHuismeester ? tx("✓ Gedaan") : tx("✓ Zelf afgehandeld")}</div>
               {zwaarType && (
                 <div style={{fontSize:12,color:"#b45309",background:"#fef3c7",border:"1px solid #fde68a",borderRadius:8,padding:"8px 10px",marginBottom:10}}>
                   {tx("⚠️ Let op: bij een")} {m.type?.replace("_"," ")} {tx("past afhandelen ook de kamerstatus aan")}
@@ -5146,7 +5166,7 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
                 <button disabled={zelfAfBezig} onClick={async()=>{
                   if((zelfAfTekst.match(/[\p{L}\d]/gu)||[]).length<5){ showToast(tx("Vul in wat je gedaan hebt"),"err"); return; }
                   setZelfAfBezig(true);
-                  await onUpdate(m.id,"afgehandeld",`Zelf afgehandeld door ${gebruiker?.naam}: ${zelfAfTekst.trim()}`);
+                  await onUpdate(m.id,"afgehandeld",`${isHuismeester?"Afgehandeld door huismeester":"Zelf afgehandeld door"} ${gebruiker?.naam}: ${zelfAfTekst.trim()}`);
                   setZelfAfBezig(false); setToonZelfAf(false); setZelfAfTekst("");
                 }} style={{background:C.groen,color:"white",border:"none",borderRadius:8,padding:"8px 18px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit",opacity:zelfAfBezig?.6:1}}>
                   {zelfAfBezig?tx("⏳ Bezig..."):tx("✓ Afhandelen")}
@@ -5156,7 +5176,7 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
             </div>
           ) : (
             <button onClick={()=>setToonZelfAf(true)} style={{background:"#f0fdf4",border:`1.5px solid ${C.groen}`,color:C.groen,borderRadius:8,padding:"7px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-              {tx("✓ Zelf afgehandeld")}
+              {isHuismeester ? tx("✓ Gedaan") : tx("✓ Zelf afgehandeld")}
             </button>
           )}
         </div>
@@ -5431,8 +5451,13 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast, inlin
   const takenGesorteerd = toonTakenGroepen ? [...takenNogOppakken, ...takenAlIngepland] : gefilterd;
 
   async function accepteerTaak(taak, datum, opmerking) {
+    // 04-11-2026: ook gebruikt voor "Verplaatsen" (taak al ingepland). ingepland_op meezetten,
+    // anders wint een oude ingepland_op het van de nieuwe datum (to-do sorteert op
+    // ingepland_op || geaccepteerd_op) en lijkt verplaatsen niets te doen.
+    const verplaatst = taak.status === "geaccepteerd";
     await onUpdate(taak.id, {
       status: "geaccepteerd",
+      ...(datum ? { ingepland_op: datum } : {}),
       geaccepteerd_op: datum,
       geaccepteerd_door: gebruiker.naam,
       geaccepteerd_opmerking: opmerking || null,
@@ -5441,7 +5466,7 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast, inlin
     if (taak.aangemaakt_door && taak.aangemaakt_door !== gebruiker.naam) {
       const huis = houses.find(h=>h.id===taak.woning_id);
       await supabase.from("berichten").insert([{
-        tekst: `Ik heb jouw taak opgepakt en ingepland op ${datum ? new Date(datum).toLocaleDateString("nl-NL") : "een nader te bepalen datum"}.${opmerking ? " " + opmerking : ""}`,
+        tekst: `Ik heb jouw taak ${verplaatst ? "verplaatst naar" : "opgepakt en ingepland op"} ${datum ? new Date(datum).toLocaleDateString("nl-NL") : "een nader te bepalen datum"}.${opmerking ? " " + opmerking : ""}`,
         van: gebruiker.naam,
         aan: taak.aangemaakt_door,
         onderwerp: `✅ Taak ingepland: ${taak.titel}`,
@@ -6010,10 +6035,10 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast, inlin
                     style={{background:"#fef2f2",border:"1.5px solid #fecaca",color:"#ef4444",borderRadius:8,padding:"8px 14px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
                     {tx("🚫 Kan niet")}
                   </button>}
-                  {isHuismeester && t.status !== "geaccepteerd" && (
+                  {isHuismeester && (
                     <button style={{background:"#f0fdf4",border:`1.5px solid ${C.groen}`,color:C.groen,borderRadius:8,padding:"8px 14px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}
                       onClick={()=>setToonAccepteerMap(p=>({...p,[t.id]:true}))}>
-                      {tx("📅 Inplannen")}
+                      {t.status === "geaccepteerd" ? tx("📅 Verplaatsen") : tx("📅 Inplannen")}
                     </button>
                   )}
                   {isHuismeester && (

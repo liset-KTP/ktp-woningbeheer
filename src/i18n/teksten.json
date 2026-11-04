@@ -9758,5 +9758,20 @@
   "en": "New inspection",
   "ro": "Verificare nouă",
   "pl": "Nowy przegląd"
+ },
+ "Nog geen datum — direct afvinken mag, inplannen hoeft niet": {
+  "en": "No date yet — you can tick it off right away, no need to plan it",
+  "ro": "Încă fără dată — o poți bifa direct, nu trebuie planificată",
+  "pl": "Jeszcze bez daty — możesz od razu odhaczyć, planowanie nie jest konieczne"
+ },
+ "📅 Verplaatsen": {
+  "en": "📅 Reschedule",
+  "ro": "📅 Reprogramează",
+  "pl": "📅 Przełóż"
+ },
+ "Kies een datum": {
+  "en": "Choose a date",
+  "ro": "Alege o dată",
+  "pl": "Wybierz datę"
  }
 }
