@@ -42,10 +42,11 @@ export function BijlageUploader({ bestanden, setBestanden, label = "📎 Foto's 
         <div onDragOver={e=>{e.preventDefault();setDragOver(true);}}
           onDragLeave={()=>setDragOver(false)}
           onDrop={e=>{e.preventDefault();setDragOver(false);handleFiles(e.dataTransfer.files);}}
-          style={{border:`2px dashed ${dragOver?C.blauw:C.border}`,borderRadius:10,padding:"16px",textAlign:"center",background:dragOver?C.blauw+"08":C.bg,transition:"all .2s"}}>
-          <div style={{fontSize:28,marginBottom:6}}>📸</div>
-          <div style={{fontSize:13,fontWeight:600,color:C.blauw,marginBottom:4}}>{tx("Klik of sleep bestanden hierheen")}</div>
-          <div style={{fontSize:11,color:C.muted}}>{tx("Foto's, PDF's of documenten (max 50MB per bestand)")}</div>
+          className="upl-zone" style={{border:`2px dashed ${dragOver?C.blauw:C.border}`,borderRadius:10,padding:"16px",textAlign:"center",background:dragOver?C.blauw+"08":C.bg,transition:"all .2s"}}>
+          <div className="hide-mobile" style={{fontSize:28,marginBottom:6}}>📸</div>
+          <div className="hide-mobile" style={{fontSize:13,fontWeight:600,color:C.blauw,marginBottom:4}}>{tx("Klik of sleep bestanden hierheen")}</div>
+          <div className="show-mobile" style={{fontSize:14,fontWeight:600,color:C.blauw}}>{tx("📸 Foto of bestand kiezen")}</div>
+          <div className="hide-mobile" style={{fontSize:11,color:C.muted}}>{tx("Foto's, PDF's of documenten (max 50MB per bestand)")}</div>
           <input type="file" multiple accept="image/*,.pdf,.doc,.docx" onChange={e=>handleFiles(e.target.files)} style={{display:"none"}}/>
         </div>
       </label>

@@ -720,7 +720,7 @@ function Logboek({ huizen, lijsten, items, ctx, onWijzig }) {
         <button style={btn(C.blauw)} onClick={exporteer}>{tx("⬇ Exporteren voor auditor (CSV)")}</button>
       </div>
       <div style={{overflowX:"auto",background:C.card,border:`1px solid ${C.border}`,borderRadius:10}}>
-        <table style={{width:"100%",borderCollapse:"collapse",fontSize:12.5}}>
+        <div className="m-scroll-x"><table style={{width:"100%",borderCollapse:"collapse",fontSize:12.5}}>
           <thead><tr style={{background:C.bg}}>
             <th style={{textAlign:"left",padding:"7px 8px"}}>{tx("Woning")}</th>
             {[1,2,3,4].map(q => <th key={q} style={{padding:"7px 8px"}}>Q{q}</th>)}
@@ -733,7 +733,7 @@ function Logboek({ huizen, lijsten, items, ctx, onWijzig }) {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       </div>
 
       <div style={{fontSize:15,fontWeight:800,color:C.text,margin:"16px 0 8px"}}>{txv("Afwijkingen {0} ({1})", jaar, afwijkingen.length)}</div>

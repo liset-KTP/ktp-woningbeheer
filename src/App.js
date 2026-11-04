@@ -1709,6 +1709,13 @@ function App() {
   // Backoffice heeft geen Dashboard/Handleiding meer: oude opgeslagen tab omzetten naar Taken
   useEffect(()=>{ if(rol==="backoffice"&&(tab==="dashboard"||tab==="handleiding")) setTab("taken"); },[rol,tab]);
 
+  // Mobiel: menu is één horizontaal scrollbare rij — houd de actieve tab in beeld (zonder de pagina te verschuiven)
+  const tabnavRef = useRef(null);
+  useEffect(() => {
+    const nav = tabnavRef.current; const el = nav?.querySelector(".tp.act");
+    if (nav && el && nav.scrollWidth > nav.clientWidth) nav.scrollLeft = el.offsetLeft - nav.clientWidth/2 + el.offsetWidth/2;
+  }, [tab, rol]);
+
   if (loading) return <LoadingScreen />;
   if (!gebruiker) return <LoginScreen gebruikers={gebruikers} onLogin={login} taal={taal} onTaalWissel={wisselTaal}/>;
   if (pinWijzigen) return <PinWijzigenScreen token={sessieToken} naam={gebruiker.naam} verplicht={pinWijzigen.verplicht} oudePin={pinWijzigen.oudePin}
@@ -1738,7 +1745,7 @@ function App() {
         .btn-out:hover{border-color:${C.blauw};color:${C.blauw}}
         .btn-r{background:#dc2626;color:white;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600}
         .btn-r:hover{background:#b91c1c}
-        .tabnav{display:flex;flex-wrap:wrap;gap:4px;padding:2px 0 8px} .tabnav .tp{background:rgba(255,255,255,.08)} .tabnav .tp.act{background:${C.groen}} @media(max-width:767px){.tabnav{display:grid;grid-template-columns:repeat(3,1fr);gap:4px} .tabnav .tp{padding:7px 4px;font-size:11px;white-space:normal;line-height:1.2;text-align:center;border-radius:10px} .appheader{position:static!important}}
+        .tabnav{display:flex;flex-wrap:wrap;gap:4px;padding:2px 0 8px} .tabnav .tp{background:rgba(255,255,255,.08)} .tabnav .tp.act{background:${C.groen}} @media(max-width:767px){.tabnav{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;gap:6px;padding:2px 0 10px;margin:0 -12px;padding-left:12px;padding-right:12px;-webkit-mask-image:linear-gradient(90deg,#000 88%,transparent);mask-image:linear-gradient(90deg,#000 88%,transparent)} .tabnav::-webkit-scrollbar{display:none} .tabnav .tp{flex-shrink:0;padding:9px 12px;font-size:13px;border-radius:20px} .hdr-row{height:auto!important;padding:6px 0;flex-wrap:wrap;row-gap:6px} .hdr-right{flex-shrink:1!important;flex-wrap:wrap;justify-content:flex-end;min-width:0;gap:4px!important} .hdr-bekijk{max-width:92px}}
         .tp{background:none;border:none;color:rgba(255,255,255,.7);padding:6px 9px;border-radius:20px;font-size:11.5px;font-weight:500;transition:all .2s;white-space:nowrap}
         .tp.act{background:${C.groen};color:white;font-weight:700}
         .tp:hover{color:white}
@@ -1767,6 +1774,25 @@ function App() {
           .g2col{grid-template-columns:1fr!important}
           .g4col{grid-template-columns:1fr 1fr!important}
           .hide-mobile{display:none!important}
+          .show-mobile{display:block!important}
+          .upl-zone{padding:12px!important}
+        }
+        .show-mobile{display:none}
+        @media(max-width:767px){
+          /* Pagina mag nooit zijwaarts schuiven; brede onderdelen scrollen zelf */
+          html,body{overflow-x:clip}
+          .appheader{position:static!important}
+          img,video,canvas{max-width:100%;height:auto}
+          .m-g1{grid-template-columns:1fr!important}
+          .m-g2{grid-template-columns:1fr 1fr!important}
+          .m-g3{grid-template-columns:repeat(3,1fr)!important}
+          .m-scroll-x{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}
+          .m-row{min-width:680px}
+          *:has(> .m-row){overflow-x:auto!important;-webkit-overflow-scrolling:touch}
+          .subtabs{overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none}
+          .subtabs::-webkit-scrollbar{display:none}
+          .subtabs>button{flex-shrink:0;white-space:nowrap;padding-left:12px!important;padding-right:12px!important}
+          .btn-b,.btn-g,.btn-out{min-height:42px}
         }
       `}</style>
 
@@ -1780,27 +1806,27 @@ function App() {
       <div className="appheader" style={{background:C.blauw,borderBottom:`2px solid ${C.groen}`,position:"sticky",top:0,zIndex:100,boxShadow:"0 2px 12px rgba(27,58,107,.3)"}}>
         <div style={{maxWidth:1400,margin:"0 auto",padding:"0 12px"}}>
           {/* Logo + user rij */}
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",height:48,gap:8}}>
+          <div className="hdr-row" style={{display:"flex",alignItems:"center",justifyContent:"space-between",height:48,gap:8}}>
             <div style={{background:"white",borderRadius:7,padding:"3px 9px",display:"flex",alignItems:"center",flexShrink:0}}>
               <span style={{fontWeight:900,fontSize:13,color:C.blauw}}>{tx("KTP")}</span>
-              <span style={{fontWeight:900,fontSize:13,color:C.groen,marginLeft:3}}>{tx("INTERFLEX")}</span>
+              <span className="hide-mobile" style={{fontWeight:900,fontSize:13,color:C.groen,marginLeft:3}}>{tx("INTERFLEX")}</span>
             </div>
-            <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
+            <div className="hdr-right" style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
               {/* Taalschakelaar */}
               <div style={{display:"flex",gap:2}}>
                 {Object.entries(TALEN).map(([code, info])=>(
                   <button key={code} onClick={()=>wisselTaal(code)}
                     style={{background:taal===code?"rgba(255,255,255,.35)":"rgba(255,255,255,.1)",border:"none",borderRadius:6,padding:"4px 7px",fontSize:11,fontWeight:700,color:"white",cursor:"pointer",fontFamily:"inherit",opacity:taal===code?1:.7}}>
-                    {tx(info.label)}
+                    {(()=>{ const [vlag, ...rest] = info.label.split(" "); return <><span className="hide-mobile">{vlag} </span>{rest.join(" ")}</>; })()}
                   </button>
                 ))}
               </div>
-              <div style={{background:"rgba(255,255,255,.15)",borderRadius:16,padding:"4px 10px",display:"flex",alignItems:"center",gap:5}}>
-                <span style={{fontSize:12}}>{tx(rolIcon)}</span>
+              <div style={{background:"rgba(255,255,255,.15)",borderRadius:16,padding:"4px 10px",display:"flex",alignItems:"center",gap:5,minWidth:0}}>
+                <span className="hide-mobile" style={{fontSize:12}}>{tx(rolIcon)}</span>
                 <span style={{fontSize:12,color:"white",fontWeight:600}}>{tx(naam)}</span>
               </div>
               {kanBekijkenAls && (
-                <select value={bekijkAlsRol||""} onChange={e=>wisselBekijkAls(e.target.value)} title={tx("Bekijk de app zoals een andere rol hem ziet")}
+                <select className="hdr-bekijk" value={bekijkAlsRol||""} onChange={e=>wisselBekijkAls(e.target.value)} title={tx("Bekijk de app zoals een andere rol hem ziet")}
                   style={{background:bekijkAlsRol?"#fbbf24":"rgba(255,255,255,.15)",color:bekijkAlsRol?"#1f2937":"white",border:"none",borderRadius:7,padding:"5px 6px",fontSize:12,fontWeight:700,fontFamily:"inherit",cursor:"pointer"}}>
                   <option value="" style={{color:"#1f2937"}}>{tx("👁 Eigen weergave")}</option>
                   <option value="collega" style={{color:"#1f2937"}}>{tx("👁 Als collega")}</option>
@@ -1819,7 +1845,7 @@ function App() {
             </div>
           )}
           {/* Tab navigatie — horizontaal scrollbaar op mobiel */}
-          <div className="tabnav">
+          <div className="tabnav" ref={tabnavRef}>
             {rol==="collega" && (<>
               <button className={`tp ${tab==="taken"?"act":""}`} onClick={()=>setTab("taken")}>{tx("📋 Taken & Meldingen")} {(openTaken.length+mijnMeldingenOpenAantal)>0&&<Notif n={openTaken.length+mijnMeldingenOpenAantal}/>}</button>
               <button className={`tp ${tab==="mijn_overzicht"?"act":""}`} onClick={()=>setTab("mijn_overzicht")}>{tx("📊 Mijn overzicht")} {mijnOverzichtOpen>0&&<Notif n={mijnOverzichtOpen}/>}</button>
@@ -2478,7 +2504,7 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
                       {heeftNog.length>0&&<div style={{fontSize:11,fontWeight:700,color:"#0891b2",marginBottom:8}}>
                         {tx("In bezit:")} {heeftNog.map(i=>`${i.uitgifte-i.inname}x ${i.type} ${i.maat}`).join(", ")}
                       </div>}
-                      <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+                      <div className="m-scroll-x"><table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
                         <thead><tr style={{borderBottom:`1px solid ${C.border}`}}>
                           <th style={{textAlign:"left",padding:"4px 0",color:C.muted,fontWeight:600}}>{tx("Type")}</th>
                           <th style={{textAlign:"left",padding:"4px 4px",color:C.muted,fontWeight:600}}>{tx("Maat")}</th>
@@ -2500,7 +2526,7 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
                           </tr>
                           );
                         })}</tbody>
-                      </table>
+                      </table></div>
                       <div style={{fontSize:11,color:C.muted,marginTop:6}}>{tx("Laatste registratie:")} {fmtDate(data.kledingHistorie[0]?.created_at)}</div>
                     </div>
                   );
@@ -4710,7 +4736,7 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
       </div>
 
       {/* Sub tabs */}
-      <div style={{display:"flex",gap:6,marginBottom:20,borderBottom:`2px solid ${C.border}`}}>
+      <div className="subtabs" style={{display:"flex",gap:6,marginBottom:20,borderBottom:`2px solid ${C.border}`}}>
         {subTabs.map(t=>(
           <button key={t.id} onClick={()=>setSubTab(t.id)}
             style={{background:"none",border:"none",padding:"10px 18px",fontSize:13,fontWeight:700,color:subTab===t.id?C.blauw:C.muted,borderBottom:subTab===t.id?`3px solid ${C.blauw}`:"3px solid transparent",marginBottom:-2,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
@@ -7359,7 +7385,7 @@ function WoningenDetail({houses, onUpdateWoning}) {
   return(
     <div>
       <SH titel={tx("Woningoverzicht")} sub={txv("Alle {0} woningen met bewoners en kamerstatus", houses.length)}/>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:10,marginBottom:24}}>
+      <div className="m-g3" style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:10,marginBottom:24}}>
         <SK label={tx("Bezet")} val={bezet} color={C.groen}/>
         <SK label={tx("Beschikbaar")} val={beschikbaar} color={C.blauw}/>
         <SK label={tx("Gereserveerd")} val={gereserveerd} color="#f59e0b"/>
@@ -7500,7 +7526,7 @@ function PlanningView({houses}) {
   return(
     <div>
       <SH titel={tx("Statusoverzicht")}/>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:24}}>
+      <div className="m-g2" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:24}}>
         <SK label={tx("Bezet")} val={bezet} color={C.groen}/>
         <SK label={tx("Beschikbaar")} val={beschikbaar} color={C.blauw}/>
         <SK label={tx("Te controleren")} val={controle} color="#ef4444"/>
@@ -7699,7 +7725,7 @@ function BeheerView({alleenGebruikers=false,houses,gearchiveerdeHouses=[],onAdd,
   return(
     <div>
       <SH titel={tx("⚙️ Beheer")} sub={alleenGebruikers?tx("Gebruikers & pincodes"):tx("Alleen beschikbaar voor Liset")}/>
-      <div style={{display:"flex",gap:6,marginBottom:24,borderBottom:`2px solid ${C.border}`,paddingBottom:0}}>
+      <div className="subtabs" style={{display:"flex",gap:6,marginBottom:24,borderBottom:`2px solid ${C.border}`,paddingBottom:0}}>
         {tabs.map(([v,l])=>(
           <button key={v} onClick={()=>setSubTab(v)}
             style={{background:"none",border:"none",padding:"10px 20px",fontSize:14,fontWeight:700,color:subTab===v?C.blauw:C.muted,borderBottom:subTab===v?`3px solid ${C.blauw}`:"3px solid transparent",marginBottom:-2,cursor:"pointer",fontFamily:"inherit"}}>
@@ -7931,7 +7957,7 @@ function WoningBeheer({houses,onAdd,onUpdate,onArchiveer,showToast}) {
   async function woningArchiveren(id) { if(!window.confirm(tx("Woning archiveren? De woning blijft beschikbaar in het Gearchiveerd-tabblad."))) return; const ok=await onArchiveer(id, huis?.adres); if(ok) setGeselecteerd(null); }
 
   return(
-    <div style={{display:"grid",gridTemplateColumns:"300px 1fr",gap:20}}>
+    <div className="m-g1" style={{display:"grid",gridTemplateColumns:"300px 1fr",gap:20}}>
       <div>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
           <span style={{fontWeight:700,fontSize:14,color:C.blauw}}>{tx("Woningen (")}{tx(houses.length)})</span>
@@ -7998,7 +8024,7 @@ function WoningBeheer({houses,onAdd,onUpdate,onArchiveer,showToast}) {
             </div>
             <div className="card" style={{borderTop:`3px solid ${C.groen}`}}>
               <div style={{fontWeight:700,fontSize:13,marginBottom:14,color:C.groen}}>{tx("+ Nieuwe kamer toevoegen")}</div>
-              <div style={{display:"grid",gridTemplateColumns:"80px 1fr 1fr",gap:10,marginBottom:10}}>
+              <div className="m-g1" style={{display:"grid",gridTemplateColumns:"80px 1fr 1fr",gap:10,marginBottom:10}}>
                 <div><label className="fl">{tx("Kamer nr")}</label><input className="fi" value={nieuweKamer.k} onChange={e=>setNieuweKamer(p=>({...p,k:e.target.value}))} placeholder="1" style={{fontSize:13}}/></div>
                 <div><label className="fl">{tx("Naam bewoner")}</label><input className="fi" value={nieuweKamer.naam} onChange={e=>setNieuweKamer(p=>({...p,naam:e.target.value}))} placeholder={tx("Optioneel")} style={{fontSize:13}}/></div>
                 <div><label className="fl">{tx("Bedrijf")}</label><input className="fi" value={nieuweKamer.bedrijf} onChange={e=>setNieuweKamer(p=>({...p,bedrijf:e.target.value}))} placeholder={tx("Optioneel")} style={{fontSize:13}}/></div>
@@ -8090,7 +8116,7 @@ function GebruikersBeheer({hoofdbeheerder=true,gebruikers,onAdd,onUpdate,onDelet
     <div style={{maxWidth:700}}>
       <div className="card" style={{marginBottom:20,borderTop:`3px solid ${C.groen}`}}>
         <div style={{fontWeight:700,fontSize:14,color:C.groen,marginBottom:16}}>{tx("+ Nieuwe gebruiker toevoegen")}</div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 120px 160px",gap:12,marginBottom:12}}>
+        <div className="m-g1" style={{display:"grid",gridTemplateColumns:"1fr 120px 160px",gap:12,marginBottom:12}}>
           <div><label className="fl">{tx("Naam")}</label><input className="fi" value={nieuw.naam} onChange={e=>setNieuw(p=>({...p,naam:e.target.value}))} placeholder={tx("Voornaam")}/></div>
           <div><label className="fl">{tx("Tijdelijke pincode")}</label><input className="fi" value={nieuw.pin} onChange={e=>setNieuw(p=>({...p,pin:e.target.value.replace(/\s/g,"")}))} placeholder={tx("6 cijfers")} maxLength={64} autoComplete="off"/></div>
           <div><label className="fl">{tx("Rol")}</label><select className="fs" value={nieuw.rol} onChange={e=>setNieuw(p=>({...p,rol:e.target.value}))}><option value="collega">{tx("👤 Collega")}</option><option value="huismeester">{tx("🏠 Huismeester")}</option><option value="financieel">{tx("💶 Financieel")}</option><option value="backoffice">{tx("📊 Backoffice")}</option></select></div>
@@ -8131,7 +8157,7 @@ function GebruikerBewerken({g,onSave,onCancel}) {
   return(
     <div style={{background:C.blauw+"08",border:`1.5px solid ${C.blauw}`,borderRadius:10,padding:14,marginBottom:8}}>
       <div style={{fontSize:12,fontWeight:700,color:C.blauw,marginBottom:12}}>{tx(g.naam)} {tx("bewerken")}</div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 120px 160px",gap:10,marginBottom:10}}>
+      <div className="m-g1" style={{display:"grid",gridTemplateColumns:"1fr 120px 160px",gap:10,marginBottom:10}}>
         <div><label className="fl">{tx("Naam")}</label><input className="fi" value={naam} onChange={e=>setNaam(e.target.value)} style={{fontSize:13}}/></div>
         <div><label className="fl">{tx("Nieuwe tijdelijke pin")}</label><input className="fi" value={pin} onChange={e=>setPin(e.target.value.replace(/\s/g,""))} placeholder={tx("leeg = ongewijzigd")} autoComplete="off" maxLength={64} style={{fontSize:13}}/></div>
         <div><label className="fl">{tx("Rol")}</label><select className="fs" value={rol} onChange={e=>setRol(e.target.value)} style={{fontSize:13}}><option value="collega">{tx("👤 Collega")}</option><option value="huismeester">{tx("🏠 Huismeester")}</option><option value="financieel">{tx("💶 Financieel")}</option><option value="backoffice">{tx("📊 Backoffice")}</option></select></div>
@@ -8487,14 +8513,14 @@ function LogView({meldingen,houses,activiteiten,taken=[],onVernieuw}) {
         </div>
       ):(
         <div className="card" style={{padding:0,overflow:"hidden"}}>
-          <div style={{display:"grid",gridTemplateColumns:"85px 50px 110px 30px 1fr 1fr 90px",padding:"10px 16px",fontSize:10,fontWeight:700,color:C.muted,letterSpacing:".6px",textTransform:"uppercase",borderBottom:`1px solid ${C.border}`,background:C.bg}}>
+          <div className="m-row" style={{display:"grid",gridTemplateColumns:"85px 50px 110px 30px 1fr 1fr 90px",padding:"10px 16px",fontSize:10,fontWeight:700,color:C.muted,letterSpacing:".6px",textTransform:"uppercase",borderBottom:`1px solid ${C.border}`,background:C.bg}}>
             <span>{tx("Datum")}</span><span>{tx("Tijd")}</span><span>{tx("Type")}</span><span></span><span>{tx("Naam / Omschrijving")}</span><span>{tx("Extra info")}</span><span>{tx("Door")}</span>
           </div>
           {gefilterd.map((item,i)=>{
             const dt=item.datum?new Date(item.datum):new Date();
             const kleur=typeKleur[item.type]||C.muted;
             return(
-              <div key={item.id} style={{display:"grid",gridTemplateColumns:"85px 50px 110px 30px 1fr 1fr 90px",padding:"10px 16px",fontSize:12,borderBottom:i<gefilterd.length-1?`1px solid ${C.border}`:"none",alignItems:"center",background:i%2===0?"white":C.bg+"60"}}>
+              <div key={item.id} className="m-row" style={{display:"grid",gridTemplateColumns:"85px 50px 110px 30px 1fr 1fr 90px",padding:"10px 16px",fontSize:12,borderBottom:i<gefilterd.length-1?`1px solid ${C.border}`:"none",alignItems:"center",background:i%2===0?"white":C.bg+"60"}}>
                 <span style={{color:C.muted}}>{fmtDate(dt)}</span>
                 <span style={{color:C.muted}}>{fmtTime(dt)}</span>
                 <span style={{padding:"2px 6px",borderRadius:4,background:kleur+"18",color:kleur,fontSize:9,fontWeight:700,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{tx(item.type)}</span>

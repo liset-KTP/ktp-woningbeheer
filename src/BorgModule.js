@@ -574,7 +574,7 @@ export function BorgModule({ gebruiker, houses, showToast, readonly = false }) {
       )}
 
       {/* Tabs — sticky */}
-      <div style={{display:"flex",gap:6,marginBottom:16,borderBottom:`2px solid ${C.border}`,overflowX:"auto",scrollbarWidth:"none",position:"sticky",top:0,zIndex:50,background:"white",paddingTop:8}}>
+      <div className="subtabs" style={{display:"flex",gap:6,marginBottom:16,borderBottom:`2px solid ${C.border}`,overflowX:"auto",scrollbarWidth:"none",position:"sticky",top:0,zIndex:50,background:"white",paddingTop:8}}>
         {tabs.map(t=>(
           <button key={t.id} onClick={()=>setSubTab(t.id)}
             style={{background:"none",border:"none",padding:"10px 18px",fontSize:13,fontWeight:700,color:subTab===t.id?C.blauw:C.muted,borderBottom:subTab===t.id?`3px solid ${C.blauw}`:"3px solid transparent",marginBottom:-2,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
@@ -707,13 +707,13 @@ function WekenOverzicht({ termijnen, plannen, isBackoffice, onVerwerk, readonly 
 
             {/* Tabel */}
             <div style={{background:"white",border:`1px solid ${C.border}`,borderRadius:10,overflow:"hidden"}}>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 160px 120px 100px",padding:"8px 16px",fontSize:10,fontWeight:700,color:C.muted,letterSpacing:".6px",textTransform:"uppercase",background:C.bg,borderBottom:`1px solid ${C.border}`}}>
+              <div className="m-row" style={{display:"grid",gridTemplateColumns:"1fr 160px 120px 100px",padding:"8px 16px",fontSize:10,fontWeight:700,color:C.muted,letterSpacing:".6px",textTransform:"uppercase",background:C.bg,borderBottom:`1px solid ${C.border}`}}>
                 <span>{tx("Medewerker")}</span><span>{tx("Omschrijving")}</span><span>{tx("Bedrag")}</span><span>{tx("Actie")}</span>
               </div>
               {weekTermijnen.map((t,i) => {
                 const plan = plannen.find(p=>p.id===t.plan_id);
                 return (
-                  <div key={t.id} style={{display:"grid",gridTemplateColumns:"1fr 160px 120px 100px",padding:"12px 16px",fontSize:13,borderBottom:i<weekTermijnen.length-1?`1px solid ${C.border}`:"none",alignItems:"center",background:i%2===0?"white":C.bg+"40"}}>
+                  <div key={t.id} className="m-row" style={{display:"grid",gridTemplateColumns:"1fr 160px 120px 100px",padding:"12px 16px",fontSize:13,borderBottom:i<weekTermijnen.length-1?`1px solid ${C.border}`:"none",alignItems:"center",background:i%2===0?"white":C.bg+"40"}}>
                     <div>
                       <div style={{fontWeight:700,color:C.text}}>{tx(t.naam_medewerker)}</div>
                       {plan?.kamer && <div style={{fontSize:11,color:C.muted}}>{tx("Kamer")} {tx(plan.kamer)}</div>}
@@ -1269,7 +1269,7 @@ function PlanKaart({ plan, termijnen, extras, houses, isBackoffice, onVoegExtraT
             </button>
           ) : (
             <div style={{width:"100%",background:C.bg,border:`1px solid ${C.border}`,borderRadius:10,padding:14}}>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 120px 120px",gap:10,marginBottom:10}}>
+              <div className="m-g1" style={{display:"grid",gridTemplateColumns:"1fr 120px 120px",gap:10,marginBottom:10}}>
                 <input value={extraOmschr} onChange={e=>setExtraOmschr(e.target.value)} placeholder={tx("Omschrijving (bijv. schade deur)")}
                   style={{background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"8px 12px",fontSize:13,outline:"none",fontFamily:"inherit"}}/>
                 <input type="number" value={extraBedrag} onChange={e=>setExtraBedrag(e.target.value)} placeholder={tx("€ bedrag")}
