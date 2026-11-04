@@ -3491,14 +3491,16 @@ function HuismeesterTodoView({ taken, meldingen, houses, gebruiker, onAddTaak, o
 
   const groepen = [
     { key: "telaat",  titel: "🔴 Te laat",               kleur: "#dc2626", uitleg: "Plandatum is verstreken — eerst doen of opnieuw inplannen" },
-    { key: "vandaag", titel: "📍 Vandaag",               kleur: C.groen,   uitleg: "" },
+    // 04-11-2026: items zonder datum horen bij "Vandaag & nog oppakken" i.p.v. een apart blok
+    // "Nog inplannen" — Cristi zag ze anders niet in zijn standaardlijst en dacht dat hij
+    // eerst moest inplannen. Inplannen is optioneel; afvinken kan direct.
+    { key: "vandaag", titel: "📍 Vandaag & nog oppakken", kleur: C.groen,  uitleg: "" },
     { key: "week",    titel: "📅 Rest van deze week",    kleur: C.blauw,   uitleg: "" },
     { key: "later",   titel: "🗓️ Later",                 kleur: C.muted,   uitleg: "" },
-    { key: "geen",    titel: "⚪ Nog inplannen",          kleur: "#b45309", uitleg: "Nog geen datum — direct afvinken mag, inplannen hoeft niet" },
   ];
   const groepVan = x => {
     const d = planDatum(x);
-    if (!d) return "geen";
+    if (!d) return "vandaag";
     if (d < vandaag) return "telaat";
     if (d === vandaag) return "vandaag";
     if (d <= eindWeek) return "week";
@@ -3522,6 +3524,7 @@ function HuismeesterTodoView({ taken, meldingen, houses, gebruiker, onAddTaak, o
   const actief = gekozen || eersteMetItems;
   const actieveGroep = groepen.find(g => g.key === actief);
   const actieveItems = perGroep[actief];
+  const zonderDatum = actief === "vandaag" ? actieveItems.filter(x => !planDatum(x)).length : 0;
   const aantalMeldingen = actieveItems.filter(x => x.soort === "melding").length;
   const aantalTaken = actieveItems.filter(x => x.soort === "taak").length;
   const zichtbaar = actieveItems.filter(x => soortFilter === "alle" || x.soort === soortFilter);
@@ -3565,6 +3568,7 @@ function HuismeesterTodoView({ taken, meldingen, houses, gebruiker, onAddTaak, o
           <div style={{display:"flex",alignItems:"baseline",gap:10,flexWrap:"wrap",borderBottom:`2px solid ${actieveGroep.kleur}`,paddingBottom:6,marginBottom:12}}>
             <span style={{fontSize:16,fontWeight:800,color:actieveGroep.kleur}}>{tx(actieveGroep.titel)} ({tx(actieveItems.length)})</span>
             {actieveGroep.uitleg && <span style={{fontSize:12,color:C.muted}}>{tx(actieveGroep.uitleg)}</span>}
+            {zonderDatum > 0 && <span style={{fontSize:12,color:C.muted}}>{txv("{0} zonder datum — direct afvinken, inplannen hoeft niet", zonderDatum)}</span>}
           </div>
 
           {/* Meldingen / taken filter — alleen als de groep beide bevat */}

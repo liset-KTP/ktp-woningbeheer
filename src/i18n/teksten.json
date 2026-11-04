@@ -9759,11 +9759,6 @@
   "ro": "Verificare nouă",
   "pl": "Nowy przegląd"
  },
- "Nog geen datum — direct afvinken mag, inplannen hoeft niet": {
-  "en": "No date yet — you can tick it off right away, no need to plan it",
-  "ro": "Încă fără dată — o poți bifa direct, nu trebuie planificată",
-  "pl": "Jeszcze bez daty — możesz od razu odhaczyć, planowanie nie jest konieczne"
- },
  "📅 Verplaatsen": {
   "en": "📅 Reschedule",
   "ro": "📅 Reprogramează",
@@ -9773,5 +9768,15 @@
   "en": "Choose a date",
   "ro": "Alege o dată",
   "pl": "Wybierz datę"
+ },
+ "📍 Vandaag & nog oppakken": {
+  "en": "📍 Today & to pick up",
+  "ro": "📍 Azi & de preluat",
+  "pl": "📍 Dziś i do podjęcia"
+ },
+ "{0} zonder datum — direct afvinken, inplannen hoeft niet": {
+  "en": "{0} without a date — tick off right away, no need to plan",
+  "ro": "{0} fără dată — bifează direct, nu trebuie planificat",
+  "pl": "{0} bez daty — odhacz od razu, planowanie niepotrzebne"
  }
 }
