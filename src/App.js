@@ -136,6 +136,29 @@ async function heeftVertrekNa(medewerker, sinds) {
   return !!(data && data.length);
 }
 
+// Borgplan laten meeverhuizen (04-11-2026, Grzegorz Najda: verhuisd van Nijverheidsweg 5 K2 naar
+// Celebestraat 1 K2, maar zijn borgplan bleef op Goor staan). Het borgplan is gekoppeld aan
+// woning_id + kamer; bij een later vertrek zoekt de borgafhandeling (VertrekInfo in BorgModule)
+// de vertrekmelding op die woning/kamer — met een oud adres wordt die nooit gevonden.
+// Bedragen, termijnen en status blijven ongemoeid: alleen het adres schuift mee.
+async function borgplanMeeverhuizen(medewerker, naarWoningId, naarKamer) {
+  if (!medewerker || !naarWoningId || !naarKamer) return;
+  const { data: plannen } = await supabase.from("borg_plannen")
+    .select("id,woning_id,kamer").ilike("naam_medewerker", medewerker.trim()).eq("status", "actief");
+  const teVerplaatsen = (plannen||[]).filter(p => p.woning_id !== naarWoningId || String(p.kamer) !== String(naarKamer));
+  for (const p of teVerplaatsen) {
+    const { error } = await supabase.from("borg_plannen").update({ woning_id: naarWoningId, kamer: naarKamer }).eq("id", p.id);
+    if (!error) {
+      await supabase.from("activiteiten").insert([{
+        type: "borg_verhuisd",
+        omschrijving: `🛡️ Borgplan ${medewerker} meeverhuisd naar nieuwe kamer K${naarKamer} (was woning ${p.woning_id||"?"} K${p.kamer||"?"})`,
+        gedaan_door: "Systeem",
+        extra: { plan_id: p.id, van_woning_id: p.woning_id, van_kamer: p.kamer, naar_woning_id: naarWoningId, naar_kamer: naarKamer },
+      }]);
+    } else console.error("borgplanMeeverhuizen: update mislukt", p.id, error);
+  }
+}
+
 // ─── EMAILJS ──────────────────────────────────────────────────────────────────
 const EMAILJS_SERVICE  = process.env.REACT_APP_EMAILJS_SERVICE  || "";
 const EMAILJS_TEMPLATE = process.env.REACT_APP_EMAILJS_TEMPLATE || "";
@@ -1375,6 +1398,7 @@ function App() {
           const vp = vanPatch((versVan?.kamers||[]).find(k=>k.k===m.van_kamer));
           if (vp) await patchKamer(m.van_woning_id, { [m.van_kamer]: vp });
         }
+        if (!alVertrokken) await borgplanMeeverhuizen(m.medewerker, m.woning_id, m.kamer);
         await loadHouses();
       }
     }
@@ -1398,7 +1422,7 @@ function App() {
   // werkdag, Weekplanning) omdat die schermen allemaal dezelfde data tonen.
   async function cascadeMeldingAfhandelen(meldingId) {
     if (!meldingId) return;
-    const { data: melding } = await supabase.from("meldingen").select("id,status,type,medewerker,woning_id,kamer").eq("id", meldingId).maybeSingle();
+    const { data: melding } = await supabase.from("meldingen").select("id,status,type,medewerker,woning_id,kamer,created_at").eq("id", meldingId).maybeSingle();
     if (!melding || melding.status !== "open") return;
     const { data: nogOpen } = await supabase.from("taken").select("id")
       .eq("melding_id", meldingId).in("voor_rol", ["huismeester", "collega"]).neq("status", "gedaan");
@@ -1419,6 +1443,9 @@ function App() {
         if (k && k.status==="Gereserveerd" && k.naam===melding.medewerker) {
           await patchKamer(melding.woning_id, { [melding.kamer]: { status:"Lopend", aankomstDatum:"" } });
           await loadHouses();
+        }
+        if (melding.type==="verhuizing" && !(await heeftVertrekNa(melding.medewerker, melding.created_at))) {
+          await borgplanMeeverhuizen(melding.medewerker, melding.woning_id, melding.kamer);
         }
       }
       // BUGFIX (13-10-2026, Dirtu): een vertrekmelding die hier automatisch dichtgaat moet de kamer
