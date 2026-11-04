@@ -145,7 +145,7 @@ export function KledingModule({ gebruiker, showToast }) {
   return (
     <div>
       <SH titel={tx("👕 Kleding voorraad")} sub={txv("{0} artikelen · {1} moeten bijbesteld worden", voorraad.length, bijTeBestellenTotaal)}/>
-      <div style={{display:"flex",gap:6,marginBottom:24,borderBottom:`2px solid ${C.border}`,paddingBottom:0,overflowX:"auto"}}>
+      <div className="subtabs" style={{display:"flex",gap:6,marginBottom:24,borderBottom:`2px solid ${C.border}`,paddingBottom:0,overflowX:"auto"}}>
         {tabs.map(t=>(
           <button key={t.id} onClick={()=>setSubTab(t.id)}
             style={{background:"none",border:"none",padding:"10px 18px",fontSize:13,fontWeight:700,
@@ -221,7 +221,7 @@ function VoorraadOverzicht({ voorraad }) {
               <span style={{fontWeight:800,fontSize:14,color:C.text}}>{tx(type)}</span>
               {heeftProbleem&&<span style={{fontSize:11,color:"#92400e",background:"#fde68a",padding:"1px 8px",borderRadius:10,fontWeight:700}}>{tx("bijbestellen")}</span>}
             </div>
-            <table style={{width:"100%",borderCollapse:"collapse"}}>
+            <div className="m-scroll-x"><table style={{width:"100%",borderCollapse:"collapse"}}>
               <thead>
                 <tr style={{background:C.bg}}>
                   <th style={{padding:"6px 16px",textAlign:"left",fontSize:11,fontWeight:700,color:C.muted,letterSpacing:".5px",textTransform:"uppercase"}}>{tx("Maat")}</th>
@@ -250,7 +250,7 @@ function VoorraadOverzicht({ voorraad }) {
                   );
                 })}
               </tbody>
-            </table>
+            </table></div>
           </div>
         );
       })}
@@ -490,7 +490,7 @@ function BijbestellenView({ voorraad, isBackoffice, onBesteld, onOntvangen }) {
       {alBesteldItems.length > 0 && (
         <div style={{background:"#f0fdf4",border:"1.5px solid #86efac",borderRadius:12,padding:20,marginBottom:20}}>
           <div style={{fontWeight:800,fontSize:14,color:"#166534",marginBottom:12}}>{tx("📦 Onderweg / besteld")}</div>
-          <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+          <div className="m-scroll-x"><table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
             <thead><tr style={{borderBottom:`1px solid #bbf7d0`}}>
               {["Vestiging","Type","Maat","Besteld","Datum","Door",isBackoffice?"Actie":""].map(h=>(
                 <th key={h} style={{textAlign:"left",padding:"5px 8px",fontSize:11,fontWeight:700,color:"#166534",textTransform:"uppercase"}}>{tx(h)}</th>
@@ -527,7 +527,7 @@ function BijbestellenView({ voorraad, isBackoffice, onBesteld, onOntvangen }) {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         </div>
       )}
 
@@ -549,7 +549,7 @@ function BijbestellenView({ voorraad, isBackoffice, onBesteld, onOntvangen }) {
                   <h3 style={{fontWeight:800,fontSize:15,color:C.blauw}}>📍 {tx(naam)}</h3>
                   <span style={{fontSize:12,color:C.muted,background:C.bg,padding:"3px 10px",borderRadius:10}}>{tx(items.length)} {tx("artikelen")}</span>
                 </div>
-                <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+                <div className="m-scroll-x"><table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
                   <thead>
                     <tr style={{borderBottom:`2px solid ${C.border}`}}>
                       {["Type","Maat","Huidig","Min","Tekort","Status",isBackoffice?"Actie":""].map(h=>(
@@ -616,7 +616,7 @@ function BijbestellenView({ voorraad, isBackoffice, onBesteld, onOntvangen }) {
                       );
                     })}
                   </tbody>
-                </table>
+                </table></div>
               </div>
             );
           })}
@@ -759,7 +759,7 @@ function BeheerVoorraad({ voorraad, onBijvullen, onCorrectie, showToast }) {
       {toonNieuw && (
         <div style={{background:"white",border:`2px solid ${C.groen}`,borderRadius:12,padding:20,marginBottom:20}}>
           <div style={{fontWeight:800,fontSize:14,color:C.groen,marginBottom:16}}>{tx("➕ Nieuw artikel —")} {tx(vestiging)}</div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginBottom:14}}>
+          <div className="m-g1" style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginBottom:14}}>
             <div>
               <label style={{fontSize:11,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:".7px",display:"block",marginBottom:5}}>{tx("Type *")}</label>
               <select value={nieuw.type} onChange={e=>setNieuw(p=>({...p,type:e.target.value,typeNieuw:""}))} style={{...inp(),width:"100%",marginBottom:6}}>

@@ -356,7 +356,7 @@ export function AutoModule({ gebruiker, showToast }) {
       <SH titel={tx("🚗 Auto planning")} sub={txv("{0} auto's · {1} beschikbaar · {2} uitgegeven", autos.length, autos.filter(a=>a.status==="Beschikbaar").length, autos.filter(a=>a.status==="Lopend").length)} />
 
       {/* Sub-tabs */}
-      <div style={{display:"flex",gap:6,marginBottom:24,borderBottom:`2px solid ${C.border}`,paddingBottom:0}}>
+      <div className="subtabs" style={{display:"flex",gap:6,marginBottom:24,borderBottom:`2px solid ${C.border}`,paddingBottom:0}}>
         {tabs.map(t => (
           <button key={t.id} onClick={()=>setSubTab(t.id)}
             style={{background:"none",border:"none",padding:"10px 18px",fontSize:13,fontWeight:700,color:subTab===t.id?C.blauw:C.muted,borderBottom:subTab===t.id?`3px solid ${C.blauw}`:"3px solid transparent",marginBottom:-2,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
@@ -457,7 +457,7 @@ function AutoOverzicht({ autos, gebruiker }) {
 
       {/* Auto tabel */}
       <div className="card" style={{padding:0,overflow:"hidden"}}>
-        <div style={{display:"grid",gridTemplateColumns:"120px 1fr 140px 120px 100px 100px 80px",padding:"10px 16px",fontSize:10,fontWeight:700,color:C.muted,letterSpacing:".6px",textTransform:"uppercase",borderBottom:`1px solid ${C.border}`,background:C.bg}}>
+        <div className="m-row" style={{display:"grid",gridTemplateColumns:"120px 1fr 140px 120px 100px 100px 80px",padding:"10px 16px",fontSize:10,fontWeight:700,color:C.muted,letterSpacing:".6px",textTransform:"uppercase",borderBottom:`1px solid ${C.border}`,background:C.bg}}>
           <span>{tx("Kenteken")}</span><span>{tx("Auto")}</span><span>{tx("Medewerker")}</span><span>{tx("Vestiging")}</span><span>{tx("APK datum")}</span><span>{tx("Uitgifte")}</span><span>{tx("Status")}</span>
         </div>
         {filtered.length === 0 && (
@@ -468,7 +468,7 @@ function AutoOverzicht({ autos, gebruiker }) {
           const apkVerloopt = a.apk_datum && Math.ceil((new Date(a.apk_datum)-new Date())/86400000) <= 60;
           const apkVerlopen = a.apk_datum && new Date(a.apk_datum) < new Date();
           return (
-            <div key={a.id} style={{display:"grid",gridTemplateColumns:"120px 1fr 140px 120px 100px 100px 80px",padding:"12px 16px",fontSize:13,borderBottom:i<filtered.length-1?`1px solid ${C.border}`:"none",alignItems:"center",background:i%2===0?"white":C.bg+"40"}}>
+            <div key={a.id} className="m-row" style={{display:"grid",gridTemplateColumns:"120px 1fr 140px 120px 100px 100px 80px",padding:"12px 16px",fontSize:13,borderBottom:i<filtered.length-1?`1px solid ${C.border}`:"none",alignItems:"center",background:i%2===0?"white":C.bg+"40"}}>
               <span style={{fontWeight:800,color:C.blauw,fontFamily:"monospace",fontSize:14}}>{tx(a.kenteken)}</span>
               <div>
                 <div style={{fontWeight:600,color:C.text}}>{tx(a.merk_model)}</div>
@@ -643,7 +643,7 @@ function AutoSchadeSchema({ punten, setPunten }) {
   return (
     <div>
       <label style={{...lbl,marginBottom:8}}>{tx("🚘 Schade markeren — klik op de plek(ken) op de auto, je kunt er meerdere toevoegen")}</label>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14}}>
+      <div className="m-g1" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14}}>
         {SCHADE_ZONES.map(z => (
           <div key={z.key}>
             <div style={{fontSize:11,fontWeight:700,color:C.text,marginBottom:6,textAlign:"center"}}>{tx(z.label)}</div>
@@ -1682,7 +1682,7 @@ function AutoBeheer({ autos, gearchiveerdeAutos=[], onAdd, onUpdate, onArchiveer
       {toonNieuwe && (
         <div className="card" style={{marginBottom:16,borderTop:`3px solid ${C.groen}`}}>
           <div style={{fontWeight:700,fontSize:13,color:C.groen,marginBottom:14}}>{tx("Nieuwe auto toevoegen")}</div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:12}}>
+          <div className="m-g1" style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:12}}>
             {[
               {label:"Kenteken *",      key:"kenteken",      ph:"34-GD-HV"},
               {label:"Merk & model *",  key:"merk_model",    ph:"Peugeot 206 Grijs"},
@@ -1728,7 +1728,7 @@ function AutoBeheer({ autos, gearchiveerdeAutos=[], onAdd, onUpdate, onArchiveer
       )}
 
       <div className="card" style={{padding:0,overflow:"hidden"}}>
-        <div style={{display:"grid",gridTemplateColumns:"120px 1fr 130px 100px 100px 120px 80px",padding:"10px 16px",fontSize:10,fontWeight:700,color:C.muted,letterSpacing:".6px",textTransform:"uppercase",borderBottom:`1px solid ${C.border}`,background:C.bg}}>
+        <div className="m-row" style={{display:"grid",gridTemplateColumns:"120px 1fr 130px 100px 100px 120px 80px",padding:"10px 16px",fontSize:10,fontWeight:700,color:C.muted,letterSpacing:".6px",textTransform:"uppercase",borderBottom:`1px solid ${C.border}`,background:C.bg}}>
           <span>{tx("Kenteken")}</span><span>{tx("Auto")}</span><span>{tx("Medewerker")}</span><span>{tx("Vestiging")}</span><span>{tx("APK")}</span><span>{tx("Status")}</span><span>{tx("Acties")}</span>
         </div>
         {autos.map((a,i) => {
@@ -1736,7 +1736,7 @@ function AutoBeheer({ autos, gearchiveerdeAutos=[], onAdd, onUpdate, onArchiveer
           return bewerkId === a.id ? (
             <AutoBewerken key={a.id} auto={a} onSave={async u=>{setSaving(true);await onUpdate(a.id,u,a);setSaving(false);setBewerkId(null);}} onCancel={()=>setBewerkId(null)} saving={saving}/>
           ) : (
-            <div key={a.id} style={{display:"grid",gridTemplateColumns:"120px 1fr 130px 100px 100px 120px 80px",padding:"12px 16px",fontSize:12,borderBottom:i<autos.length-1?`1px solid ${C.border}`:"none",alignItems:"center",background:i%2===0?"white":C.bg+"40"}}>
+            <div key={a.id} className="m-row" style={{display:"grid",gridTemplateColumns:"120px 1fr 130px 100px 100px 120px 80px",padding:"12px 16px",fontSize:12,borderBottom:i<autos.length-1?`1px solid ${C.border}`:"none",alignItems:"center",background:i%2===0?"white":C.bg+"40"}}>
               <span style={{fontWeight:800,color:C.blauw,fontFamily:"monospace"}}>{tx(a.kenteken)}</span>
               <div><div style={{fontWeight:600,color:C.text}}>{tx(a.merk_model)}</div>{a.kleur&&<div style={{fontSize:11,color:C.muted}}>{tx(a.kleur)}</div>}</div>
               <span style={{color:C.muted}}>{a.naam_medewerker||"—"}</span>
@@ -1779,7 +1779,7 @@ function AutoBewerken({ auto, onSave, onCancel, saving }) {
   const [v, setV] = useState({...auto});
   return (
     <div style={{padding:"16px",borderBottom:`1px solid ${C.border}`,background:C.blauw+"08",border:`1.5px solid ${C.blauw}`,borderRadius:8,margin:"4px 8px"}}>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:10}}>
+      <div className="m-g2" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:10}}>
         {[
           {label:"Kenteken",      key:"kenteken"},
           {label:"Merk & model",  key:"merk_model"},
