@@ -9758,5 +9758,30 @@
   "en": "New inspection",
   "ro": "Verificare nouă",
   "pl": "Nowy przegląd"
+ },
+ "Heb je alle punten gecontroleerd en is alles in orde? Afwijkingen meld je eerst met ⚠.": {
+  "en": "Have you checked all points and is everything in order? Report any deviations with ⚠ first.",
+  "ro": "Ai verificat toate punctele și este totul în ordine? Raportează mai întâi abaterile cu ⚠.",
+  "pl": "Czy sprawdziłeś wszystkie punkty i wszystko jest w porządku? Najpierw zgłoś odstępstwa przez ⚠."
+ },
+ "Heb je alle punten gecontroleerd en is alles in orde?": {
+  "en": "Have you checked all points and is everything in order?",
+  "ro": "Ai verificat toate punctele și este totul în ordine?",
+  "pl": "Czy sprawdziłeś wszystkie punkty i wszystko jest w porządku?"
+ },
+ "✅ Alles in orde – {0} punt(en) afvinken": {
+  "en": "✅ All in order – tick {0} point(s)",
+  "ro": "✅ Totul în ordine – bifează {0} punct(e)",
+  "pl": "✅ Wszystko w porządku – odhacz {0} punkt(y)"
+ },
+ "Centrale verwarming (geen eigen CV-ketel): ketelpunten vervallen in de checklist": {
+  "en": "Central heating (no own boiler): boiler points are removed from the checklist",
+  "ro": "Încălzire centrală (fără centrală proprie): punctele despre centrală dispar din listă",
+  "pl": "Ogrzewanie centralne (brak własnego kotła): punkty dot. kotła znikają z listy"
+ },
+ "🔥 Centrale verwarming: geen eigen CV-ketel": {
+  "en": "🔥 Central heating: no own boiler",
+  "ro": "🔥 Încălzire centrală: fără centrală proprie",
+  "pl": "🔥 Ogrzewanie centralne: brak własnego kotła"
  }
 }
