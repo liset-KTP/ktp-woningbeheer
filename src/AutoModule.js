@@ -132,6 +132,95 @@ function SH({titel,sub,actie}) {
 }
 
 // ─── HOOFD AUTO MODULE ────────────────────────────────────────────────────────
+// Opslaan van een auto-melding (uitgifte/inname/reservering/storing/geannuleerd):
+// melding wegschrijven, autostatus bijwerken en mail naar backoffice.
+// Gedeeld door de Auto-module en het Auto-tabblad in Taken & Meldingen, zodat er maar één route is.
+async function slaAutoMeldingOp(m, { autos, gebruiker, showToast }) {
+  // "afwijkingen" is alleen voor de e-mailtekst — geen kolom in de database
+  const { afwijkingen, ...opslagData } = m;
+  const { error } = await supabase.from("auto_meldingen").insert([{...opslagData, datum_tijd: naarDbTijd(opslagData.datum_tijd), ingediend_door: gebruiker.naam, status:"open"}]);
+  if (error) { showToast(tx("Fout bij opslaan"),"err"); return false; }
+
+  // Annulering van een reservering: auto terug naar Beschikbaar en naam leegmaken.
+  // Alleen als de auto nu echt op Gereserveerd staat — een lopende uitgifte blijft ongemoeid.
+  if (m.kenteken && m.actie === "geannuleerd") {
+    const auto = autos.find(a => a.kenteken === m.kenteken);
+    if (auto && auto.status === "Gereserveerd") {
+      await supabase.from("autos").update({ status: "Beschikbaar", naam_medewerker: null }).eq("id", auto.id);
+    }
+  }
+
+  // Auto status bijwerken
+  if (m.kenteken && m.actie !== "geannuleerd") {
+    const auto = autos.find(a => a.kenteken === m.kenteken);
+    if (auto) {
+      // Reservering: auto op "Gereserveerd" zetten op naam van de medewerker; datum_uitgifte blijft ongemoeid
+      // (die wordt pas gezet bij de echte uitgifte via de wizard).
+      const nieuweStatus = m.actie === "uitgifte" ? "Lopend" : m.actie === "reservering" ? "Gereserveerd" : m.actie === "storing" ? auto.status : "Beschikbaar";
+      await supabase.from("autos").update({
+        status: nieuweStatus,
+        naam_medewerker: (m.actie === "uitgifte" || m.actie === "reservering") ? m.naam_medewerker : (m.actie === "storing" ? auto.naam_medewerker : null),
+        datum_uitgifte: m.actie === "uitgifte" ? (m.datum_tijd ? m.datum_tijd.slice(0,10) : new Date().toISOString().slice(0,10)) : (m.actie === "inname" ? null : undefined),
+      }).eq("id", auto.id);
+    }
+  }
+
+  // ── E-mail sturen ──────────────────────────────────────────────────────
+  const actieTekst = {
+    uitgifte: "🚗 Auto uitgifte", inname: "🔑 Auto inname",
+    storing: "🔧 Auto storing/schade", geannuleerd: "❌ Auto geannuleerd",
+    reservering: "📅 Auto gereserveerd",
+  };
+  const heeftKosten = m.actie === "inname" && m.kosten_inhouden !== null && m.kosten_inhouden !== undefined && Number(m.kosten_inhouden) > 0;
+  const heeftAfwijking = (!!m.afwijking_gevonden && Array.isArray(afwijkingen) && afwijkingen.length > 0) || heeftKosten;
+  const kostenRegel = heeftKosten ? `💶 Kosten in te houden bij medewerker: €${Number(m.kosten_inhouden).toFixed(2).replace(".",",")}` : null;
+  const opmerkingenDelen = [
+    (afwijkingen||[]).length > 0 ? afwijkingen.join(" · ") : null,
+    kostenRegel,
+    m.opmerkingen || null,
+  ].filter(Boolean);
+  stuurMail({
+    type:          heeftAfwijking ? `⚠️ ${actieTekst[m.actie] || m.actie} — bijzonderheden!` : (actieTekst[m.actie] || m.actie),
+    type_icon:     heeftAfwijking ? "⚠️" : (actieTekst[m.actie]?.split(" ")[0] || "🚗"),
+    medewerker:    m.naam_medewerker,
+    woning:        `Kenteken: ${m.kenteken}`,
+    kamer:         m.locatie ? `Locatie: ${m.locatie}` : "—",
+    datum:         m.datum_tijd ? (m.actie === "reservering" ? "Verwachte uitgifte: " : "") + new Date(m.datum_tijd).toLocaleDateString("nl-NL") : "—",
+    ingediend_door: gebruiker.naam,
+    opmerkingen:   opmerkingenDelen.length > 0 ? opmerkingenDelen.join(" · ") : "—",
+  });
+
+  showToast(heeftAfwijking ? "⚠️ Ingediend — bijzonderheden gemeld aan backoffice" : "✓ Auto melding ingediend");
+  return true;
+}
+
+
+// ─── AUTO FORMULIER LOS (voor Taken & Meldingen → Auto's) ─────────────────────
+// Zelfde digitale wizard als in de Auto-module, zodat uitgifte/inname altijd met
+// checklist + handtekeningen gaat en de melding in het Auto-logboek komt.
+export function AutoFormulierLos({ gebruiker, showToast }) {
+  const [autos, setAutos] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadAutos = useCallback(async () => {
+    const { data, error } = await supabase.from("autos").select("*").order("status").order("kenteken").neq("gearchiveerd", true);
+    if (error) console.error(error);
+    setAutos(data || []);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { loadAutos(); }, [loadAutos]);
+
+  async function opslaan(m) {
+    const ok = await slaAutoMeldingOp(m, { autos, gebruiker, showToast });
+    if (ok) loadAutos();
+    return ok;
+  }
+
+  if (loading) return <div style={{padding:40,textAlign:"center",color:C.muted}}>{tx("Auto's laden...")}</div>;
+  return <AutoMeldingForm autos={autos} gebruiker={gebruiker} onSubmit={opslaan} showToast={showToast} />;
+}
+
 export function AutoModule({ gebruiker, showToast }) {
   const [autos, setAutos] = useState([]);
   const [gearchiveerdeAutos, setGearchiveerdeAutos] = useState([]);
@@ -173,62 +262,7 @@ export function AutoModule({ gebruiker, showToast }) {
   }, [loadAutos, loadAutoMeldingen]);
 
   async function addAutoMelding(m) {
-    // "afwijkingen" is alleen voor de e-mailtekst — geen kolom in de database
-    const { afwijkingen, ...opslagData } = m;
-    const { error } = await supabase.from("auto_meldingen").insert([{...opslagData, datum_tijd: naarDbTijd(opslagData.datum_tijd), ingediend_door: gebruiker.naam, status:"open"}]);
-    if (error) { showToast(tx("Fout bij opslaan"),"err"); return false; }
-
-    // Annulering van een reservering: auto terug naar Beschikbaar en naam leegmaken.
-    // Alleen als de auto nu echt op Gereserveerd staat — een lopende uitgifte blijft ongemoeid.
-    if (m.kenteken && m.actie === "geannuleerd") {
-      const auto = autos.find(a => a.kenteken === m.kenteken);
-      if (auto && auto.status === "Gereserveerd") {
-        await supabase.from("autos").update({ status: "Beschikbaar", naam_medewerker: null }).eq("id", auto.id);
-      }
-    }
-
-    // Auto status bijwerken
-    if (m.kenteken && m.actie !== "geannuleerd") {
-      const auto = autos.find(a => a.kenteken === m.kenteken);
-      if (auto) {
-        // Reservering: auto op "Gereserveerd" zetten op naam van de medewerker; datum_uitgifte blijft ongemoeid
-        // (die wordt pas gezet bij de echte uitgifte via de wizard).
-        const nieuweStatus = m.actie === "uitgifte" ? "Lopend" : m.actie === "reservering" ? "Gereserveerd" : m.actie === "storing" ? auto.status : "Beschikbaar";
-        await supabase.from("autos").update({
-          status: nieuweStatus,
-          naam_medewerker: (m.actie === "uitgifte" || m.actie === "reservering") ? m.naam_medewerker : (m.actie === "storing" ? auto.naam_medewerker : null),
-          datum_uitgifte: m.actie === "uitgifte" ? (m.datum_tijd ? m.datum_tijd.slice(0,10) : new Date().toISOString().slice(0,10)) : (m.actie === "inname" ? null : undefined),
-        }).eq("id", auto.id);
-      }
-    }
-
-    // ── E-mail sturen ──────────────────────────────────────────────────────
-    const actieTekst = {
-      uitgifte: "🚗 Auto uitgifte", inname: "🔑 Auto inname",
-      storing: "🔧 Auto storing/schade", geannuleerd: "❌ Auto geannuleerd",
-      reservering: "📅 Auto gereserveerd",
-    };
-    const heeftKosten = m.actie === "inname" && m.kosten_inhouden !== null && m.kosten_inhouden !== undefined && Number(m.kosten_inhouden) > 0;
-    const heeftAfwijking = (!!m.afwijking_gevonden && Array.isArray(afwijkingen) && afwijkingen.length > 0) || heeftKosten;
-    const kostenRegel = heeftKosten ? `💶 Kosten in te houden bij medewerker: €${Number(m.kosten_inhouden).toFixed(2).replace(".",",")}` : null;
-    const opmerkingenDelen = [
-      (afwijkingen||[]).length > 0 ? afwijkingen.join(" · ") : null,
-      kostenRegel,
-      m.opmerkingen || null,
-    ].filter(Boolean);
-    stuurMail({
-      type:          heeftAfwijking ? `⚠️ ${actieTekst[m.actie] || m.actie} — bijzonderheden!` : (actieTekst[m.actie] || m.actie),
-      type_icon:     heeftAfwijking ? "⚠️" : (actieTekst[m.actie]?.split(" ")[0] || "🚗"),
-      medewerker:    m.naam_medewerker,
-      woning:        `Kenteken: ${m.kenteken}`,
-      kamer:         m.locatie ? `Locatie: ${m.locatie}` : "—",
-      datum:         m.datum_tijd ? (m.actie === "reservering" ? "Verwachte uitgifte: " : "") + new Date(m.datum_tijd).toLocaleDateString("nl-NL") : "—",
-      ingediend_door: gebruiker.naam,
-      opmerkingen:   opmerkingenDelen.length > 0 ? opmerkingenDelen.join(" · ") : "—",
-    });
-
-    showToast(heeftAfwijking ? "⚠️ Ingediend — bijzonderheden gemeld aan backoffice" : "✓ Auto melding ingediend");
-    return true;
+    return slaAutoMeldingOp(m, { autos, gebruiker, showToast });
   }
 
   async function updateAutoMelding(id, updates) {

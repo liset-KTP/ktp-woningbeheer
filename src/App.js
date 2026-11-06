@@ -19,7 +19,7 @@ class ErrorBoundary extends Component {
 }
 import { supabase } from "./supabaseClient";
 import { t as vertaal, TALEN } from "./translations";
-import { AutoModule } from "./AutoModule";
+import { AutoModule, AutoFormulierLos } from "./AutoModule";
 import { FietsModule } from "./FietsModule";
 import { HuurbetalingenModule, HuurBetalingInline } from "./HuurbetalingenModule";
 import { BijlageUploader, BijlageWeergave, uploadBijlages } from "./BijlageUploader";
@@ -4032,124 +4032,6 @@ function KledingUitgifteTabInTaken({ gebruiker, showToast }) {
 
 
 
-// ─── AUTO TAB INLINE (in Taken & Meldingen) ───────────────────────────────────
-function AutoTabInTaken({ gebruiker, showToast }) {
-  const [autos, setAutos] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [actie, setActie] = useState("uitgifte");
-  const [kenteken, setKenteken] = useState("");
-  const [naam, setNaam] = useState("");
-  const [omschrijving, setOmschrijving] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  useEffect(()=>{
-    supabase.from("autos").select("*").order("status").order("kenteken")
-      .then(({data})=>{ setAutos(data||[]); setLoading(false); });
-  },[]);
-
-  const acties = [
-    {id:"uitgifte", icon:"🚗", label:"Uitgifte", kleur:C.groen},
-    {id:"inname",   icon:"🔑", label:"Inname",   kleur:C.blauw},
-    {id:"storing",  icon:"🔧", label:"Storing",  kleur:"#f59e0b"},
-  ];
-
-  async function submit() {
-    if (!kenteken) { showToast(tx("Selecteer een auto"),"err"); return; }
-    if (actie !== "storing") { const naamFout = naamProbleem(naam); if (naamFout) { showToast(naamFout,"err"); return; } }
-    setSaving(true);
-    const auto = autos.find(a=>a.kenteken===kenteken);
-    const nieuweStatus = actie==="uitgifte"?"Lopend":actie==="inname"?"Beschikbaar":auto?.status||"Lopend";
-    const updates = { status: nieuweStatus };
-    if (actie==="uitgifte") { updates.naam_medewerker = normaliseerNaam(naam); updates.datum_uitgifte = new Date().toISOString().slice(0,10); }
-    if (actie==="inname")   { updates.naam_medewerker = null; }
-
-    // Update auto
-    if (actie !== "storing") {
-      await supabase.from("autos").update(updates).eq("kenteken", kenteken);
-    }
-    // Log melding
-    await supabase.from("auto_meldingen").insert([{
-      kenteken, actie,
-      naam_medewerker: normaliseerNaam(naam) || auto?.naam_medewerker || "",
-      omschrijving: omschrijving || null,
-      ingediend_door: gebruiker.naam,
-      status: actie==="storing" ? "open" : "afgehandeld",
-    }]);
-
-    showToast(txv("✓ {0} geregistreerd — {1}", acties.find(a=>a.id===actie)?.label, kenteken));
-    setSaving(false);
-    setKenteken(""); setNaam(""); setOmschrijving("");
-  }
-
-  if (loading) return <div style={{padding:40,textAlign:"center",color:C.muted}}>{tx("Auto's laden...")}</div>;
-
-  const inp = {width:"100%",border:`1.5px solid ${C.border}`,borderRadius:8,padding:"10px 14px",fontSize:14,fontFamily:"inherit",color:C.text,background:"white",outline:"none",boxSizing:"border-box"};
-  const geselecteerd = autos.find(a=>a.kenteken===kenteken);
-
-  return (
-    <div style={{maxWidth:520}}>
-      <div style={{background:"white",border:`1px solid ${C.border}`,borderRadius:14,padding:24}}>
-        <h3 style={{fontSize:15,fontWeight:800,color:C.blauw,marginBottom:16}}>{tx("🚗 Auto melding indienen")}</h3>
-
-        {/* Actie */}
-        <div style={{display:"flex",gap:8,marginBottom:16}}>
-          {acties.map(a=>(
-            <button key={a.id} onClick={()=>setActie(a.id)}
-              style={{flex:1,padding:"10px 6px",border:`2px solid ${actie===a.id?a.kleur:C.border}`,borderRadius:8,
-                background:actie===a.id?a.kleur+"18":"white",color:actie===a.id?a.kleur:C.muted,
-                fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>
-              {tx(a.icon)}<br/>{tx(a.label)}
-            </button>
-          ))}
-        </div>
-
-        {/* Kenteken */}
-        <div style={{marginBottom:14}}>
-          <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>{tx("Auto *")}</label>
-          <select value={kenteken} onChange={e=>setKenteken(e.target.value)} style={inp}>
-            <option value="">{tx("— Selecteer auto —")}</option>
-            {autos.map(a=>(
-              <option key={a.kenteken} value={a.kenteken}>
-                {tx(a.kenteken)} — {a.merk_model||""} [{tx(a.status)}]{a.naam_medewerker?" ("+a.naam_medewerker+")":""}
-              </option>
-            ))}
-          </select>
-          {geselecteerd && (
-            <div style={{fontSize:12,color:C.muted,marginTop:4,padding:"4px 8px",background:C.bg,borderRadius:6}}>
-              {tx("Huidig:")} <strong>{tx(geselecteerd.status)}</strong>{geselecteerd.naam_medewerker?" · "+geselecteerd.naam_medewerker:""}
-            </div>
-          )}
-        </div>
-
-        {/* Naam (niet bij storing) */}
-        {actie !== "storing" && (
-          <div style={{marginBottom:14}}>
-            <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>
-              {actie==="uitgifte"?tx("Naam medewerker (krijgt auto) *"):tx("Naam medewerker (geeft auto terug) *")}
-            </label>
-            <MedewerkerKiezer value={naam} onChange={setNaam} placeholder={tx("Voor- en achternaam (typ om te zoeken)")}/>
-          </div>
-        )}
-
-        {/* Omschrijving */}
-        <div style={{marginBottom:18}}>
-          <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>
-            {actie==="storing"?tx("Omschrijving storing *"):tx("Opmerking (optioneel)")}
-          </label>
-          <input value={omschrijving} onChange={e=>setOmschrijving(e.target.value)}
-            placeholder={actie==="storing"?tx("Beschrijf het probleem..."):tx("Optioneel")} style={inp}/>
-        </div>
-
-        <button onClick={submit} disabled={saving||!kenteken}
-          style={{background:kenteken?(acties.find(a=>a.id===actie)?.kleur||C.blauw):"#d1dbe8",color:"white",border:"none",
-            borderRadius:8,padding:"12px",fontSize:14,fontWeight:700,cursor:kenteken&&!saving?"pointer":"not-allowed",fontFamily:"inherit",width:"100%"}}>
-          {saving?tx("⏳ Bezig..."):acties.find(a=>a.id===actie)?.icon+" "+acties.find(a=>a.id===actie)?.label+" registreren"}
-        </button>
-      </div>
-    </div>
-  );
-}
-
 // ─── FIETS TAB INLINE (in Taken & Meldingen) ──────────────────────────────────
 function FietsTabInTaken({ gebruiker, showToast, onAddTaak }) {
   const [locatie, setLocatie] = useState("");
@@ -4894,8 +4776,8 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
 
       {/* 🚗 AUTO'S */}
       {subTab === "autos" && (
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20,alignItems:"start"}}>
-          <AutoTabInTaken gebruiker={gebruiker} showToast={showToast}/>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(min(100%,340px),1fr))",gap:20,alignItems:"start"}}>
+          <AutoFormulierLos gebruiker={gebruiker} showToast={showToast}/>
           <div>
             {takenAutos.length > 0 && (
               <>
