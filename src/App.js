@@ -1787,6 +1787,8 @@ function App() {
           .appheader{position:static!important}
           img,video,canvas{max-width:100%;height:auto}
           .m-g1{grid-template-columns:1fr!important}
+          .m-g1>*,.m-g3>*{min-width:0}
+          input[type=date],input[type=datetime-local]{min-width:0;max-width:100%}
           .m-g2{grid-template-columns:1fr 1fr!important}
           .m-g3{grid-template-columns:repeat(3,1fr)!important}
           .m-scroll-x{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}

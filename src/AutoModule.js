@@ -886,16 +886,16 @@ function AutoHandoverWizard({ autos, gebruiker, actie, onSubmit, showToast }) {
       {/* Stappen indicator */}
       <div style={{display:"flex",gap:4,marginBottom:20}}>
         {STAPPEN.map((s,i) => (
-          <div key={s} style={{flex:1,textAlign:"center"}}>
+          <div key={s} style={{flex:1,minWidth:0,textAlign:"center"}}>
             <div style={{height:4,borderRadius:2,background:i+1<=stap?kleur:C.border,marginBottom:6}}/>
-            <div style={{fontSize:10,fontWeight:700,color:i+1===stap?kleur:C.muted,textTransform:"uppercase",letterSpacing:".4px"}}>{tx(s)}</div>
+            <div style={{fontSize:9,fontWeight:700,color:i+1===stap?kleur:C.muted,textTransform:"uppercase",letterSpacing:".2px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{tx(s)}</div>
           </div>
         ))}
       </div>
 
       {/* Stap 1: Gegevens */}
       {stap === 1 && (
-        <div className="card" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:18,marginBottom:16}}>
+        <div className="card m-g1" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:18,marginBottom:16}}>
           <div>
             <label style={lbl}>{tx("Kenteken *")}</label>
             <select style={{...inp,appearance:"none"}} value={kenteken} onChange={e=>{
@@ -963,8 +963,8 @@ function AutoHandoverWizard({ autos, gebruiker, actie, onSubmit, showToast }) {
           {checklistRegels.map(({key,label,val,set,probleem})=>(
             <div key={key} style={{padding:"8px 0",borderBottom:`1px solid ${C.border}`}}>
               <div style={{display:"flex",alignItems:"center",gap:10}}>
-                <span style={{flex:1,fontSize:14,fontWeight:500,color:C.text}}>{tx(label)}</span>
-                <div style={{display:"flex",gap:8}}>
+                <span style={{flex:1,minWidth:0,fontSize:14,fontWeight:500,color:C.text}}>{tx(label)}</span>
+                <div style={{display:"flex",gap:8,flexShrink:0}}>
                   {["ja","nee"].map(v=>(
                     <button key={v} onClick={()=>set(v)}
                       style={{padding:"5px 14px",borderRadius:6,fontSize:12,fontWeight:600,border:"1.5px solid",cursor:"pointer",transition:"all .15s",
@@ -1114,7 +1114,7 @@ function AutoStoringForm({ autos, gebruiker, actie, onSubmit, showToast }) {
 
   return (
     <div>
-      <div className="card" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:18,marginBottom:16}}>
+      <div className="card m-g1" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:18,marginBottom:16}}>
         <div>
           <label style={lbl}>{tx("Kenteken *")}</label>
           <select style={{...inp,appearance:"none"}} value={kenteken} onChange={e=>setKenteken(e.target.value)}>
@@ -1204,12 +1204,12 @@ function AutoMeldingForm({ autos, gebruiker, onSubmit, showToast }) {
       {/* Actie kiezen */}
       <div className="card" style={{marginBottom:16,borderTop:`3px solid ${C.blauw}`}}>
         <label style={lbl}>{tx("Actie")}</label>
-        <div style={{display:"flex",gap:10}}>
+        <div className="m-g3" style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8}}>
           {acties.map(a => (
             <div key={a.id} onClick={()=>setActie(a.id)}
-              style={{flex:1,border:`2px solid ${actie===a.id?a.color:C.border}`,borderRadius:10,padding:"14px",textAlign:"center",cursor:"pointer",background:actie===a.id?a.color+"12":"white",transition:"all .2s"}}>
-              <div style={{fontSize:24,marginBottom:6}}>{tx(a.icon)}</div>
-              <div style={{fontSize:11,fontWeight:700,color:actie===a.id?a.color:C.muted,letterSpacing:".8px"}}>{tx(a.label)}</div>
+              style={{minWidth:0,border:`2px solid ${actie===a.id?a.color:C.border}`,borderRadius:10,padding:"12px 4px",textAlign:"center",cursor:"pointer",background:actie===a.id?a.color+"12":"white",transition:"all .2s"}}>
+              <div style={{fontSize:22,marginBottom:4}}>{tx(a.icon)}</div>
+              <div style={{fontSize:10,fontWeight:700,color:actie===a.id?a.color:C.muted,letterSpacing:".3px",lineHeight:1.2,overflowWrap:"anywhere"}}>{tx(a.label)}</div>
             </div>
           ))}
         </div>
