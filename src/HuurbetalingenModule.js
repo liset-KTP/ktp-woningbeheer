@@ -72,17 +72,44 @@ function berekenVerschuldigdeWeken(schuld) {
   }
 
   let weken = 0;
-  const d = new Date(eersteMaandag);
-  while (d <= grens) {
-    weken++;
-    d.setDate(d.getDate() + 7);
+  let restDagen = 0;
+  const nieuweRegel = valtOnderNieuweRegel(schuld);
+  const eindIsGrens = schuld.einddatum && (!schuld.actief || datumZonderTijd(schuld.einddatum) <= datumZonderTijd(new Date()));
+  if (nieuweRegel && eindIsGrens) {
+    // Nieuwe regel (vertrek vanaf 10-11-2026): laatste, onvolledige week per dag
+    // (t/m vertrekdag), volledige weken per weekbedrag.
+    const dagenTotEind = Math.round((datumZonderTijd(schuld.einddatum) - eersteMaandag) / DAG_MS) + 1;
+    if (dagenTotEind > 0) {
+      weken = Math.floor(dagenTotEind / 7);
+      restDagen = dagenTotEind % 7;
+    }
+  } else {
+    const d = new Date(eersteMaandag);
+    while (d <= grens) {
+      weken++;
+      d.setDate(d.getDate() + 7);
+    }
   }
-  return { weken, weekbedrag, eersteMaandag };
+  return { weken, restDagen, weekbedrag, eersteMaandag };
+}
+
+// Vanaf deze vertrekdatum: laatste week per dag en eerste week max. 1 weekbedrag.
+// Oudere schulden blijven op de oude berekening, zodat afgesloten/betaalde schulden niet veranderen.
+const NIEUWE_REGEL_VANAF = "2026-11-10";
+const DAG_MS = 1000 * 60 * 60 * 24;
+function datumZonderTijd(d) {
+  const x = typeof d === "string" ? new Date(d + (d.length === 10 ? "T00:00:00" : "")) : new Date(d);
+  x.setHours(0,0,0,0);
+  return x;
+}
+function valtOnderNieuweRegel(schuld) {
+  return !schuld.einddatum || String(schuld.einddatum).slice(0,10) >= NIEUWE_REGEL_VANAF;
 }
 
 function berekenTotaalVerschuldigd(schuld) {
   const result = berekenVerschuldigdeWeken(schuld);
-  const { weken, weekbedrag, eersteMaandag } = (result && typeof result === "object") ? result : { weken: 0, weekbedrag: 140, eersteMaandag: null };
+  const { weken, restDagen = 0, weekbedrag, eersteMaandag } = (result && typeof result === "object") ? result : { weken: 0, restDagen: 0, weekbedrag: 140, eersteMaandag: null };
+  const dagbedrag = schuld.tarief_dagen ? Number(schuld.tarief_dagen) : 20;
   const extraBedragen = (schuld.betalingen || []).filter(b => Number(b.bedrag) < 0).reduce((s,b) => s + Math.abs(Number(b.bedrag)), 0);
 
   // Bereken gedeeltelijke eerste week: als niet op maandag gestart, €20/dag tot eerste maandag
@@ -91,13 +118,24 @@ function berekenTotaalVerschuldigd(schuld) {
     const start = new Date(schuld.startdatum);
     start.setHours(0,0,0,0);
     if (start.getDay() !== 1) { // 1 = maandag
-      const dagbedrag = schuld.tarief_dagen ? Number(schuld.tarief_dagen) : 20;
-      const dagenInPartieelWeek = Math.round((eersteMaandag - start) / (1000 * 60 * 60 * 24));
-      partieelBedrag = dagenInPartieelWeek * dagbedrag;
+      if (valtOnderNieuweRegel(schuld)) {
+        // Nieuwe regel: niet verder dan de vertrekdag, en maximaal één weekbedrag
+        let tot = eersteMaandag;
+        if (schuld.einddatum) {
+          const naEind = datumZonderTijd(schuld.einddatum);
+          naEind.setDate(naEind.getDate() + 1);
+          if (naEind < tot) tot = naEind;
+        }
+        const dagen = Math.max(0, Math.round((tot - start) / DAG_MS));
+        partieelBedrag = Math.min(dagen * dagbedrag, weekbedrag);
+      } else {
+        const dagenInPartieelWeek = Math.round((eersteMaandag - start) / DAG_MS);
+        partieelBedrag = dagenInPartieelWeek * dagbedrag;
+      }
     }
   }
 
-  return (weken * weekbedrag) + partieelBedrag + Number(schuld.beginsaldo || 0) + extraBedragen;
+  return (weken * weekbedrag) + (restDagen * dagbedrag) + partieelBedrag + Number(schuld.beginsaldo || 0) + extraBedragen;
 }
 
 function berekenTotaalBetaald(schuld) {
@@ -417,7 +455,7 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onAfschrij
   const openstaand    = berekenOpenstaand(schuld);
   const totaalBetaald = berekenTotaalBetaald(schuld);
   const totaalVerschuldigd = berekenTotaalVerschuldigd(schuld);
-  const { weken, weekbedrag } = berekenVerschuldigdeWeken(schuld);
+  const { weken, restDagen = 0, weekbedrag } = berekenVerschuldigdeWeken(schuld);
   const volgendeDatum = volgendeBetalingsDatum(schuld);
   const pct   = totaalVerschuldigd > 0 ? Math.min(100, (totaalBetaald / totaalVerschuldigd) * 100) : 0;
 
@@ -467,7 +505,7 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onAfschrij
           <div style={{fontSize:12,color:C.muted}}>
             {tx("Vanaf")} {fmtDate(schuld.startdatum)}
             {schuld.einddatum ? ` t/m ${fmtDate(schuld.einddatum)}` : tx(" (lopend)")}
-            {" · "}{tx(weken)} {tx("week")}{weken !== 1 ? tx("en") : ""}
+            {" · "}{tx(weken)} {tx("week")}{weken !== 1 ? tx("en") : ""}{restDagen > 0 ? ` + ${restDagen} ${tx(restDagen === 1 ? "dag" : "dagen")}` : ""}
             {" · €"}{tx(weekbedrag)}{tx("/week")}
           </div>
           {volgendeDatum && !schuld.einddatum && (
