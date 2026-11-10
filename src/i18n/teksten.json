@@ -9843,5 +9843,15 @@
   "en": "Nothing left to do here.",
   "ro": "Nu mai trebuie să faci nimic aici.",
   "pl": "Nie musisz tu już nic robić."
+ },
+ "📄 Betaalverzoek maken:": {
+  "en": "📄 Create payment request:",
+  "ro": "📄 Creează solicitare de plată:",
+  "pl": "📄 Utwórz prośbę o zapłatę:"
+ },
+ "Pop-up geblokkeerd — sta pop-ups toe voor deze app": {
+  "en": "Pop-up blocked — allow pop-ups for this app",
+  "ro": "Pop-up blocat — permite pop-up-urile pentru această aplicație",
+  "pl": "Wyskakujące okno zablokowane — zezwól na wyskakujące okna dla tej aplikacji"
  }
 }

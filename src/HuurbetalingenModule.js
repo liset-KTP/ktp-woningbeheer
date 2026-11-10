@@ -4,6 +4,7 @@ import { supabase } from "./supabaseClient";
 import WeekDatePicker from "./WeekDatePicker";
 import { MedewerkerKiezer, naamProbleem, normaliseerNaam, vernieuwMedewerkerNamen } from "./MedewerkerKiezer";
 import { tx, txv } from "./i18n";
+import { openBetaalverzoek, BETAALVERZOEK_TALEN } from "./betaalverzoek";
 
 // ─── EMAILJS ──────────────────────────────────────────────────────────────────
 const EMAILJS_SERVICE  = "service_1af258e";
@@ -106,43 +107,63 @@ function valtOnderNieuweRegel(schuld) {
   return !schuld.einddatum || String(schuld.einddatum).slice(0,10) >= NIEUWE_REGEL_VANAF;
 }
 
-function berekenTotaalVerschuldigd(schuld) {
+// Specificatie van wat er verschuldigd is, regel voor regel. Eén bron voor zowel het
+// totaal op de kaart als het betaalverzoek, zodat die nooit van elkaar afwijken.
+export function berekenSpecificatie(schuld) {
   const result = berekenVerschuldigdeWeken(schuld);
   const { weken, restDagen = 0, weekbedrag, eersteMaandag } = (result && typeof result === "object") ? result : { weken: 0, restDagen: 0, weekbedrag: 140, eersteMaandag: null };
   const dagbedrag = schuld.tarief_dagen ? Number(schuld.tarief_dagen) : 20;
-  const extraBedragen = (schuld.betalingen || []).filter(b => Number(b.bedrag) < 0).reduce((s,b) => s + Math.abs(Number(b.bedrag)), 0);
+  const plusDagen = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+  const regels = [];
 
-  // Bereken gedeeltelijke eerste week: als niet op maandag gestart, €20/dag tot eerste maandag
-  let partieelBedrag = 0;
+  // Gedeeltelijke eerste week: als niet op maandag gestart, €20/dag tot eerste maandag
   if (eersteMaandag && schuld.startdatum) {
     const start = new Date(schuld.startdatum);
     start.setHours(0,0,0,0);
     if (start.getDay() !== 1) { // 1 = maandag
+      let dagen, bedrag, tot = eersteMaandag;
       if (valtOnderNieuweRegel(schuld)) {
         // Nieuwe regel: niet verder dan de vertrekdag, en maximaal één weekbedrag
-        let tot = eersteMaandag;
         if (schuld.einddatum) {
           const naEind = datumZonderTijd(schuld.einddatum);
           naEind.setDate(naEind.getDate() + 1);
           if (naEind < tot) tot = naEind;
         }
-        const dagen = Math.max(0, Math.round((tot - start) / DAG_MS));
-        partieelBedrag = Math.min(dagen * dagbedrag, weekbedrag);
+        dagen = Math.max(0, Math.round((tot - start) / DAG_MS));
+        bedrag = Math.min(dagen * dagbedrag, weekbedrag);
       } else {
-        const dagenInPartieelWeek = Math.round((eersteMaandag - start) / DAG_MS);
-        partieelBedrag = dagenInPartieelWeek * dagbedrag;
+        dagen = Math.round((eersteMaandag - start) / DAG_MS);
+        bedrag = dagen * dagbedrag;
       }
+      if (bedrag > 0) regels.push({ soort: "dagen", aantal: dagen, prijs: bedrag < dagen * dagbedrag ? null : dagbedrag, bedrag, van: start, tot: plusDagen(tot, -1) });
     }
   }
-
-  return (weken * weekbedrag) + (restDagen * dagbedrag) + partieelBedrag + Number(schuld.beginsaldo || 0) + extraBedragen;
+  if (weken > 0 && eersteMaandag) {
+    regels.push({ soort: "weken", aantal: weken, prijs: weekbedrag, bedrag: weken * weekbedrag, van: new Date(eersteMaandag), tot: plusDagen(eersteMaandag, weken * 7 - 1) });
+  }
+  if (restDagen > 0 && eersteMaandag) {
+    const van = plusDagen(eersteMaandag, weken * 7);
+    regels.push({ soort: "dagen", aantal: restDagen, prijs: dagbedrag, bedrag: restDagen * dagbedrag, van, tot: plusDagen(van, restDagen - 1) });
+  }
+  if (Number(schuld.beginsaldo || 0) !== 0) {
+    regels.push({ soort: "achterstand", bedrag: Number(schuld.beginsaldo) });
+  }
+  (schuld.betalingen || []).filter(b => Number(b.bedrag) < 0).forEach(b => {
+    regels.push({ soort: "extra", bedrag: Math.abs(Number(b.bedrag)), omschrijving: b.opmerking || "", van: b.datum ? new Date(b.datum) : null });
+  });
+  const totaal = regels.reduce((s, r) => s + r.bedrag, 0);
+  return { regels, totaal, weekbedrag, dagbedrag };
 }
 
-function berekenTotaalBetaald(schuld) {
+function berekenTotaalVerschuldigd(schuld) {
+  return berekenSpecificatie(schuld).totaal;
+}
+
+export function berekenTotaalBetaald(schuld) {
   return (schuld.betalingen || []).filter(b => Number(b.bedrag) > 0).reduce((s, b) => s + Number(b.bedrag), 0);
 }
 
-function berekenOpenstaand(schuld) {
+export function berekenOpenstaand(schuld) {
   return Math.max(0, berekenTotaalVerschuldigd(schuld) - berekenTotaalBetaald(schuld));
 }
 
@@ -574,6 +595,23 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onAfschrij
               </div>
               <span style={{fontSize:11,color:C.muted}}>{tx("door")} {tx(b.geregistreerd_door)}</span>
             </div>
+          ))}
+        </div>
+      )}
+
+      {/* Betaalverzoek in KTP-stijl — bedragen komen uit de app, niets zelf typen */}
+      {openstaand > 0 && !isAfgeschreven && (
+        <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap",marginBottom:12,fontSize:13,color:C.muted}}>
+          <span style={{fontWeight:600}}>{tx("📄 Betaalverzoek maken:")}</span>
+          {BETAALVERZOEK_TALEN.map(taal => (
+            <button key={taal}
+              onClick={() => {
+                const ok = openBetaalverzoek({ schuld, spec: berekenSpecificatie(schuld), betaald: totaalBetaald, taal });
+                if (!ok) showToast(tx("Pop-up geblokkeerd — sta pop-ups toe voor deze app"), "err");
+              }}
+              style={{background:"white",border:`1.5px solid ${C.blauw}`,color:C.blauw,borderRadius:6,padding:"4px 10px",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+              {taal}
+            </button>
           ))}
         </div>
       )}
