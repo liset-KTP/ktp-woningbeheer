@@ -715,10 +715,13 @@ function App() {
   }
 
   async function addMelding(m) {
-    // Guard: voorkom dubbele aankomstmelding voor dezelfde persoon + datum
+    // Guard: voorkom dubbele aankomstmelding voor dezelfde persoon + datum.
+    // Geannuleerde meldingen tellen niet mee (2026-11-11, Mircea Craciun: aankomst K3 geannuleerd,
+    // nieuwe aankomst K2 op dezelfde datum werd geweigerd).
     if (m.type === "aankomst" && m.medewerker) {
       const { data: dubbel } = await supabase.from("meldingen")
-        .select("id").eq("type","aankomst").eq("medewerker",m.medewerker).eq("datum",m.datum).limit(1);
+        .select("id").eq("type","aankomst").eq("medewerker",m.medewerker).eq("datum",m.datum)
+        .neq("status","geannuleerd").limit(1);
       if (dubbel && dubbel.length > 0) {
         showToast(txv("Er bestaat al een aankomstmelding voor {0} op {1}", m.medewerker, m.datum), "err");
         return;
