@@ -5,7 +5,8 @@
 // Opent in een nieuw venster; daar "Afdrukken / opslaan als PDF".
 
 // Afzender en rekening — dezelfde gegevens als op de KTP-facturen (ktp-facturen).
-// Juridisch verhuurder in de huurovereenkomst is KTP Backoffice B.V., dus dat is de standaard.
+// Besluit Liset 12-11-2026: voorlopig KTP Interflex + rekening NL10 (ook al is KTP Backoffice
+// juridisch verhuurder in de huurovereenkomst). Wisselen = alleen AFZENDER_STANDAARD aanpassen.
 // Wijzigt dit? Alleen hier aanpassen.
 export const AFZENDERS = {
   BACKOFFICE: {
@@ -21,12 +22,12 @@ export const AFZENDERS = {
     iban: "NL10 RABO 0326 0410 28", bic: "RABONL2U", kvk: "70445796",
   },
 };
-export const AFZENDER_STANDAARD = "BACKOFFICE";
+export const AFZENDER_STANDAARD = "INTERFLEX";
 
 export const BETAALVERZOEK_TALEN = ["NL", "EN", "PL", "RO"];
 
 const T = {
-  NL: { titel: "Betaalverzoek", aan: "Aan", kenmerk: "Kenmerk", datum: "Datum", termijn: "Betaaltermijn", dagen: "dagen", verval: "Vervaldatum",
+  NL: { titel: "Betaalverzoek", herinnering: "Herinnering", aan: "Aan", kenmerk: "Kenmerk", datum: "Datum", termijn: "Betaaltermijn", dagen: "dagen", verval: "Vervaldatum",
         betreft: "Betreft", betreftTekst: "Huisvesting via KTP",
         kDatum: "Periode", kOms: "Omschrijving", kAantal: "Aantal", kEenheid: "Eenheid", kTarief: "Tarief", kBedrag: "Bedrag",
         week: "Huisvesting – volledige week", weken: "Huisvesting – volledige weken", dag: "Huisvesting – losse dag", dagenOms: "Huisvesting – losse dagen",
@@ -35,7 +36,7 @@ const T = {
         verzoek: (b, d, iban, tnv, k) => `Wij verzoeken je het bedrag van <b>${b}</b> vóór <b>${d}</b> over te maken op <b>${iban}</b> t.n.v. ${tnv}, onder vermelding van <b>${k}</b>.`,
         tarief: (w, d) => `Huur: ${w} per week, vooraf te betalen. Onvolledige week: ${d} per dag (max. ${w} per week).`,
         contact: "Contact", bank: "Bank", registratie: "Registratie", print: "Opslaan als PDF / afdrukken", locale: "nl-NL" },
-  EN: { titel: "Payment request", aan: "To", kenmerk: "Reference", datum: "Date", termijn: "Payment term", dagen: "days", verval: "Due date",
+  EN: { titel: "Payment request", herinnering: "Reminder", aan: "To", kenmerk: "Reference", datum: "Date", termijn: "Payment term", dagen: "days", verval: "Due date",
         betreft: "Subject", betreftTekst: "Accommodation via KTP",
         kDatum: "Period", kOms: "Description", kAantal: "Qty", kEenheid: "Unit", kTarief: "Rate", kBedrag: "Amount",
         week: "Accommodation – full week", weken: "Accommodation – full weeks", dag: "Accommodation – single day", dagenOms: "Accommodation – single days",
@@ -44,7 +45,7 @@ const T = {
         verzoek: (b, d, iban, tnv, k) => `Please transfer <b>${b}</b> before <b>${d}</b> to <b>${iban}</b> in the name of ${tnv}, stating <b>${k}</b>.`,
         tarief: (w, d) => `Rent: ${w} per week, paid in advance. Incomplete week: ${d} per day (max. ${w} per week).`,
         contact: "Contact", bank: "Bank", registratie: "Registration", print: "Save as PDF / print", locale: "en-GB" },
-  PL: { titel: "Prośba o zapłatę", aan: "Dla", kenmerk: "Numer", datum: "Data wystawienia", termijn: "Termin płatności", dagen: "dni", verval: "Płatne do",
+  PL: { titel: "Prośba o zapłatę", herinnering: "Przypomnienie", aan: "Dla", kenmerk: "Numer", datum: "Data wystawienia", termijn: "Termin płatności", dagen: "dni", verval: "Płatne do",
         betreft: "Dotyczy", betreftTekst: "Zakwaterowanie przez KTP",
         kDatum: "Okres", kOms: "Opis", kAantal: "Ilość", kEenheid: "Jedn.", kTarief: "Stawka", kBedrag: "Kwota",
         week: "Zakwaterowanie – pełny tydzień", weken: "Zakwaterowanie – pełne tygodnie", dag: "Zakwaterowanie – dzień", dagenOms: "Zakwaterowanie – dni",
@@ -53,7 +54,7 @@ const T = {
         verzoek: (b, d, iban, tnv, k) => `Prosimy o przelanie kwoty <b>${b}</b> do <b>${d}</b> na konto <b>${iban}</b> (odbiorca: ${tnv}), w tytule przelewu podając <b>${k}</b>.`,
         tarief: (w, d) => `Czynsz: ${w} za tydzień, płatny z góry. Niepełny tydzień: ${d} za dzień (maks. ${w} za tydzień).`,
         contact: "Kontakt", bank: "Bank", registratie: "Rejestracja", print: "Zapisz jako PDF / drukuj", locale: "pl-PL" },
-  RO: { titel: "Solicitare de plată", aan: "Către", kenmerk: "Referință", datum: "Data", termijn: "Termen de plată", dagen: "zile", verval: "Scadență",
+  RO: { titel: "Solicitare de plată", herinnering: "Reamintire", aan: "Către", kenmerk: "Referință", datum: "Data", termijn: "Termen de plată", dagen: "zile", verval: "Scadență",
         betreft: "Privind", betreftTekst: "Cazare prin KTP",
         kDatum: "Perioadă", kOms: "Descriere", kAantal: "Cant.", kEenheid: "Unitate", kTarief: "Tarif", kBedrag: "Sumă",
         week: "Cazare – săptămână completă", weken: "Cazare – săptămâni complete", dag: "Cazare – o zi", dagenOms: "Cazare – zile",
@@ -87,7 +88,7 @@ export function kenmerkVoor(schuld) { return `HUUR-${schuld.id}`; }
 // Bouwt de volledige HTML van het betaalverzoek, in de opmaak van de KTP-facturen.
 // spec = berekenSpecificatie(schuld), betaald = berekenTotaalBetaald(schuld)
 // basis = waar de logo's staan (standaard de app zelf)
-export function betaalverzoekHTML({ schuld, spec, betaald, taal = "NL", vandaag = new Date(), afzender = AFZENDER_STANDAARD, basis }) {
+export function betaalverzoekHTML({ schuld, spec, betaald, taal = "NL", vandaag = new Date(), afzender = AFZENDER_STANDAARD, basis, herinnering = 0 }) {
   const t = T[taal] || T.NL;
   const a = AFZENDERS[afzender] || AFZENDERS[AFZENDER_STANDAARD];
   const root = basis ?? (typeof window !== "undefined" ? window.location.origin : "");
@@ -121,6 +122,7 @@ export function betaalverzoekHTML({ schuld, spec, betaald, taal = "NL", vandaag 
   .kop img { height: 46px; }
   .titel { text-align: right; }
   .titel h1 { margin: 0; color: #2D3B94; font-size: 26px; font-weight: 800; letter-spacing: -.3px; }
+  .herinn { display: inline-block; background: #B3261E; color: #fff; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; padding: 3px 8px; border-radius: 3px; margin-bottom: 6px; }
   .titel .streep { width: 34px; height: 3px; background: #5A9A3C; margin: 6px 0 0 auto; }
   .adres { display: flex; justify-content: space-between; margin-top: 38px; padding-bottom: 18px; border-bottom: 1px solid #E3E7EF; }
   .lbl { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: #6B7388; }
@@ -156,7 +158,7 @@ export function betaalverzoekHTML({ schuld, spec, betaald, taal = "NL", vandaag 
 <div class="blad">
   <div class="kop">
     <img src="${root}${a.logo}" alt="${esc(a.naam)}">
-    <div class="titel"><h1>${t.titel}</h1><div class="streep"></div></div>
+    <div class="titel">${herinnering > 0 ? `<div class="herinn">${t.herinnering}${herinnering > 1 ? " " + herinnering : ""}</div>` : ""}<h1>${t.titel}</h1><div class="streep"></div></div>
   </div>
   <div class="adres">
     <div class="aan"><div class="lbl">${t.aan}</div><div class="n">${esc(schuld.naam_medewerker)}</div></div>
@@ -188,12 +190,38 @@ export function betaalverzoekHTML({ schuld, spec, betaald, taal = "NL", vandaag 
 </div></body></html>`;
 }
 
-// Opent het betaalverzoek in een nieuw venster. Aanroepen direct vanuit een klik (anders popup-blokkade).
-export function openBetaalverzoek(args) {
+// Venster openen MOET direct in de klik gebeuren (anders blokkeert de browser de pop-up);
+// de inhoud schrijven mag daarna, als het verzoek is vastgelegd.
+export function openLeegVenster() {
   const w = window.open("", "_blank");
-  if (!w) return false;
+  if (w) w.document.write("<p style='font-family:sans-serif;padding:24px;color:#6B7388'>Betaalverzoek wordt gemaakt…</p>");
+  return w;
+}
+export function schrijfInVenster(w, html) {
+  if (!w || w.closed) return false;
   w.document.open();
-  w.document.write(betaalverzoekHTML(args));
+  w.document.write(html);
   w.document.close();
   return true;
+}
+
+// Snapshot van wat er op het verzoek staat — wordt opgeslagen bij het verzoek, zodat het
+// document later exact zo terug te halen is (ook als de huurschuld intussen verandert).
+export function maakSnapshot({ spec, betaald }) {
+  return {
+    regels: spec.regels.map(r => ({ ...r, van: r.van ? new Date(r.van).toISOString() : null, tot: r.tot ? new Date(r.tot).toISOString() : null })),
+    totaal: spec.totaal, weekbedrag: spec.weekbedrag, dagbedrag: spec.dagbedrag, betaald,
+  };
+}
+
+// HTML van een vastgelegd verzoek (uit de tabel betaalverzoeken)
+export function htmlUitVerzoek(v) {
+  const sn = v.snapshot || {};
+  return betaalverzoekHTML({
+    schuld: { id: v.schuld_id, naam_medewerker: v.naam_medewerker },
+    spec: { regels: sn.regels || [], totaal: Number(sn.totaal) || 0, weekbedrag: sn.weekbedrag, dagbedrag: sn.dagbedrag },
+    betaald: Number(sn.betaald) || 0,
+    taal: v.taal, afzender: v.afzender, herinnering: v.herinneringen || 0,
+    vandaag: new Date(v.datum + "T00:00:00"),
+  });
 }

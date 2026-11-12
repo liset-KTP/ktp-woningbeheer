@@ -4,7 +4,7 @@ import { supabase } from "./supabaseClient";
 import WeekDatePicker from "./WeekDatePicker";
 import { MedewerkerKiezer, naamProbleem, normaliseerNaam, vernieuwMedewerkerNamen } from "./MedewerkerKiezer";
 import { tx, txv } from "./i18n";
-import { openBetaalverzoek, BETAALVERZOEK_TALEN } from "./betaalverzoek";
+import { BetaalverzoekKnop, BetaalverzoekenOverzicht, maakBetaalverzoek, useTaalPerMedewerker, naamSleutel } from "./BetaalverzoekenModule";
 
 // ─── EMAILJS ──────────────────────────────────────────────────────────────────
 const EMAILJS_SERVICE  = "service_1af258e";
@@ -185,6 +185,12 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
   const [filterStatus, setFilterStatus] = useState("alle");
   const [sorteer, setSorteer] = useState("openstaand");
   const [toonNieuw, setToonNieuw] = useState(false);
+  const [weergave, setWeergave] = useState("schulden"); // schulden | verzoeken
+  const taalMap = useTaalPerMedewerker();
+  const maakVoorSchuld = (schuld, taal, herinneringen = 0) => maakBetaalverzoek({
+    schuld, spec: berekenSpecificatie(schuld), betaald: berekenTotaalBetaald(schuld), taal, gebruiker, herinneringen, showToast,
+  });
+  const kaartProps = s => ({ taalAuto: taalMap[naamSleutel(s.naam_medewerker)], maakVoorSchuld });
 
   const isBackoffice = (gebruiker?.rol === "backoffice" || gebruiker?.rol === "financieel") && !readonly;
 
@@ -351,6 +357,20 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
         )}
       </div>
 
+      {/* Weergave: huurschulden of betaalverzoeken-overzicht */}
+      <div style={{display:"flex",gap:4,marginBottom:16,borderBottom:`2px solid ${C.border}`}}>
+        {[["schulden",tx("💶 Huurschulden")],["verzoeken",tx("📄 Betaalverzoeken")]].map(([v,l]) => (
+          <button key={v} onClick={() => setWeergave(v)}
+            style={{background:"none",border:"none",borderBottom:`3px solid ${weergave===v?C.blauw:"transparent"}`,marginBottom:-2,color:weergave===v?C.blauw:C.muted,padding:"8px 14px",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+            {l}
+          </button>
+        ))}
+      </div>
+
+      {weergave === "verzoeken" ? (
+        <BetaalverzoekenOverzicht schulden={schulden} gebruiker={gebruiker} isBackoffice={isBackoffice} showToast={showToast}
+          openstaandVan={berekenOpenstaand} maakVoorSchuld={maakVoorSchuld} />
+      ) : (<>
       {/* Nieuw schuld form */}
       {toonNieuw && isBackoffice && (
         <div style={{marginBottom:20}}>
@@ -409,7 +429,7 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
                 </div>
               )}
               {actiefGefilterd.map(s => (
-                <SchuldKaart key={s.id} schuld={s} isBackoffice={isBackoffice} onBetaling={addBetaling} onAfsluiten={sluitAf} onAfschrijven={schrijfAf} onOpmerking={addOpmerking} showToast={showToast} readonly={readonly} gebruiker={gebruiker} />
+                <SchuldKaart key={s.id} schuld={s} isBackoffice={isBackoffice} onBetaling={addBetaling} onAfsluiten={sluitAf} onAfschrijven={schrijfAf} onOpmerking={addOpmerking} showToast={showToast} readonly={readonly} gebruiker={gebruiker} {...kaartProps(s)} />
               ))}
             </>
           )}
@@ -430,6 +450,7 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
           )}
         </div>
       )}
+      </>)}
     </div>
   );
 }
@@ -453,7 +474,7 @@ function SchuldenLijst({ schulden, gebruiker, isBackoffice, onBetaling, onAfslui
 }
 
 // ─── SCHULD KAART ─────────────────────────────────────────────────────────────
-function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onAfschrijven, onOpmerking, showToast, readonly, gebruiker }) {
+function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onAfschrijven, onOpmerking, showToast, readonly, gebruiker, taalAuto, maakVoorSchuld }) {
   const [toonStopzetten, setToonStopzetten] = useState(false);
   const [toonAfschrijven, setToonAfschrijven] = useState(false);
   const [afschrijfReden, setAfschrijfReden] = useState("");
@@ -599,21 +620,9 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onAfschrij
         </div>
       )}
 
-      {/* Betaalverzoek in KTP-stijl — bedragen komen uit de app, niets zelf typen */}
-      {openstaand > 0 && !isAfgeschreven && (
-        <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap",marginBottom:12,fontSize:13,color:C.muted}}>
-          <span style={{fontWeight:600}}>{tx("📄 Betaalverzoek maken:")}</span>
-          {BETAALVERZOEK_TALEN.map(taal => (
-            <button key={taal}
-              onClick={() => {
-                const ok = openBetaalverzoek({ schuld, spec: berekenSpecificatie(schuld), betaald: totaalBetaald, taal });
-                if (!ok) showToast(tx("Pop-up geblokkeerd — sta pop-ups toe voor deze app"), "err");
-              }}
-              style={{background:"white",border:`1.5px solid ${C.blauw}`,color:C.blauw,borderRadius:6,padding:"4px 10px",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
-              {taal}
-            </button>
-          ))}
-        </div>
+      {/* Betaalverzoek in factuurstijl — taal automatisch uit huurcontract, vastgelegd in overzicht */}
+      {openstaand > 0 && !isAfgeschreven && schuld.actief !== false && maakVoorSchuld && (
+        <BetaalverzoekKnop schuld={schuld} taalAuto={taalAuto} maakVoorSchuld={maakVoorSchuld} />
       )}
 
       {/* Readonly: collega mag opmerking plaatsen */}

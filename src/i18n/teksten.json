@@ -9844,14 +9844,154 @@
   "ro": "Nu mai trebuie să faci nimic aici.",
   "pl": "Nie musisz tu już nic robić."
  },
- "📄 Betaalverzoek maken:": {
-  "en": "📄 Create payment request:",
-  "ro": "📄 Creează solicitare de plată:",
-  "pl": "📄 Utwórz prośbę o zapłatę:"
- },
  "Pop-up geblokkeerd — sta pop-ups toe voor deze app": {
   "en": "Pop-up blocked — allow pop-ups for this app",
   "ro": "Pop-up blocat — permite pop-up-urile pentru această aplicație",
   "pl": "Wyskakujące okno zablokowane — zezwól na wyskakujące okna dla tej aplikacji"
+ },
+ "⚠️ Betaalverzoek niet vastgelegd in het overzicht — probeer opnieuw": {
+  "en": "⚠️ Payment request not saved in the overview — please try again",
+  "ro": "⚠️ Solicitarea de plată nu a fost salvată în prezentare — încearcă din nou",
+  "pl": "⚠️ Prośba o zapłatę nie została zapisana w przeglądzie — spróbuj ponownie"
+ },
+ "📄 Betaalverzoek ({0})": {
+  "en": "📄 Payment request ({0})",
+  "ro": "📄 Solicitare de plată ({0})",
+  "pl": "📄 Prośba o zapłatę ({0})"
+ },
+ "andere taal": {
+  "en": "other language",
+  "ro": "altă limbă",
+  "pl": "inny język"
+ },
+ "📄 Betaalverzoek:": {
+  "en": "📄 Payment request:",
+  "ro": "📄 Solicitare de plată:",
+  "pl": "📄 Prośba o zapłatę:"
+ },
+ "(taal onbekend in huurcontract)": {
+  "en": "(language unknown in rental contract)",
+  "ro": "(limbă necunoscută în contractul de închiriere)",
+  "pl": "(język nieznany w umowie najmu)"
+ },
+ "Betaalverzoek {0} intrekken — reden?": {
+  "en": "Withdraw payment request {0} — reason?",
+  "ro": "Retragi solicitarea de plată {0} — motiv?",
+  "pl": "Wycofać prośbę o zapłatę {0} — powód?"
+ },
+ "Fout bij intrekken": {
+  "en": "Error while withdrawing",
+  "ro": "Eroare la retragere",
+  "pl": "Błąd podczas wycofywania"
+ },
+ "✓ Betaalverzoek ingetrokken": {
+  "en": "✓ Payment request withdrawn",
+  "ro": "✓ Solicitare de plată retrasă",
+  "pl": "✓ Prośba o zapłatę wycofana"
+ },
+ "{0} verzoeken": {
+  "en": "{0} requests",
+  "ro": "{0} solicitări",
+  "pl": "{0} próśb"
+ },
+ "🔍 Zoek op naam of kenmerk...": {
+  "en": "🔍 Search by name or reference...",
+  "ro": "🔍 Caută după nume sau referință...",
+  "pl": "🔍 Szukaj po nazwisku lub numerze..."
+ },
+ "Nog geen betaalverzoeken. Maak er een via de knop op een huurschuld.": {
+  "en": "No payment requests yet. Create one with the button on a rent debt.",
+  "ro": "Încă nu există solicitări de plată. Creează una cu butonul de la o datorie de chirie.",
+  "pl": "Brak próśb o zapłatę. Utwórz ją przyciskiem przy zaległości czynszowej."
+ },
+ "{0}×": {
+  "en": "{0}×",
+  "ro": "{0}×",
+  "pl": "{0}×"
+ },
+ "Document openen": {
+  "en": "Open document",
+  "ro": "Deschide documentul",
+  "pl": "Otwórz dokument"
+ },
+ "Herinnering maken met het actuele openstaande bedrag": {
+  "en": "Create a reminder with the current outstanding amount",
+  "ro": "Creează o reamintire cu suma restantă actuală",
+  "pl": "Utwórz przypomnienie z aktualną kwotą do zapłaty"
+ },
+ "Herinnering": {
+  "en": "Reminder",
+  "ro": "Reamintire",
+  "pl": "Przypomnienie"
+ },
+ "Intrekken": {
+  "en": "Withdraw",
+  "ro": "Retrage",
+  "pl": "Wycofaj"
+ },
+ "Status gaat vanzelf op Betaald zodra de betaling op de huurschuld is geregistreerd. Er staat per huurschuld maar één verzoek open: een nieuw verzoek of herinnering vervangt het vorige.": {
+  "en": "Status changes to Paid automatically once the payment is registered on the rent debt. Only one request per rent debt is open: a new request or reminder replaces the previous one.",
+  "ro": "Statusul devine automat Plătit după ce plata este înregistrată la datoria de chirie. Pentru fiecare datorie există o singură solicitare deschisă: o nouă solicitare sau reamintire o înlocuiește pe cea anterioară.",
+  "pl": "Status zmienia się automatycznie na Zapłacono, gdy płatność zostanie zarejestrowana przy zaległości. Dla każdej zaległości otwarta jest tylko jedna prośba: nowa prośba lub przypomnienie zastępuje poprzednią."
+ },
+ "💶 Huurschulden": {
+  "en": "💶 Rent debts",
+  "ro": "💶 Datorii de chirie",
+  "pl": "💶 Zaległości czynszowe"
+ },
+ "📄 Betaalverzoeken": {
+  "en": "📄 Payment requests",
+  "ro": "📄 Solicitări de plată",
+  "pl": "📄 Prośby o zapłatę"
+ },
+ "Te laat": {
+  "en": "Overdue",
+  "ro": "Întârziat",
+  "pl": "Po terminie"
+ },
+ "Afgeschreven": {
+  "en": "Written off",
+  "ro": "Anulat",
+  "pl": "Odpisano"
+ },
+ "Ingetrokken/vervangen": {
+  "en": "Withdrawn/replaced",
+  "ro": "Retrase/înlocuite",
+  "pl": "Wycofane/zastąpione"
+ },
+ "Ingetrokken": {
+  "en": "Withdrawn",
+  "ro": "Retras",
+  "pl": "Wycofano"
+ },
+ "Vervangen": {
+  "en": "Replaced",
+  "ro": "Înlocuit",
+  "pl": "Zastąpiono"
+ },
+ "Kenmerk": {
+  "en": "Reference",
+  "ro": "Referință",
+  "pl": "Numer"
+ },
+ "Verstuurd": {
+  "en": "Sent",
+  "ro": "Trimis",
+  "pl": "Wysłano"
+ },
+ "Vervalt": {
+  "en": "Due",
+  "ro": "Scadent",
+  "pl": "Termin"
+ },
+ "Ontvangen": {
+  "en": "Received",
+  "ro": "Primit",
+  "pl": "Otrzymano"
+ },
+ "Herinneringen": {
+  "en": "Reminders",
+  "ro": "Reamintiri",
+  "pl": "Przypomnienia"
  }
 }
