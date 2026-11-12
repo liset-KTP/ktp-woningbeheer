@@ -53,7 +53,7 @@ export async function maakBetaalverzoek({ schuld, spec, betaald, taal, gebruiker
   const rij = {
     schuld_id: schuld.id, naam_medewerker: schuld.naam_medewerker, kenmerk: kenmerkVoor(schuld),
     datum: iso(vandaag), vervaldatum: iso(betaalDatum(vandaag)), bedrag, taal, afzender: AFZENDER_STANDAARD,
-    snapshot: maakSnapshot({ spec, betaald }), herinneringen, aangemaakt_door: gebruiker?.naam || null,
+    snapshot: maakSnapshot({ spec, betaald, omschrijving: schuld.omschrijving }), herinneringen, aangemaakt_door: gebruiker?.naam || null,
   };
   const { data, error } = await supabase.from("betaalverzoeken").insert([rij]).select().single();
   if (error) {

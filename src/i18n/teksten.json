@@ -9993,5 +9993,70 @@
   "en": "Reminders",
   "ro": "Reamintiri",
   "pl": "Przypomnienia"
+ },
+ "Weekbedrag (€) — leeg = €140": {
+  "en": "Weekly amount (€) — empty = €140",
+  "ro": "Sumă săptămânală (€) — gol = €140",
+  "pl": "Kwota tygodniowa (€) — puste = 140 €"
+ },
+ "140.00": {
+  "en": "140.00",
+  "ro": "140.00",
+  "pl": "140.00"
+ },
+ "Omschrijving op betaalverzoek (optioneel)": {
+  "en": "Description on payment request (optional)",
+  "ro": "Descriere pe solicitarea de plată (opțional)",
+  "pl": "Opis na prośbie o zapłatę (opcjonalnie)"
+ },
+ "bijv. Kamer 2.1, Misterstraat 160": {
+  "en": "e.g. Room 2.1, Misterstraat 160",
+  "ro": "ex. Camera 2.1, Misterstraat 160",
+  "pl": "np. Pokój 2.1, Misterstraat 160"
+ },
+ "✓ Omschrijving opgeslagen": {
+  "en": "✓ Description saved",
+  "ro": "✓ Descriere salvată",
+  "pl": "✓ Opis zapisany"
+ },
+ "Opslaan": {
+  "en": "Save",
+  "ro": "Salvează",
+  "pl": "Zapisz"
+ },
+ "⚠️ De medewerker ziet deze tekst op het betaalverzoek. Interne notities horen bij Opmerking.": {
+  "en": "⚠️ The employee sees this text on the payment request. Internal notes belong in Note.",
+  "ro": "⚠️ Angajatul vede acest text pe solicitarea de plată. Notițele interne se pun la Observație.",
+  "pl": "⚠️ Pracownik widzi ten tekst na prośbie o zapłatę. Notatki wewnętrzne wpisz w Uwagi."
+ },
+ "Op betaalverzoek:": {
+  "en": "On payment request:",
+  "ro": "Pe solicitarea de plată:",
+  "pl": "Na prośbie o zapłatę:"
+ },
+ "geen omschrijving": {
+  "en": "no description",
+  "ro": "fără descriere",
+  "pl": "brak opisu"
+ },
+ "Omschrijving aanpassen": {
+  "en": "Edit description",
+  "ro": "Modifică descrierea",
+  "pl": "Zmień opis"
+ },
+ "aanpassen": {
+  "en": "edit",
+  "ro": "modifică",
+  "pl": "zmień"
+ },
+ "Omschrijving op betaalverzoek": {
+  "en": "Description on payment request",
+  "ro": "Descriere pe solicitarea de plată",
+  "pl": "Opis na prośbie o zapłatę"
+ },
+ "Opmerking (intern)": {
+  "en": "Note (internal)",
+  "ro": "Observație (intern)",
+  "pl": "Uwagi (wewnętrzne)"
  }
 }

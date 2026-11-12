@@ -169,7 +169,7 @@ export function betaalverzoekHTML({ schuld, spec, betaald, taal = "NL", vandaag 
       <div><span>${t.verval}</span><span>${dt(verval)}</span></div>
     </div>
   </div>
-  <div class="betreft"><span>${t.betreft}</span><span>${t.betreftTekst}</span></div>
+  <div class="betreft"><span>${t.betreft}</span><span>${t.betreftTekst}${schuld.omschrijving ? ` – ${esc(schuld.omschrijving)}` : ""}</span></div>
   <table>
     <thead><tr><th>${t.kDatum}</th><th>${t.kOms}</th><th class="r">${t.kAantal}</th><th>${t.kEenheid}</th><th class="r">${t.kTarief}</th><th class="r">${t.kBedrag}</th></tr></thead>
     <tbody>${rijen}</tbody>
@@ -207,10 +207,11 @@ export function schrijfInVenster(w, html) {
 
 // Snapshot van wat er op het verzoek staat — wordt opgeslagen bij het verzoek, zodat het
 // document later exact zo terug te halen is (ook als de huurschuld intussen verandert).
-export function maakSnapshot({ spec, betaald }) {
+export function maakSnapshot({ spec, betaald, omschrijving }) {
   return {
     regels: spec.regels.map(r => ({ ...r, van: r.van ? new Date(r.van).toISOString() : null, tot: r.tot ? new Date(r.tot).toISOString() : null })),
     totaal: spec.totaal, weekbedrag: spec.weekbedrag, dagbedrag: spec.dagbedrag, betaald,
+    omschrijving: omschrijving || null,
   };
 }
 
@@ -218,7 +219,7 @@ export function maakSnapshot({ spec, betaald }) {
 export function htmlUitVerzoek(v) {
   const sn = v.snapshot || {};
   return betaalverzoekHTML({
-    schuld: { id: v.schuld_id, naam_medewerker: v.naam_medewerker },
+    schuld: { id: v.schuld_id, naam_medewerker: v.naam_medewerker, omschrijving: sn.omschrijving },
     spec: { regels: sn.regels || [], totaal: Number(sn.totaal) || 0, weekbedrag: sn.weekbedrag, dagbedrag: sn.dagbedrag },
     betaald: Number(sn.betaald) || 0,
     taal: v.taal, afzender: v.afzender, herinnering: v.herinneringen || 0,

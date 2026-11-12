@@ -2184,7 +2184,8 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
       naam_medewerker: gekozen,
       beginsaldo: parseFloat(nieuweSchuldBedrag),
       tarief_bedrag: parseFloat(nieuweSchuldTarief)||null,
-      tarief_dagen: parseInt(nieuweSchuldDagen)||7,
+      // tarief_dagen = dagbedrag in € (onvolledige week); leeg = standaard €20/dag
+      tarief_dagen: null,
       startdatum: nieuweSchuldDatum||null,
       omschrijving: nieuweSchuldOmschr||null,
       actief: true
@@ -2584,14 +2585,9 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
                         placeholder={tx("bv. 500.00")} style={{width:"100%",borderRadius:6,border:"1px solid #e5e7eb",padding:"7px 9px",fontSize:13,fontFamily:"inherit",boxSizing:"border-box"}}/>
                     </div>
                     <div style={{flex:"1 1 120px"}}>
-                      <label style={{fontSize:11,color:"#6b7280",display:"block",marginBottom:3}}>{tx("Tarief per periode (€)")}</label>
+                      <label style={{fontSize:11,color:"#6b7280",display:"block",marginBottom:3}}>{tx("Weekbedrag (€) — leeg = €140")}</label>
                       <input type="number" value={nieuweSchuldTarief} onChange={e=>setNieuweSchuldTarief(e.target.value)}
-                        placeholder={tx("bv. 50.00")} style={{width:"100%",borderRadius:6,border:"1px solid #e5e7eb",padding:"7px 9px",fontSize:13,fontFamily:"inherit",boxSizing:"border-box"}}/>
-                    </div>
-                    <div style={{flex:"0 1 80px"}}>
-                      <label style={{fontSize:11,color:"#6b7280",display:"block",marginBottom:3}}>{tx("Periode (dagen)")}</label>
-                      <input type="number" value={nieuweSchuldDagen} onChange={e=>setNieuweSchuldDagen(e.target.value)}
-                        style={{width:"100%",borderRadius:6,border:"1px solid #e5e7eb",padding:"7px 9px",fontSize:13,fontFamily:"inherit",boxSizing:"border-box"}}/>
+                        placeholder={tx("140.00")} style={{width:"100%",borderRadius:6,border:"1px solid #e5e7eb",padding:"7px 9px",fontSize:13,fontFamily:"inherit",boxSizing:"border-box"}}/>
                     </div>
                   </div>
                   <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:8}}>
@@ -2601,9 +2597,9 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
                         style={{width:"100%",borderRadius:6,border:"1px solid #e5e7eb",padding:"7px 9px",fontSize:13,fontFamily:"inherit",boxSizing:"border-box"}}/>
                     </div>
                     <div style={{flex:"2 1 180px"}}>
-                      <label style={{fontSize:11,color:"#6b7280",display:"block",marginBottom:3}}>{tx("Omschrijving (optioneel)")}</label>
+                      <label style={{fontSize:11,color:"#6b7280",display:"block",marginBottom:3}}>{tx("Omschrijving op betaalverzoek (optioneel)")}</label>
                       <input value={nieuweSchuldOmschr} onChange={e=>setNieuweSchuldOmschr(e.target.value)}
-                        placeholder={tx("bv. Huurschuld kamer 3")} style={{width:"100%",borderRadius:6,border:"1px solid #e5e7eb",padding:"7px 9px",fontSize:13,fontFamily:"inherit",boxSizing:"border-box"}}/>
+                        placeholder={tx("bijv. Kamer 2.1, Misterstraat 160")} style={{width:"100%",borderRadius:6,border:"1px solid #e5e7eb",padding:"7px 9px",fontSize:13,fontFamily:"inherit",boxSizing:"border-box"}}/>
                     </div>
                   </div>
                   <button onClick={maakNieuweSchuld}
@@ -2626,7 +2622,7 @@ function Medewerker360View({ houses, gebruiker, showToast, onAddTaak }) {
                     <div style={S.rij}><span style={S.lbl}>{tx("Beginsaldo")}</span><span style={S.val}>€{(h.beginsaldo||0).toFixed(2)}</span></div>
                     <div style={S.rij}><span style={S.lbl}>{tx("Betaald")}</span><span style={{...S.val,color:C.groen}}>€{totaalBetaald.toFixed(2)} ({tx(betalingen.length)}x)</span></div>
                     <div style={S.rij}><span style={S.lbl}>{tx("Openstaand")}</span><span style={{...S.val,fontWeight:700,color:openstaand>0?"#dc2626":C.groen}}>€{openstaand.toFixed(2)}</span></div>
-                    <div style={S.rij}><span style={S.lbl}>{tx("Tarief")}</span><span style={S.val}>€{(h.tarief_bedrag||0).toFixed(2)} / {h.tarief_dagen||7} d</span></div>
+                    <div style={S.rij}><span style={S.lbl}>{tx("Tarief")}</span><span style={S.val}>€{(h.tarief_bedrag||140).toFixed(2)} / week · €{(h.tarief_dagen||20).toFixed(2)} / dag</span></div>
 
                     {/* Betalingen lijst */}
                     {betalingen.length>0&&(

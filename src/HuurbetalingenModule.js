@@ -220,6 +220,7 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
       startdatum: data.startdatum,
       einddatum: data.einddatum || null,
       opmerkingen: data.opmerkingen || null,
+      omschrijving: data.omschrijving?.trim() || null,
       aangemaakt_door: gebruiker.naam,
       actief: true,
       beginsaldo: data.beginsaldo || 0,
@@ -455,6 +456,40 @@ export function HuurbetalingenModule({ gebruiker, showToast, readonly = false })
   );
 }
 
+// ─── OMSCHRIJVING OP BETAALVERZOEK ────────────────────────────────────────────
+function OmschrijvingRegel({ schuld, showToast, kanBewerken }) {
+  const [bewerk, setBewerk] = useState(false);
+  const [tekst, setTekst] = useState(schuld.omschrijving || "");
+  const [bezig, setBezig] = useState(false);
+  useEffect(() => { if (!bewerk) setTekst(schuld.omschrijving || ""); }, [schuld.omschrijving, bewerk]);
+  async function bewaar() {
+    setBezig(true);
+    const { error } = await supabase.from("huurschulden").update({ omschrijving: tekst.trim() || null }).eq("id", schuld.id);
+    setBezig(false);
+    if (error) { showToast(tx("Fout bij opslaan"), "err"); return; }
+    setBewerk(false); showToast(tx("✓ Omschrijving opgeslagen"));
+  }
+  if (bewerk) return (
+    <div style={{display:"flex",gap:6,marginBottom:12,alignItems:"center",flexWrap:"wrap"}}>
+      <input value={tekst} onChange={e=>setTekst(e.target.value)} maxLength={120} autoFocus placeholder={tx("bijv. Kamer 2.1, Misterstraat 160")}
+        onKeyDown={e=>{ if (e.key==="Enter") bewaar(); if (e.key==="Escape") setBewerk(false); }}
+        style={{flex:1,minWidth:200,border:`1.5px solid ${C.border}`,borderRadius:6,padding:"6px 10px",fontSize:13,fontFamily:"inherit"}}/>
+      <button onClick={bewaar} disabled={bezig} style={{background:C.blauw,color:"white",border:"none",borderRadius:6,padding:"6px 12px",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{bezig?"⏳":tx("Opslaan")}</button>
+      <button onClick={()=>setBewerk(false)} style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:6,padding:"6px 10px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>{tx("Annuleren")}</button>
+      <div style={{width:"100%",fontSize:11,color:C.muted}}>{tx("⚠️ De medewerker ziet deze tekst op het betaalverzoek. Interne notities horen bij Opmerking.")}</div>
+    </div>
+  );
+  if (!schuld.omschrijving && !kanBewerken) return null;
+  return (
+    <div style={{fontSize:12,color:C.muted,marginBottom:10,display:"flex",gap:6,alignItems:"center"}}>
+      <span>📄 {tx("Op betaalverzoek:")}</span>
+      {schuld.omschrijving ? <strong style={{color:C.text}}>{schuld.omschrijving}</strong> : <em>{tx("geen omschrijving")}</em>}
+      {kanBewerken && <button onClick={()=>setBewerk(true)} title={tx("Omschrijving aanpassen")}
+        style={{background:"none",border:"none",color:C.blauw,cursor:"pointer",fontSize:12,padding:0,textDecoration:"underline",fontFamily:"inherit"}}>{tx("aanpassen")}</button>}
+    </div>
+  );
+}
+
 // ─── SCHULDEN LIJST ───────────────────────────────────────────────────────────
 function SchuldenLijst({ schulden, gebruiker, isBackoffice, onBetaling, onAfsluiten, onOpmerking, showToast, readonly }) {
   if (schulden.length === 0) return (
@@ -582,6 +617,9 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onAfschrij
         </div>
         <div style={{fontSize:11,color:C.muted,marginTop:4,textAlign:"right"}}>{pct.toFixed(0)}{tx("% betaald")}</div>
       </div>
+
+      {/* Omschrijving op betaalverzoek — zichtbaar en aan te passen door iedereen die verzoeken maakt */}
+      <OmschrijvingRegel schuld={schuld} showToast={showToast} kanBewerken={!(readonly && schuld.actief === false)} />
 
       {/* Opmerkingen */}
       {schuld.opmerkingen && (
@@ -972,6 +1010,7 @@ function NieuweSchuld({ onSubmit, showToast }) {
   const [startdatum, setStart]    = useState(todayISO());
   const [einddatum, setEind]      = useState("");
   const [opmerkingen, setOpm]     = useState("");
+  const [omschrijving, setOmschr] = useState("");
   const [beginsaldo, setBeginsaldo] = useState("");
   const [tariefType, setTariefType] = useState("standaard");
   const [tariefBedrag, setTariefBedrag] = useState("");
@@ -983,9 +1022,9 @@ function NieuweSchuld({ onSubmit, showToast }) {
     if (naamFout)          { showToast(naamFout,"err"); return; }
     if (!startdatum)       { showToast(tx("Vul een startdatum in"),"err"); return; }
     setSaving(true);
-    const ok = await onSubmit({ naam_medewerker: normaliseerNaam(naam), startdatum, einddatum, opmerkingen, beginsaldo: beginsaldo ? Number(beginsaldo) : 0, tarief_bedrag: tariefType==="handmatig" && tariefBedrag ? Number(tariefBedrag) : null });
+    const ok = await onSubmit({ naam_medewerker: normaliseerNaam(naam), startdatum, einddatum, opmerkingen, omschrijving, beginsaldo: beginsaldo ? Number(beginsaldo) : 0, tarief_bedrag: tariefType==="handmatig" && tariefBedrag ? Number(tariefBedrag) : null });
     setSaving(false);
-    if (ok) { vernieuwMedewerkerNamen(); setNaam(""); setStart(todayISO()); setEind(""); setOpm(""); setSubmitted(true); setTimeout(()=>setSubmitted(false),2000); }
+    if (ok) { vernieuwMedewerkerNamen(); setNaam(""); setStart(todayISO()); setEind(""); setOpm(""); setOmschr(""); setSubmitted(true); setTimeout(()=>setSubmitted(false),2000); }
   }
 
   if (submitted) return (
@@ -1042,7 +1081,12 @@ function NieuweSchuld({ onSubmit, showToast }) {
           <div style={{fontSize:11,color:C.muted,marginTop:4}}>{tx("Dit bedrag wordt direct bovenop de dagelijkse teller gezet")}</div>
         </div>
         <div style={{gridColumn:"1/-1"}}>
-          <Label>{tx("Opmerking")}</Label>
+          <Label>{tx("Omschrijving op betaalverzoek")}</Label>
+          <Input value={omschrijving} onChange={e=>setOmschr(e.target.value)} maxLength={120} placeholder={tx("bijv. Kamer 2.1, Misterstraat 160")}/>
+          <div style={{fontSize:11,color:C.muted,marginTop:4}}>{tx("⚠️ De medewerker ziet deze tekst op het betaalverzoek. Interne notities horen bij Opmerking.")}</div>
+        </div>
+        <div style={{gridColumn:"1/-1"}}>
+          <Label>{tx("Opmerking (intern)")}</Label>
           <textarea value={opmerkingen} onChange={e=>setOpm(e.target.value)} placeholder={tx("bijv. ziek gemeld, verwacht terug 15 mei...")}
             style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"10px 14px",fontSize:14,outline:"none",fontFamily:"inherit",resize:"vertical",boxSizing:"border-box"}} rows={3}/>
         </div>
