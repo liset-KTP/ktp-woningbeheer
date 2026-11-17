@@ -6606,7 +6606,8 @@ function MeldingForm({ houses, meldingen=[], onSubmit, showToast, taal="nl", toe
   const [huisId,setHuisId]=useState(houses[0]?.id||1);
   const [kamer,setKamer]=useState("");
   const [wieRegelt,setWieRegelt]=useState("");
-  const [voorRol,setVoorRol]=useState("backoffice");
+  // 17-11-2026: overig gaat altijd eerst naar de huismeester; komt hij er niet uit, dan schakelt hij zelf de backoffice in.
+  const [voorRol,setVoorRol]=useState("huismeester");
   const [sleutelTerug,setSleutelTerug]=useState(null);
   const [kamerSchoon,setKamerSchoon]=useState(null);
   const [sleutelAantal,setSleutelAantal]=useState(1);
@@ -6719,7 +6720,7 @@ function MeldingForm({ houses, meldingen=[], onSubmit, showToast, taal="nl", toe
     vernieuwMedewerkerNamen();
     setSaving(false);
     autoNaamRef.current="";
-    setMedewerker("");setOpmerkingen("");setKamer("");setSleutelTerug(null);setKamerSchoon(null);setWieRegelt("");setVoorRol("backoffice");
+    setMedewerker("");setOpmerkingen("");setKamer("");setSleutelTerug(null);setKamerSchoon(null);setWieRegelt("");setVoorRol("huismeester");
     setVanHuisId("");setVanKamer("");setNaarHuisId("");setNaarKamer("");setBijlages([]);
     setGekoppeldeAankondigingId(null);setSleutelAantal(1);
     setSubmitted(true);setTimeout(()=>setSubmitted(false),2500);
