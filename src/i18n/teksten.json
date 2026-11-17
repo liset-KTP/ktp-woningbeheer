@@ -10058,5 +10058,275 @@
   "en": "Note (internal)",
   "ro": "Observație (intern)",
   "pl": "Uwagi (wewnętrzne)"
+ },
+ "afgehandeld na {0} werkdagen": {
+  "en": "handled after {0} working days",
+  "ro": "rezolvat după {0} zile lucrătoare",
+  "pl": "załatwione po {0} dniach roboczych"
+ },
+ "binnen termijn": {
+  "en": "within deadline",
+  "ro": "în termen",
+  "pl": "w terminie"
+ },
+ "bevestiging te laat": {
+  "en": "confirmation overdue",
+  "ro": "confirmare întârziată",
+  "pl": "potwierdzenie spóźnione"
+ },
+ "bevestigen: nog {0} werkdag(en)": {
+  "en": "confirm: {0} working day(s) left",
+  "ro": "confirmare: mai sunt {0} zi(le) lucrătoare",
+  "pl": "potwierdzić: zostało {0} dni roboczych"
+ },
+ "afhandeling te laat": {
+  "en": "handling overdue",
+  "ro": "rezolvare întârziată",
+  "pl": "załatwienie spóźnione"
+ },
+ "afhandelen: nog {0} werkdag(en)": {
+  "en": "handle: {0} working day(s) left",
+  "ro": "rezolvare: mai sunt {0} zi(le) lucrătoare",
+  "pl": "załatwić: zostało {0} dni roboczych"
+ },
+ "Kies een woning of vul een adres in": {
+  "en": "Choose a house or enter an address",
+  "ro": "Alegeți o locuință sau introduceți o adresă",
+  "pl": "Wybierz mieszkanie lub wpisz adres"
+ },
+ "Omschrijving is verplicht": {
+  "en": "Description is required",
+  "ro": "Descrierea este obligatorie",
+  "pl": "Opis jest wymagany"
+ },
+ "Klacht opgeslagen": {
+  "en": "Complaint saved",
+  "ro": "Reclamație salvată",
+  "pl": "Skarga zapisana"
+ },
+ "Wat is er gedaan? (verplicht)": {
+  "en": "What was done? (required)",
+  "ro": "Ce s-a făcut? (obligatoriu)",
+  "pl": "Co zostało zrobione? (wymagane)"
+ },
+ "Wat is aan de melder teruggekoppeld? (mag leeg)": {
+  "en": "What was reported back to the complainant? (optional)",
+  "ro": "Ce i s-a comunicat reclamantului? (opțional)",
+  "pl": "Co przekazano zgłaszającemu? (opcjonalnie)"
+ },
+ "Waarom wordt de klacht heropend? (verplicht)": {
+  "en": "Why is the complaint being reopened? (required)",
+  "ro": "De ce se redeschide reclamația? (obligatoriu)",
+  "pl": "Dlaczego skarga jest ponownie otwierana? (wymagane)"
+ },
+ "Bijgewerkt": {
+  "en": "Updated",
+  "ro": "Actualizat",
+  "pl": "Zaktualizowano"
+ },
+ "Klacht #{0} wijzigen": {
+  "en": "Edit complaint #{0}",
+  "ro": "Modificare reclamație #{0}",
+  "pl": "Edytuj skargę #{0}"
+ },
+ "➕ Klacht registreren": {
+  "en": "➕ Register complaint",
+  "ro": "➕ Înregistrare reclamație",
+  "pl": "➕ Zarejestruj skargę"
+ },
+ "Ontvangen op": {
+  "en": "Received on",
+  "ro": "Primită la",
+  "pl": "Otrzymano"
+ },
+ "— anders / adres hieronder —": {
+  "en": "— other / address below —",
+  "ro": "— altă / adresa mai jos —",
+  "pl": "— inny / adres poniżej —"
+ },
+ "Adres (als de woning niet in de lijst staat)": {
+  "en": "Address (if the house is not in the list)",
+  "ro": "Adresa (dacă locuința nu este în listă)",
+  "pl": "Adres (jeśli mieszkania nie ma na liście)"
+ },
+ "Melder": {
+  "en": "Complainant",
+  "ro": "Reclamant",
+  "pl": "Zgłaszający"
+ },
+ "Via": {
+  "en": "Via",
+  "ro": "Prin",
+  "pl": "Przez"
+ },
+ "Naam melder (mag leeg)": {
+  "en": "Name of complainant (optional)",
+  "ro": "Numele reclamantului (opțional)",
+  "pl": "Imię zgłaszającego (opcjonalnie)"
+ },
+ "Telefoon of e-mail melder": {
+  "en": "Phone or e-mail of complainant",
+  "ro": "Telefon sau e-mail reclamant",
+  "pl": "Telefon lub e-mail zgłaszającego"
+ },
+ "Soort klacht": {
+  "en": "Type of complaint",
+  "ro": "Tip reclamație",
+  "pl": "Rodzaj skargi"
+ },
+ "Behandelaar": {
+  "en": "Handled by",
+  "ro": "Responsabil",
+  "pl": "Osoba odpowiedzialna"
+ },
+ "— nog niet toegewezen —": {
+  "en": "— not assigned yet —",
+  "ro": "— încă nealocat —",
+  "pl": "— jeszcze nie przypisano —"
+ },
+ "Omschrijving van de klacht": {
+  "en": "Description of the complaint",
+  "ro": "Descrierea reclamației",
+  "pl": "Opis skargi"
+ },
+ "⬇️ Export voor controle (Excel)": {
+  "en": "⬇️ Export for inspection (Excel)",
+  "ro": "⬇️ Export pentru control (Excel)",
+  "pl": "⬇️ Eksport do kontroli (Excel)"
+ },
+ "{0} open": {
+  "en": "{0} open",
+  "ro": "{0} deschise",
+  "pl": "{0} otwarte"
+ },
+ "{0} over de termijn": {
+  "en": "{0} overdue",
+  "ro": "{0} peste termen",
+  "pl": "{0} po terminie"
+ },
+ "Van": {
+  "en": "From",
+  "ro": "De la",
+  "pl": "Od"
+ },
+ "Tot en met": {
+  "en": "Up to and including",
+  "ro": "Până la",
+  "pl": "Do"
+ },
+ "Alle statussen": {
+  "en": "All statuses",
+  "ro": "Toate stările",
+  "pl": "Wszystkie statusy"
+ },
+ "Procedure: ontvangst bevestigen binnen 2 werkdagen, afhandelen binnen 10 werkdagen. Ook een klacht die meteen is opgelost registreer je hier.": {
+  "en": "Procedure: confirm receipt within 2 working days, resolve within 10 working days. Also register complaints that were solved right away.",
+  "ro": "Procedură: confirmați primirea în 2 zile lucrătoare, rezolvați în 10 zile lucrătoare. Înregistrați aici și reclamațiile rezolvate imediat.",
+  "pl": "Procedura: potwierdź odbiór w ciągu 2 dni roboczych, załatw w ciągu 10 dni roboczych. Rejestruj tu też skargi rozwiązane od razu."
+ },
+ "Geen klachten in deze selectie.": {
+  "en": "No complaints in this selection.",
+  "ro": "Nicio reclamație în această selecție.",
+  "pl": "Brak skarg w tym wyborze."
+ },
+ "behandelaar": {
+  "en": "handled by",
+  "ro": "responsabil",
+  "pl": "odpowiedzialny"
+ },
+ "Teruggekoppeld": {
+  "en": "Reported back",
+  "ro": "Comunicat",
+  "pl": "Przekazano"
+ },
+ "✉️ Ontvangst bevestigd": {
+  "en": "✉️ Receipt confirmed",
+  "ro": "✉️ Primire confirmată",
+  "pl": "✉️ Potwierdzono odbiór"
+ },
+ "Heropenen": {
+  "en": "Reopen",
+  "ro": "Redeschide",
+  "pl": "Otwórz ponownie"
+ },
+ "📣 Klachten": {
+  "en": "📣 Complaints",
+  "ro": "📣 Reclamații",
+  "pl": "📣 Skargi"
+ },
+ "Omwonende": {
+  "en": "Neighbour",
+  "ro": "Vecin",
+  "pl": "Sąsiad"
+ },
+ "Bewoner": {
+  "en": "Resident",
+  "ro": "Locatar",
+  "pl": "Mieszkaniec"
+ },
+ "Gemeente": {
+  "en": "Municipality",
+  "ro": "Primărie",
+  "pl": "Gmina"
+ },
+ "Anders": {
+  "en": "Other",
+  "ro": "Altele",
+  "pl": "Inne"
+ },
+ "Telefoon": {
+  "en": "Phone",
+  "ro": "Telefon",
+  "pl": "Telefon"
+ },
+ "E-mail": {
+  "en": "E-mail",
+  "ro": "E-mail",
+  "pl": "E-mail"
+ },
+ "WhatsApp": {
+  "en": "WhatsApp",
+  "ro": "WhatsApp",
+  "pl": "WhatsApp"
+ },
+ "Persoonlijk": {
+  "en": "In person",
+  "ro": "În persoană",
+  "pl": "Osobiście"
+ },
+ "Brief": {
+  "en": "Letter",
+  "ro": "Scrisoare",
+  "pl": "List"
+ },
+ "Geluid": {
+  "en": "Noise",
+  "ro": "Zgomot",
+  "pl": "Hałas"
+ },
+ "Afval": {
+  "en": "Waste",
+  "ro": "Gunoi",
+  "pl": "Śmieci"
+ },
+ "Parkeren": {
+  "en": "Parking",
+  "ro": "Parcare",
+  "pl": "Parkowanie"
+ },
+ "Gedrag": {
+  "en": "Behaviour",
+  "ro": "Comportament",
+  "pl": "Zachowanie"
+ },
+ "Onderhoud": {
+  "en": "Maintenance",
+  "ro": "Întreținere",
+  "pl": "Konserwacja"
+ },
+ "Nieuw": {
+  "en": "New",
+  "ro": "Nou",
+  "pl": "Nowa"
  }
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "./supabaseClient";
 import { tx, txv, dbTekst } from "./i18n";
+import KlachtenModule from "./KlachtenModule";
 
 // ─── SNF-INSPECTIES ──────────────────────────────────────────────────────────
 // Herstelpunten uit SNF-inspecties (Normec VRO) per woning: bewijs uploaden, SNF-controleur (Liane) of
@@ -72,7 +73,7 @@ export default function SnfModule({ gebruiker, sessieToken, houses, gebruikers, 
   const [kwartaalLijsten, setKwartaalLijsten] = useState([]);
   const [kwartaalItems, setKwartaalItems] = useState([]);
   const [laden, setLaden] = useState(true);
-  const [view, setView] = useState("overzicht");   // overzicht | punten | logboek | keuringen | nieuw
+  const [view, setView] = useState("overzicht");   // overzicht | punten | logboek | keuringen | klachten | nieuw
   const [detailId, setDetailId] = useState(null);
   const [bezig, setBezig] = useState(false);
   const toastRef = useRef(showToast);
@@ -190,7 +191,7 @@ export default function SnfModule({ gebruiker, sessieToken, houses, gebruikers, 
         <InspectieDetail insp={detail} punten={puntenPer[detail.id] || []} ctx={ctx} onTerug={()=>setDetailId(null)} />
       ) : (<>
         <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12}}>
-          {[["overzicht","🏠 Overzicht woningen"],["punten","📋 Openstaande punten"],["logboek","📒 Logboek kwartaalcontrole"],["keuringen","🗓 Keuringen"], ...(isBackoffice ? [["nieuw","➕ Nieuwe inspectie"]] : [])].map(([k,l]) => (
+          {[["overzicht","🏠 Overzicht woningen"],["punten","📋 Openstaande punten"],["logboek","📒 Logboek kwartaalcontrole"],["keuringen","🗓 Keuringen"],["klachten","📣 Klachten"], ...(isBackoffice ? [["nieuw","➕ Nieuwe inspectie"]] : [])].map(([k,l]) => (
             <button key={k} onClick={()=>setView(k)}
               style={{...btn(view===k ? C.blauw : "white", view===k ? "white" : C.text), border:`1px solid ${view===k ? C.blauw : C.border}`}}>{tx(l)}</button>
           ))}
@@ -208,6 +209,7 @@ export default function SnfModule({ gebruiker, sessieToken, houses, gebruikers, 
           : view === "punten" ? <OpenPunten punten={punten} ctx={ctx} />
           : view === "logboek" ? <Logboek huizen={actieveHuizen} lijsten={kwartaalLijsten} items={kwartaalItems} ctx={ctx} onWijzig={laad} />
           : view === "keuringen" ? <Keuringen huizen={actieveHuizen} keuringen={keuringen} ctx={ctx} />
+          : view === "klachten" ? <KlachtenModule gebruiker={gebruiker} sessieToken={sessieToken} huizen={actieveHuizen} gebruikers={gebruikers} magControleren={magControleren} showToast={showToast} />
           : <InspectieForm ctx={ctx} onKlaar={id => { setView("overzicht"); if (id) setDetailId(id); }} />}
       </>)}
     </div>
