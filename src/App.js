@@ -1517,6 +1517,17 @@ function App() {
     if (updates.status==="gedaan" && t?.melding_id) {
       await cascadeMeldingAfhandelen(t.melding_id);
     }
+    // 17-11-2026: huismeester-taak voor een autostoring afgevinkt → auto-melding automatisch verwerkt,
+    // zodat de backoffice hem niet nog eens hoeft af te vinken.
+    if (updates.status==="gedaan" && t?.auto_melding_id) {
+      await supabase.from("auto_meldingen").update({
+        status: "verwerkt",
+        afgehandeld_door: updates.afgehandeld_door || gebruiker.naam,
+        afgehandeld_op: new Date().toISOString(),
+        notitie: `Automatisch verwerkt: huismeester-taak afgevinkt${updates.notitie ? ` — "${updates.notitie}"` : ""}`,
+      }).eq("id", t.auto_melding_id).eq("status", "open");
+      loadAutoMeldingenApp();
+    }
     if (updates.status==="gedaan") {
       let extraLog = "";
       // Lees checkbox-vinkjes uit t.notitie (bijv. Kamer schoon, Sleutel ingeleverd)
@@ -1933,7 +1944,7 @@ function App() {
         {tab==="autos"&&<AutoModule gebruiker={gebruiker} showToast={showToast}/>}
         {tab==="fietsen"&&<FietsModule gebruiker={gebruiker} showToast={showToast} houses={houses} onMeldingIndienen={addMelding}/>}
         {rol==="huismeester"&&tab==="todo"&&<HuismeesterTodoView taken={taken} meldingen={meldingen} houses={houses} gebruiker={gebruiker} onAddTaak={addTaak} onUpdateTaak={updateTaak} onUpdateMelding={updateMeldingStatus} showToast={showToast} taal={taal}/>}
-        {rol==="huismeester"&&tab==="dagplanning"&&<DagplanningView meldingen={meldingen} taken={taken} houses={houses} onUpdate={updateMeldingStatus} onUpdateTaak={updateTaak} naam={naam} dagplanningDB={dagplanningDB} checklistItems={checklistItems} checklists={checklists} autoMeldingen={autoMeldingenApp}/>}
+        {rol==="huismeester"&&tab==="dagplanning"&&<DagplanningView meldingen={meldingen} taken={taken} houses={houses} onUpdate={updateMeldingStatus} onUpdateTaak={updateTaak} naam={naam} dagplanningDB={dagplanningDB} checklistItems={checklistItems} checklists={checklists} autoMeldingen={autoMeldingenApp.filter(a=>a.wie_regelt!=="huismeester")}/>}
         {rol==="backoffice"&&tab==="log"&&<LogView meldingen={meldingen} houses={houses} activiteiten={activiteiten} taken={taken} onVernieuw={()=>herlaadAlles(true)}/>}
         {tab==="huurbetalingen"&&<HuurbetalingenModule gebruiker={gebruiker} showToast={showToast} readonly={rol!=="backoffice"&&rol!=="financieel"}/>}
         {tab==="berichten"&&<BerichtenModule gebruiker={gebruiker} houses={houses} taken={taken} meldingen={meldingen} autos={[]}/>}

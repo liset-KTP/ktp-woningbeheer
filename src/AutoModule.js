@@ -138,8 +138,29 @@ function SH({titel,sub,actie}) {
 async function slaAutoMeldingOp(m, { autos, gebruiker, showToast }) {
   // "afwijkingen" is alleen voor de e-mailtekst — geen kolom in de database
   const { afwijkingen, ...opslagData } = m;
-  const { error } = await supabase.from("auto_meldingen").insert([{...opslagData, datum_tijd: naarDbTijd(opslagData.datum_tijd), ingediend_door: gebruiker.naam, status:"open"}]);
+  const { data: nieuweMelding, error } = await supabase.from("auto_meldingen").insert([{...opslagData, datum_tijd: naarDbTijd(opslagData.datum_tijd), ingediend_door: gebruiker.naam, status:"open"}]).select("id").maybeSingle();
   if (error) { showToast(tx("Fout bij opslaan"),"err"); return false; }
+
+  // 17-11-2026: storing die de huismeester oplost (bv. GPS-kastje aansluiten) → taak voor de
+  // huismeester, gekoppeld via taken.auto_melding_id. Afvinken van die taak zet de auto-melding
+  // automatisch op "verwerkt" (zie updateTaak in App.js). Voorheen kwam elke storing alleen bij
+  // de backoffice terecht en kreeg de huismeester niets om af te vinken.
+  if (m.actie === "storing" && m.wie_regelt === "huismeester" && nieuweMelding?.id) {
+    const kort = (m.opmerkingen || "storing").replace(/\s+/g, " ").trim();
+    const { error: taakErr } = await supabase.from("taken").insert([{
+      titel: `🔧 Auto ${m.kenteken}: ${kort.length > 70 ? kort.slice(0, 70) + "…" : kort}`,
+      omschrijving: `${m.kenteken}${m.naam_medewerker ? ` — rijdt: ${m.naam_medewerker}` : ""}${m.locatie ? ` — locatie: ${m.locatie}` : ""}\n${m.opmerkingen || ""}`.trim(),
+      voor_rol: "huismeester",
+      prioriteit: "hoog",
+      status: "open",
+      aangemaakt_door: gebruiker.naam,
+      auto_melding_id: nieuweMelding.id,
+    }]);
+    if (taakErr) {
+      console.error("Taak huismeester aanmaken mislukt:", taakErr);
+      showToast(tx("⚠️ Melding opgeslagen, maar taak voor huismeester niet aangemaakt — maak hem handmatig aan"),"err");
+    }
+  }
 
   // Annulering van een reservering: auto terug naar Beschikbaar en naam leegmaken.
   // Alleen als de auto nu echt op Gereserveerd staat — een lopende uitgifte blijft ongemoeid.
@@ -1080,6 +1101,7 @@ function AutoStoringForm({ autos, gebruiker, actie, onSubmit, showToast }) {
   const [documenten, setDocumenten] = useState([]);
   const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [wieRegelt, setWieRegelt] = useState("");
 
   const isReservering = actie === "reservering";
   const gekozenAuto = autos.find(a => a.kenteken === kenteken);
@@ -1087,6 +1109,7 @@ function AutoStoringForm({ autos, gebruiker, actie, onSubmit, showToast }) {
   async function handleSubmit() {
     if (!kenteken) { showToast(tx("Selecteer een kenteken"),"err"); return; }
     if (isReservering && !datumTijd) { showToast(tx("Vul de verwachte uitgiftedatum in"),"err"); return; }
+    if (actie === "storing" && !wieRegelt) { showToast(tx("Kies wie de storing oplost"),"err"); return; }
     { const naamFout = naamProbleem(naamMedewerker); if (naamFout) { showToast(naamFout,"err"); return; } }
     setSaving(true);
     let docUrls = [];
@@ -1096,10 +1119,11 @@ function AutoStoringForm({ autos, gebruiker, actie, onSubmit, showToast }) {
       datum_tijd: datumTijd, kilometerstand: isReservering ? null : (kilometerstand || null),
       opmerkingen: opmerkingen || null,
       document_urls: docUrls.length > 0 ? JSON.stringify(docUrls) : null,
+      ...(actie === "storing" ? { wie_regelt: wieRegelt } : {}),
     });
     setSaving(false);
     if (ok) {
-      setKenteken(""); setNaamMedewerker(""); setKilometerstand(""); setOpmerkingen(""); setDocumenten([]);
+      setKenteken(""); setNaamMedewerker(""); setKilometerstand(""); setOpmerkingen(""); setDocumenten([]); setWieRegelt("");
       setSubmitted(true); setTimeout(()=>setSubmitted(false), 2500);
     }
   }
@@ -1162,8 +1186,22 @@ function AutoStoringForm({ autos, gebruiker, actie, onSubmit, showToast }) {
               );
             })}
           </div>
+          <label style={{fontSize:11,fontWeight:600,color:"#b45309",letterSpacing:".8px",textTransform:"uppercase",marginBottom:8,display:"block"}}>
+            {tx("Wie lost dit op? *")}
+          </label>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+            {[["huismeester","🧰 Huismeester","Bv. GPS-kastje aansluiten, lamp, accu"],["backoffice","🏢 Backoffice","Bv. garage, APK, verzekering, schade"]].map(([v,l,uitleg])=>(
+              <button key={v} type="button" onClick={()=>setWieRegelt(v)}
+                style={{background:wieRegelt===v?"#f59e0b18":"white",border:`1.5px solid ${wieRegelt===v?"#f59e0b":C.border}`,borderRadius:8,padding:"10px 14px",cursor:"pointer",fontFamily:"inherit",textAlign:"left"}}>
+                <div style={{fontSize:13,fontWeight:700,color:wieRegelt===v?"#b45309":C.text}}>{wieRegelt===v?"✓ ":""}{tx(l)}</div>
+                <div style={{fontSize:11,color:C.muted,marginTop:2}}>{tx(uitleg)}</div>
+              </button>
+            ))}
+          </div>
           <div style={{background:"#fef3c7",border:"1px solid #fcd34d",borderRadius:8,padding:"10px 14px",fontSize:13,color:"#b45309",fontWeight:500}}>
-            {tx("⚠️ De backoffice en huismeester worden direct geïnformeerd")}
+            {wieRegelt==="huismeester"
+              ? tx("⚠️ De huismeester krijgt een taak; de backoffice krijgt een mail. Vinkt de huismeester de taak af, dan is de melding automatisch verwerkt.")
+              : tx("⚠️ De backoffice krijgt een mail en handelt de melding af")}
           </div>
         </div>
       )}
@@ -1259,9 +1297,14 @@ function AutoLog({ meldingen, autos, onUpdate, gebruiker, isBackoffice, onReacti
   // Aantal ongelezen reacties voor collega
   const ongelezen = meldingen.filter(m => m.backoffice_reactie && !m.reactie_gelezen && m.ingediend_door === gebruiker?.naam).length;
 
+  // Storing die bij de huismeester ligt: staat niet meer op de "Open"-lijst van de backoffice.
+  // Zodra de huismeester zijn taak afvinkt, gaat de melding automatisch op "verwerkt".
+  const bijHuismeester = m => m.actie === "storing" && m.wie_regelt === "huismeester" && m.status === "open";
+
   const gefilterd = meldingen.filter(m =>
     filter === "alle" ? true :
-    filter === "open" ? m.status === "open" :
+    filter === "open" ? (m.status === "open" && !bijHuismeester(m)) :
+    filter === "huismeester" ? bijHuismeester(m) :
     filter === "uitgifte" ? m.actie === "uitgifte" :
     filter === "inname" ? m.actie === "inname" :
     filter === "storing" ? m.actie === "storing" :
@@ -1300,7 +1343,7 @@ function AutoLog({ meldingen, autos, onUpdate, gebruiker, isBackoffice, onReacti
       </div>
 
       <div style={{display:"flex",gap:6,marginBottom:20,flexWrap:"wrap"}}>
-        {[["alle","Alle"],["open","Open"],["uitgifte","Uitgifte"],["inname","Inname"],["reservering","Reservering"],["storing","Schade/Storing"],["afwijking","⚠️ Met afwijking"]].map(([v,l])=>(
+        {[["alle","Alle"],["open","Open"],["huismeester","🧰 Bij huismeester"],["uitgifte","Uitgifte"],["inname","Inname"],["reservering","Reservering"],["storing","Schade/Storing"],["afwijking","⚠️ Met afwijking"]].map(([v,l])=>(
           <button key={v} onClick={()=>setFilter(v)}
             style={{background:filter===v?C.blauw:"white",color:filter===v?"white":C.muted,border:`1.5px solid ${filter===v?C.blauw:C.border}`,borderRadius:20,padding:"6px 16px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
             {tx(l)}
@@ -1332,6 +1375,9 @@ function AutoLog({ meldingen, autos, onUpdate, gebruiker, isBackoffice, onReacti
                   </span>
                   {m.afwijking_gevonden && (
                     <span style={{padding:"3px 10px",borderRadius:20,background:"#fef2f2",color:"#b91c1c",fontSize:11,fontWeight:700}}>{tx("⚠️ AFWIJKING")}</span>
+                  )}
+                  {bijHuismeester(m) && (
+                    <span style={{padding:"3px 10px",borderRadius:20,background:"#ecfdf5",color:"#047857",fontSize:11,fontWeight:700}}>{tx("🧰 Bij huismeester")}</span>
                   )}
                   <span style={{marginLeft:"auto",padding:"3px 10px",borderRadius:20,background:m.status==="open"?C.blauw+"18":"#f0fdf4",color:m.status==="open"?C.blauw:C.groen,fontSize:11,fontWeight:700}}>
                     {(tx(m.status||"")).toUpperCase()}

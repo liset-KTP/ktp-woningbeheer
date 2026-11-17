@@ -10058,5 +10058,55 @@
   "en": "Note (internal)",
   "ro": "Observație (intern)",
   "pl": "Uwagi (wewnętrzne)"
+ },
+ "Kies wie de storing oplost": {
+  "en": "Choose who fixes the issue",
+  "ro": "Alegeți cine rezolvă problema",
+  "pl": "Wybierz, kto rozwiąże usterkę"
+ },
+ "Wie lost dit op? *": {
+  "en": "Who fixes this? *",
+  "ro": "Cine rezolvă? *",
+  "pl": "Kto to naprawi? *"
+ },
+ "🧰 Huismeester": {
+  "en": "🧰 Caretaker",
+  "ro": "🧰 Administrator",
+  "pl": "🧰 Gospodarz"
+ },
+ "🏢 Backoffice": {
+  "en": "🏢 Back office",
+  "ro": "🏢 Back office",
+  "pl": "🏢 Back office"
+ },
+ "Bv. GPS-kastje aansluiten, lamp, accu": {
+  "en": "E.g. reconnect GPS box, light, battery",
+  "ro": "Ex. reconectare GPS, bec, baterie",
+  "pl": "Np. podłączenie GPS, żarówka, akumulator"
+ },
+ "Bv. garage, APK, verzekering, schade": {
+  "en": "E.g. garage, MOT, insurance, damage",
+  "ro": "Ex. service, ITP, asigurare, daune",
+  "pl": "Np. warsztat, przegląd, ubezpieczenie, szkoda"
+ },
+ "⚠️ De huismeester krijgt een taak; de backoffice krijgt een mail. Vinkt de huismeester de taak af, dan is de melding automatisch verwerkt.": {
+  "en": "⚠️ The caretaker gets a task; the back office gets an email. When the caretaker ticks off the task, the report is processed automatically.",
+  "ro": "⚠️ Administratorul primește o sarcină; back office-ul primește un e-mail. Când administratorul bifează sarcina, raportul este procesat automat.",
+  "pl": "⚠️ Gospodarz dostaje zadanie; back office dostaje e-mail. Gdy gospodarz odhaczy zadanie, zgłoszenie zostanie automatycznie przetworzone."
+ },
+ "⚠️ De backoffice krijgt een mail en handelt de melding af": {
+  "en": "⚠️ The back office gets an email and handles the report",
+  "ro": "⚠️ Back office-ul primește un e-mail și se ocupă de raport",
+  "pl": "⚠️ Back office dostaje e-mail i obsługuje zgłoszenie"
+ },
+ "🧰 Bij huismeester": {
+  "en": "🧰 With caretaker",
+  "ro": "🧰 La administrator",
+  "pl": "🧰 U gospodarza"
+ },
+ "⚠️ Melding opgeslagen, maar taak voor huismeester niet aangemaakt — maak hem handmatig aan": {
+  "en": "⚠️ Report saved, but caretaker task not created — create it manually",
+  "ro": "⚠️ Raport salvat, dar sarcina pentru administrator nu a fost creată — creați-o manual",
+  "pl": "⚠️ Zgłoszenie zapisane, ale zadanie dla gospodarza nie zostało utworzone — utwórz je ręcznie"
  }
 }
