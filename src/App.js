@@ -4616,6 +4616,17 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
   const nAutos    = takenAutos.length;
   const nFietsen  = takenFietsen.length;
 
+  // "Door mij gemeld": taken die deze gebruiker zelf heeft aangemaakt voor de huismeester
+  // (bv. een auto-storing). Die staan alleen in het scherm van de huismeester, dus de melder
+  // zag nergens of de melding was aangekomen en wat ermee gebeurde. Alleen-lezen overzicht:
+  // open + ingepland altijd, afgehandeld nog 14 dagen zichtbaar.
+  const veertienDagenTerug = Date.now() - 14*24*60*60*1000;
+  const doorMijGemeld = (isCollega || isBackoffice) ? taken.filter(t =>
+    t.aangemaakt_door && t.aangemaakt_door === gebruiker?.naam &&
+    t.voor_rol === "huismeester" &&
+    (t.status !== "gedaan" || new Date(t.afgehandeld_op || t.created_at || 0).getTime() >= veertienDagenTerug)
+  ).sort((a,b) => (a.status==="gedaan") - (b.status==="gedaan") || new Date(b.created_at||0) - new Date(a.created_at||0)) : [];
+
   const subTabs = [
     { id:"woningen",  label:`🏠 Woningen${nWoningen>0?` (${nWoningen})`:""}` },
     { id:"autos",     label:`🚗 Auto's${nAutos>0?` (${nAutos})`:""}` },
@@ -4667,6 +4678,37 @@ function TakenMeldingenView({ taken, meldingen, houses, gebruiker, onAddTaak, on
           </div>
         </div>
       )}
+
+      {/* 📮 DOOR MIJ GEMELD — status van eigen meldingen bij de huismeester */}
+      {["woningen","autos","fietsen"].includes(subTab) && (() => {
+        const lijst = doorMijGemeld.filter(t => catTaak(t) === subTab);
+        if (lijst.length === 0) return null;
+        const fmt = d => d ? new Date(d).toLocaleDateString("nl-NL",{day:"2-digit",month:"2-digit"}) : "";
+        const statusVan = t => {
+          if (t.status === "gedaan") return { kleur:C.groen, bg:"#f0fdf4", tekst:`✅ ${tx("Afgehandeld")}${t.afgehandeld_op?` ${fmt(t.afgehandeld_op)}`:""}${t.afgehandeld_door?` ${tx("door")} ${t.afgehandeld_door}`:""}` };
+          if (t.geblokkeerd) return { kleur:"#991b1b", bg:"#fef2f2", tekst:`🚫 ${tx("Geblokkeerd")}${t.blokkade_reden?`: ${t.blokkade_reden}`:""}` };
+          if (t.status === "geaccepteerd" || t.ingepland_op || t.geaccepteerd_op) return { kleur:C.blauw, bg:C.blauw+"12", tekst:`📅 ${tx("Opgepakt")}${t.ingepland_op?` · ${tx("ingepland op")} ${fmt(t.ingepland_op)}`:""}${t.geaccepteerd_door?` · ${t.geaccepteerd_door}`:""}` };
+          return { kleur:"#b45309", bg:"#fffbeb", tekst:`⏳ ${tx("Ontvangen, nog niet opgepakt")}` };
+        };
+        return (
+          <div style={{marginBottom:18,border:`1.5px solid ${C.border}`,borderRadius:10,background:"white",padding:"12px 14px"}}>
+            <div style={{fontSize:13,fontWeight:800,color:C.blauw,marginBottom:8}}>📮 {tx("Door mij gemeld bij de huismeester")} ({lijst.length})</div>
+            {lijst.map(t => {
+              const st = statusVan(t);
+              return (
+                <div key={t.id} style={{borderTop:`1px solid ${C.border}`,padding:"8px 0"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",gap:8,flexWrap:"wrap",alignItems:"center"}}>
+                    <span style={{fontSize:13,fontWeight:600,color:C.text}}>{t.titel}</span>
+                    <span style={{fontSize:11,fontWeight:700,color:st.kleur,background:st.bg,borderRadius:10,padding:"2px 8px"}}>{st.tekst}</span>
+                  </div>
+                  <div style={{fontSize:11,color:C.muted,marginTop:2}}>{tx("Gemeld op")} {fmt(t.created_at)}{t.prioriteit?` · ${tx("prioriteit")} ${t.prioriteit}`:""}</div>
+                  {t.huismeester_opmerking && <div style={{fontSize:12,color:C.blauw,marginTop:4}}>💬 {t.huismeester_opmerking}</div>}
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
 
       {/* 🏠 WONINGEN */}
       {subTab === "woningen" && (
