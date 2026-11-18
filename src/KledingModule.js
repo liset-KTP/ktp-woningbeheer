@@ -10,7 +10,8 @@ const C = {
   text:"#1a2b47", muted:"#6b7a8d",
   rood:"#ef4444", oranje:"#f59e0b",
 };
-const VESTIGINGEN = ["Enschede","Ommen","Lichtenvoorde"];
+// Sinds 16-11-2026 één locatie (KTP Interflex). Voorraad staat technisch onder "Enschede".
+const VESTIGINGEN = ["Enschede"];
 
 function fmtDate(d) {
   if (!d) return ""; 
@@ -187,7 +188,7 @@ function VoorraadOverzicht({ voorraad }) {
     <div>
       {/* Vestiging tabs */}
       <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
-        {VESTIGINGEN.map(v=>{
+        {VESTIGINGEN.length>1&&VESTIGINGEN.map(v=>{
           const laag = voorraad.filter(i=>i.vestiging===v&&i.aantal<i.min_voorraad).length;
           return (
             <button key={v} onClick={()=>setVestiging(v)}
@@ -263,7 +264,7 @@ function VoorraadOverzicht({ voorraad }) {
 export function KledingUitgifteInline({ voorraad, gebruiker, onSubmit, showToast }) { return <UitgifteForm voorraad={voorraad} gebruiker={gebruiker} onSubmit={onSubmit} showToast={showToast}/>; }
 
 function UitgifteForm({ voorraad, gebruiker, onSubmit, showToast }) {
-  const [vestiging, setVestiging] = useState(gebruiker?.vestiging||"Enschede");
+  const [vestiging, setVestiging] = useState(VESTIGINGEN[0]);
   const [actie, setActie] = useState("uitgifte");
   const [medewerkerNaam, setMedewerkerNaam] = useState("");
   // Huidig te selecteren artikel
@@ -346,9 +347,9 @@ function UitgifteForm({ voorraad, gebruiker, onSubmit, showToast }) {
 
         {/* Vestiging */}
         <div style={{marginBottom:16}}>
-          <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>{tx("Vestiging")}</label>
+          {VESTIGINGEN.length>1&&<label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>{tx("Vestiging")}</label>}
           <div style={{display:"flex",gap:8}}>
-            {VESTIGINGEN.map(v=>(
+            {VESTIGINGEN.length>1&&VESTIGINGEN.map(v=>(
               <button key={v} onClick={()=>{setVestiging(v);setType("");setMaat("");}}
                 style={{flex:1,padding:"9px",border:`2px solid ${vestiging===v?C.blauw:C.border}`,borderRadius:8,
                   background:vestiging===v?C.blauw+"12":"white",color:vestiging===v?C.blauw:C.muted,
@@ -476,7 +477,7 @@ function BijbestellenView({ voorraad, isBackoffice, onBesteld, onOntvangen }) {
     <div>
       {/* Vestiging filter */}
       <div style={{display:"flex",gap:8,marginBottom:20,flexWrap:"wrap"}}>
-        {[["alle","Alle vestigingen"],...VESTIGINGEN.map(v=>[v,v])].map(([v,l])=>(
+        {VESTIGINGEN.length>1&&[["alle","Alle vestigingen"],...VESTIGINGEN.map(v=>[v,v])].map(([v,l])=>(
           <button key={v} onClick={()=>setVestiging(v)}
             style={{padding:"7px 16px",borderRadius:20,border:`2px solid ${vestiging===v?C.blauw:C.border}`,
               background:vestiging===v?C.blauw:"white",color:vestiging===v?"white":C.text,
@@ -642,7 +643,7 @@ function HistorieView({ transacties, isBackoffice }) {
   return (
     <div>
       <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
-        {[["alle","Alle vestigingen"],...VESTIGINGEN.map(v=>[v,v])].map(([v,l])=>(
+        {VESTIGINGEN.length>1&&[["alle","Alle vestigingen"],...VESTIGINGEN.map(v=>[v,v])].map(([v,l])=>(
           <button key={v} onClick={()=>setVestiging(v)}
             style={{padding:"6px 14px",borderRadius:20,border:`1.5px solid ${vestiging===v?C.blauw:C.border}`,
               background:vestiging===v?C.blauw:"white",color:vestiging===v?"white":C.text,
@@ -737,7 +738,7 @@ function BeheerVoorraad({ voorraad, onBijvullen, onCorrectie, showToast }) {
     <div>
       {/* Vestiging + Nieuw artikel knop */}
       <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:20,flexWrap:"wrap"}}>
-        {VESTIGINGEN.map(v=>(
+        {VESTIGINGEN.length>1&&VESTIGINGEN.map(v=>(
           <button key={v} onClick={()=>{setVestiging(v);setToonNieuw(false);setBewerkId(null);}}
             style={{padding:"8px 20px",borderRadius:20,border:`2px solid ${vestiging===v?C.blauw:C.border}`,
               background:vestiging===v?C.blauw:"white",color:vestiging===v?"white":C.text,
