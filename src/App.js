@@ -949,7 +949,9 @@ function App() {
       if (m.type==="aankomst")                 naarPatch = {naam:m.medewerker,status:"Lopend",aankomstDatum:""}; // spookdatum voorkomen als kamer eerder Gereserveerd stond
       else if (m.type==="reservering")         naarPatch = {naam:m.medewerker,status:"Gereserveerd",aankomstDatum:m.datum||""}; // "Verwachte aankomstdatum" meteen zichtbaar via STATUS_DATUM
       else if (m.type==="vertrek")             naarPatch = {status:"Controle",controleOp:m.datum||""}; // Altijd Controle tot huismeester heeft afgevinkt
-      else if (m.type==="vertrek_aankondiging") naarPatch = {status:"Gereserveerd"}; // Aankondiging = gereserveerd
+      // 19-11-2026: vertrek_aankondiging verandert de kamer NIET meer. Voorheen ging de kamer naar
+      // "Gereserveerd": de vertrekkende bewoner telde dan niet meer als bezet en de kamer leek een
+      // reservering (Michal Gregier, Am Busch 43-1). Pas de echte vertrekmelding zet de kamer op Controle.
       else if (m.type==="verhuizing")          naarPatch = {naam:m.medewerker,status:"Gereserveerd",aankomstDatum:m.datum||""}; // Naar-kamer reserveren tot verhuizing is afgerond
       const patch = {};
       if (naarPatch) patch[m.kamer] = naarPatch;
