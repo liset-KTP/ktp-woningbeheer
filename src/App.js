@@ -5751,7 +5751,9 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast, inlin
                               if (latereVertrek) {
                                 showToast(txv("ℹ️ {0} is inmiddels vertrokken — kamer {1} niet op bezet gezet.", medewerkerNaam, t.kamer));
                               } else {
-                                await patchKamer(t.woning_id, { [t.kamer]: { status: "Bezet", ...(medewerkerNaam ? { naam: medewerkerNaam } : {}) } });
+                                // 19-11-2026: "Lopend" i.p.v. oude status "Bezet" (telt niet als bewoond) + aankomstDatum leeg,
+                                // anders bleef de kamer als niet-bewoond/Gereserveerd hangen (Calin Ababei).
+                                await patchKamer(t.woning_id, { [t.kamer]: { status: "Lopend", aankomstDatum: "", ...(medewerkerNaam ? { naam: medewerkerNaam } : {}) } });
                               }
                             }
 
