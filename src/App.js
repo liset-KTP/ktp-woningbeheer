@@ -5012,6 +5012,8 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
   const isCollegaRol = gebruiker?.rol === "collega" || gebruiker?.rol === "financieel";
   const isLopend = m.status === "open" || m.status === "geaccepteerd" || m.status === "in_behandeling";
   const zwaarType = ["aankomst","vertrek","verhuizing","reservering"].includes(m.type);
+  // Lopende reservering: aankomstdatum alleen via de knop "📅 Aankomstdatum wijzigen" (past ook de kamer aan).
+  const datumViaKnop = m.type === "reservering" && isLopend && !isHuismeester;
   // 04-11-2026: huismeester kan een lopende melding (ook al ingepland) zelf als gedaan
   // afvinken, met verplichte toelichting — voorheen had hij alleen "Inplannen" en daarna geen
   // enkele knop meer. Niet voor aankomst/reservering/vertrek_aankondiging (andere route).
@@ -5305,8 +5307,16 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
               </div>
               <div>
                 <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>{tx("Datum")}</label>
+                {/* 20-11-2026: bij een lopende reservering niet hier de datum wijzigen — dit veld past de
+                    kamer niet aan. Alleen via "📅 Aankomstdatum wijzigen" (melding + kamer + log). */}
+                {datumViaKnop ? (
+                  <div style={{fontSize:12,color:C.muted,padding:"8px 10px",borderRadius:8,border:`1.5px dashed ${C.border}`,background:"white"}}>
+                    <strong style={{color:C.text}}>{m.datum||"—"}</strong><br/>{tx("Wijzigen via \"📅 Aankomstdatum wijzigen\"")}
+                  </div>
+                ) : (
                 <WeekDatePicker value={bewerkData.datum||m.datum||""} onChange={v=>setBewerkData(p=>({...p,datum:v}))}
                   style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1.5px solid ${C.border}`,fontSize:13,fontFamily:"inherit",background:"white",color:C.text,boxSizing:"border-box"}}/>
+                )}
               </div>
               <div>
                 <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>{tx("Naam medewerker")}</label>
@@ -5360,6 +5370,7 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
                   oud: {type:m.type,datum:m.datum,medewerker:m.medewerker,kamer:m.kamer,woning_id:m.woning_id,opmerkingen:m.opmerkingen,sleutel_aantal:m.sleutel_aantal},
                 };
                 const {_reden, ...updates} = bewerkData;
+                if (datumViaKnop) delete updates.datum; // vangnet: datum alleen via "Aankomstdatum wijzigen"
                 await supabase.from("meldingen").update({
                   ...updates,
                   wijzigingen: [...oudeWijzigingen, wijzigingEntry],
