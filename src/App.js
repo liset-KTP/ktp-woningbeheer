@@ -277,6 +277,14 @@ function reserveringDagenOver(m) {
 function fmtTime(d) { const dt = typeof d==="string"?new Date(d):d; return dt.toLocaleTimeString("nl-NL",{hour:"2-digit",minute:"2-digit"}); }
 function fmtFull(d) { return `${fmtDate(d)} ${fmtTime(d)}`; }
 function todayISO() { return new Date().toISOString().slice(0,10); }
+// 20-11-2026 (Kasper Eduard Christian, Am Busch 43-5 K1): een reservering met verwachte aankomst
+// 21-11 werd op 19-11 "zelf afgehandeld" met notitie "Komt later aan" -> kamer ging direct op
+// Lopend. Afhandelen van een reservering mag de kamer alleen op Lopend zetten als de aankomstdatum
+// bereikt is. Kamerdatum gaat voor (die is actueel), anders de datum op de melding.
+function aankomstNogInToekomst(kamer, melding) {
+  const d = kamer?.aankomstDatum || melding?.datum;
+  return !!d && d > todayISO();
+}
 function dagVanDeWeek() { return ["zo","ma","di","wo","do","vr","za"][new Date().getDay()]; }
 
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
@@ -1134,6 +1142,23 @@ function App() {
     // de melding werd via de "✓ Afhandelen"-knop op de meldingkaart afgehandeld, los van taak
     // #562 die nog open stond. Zelfde patroon eerder al gesignaleerd bij de taken-audit van
     // 07-08-2026 ("nog te onderzoeken") — dit dicht die opening voor alle meldingtypes.
+    // 20-11-2026: reservering afhandelen vóór de aankomstdatum. Afhandelen betekende "is aangekomen"
+    // en zette de kamer op Lopend — ook als de medewerker nog moest komen (Kasper Eduard Christian).
+    // Nu: waarschuwen, en de kamer blijft op Gereserveerd (zie guard verderop).
+    if ((newStatus==="verwerkt"||newStatus==="afgehandeld") && m?.type==="reservering" && huis && m?.kamer) {
+      const kamerNu = huis.kamers.find(k=>k.k===m.kamer);
+      if (aankomstNogInToekomst(kamerNu, m)) {
+        const d = kamerNu?.aankomstDatum || m.datum;
+        const doorgaan = window.confirm(
+          `⚠️ De verwachte aankomst van ${m.medewerker} is pas op ${d}.\n\n` +
+          `Komt de medewerker later? Annuleer dan en gebruik "📅 Aankomstdatum wijzigen" op de melding.\n\n` +
+          `Handel je toch af, dan blijft kamer ${m.kamer} op "Gereserveerd" staan. Op de aankomstdatum komt de taak "Controleer aankomst" om de aankomst te bevestigen.\n\n` +
+          `OK = toch afhandelen (kamer blijft Gereserveerd)\nAnnuleren = niet afhandelen`
+        );
+        if (!doorgaan) return;
+      }
+    }
+
     if (newStatus==="verwerkt"||newStatus==="afgehandeld") {
       const { data: openGekoppeldeTaken } = await supabase
         .from("taken")
@@ -1331,7 +1356,8 @@ function App() {
       // Case: Marcelo Melo Alves, Spaarnestraat 84 K3, melding #358.
       if ((newStatus==="verwerkt"||newStatus==="afgehandeld") && m?.type==="reservering" && huis && m?.kamer) {
         const kamer = huis.kamers.find(k=>k.k===m.kamer);
-        if (kamer && kamer.status==="Gereserveerd") {
+        // 20-11-2026: niet op Lopend als de aankomstdatum nog in de toekomst ligt.
+        if (kamer && kamer.status==="Gereserveerd" && !aankomstNogInToekomst(kamer, m)) {
           await patchKamer(huis.id, { [m.kamer]: { status: "Lopend", aankomstDatum: "" } });
           await loadHouses();
         }
@@ -1427,7 +1453,7 @@ function App() {
   // werkdag, Weekplanning) omdat die schermen allemaal dezelfde data tonen.
   async function cascadeMeldingAfhandelen(meldingId) {
     if (!meldingId) return;
-    const { data: melding } = await supabase.from("meldingen").select("id,status,type,medewerker,woning_id,kamer,created_at").eq("id", meldingId).maybeSingle();
+    const { data: melding } = await supabase.from("meldingen").select("id,status,type,medewerker,woning_id,kamer,datum,created_at").eq("id", meldingId).maybeSingle();
     // 04-11-2026: ook "geaccepteerd" (ingepland) en "in_behandeling". Voorheen alleen "open",
     // waardoor vertrekmelding #557 (Pavel Craciun) na een inplanactie eeuwig bleef hangen terwijl
     // de kamercontrole al gedaan was — en backoffice ziet huismeester-meldingen niet om ze te sluiten.
@@ -1448,7 +1474,8 @@ function App() {
       if ((melding.type==="verhuizing" || melding.type==="reservering") && melding.woning_id && melding.kamer) {
         const { data: w } = await supabase.from("woningen").select("kamers").eq("id", melding.woning_id).maybeSingle();
         const k = (w?.kamers||[]).find(x=>x.k===melding.kamer);
-        if (k && k.status==="Gereserveerd" && k.naam===melding.medewerker) {
+        // 20-11-2026: niet op Lopend als de aankomstdatum nog in de toekomst ligt.
+        if (k && k.status==="Gereserveerd" && k.naam===melding.medewerker && !aankomstNogInToekomst(k, melding)) {
           await patchKamer(melding.woning_id, { [melding.kamer]: { status:"Lopend", aankomstDatum:"" } });
           await loadHouses();
         }
@@ -4967,6 +4994,10 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
   const [toonZelfAf, setToonZelfAf] = useState(false);
   const [zelfAfTekst, setZelfAfTekst] = useState("");
   const [zelfAfBezig, setZelfAfBezig] = useState(false);
+  const [toonDatumWijzig, setToonDatumWijzig] = useState(false);
+  const [nieuweAankomst, setNieuweAankomst] = useState("");
+  const [datumReden, setDatumReden] = useState("");
+  const [datumBezig, setDatumBezig] = useState(false);
 
   const typeKleur = {aankomst:C.groen,vertrek:"#ef4444",vertrek_aankondiging:"#f59e0b",reservering:C.blauw,overig:C.oranje,verhuizing:"#0891b2"};
   const typeIcon = {aankomst:"🏠",vertrek:"🧳",vertrek_aankondiging:"📢",reservering:"📅",overig:"📝",verhuizing:"🔄"};
@@ -5187,6 +5218,74 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
           ) : (
             <button onClick={()=>setToonZelfAf(true)} style={{background:"#f0fdf4",border:`1.5px solid ${C.groen}`,color:C.groen,borderRadius:8,padding:"7px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
               {isHuismeester ? tx("✓ Gedaan") : tx("✓ Zelf afgehandeld")}
+            </button>
+          )}
+        </div>
+      )}
+      {/* 20-11-2026: aankomstdatum van een reservering verzetten. Voorheen was er geen aparte knop en
+          werd "Zelf afgehandeld" met notitie "komt later aan" gebruikt — dat zette de kamer op Lopend
+          (Kasper Eduard Christian, Am Busch 43-5 K1). Past melding én kamer aan en logt de wijziging. */}
+      {m.type==="reservering" && isLopend && !isHuismeester && (
+        <div style={{marginTop:8}}>
+          {toonDatumWijzig ? (
+            <div style={{background:"#eff6ff",border:`1px solid ${C.blauw}`,borderRadius:10,padding:14}}>
+              <div style={{fontWeight:700,color:C.blauw,fontSize:13,marginBottom:4}}>{tx("📅 Aankomstdatum wijzigen")}</div>
+              <div style={{fontSize:12,color:C.muted,marginBottom:10}}>{tx("Huidige verwachte aankomst:")} <strong>{m.datum||"—"}</strong>. {tx("De reservering blijft open en de kamer blijft op Gereserveerd.")}</div>
+              <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>{tx("NIEUWE AANKOMSTDATUM *")}</label>
+              <WeekDatePicker value={nieuweAankomst} onChange={v=>setNieuweAankomst(v)}
+                style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1.5px solid ${C.border}`,fontSize:13,fontFamily:"inherit",background:"white",color:C.text,boxSizing:"border-box",marginBottom:10}}/>
+              <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4,marginTop:10}}>{tx("REDEN *")}</label>
+              <input value={datumReden} onChange={e=>setDatumReden(e.target.value)}
+                placeholder={tx("bijv. komt later aan, moeder ziek")}
+                style={{width:"100%",background:"white",border:`1.5px solid ${C.border}`,borderRadius:8,color:C.text,padding:"8px 12px",fontSize:13,outline:"none",fontFamily:"inherit",boxSizing:"border-box",marginBottom:10}}/>
+              <div style={{display:"flex",gap:8}}>
+                <button disabled={datumBezig} onClick={async()=>{
+                  if(!nieuweAankomst){ showToast(tx("Kies een nieuwe aankomstdatum"),"err"); return; }
+                  if(nieuweAankomst===m.datum){ showToast(tx("Dit is dezelfde datum als nu"),"err"); return; }
+                  if((datumReden.match(/[\p{L}\d]/gu)||[]).length<3){ showToast(tx("Vul een reden in"),"err"); return; }
+                  setDatumBezig(true);
+                  try {
+                    const nu = new Date();
+                    const wijzigingEntry = {
+                      door: gebruiker?.naam,
+                      op: `${nu.toLocaleDateString("nl-NL")} ${nu.toLocaleTimeString("nl-NL",{hour:"2-digit",minute:"2-digit"})}`,
+                      reden: `Aankomstdatum ${m.datum||"—"} → ${nieuweAankomst}: ${datumReden.trim()}`,
+                      oud: {type:m.type,datum:m.datum,medewerker:m.medewerker,kamer:m.kamer,woning_id:m.woning_id,opmerkingen:m.opmerkingen,sleutel_aantal:m.sleutel_aantal},
+                    };
+                    const { error } = await supabase.from("meldingen").update({
+                      datum: nieuweAankomst,
+                      wijzigingen: [...(m.wijzigingen||[]), wijzigingEntry],
+                    }).eq("id", m.id);
+                    if (error) { showToast(tx("Fout bij opslaan"),"err"); return; }
+                    // Kamer alleen aanpassen als die nog voor deze medewerker gereserveerd staat (verse read).
+                    let kamerMsg = "";
+                    if (m.woning_id && m.kamer) {
+                      const { data: w } = await supabase.from("woningen").select("kamers").eq("id", m.woning_id).maybeSingle();
+                      const k = (w?.kamers||[]).find(x=>x.k===m.kamer);
+                      if (k && k.status==="Gereserveerd" && k.naam===m.medewerker) {
+                        await patchKamer(m.woning_id, { [m.kamer]: { aankomstDatum: nieuweAankomst } });
+                      } else {
+                        kamerMsg = k ? ` (kamer ${m.kamer} staat op "${k.status}"${k.naam?` / ${k.naam}`:""} — niet aangepast)` : "";
+                      }
+                    }
+                    await supabase.from("activiteiten").insert([{
+                      type: "melding_status", gedaan_door: gebruiker?.naam,
+                      omschrijving: `📅 Aankomstdatum gewijzigd: ${m.medewerker} — reservering — ${huis?.adres||"?"} K${m.kamer||"?"}: ${m.datum||"—"} → ${nieuweAankomst} (${datumReden.trim()})${kamerMsg}`,
+                      extra: { melding_id: m.id },
+                    }]);
+                    if (kamerMsg) showToast(tx("⚠ Datum op melding aangepast, maar de kamer niet:")+kamerMsg, "err");
+                    else showToast(tx("✓ Aankomstdatum gewijzigd"));
+                    setToonDatumWijzig(false); setNieuweAankomst(""); setDatumReden("");
+                  } finally { setDatumBezig(false); }
+                }} style={{background:C.blauw,color:"white",border:"none",borderRadius:8,padding:"8px 18px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit",opacity:datumBezig?.6:1}}>
+                  {datumBezig?tx("⏳ Bezig..."):tx("✓ Opslaan")}
+                </button>
+                <button onClick={()=>{setToonDatumWijzig(false);setNieuweAankomst("");setDatumReden("");}} style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"8px 12px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>{tx("Annuleren")}</button>
+              </div>
+            </div>
+          ) : (
+            <button onClick={()=>setToonDatumWijzig(true)} style={{background:"#eff6ff",border:`1.5px solid ${C.blauw}`,color:C.blauw,borderRadius:8,padding:"7px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+              {tx("📅 Aankomstdatum wijzigen")}
             </button>
           )}
         </div>
