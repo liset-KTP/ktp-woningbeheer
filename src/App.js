@@ -285,6 +285,14 @@ function aankomstNogInToekomst(kamer, melding) {
   const d = kamer?.aankomstDatum || melding?.datum;
   return !!d && d > todayISO();
 }
+
+
+// 20-11-2026 (verzoek Harald, besluit Liset): inschrijfplicht gemeente op 2 adressen.
+const INSCHRIJFPLICHT_WONING_IDS = [10, 5]; // 10 = Deldensestraat 25 Goor, 5 = Rietstraat 28 Almelo
+const TAAKTYPE_INSCHRIJVING = "inschrijving_gemeente";
+function lokaleDatumISO(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
+function plusDagenISO(iso, n) { const [y,m,d] = String(iso).slice(0,10).split("-").map(Number); return lokaleDatumISO(new Date(y, m-1, d+n)); }
+function taakNogVerborgen(t) { return t?.type === TAAKTYPE_INSCHRIJVING && t.status !== "gedaan" && t.ingepland_op && t.ingepland_op > lokaleDatumISO(new Date()); }
 function dagVanDeWeek() { return ["zo","ma","di","wo","do","vr","za"][new Date().getDay()]; }
 
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
@@ -430,7 +438,7 @@ function App() {
   const loadTaken = useCallback(async () => {
     const { data, error } = await supabase.from("taken").select("*").order("created_at", { ascending: false });
     if (error) { console.error("taken:", error); return; }
-    setTaken(data || []);
+    setTaken((data || []).filter(t => !taakNogVerborgen(t)));
   }, []);
 
   const loadChecklists = useCallback(async () => {
@@ -797,6 +805,19 @@ function App() {
         return;
       }
     }
+    const inschrijfplicht = ["aankomst","reservering","verhuizing"].includes(m.type)
+      && INSCHRIJFPLICHT_WONING_IDS.includes(Number(m.huisId))
+      && !(m.type === "verhuizing" && Number(m.vanHuisId) === Number(m.huisId));
+    if (inschrijfplicht) {
+      const ih = houses.find(h => h.id === Number(m.huisId));
+      window.alert(
+        `⚠️ Inschrijving gemeente VERPLICHT\n\n` +
+        `${m.medewerker || "De bewoner"} komt te wonen op ${ih ? `${ih.adres}, ${ih.stad}` : "dit adres"}.\n` +
+        `Bewoners van dit adres moeten zich VERPLICHT inschrijven bij de gemeente.\n\n` +
+        `Vertel dit de medewerker nu.\n` +
+        `7 dagen na aankomst krijg jij een taak om het bewijs van inschrijving op te vragen.`
+      );
+    }
     const { data: nieuweMelding, error } = await supabase.from("meldingen").insert([{
       type:m.type, medewerker:m.medewerker, datum:m.datum, woning_id:m.huisId,
       kamer:m.kamer, wie_regelt:m.wieRegelt||null, sleutel_terug:m.sleutelTerug||null,
@@ -841,6 +862,28 @@ function App() {
           melding_id: meldingId,
         },
       ]);
+    }
+
+    if (inschrijfplicht && m.type !== "reservering" && m.medewerker) {
+      const { data: alOpen } = await supabase.from("taken").select("id")
+        .eq("type", TAAKTYPE_INSCHRIJVING).ilike("titel", `%${m.medewerker.trim()}%`).neq("status","gedaan").limit(1);
+      if (!alOpen || alOpen.length === 0) {
+        const ih = houses.find(h => h.id === Number(m.huisId));
+        const basis = m.datum || lokaleDatumISO(new Date());
+        await supabase.from("taken").insert([{
+          titel: `Inschrijving gemeente controleren — ${m.medewerker}`,
+          omschrijving:
+            `${m.medewerker} woont sinds ${basis} op ${ih ? `${ih.adres}, ${ih.stad}` : "dit adres"}${m.kamer ? `, kamer ${m.kamer}` : ""}. ` +
+            `Op dit adres is inschrijving bij de gemeente VERPLICHT.\n\n` +
+            `1. Vraag de medewerker om bewijs van inschrijving (brief of bevestiging van de gemeente met dit adres).\n` +
+            `2. Ingeschreven? Noteer in de notitie de datum van inschrijving en vink de taak af. Sla geen kopie van het bewijs op.\n` +
+            `3. Niet ingeschreven? Zeg dat de medewerker zich alsnog moet inschrijven. Doet hij/zij dat niet, dan kan hij/zij niet in deze woning blijven. Noteer wat je hebt afgesproken en controleer het opnieuw.`,
+          woning_id: Number(m.huisId) || null, kamer: m.kamer || null,
+          prioriteit: "hoog", voor_rol: "collega", status: "open",
+          type: TAAKTYPE_INSCHRIJVING, ingepland_op: plusDagenISO(basis, 7),
+          aangemaakt_door: gebruiker.naam, melding_id: null,
+        }]);
+      }
     }
 
     // Bij aankomst: automatisch openstaande reservering voor zelfde persoon/kamer verwerken
