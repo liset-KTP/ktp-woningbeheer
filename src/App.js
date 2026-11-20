@@ -5012,7 +5012,8 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
   const isCollegaRol = gebruiker?.rol === "collega" || gebruiker?.rol === "financieel";
   const isLopend = m.status === "open" || m.status === "geaccepteerd" || m.status === "in_behandeling";
   const zwaarType = ["aankomst","vertrek","verhuizing","reservering"].includes(m.type);
-  // Lopende reservering: aankomstdatum alleen via de knop "📅 Aankomstdatum wijzigen" (past ook de kamer aan).
+  // 20-11-2026: open reservering — datum alleen via "📅 Aankomstdatum wijzigen"; type/naam/woning/kamer niet via
+  // Bewerken (die past de kamer niet aan). Annuleren + nieuwe reservering maken.
   const datumViaKnop = m.type === "reservering" && isLopend && !isHuismeester;
   // 04-11-2026: huismeester kan een lopende melding (ook al ingepland) zelf als gedaan
   // afvinken, met verplichte toelichting — voorheen had hij alleen "Inplannen" en daarna geen
@@ -5297,10 +5298,15 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
         {toonBewerk ? (
           <div style={{background:C.bg,border:`1.5px solid ${C.blauw}`,borderRadius:12,padding:14,marginBottom:8}}>
             <div style={{fontWeight:700,fontSize:13,color:C.blauw,marginBottom:12}}>{tx("✏️ Melding bewerken")}</div>
+            {datumViaKnop && (
+              <div style={{fontSize:12,color:"#b45309",background:"#fef3c7",border:"1px solid #fde68a",borderRadius:8,padding:"8px 10px",marginBottom:10}}>
+                {tx("Bij een open reservering kun je hier alleen opmerkingen en sleutels aanpassen. Andere datum? Gebruik \"📅 Aankomstdatum wijzigen\". Andere kamer, woning, naam of type? Annuleer de reservering en maak een nieuwe aan.")}
+              </div>
+            )}
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
               <div>
                 <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>{tx("Type")}</label>
-                <select value={bewerkData.type||m.type} onChange={e=>setBewerkData(p=>({...p,type:e.target.value}))}
+                <select disabled={datumViaKnop} value={bewerkData.type||m.type} onChange={e=>setBewerkData(p=>({...p,type:e.target.value}))}
                   style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1.5px solid ${C.border}`,fontSize:13,fontFamily:"inherit",background:"white",color:C.text}}>
                   {["aankomst","vertrek_aankondiging","vertrek","reservering","verhuizing","overig"].map(t=><option key={t} value={t}>{tx(t)}</option>)}
                 </select>
@@ -5320,17 +5326,17 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
               </div>
               <div>
                 <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>{tx("Naam medewerker")}</label>
-                <input value={bewerkData.medewerker??m.medewerker} onChange={e=>setBewerkData(p=>({...p,medewerker:e.target.value}))}
+                <input disabled={datumViaKnop} value={bewerkData.medewerker??m.medewerker} onChange={e=>setBewerkData(p=>({...p,medewerker:e.target.value}))}
                   style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1.5px solid ${C.border}`,fontSize:13,fontFamily:"inherit",background:"white",color:C.text,boxSizing:"border-box"}}/>
               </div>
               <div>
                 <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>{tx("Kamer")}</label>
-                <input value={bewerkData.kamer??m.kamer} onChange={e=>setBewerkData(p=>({...p,kamer:e.target.value}))}
+                <input disabled={datumViaKnop} value={bewerkData.kamer??m.kamer} onChange={e=>setBewerkData(p=>({...p,kamer:e.target.value}))}
                   style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1.5px solid ${C.border}`,fontSize:13,fontFamily:"inherit",background:"white",color:C.text,boxSizing:"border-box"}}/>
               </div>
               <div>
                 <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>{tx("Woning")}</label>
-                <select value={bewerkData.woning_id||m.woning_id||""} onChange={e=>setBewerkData(p=>({...p,woning_id:Number(e.target.value)}))}
+                <select disabled={datumViaKnop} value={bewerkData.woning_id||m.woning_id||""} onChange={e=>setBewerkData(p=>({...p,woning_id:Number(e.target.value)}))}
                   style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1.5px solid ${C.border}`,fontSize:13,fontFamily:"inherit",background:"white",color:C.text}}>
                   <option value="">{tx("— Geen woning —")}</option>
                   {houses.map(h=><option key={h.id} value={h.id}>{tx(h.adres)}, {tx(h.stad)}</option>)}
@@ -5370,7 +5376,9 @@ function MeldingKaartCombined({ melding: m, houses, gebruiker, isBackoffice, isH
                   oud: {type:m.type,datum:m.datum,medewerker:m.medewerker,kamer:m.kamer,woning_id:m.woning_id,opmerkingen:m.opmerkingen,sleutel_aantal:m.sleutel_aantal},
                 };
                 const {_reden, ...updates} = bewerkData;
-                if (datumViaKnop) delete updates.datum; // vangnet: datum alleen via "Aankomstdatum wijzigen"
+                // Vangnet: bij een open reservering lopen datum/type/medewerker/woning/kamer niet via Bewerken,
+                // want dan verandert de kamer niet mee (kamer blijft "Gereserveerd" op oude plek/naam).
+                if (datumViaKnop) ["datum","type","medewerker","woning_id","kamer"].forEach(v=>delete updates[v]);
                 await supabase.from("meldingen").update({
                   ...updates,
                   wijzigingen: [...oudeWijzigingen, wijzigingEntry],
