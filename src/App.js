@@ -1537,6 +1537,56 @@ function App() {
     }
   }
 
+  // Wat is er bij een kamercontrole niet in orde? Twee invoerroutes:
+  // - VertrekControleModal (dagplanning): extra_info met woning_schoon / sleutel_terug
+  // - TakenView: vinkjes in t.notitie (vóór de update), via controleOntbreekt()
+  function kamercontroleProblemen(t, updates) {
+    if (updates.extra_info) {
+      try {
+        const ei = JSON.parse(updates.extra_info);
+        const mis = [];
+        if (ei.woning_schoon && ei.woning_schoon !== "ja") mis.push(`Kamer schoon: ${ei.woning_schoon}`);
+        if (ei.sleutel_terug && ei.sleutel_terug !== "ja") mis.push("Sleutel niet terug");
+        return mis;
+      } catch(e) { /* val terug op vinkjes */ }
+    }
+    return controleOntbreekt(t);
+  }
+
+  async function maakBorgBeoordelingTaak(t, updates) {
+    const problemen = kamercontroleProblemen(t, updates);
+    if (problemen.length === 0) return;
+    const naam = (t.titel.split("— ")[1] || "").trim() || "medewerker";
+    const titel = `Borg beoordelen — ${naam}`;
+    // Niet dubbel aanmaken als de controletaak heropend en opnieuw afgevinkt wordt
+    const { data: bestaand } = await supabase.from("taken").select("id")
+      .eq("titel", titel).eq("voor_rol", "backoffice").neq("status", "gedaan").limit(1);
+    if (bestaand && bestaand.length > 0) return;
+    const huis = houses.find(h=>h.id===t.woning_id);
+    const toelichting = (updates.notitie || "").trim();
+    const door = updates.afgehandeld_door || gebruiker.naam;
+    const bijlages = updates.bijlages || t.bijlages || null;
+    const isVerhuizing = t.titel.includes("na verhuizing");
+    const omschrijving =
+      `Kamercontrole ${isVerhuizing ? "na verhuizing" : "na vertrek"} NIET in orde (gecontroleerd door ${door}). ` +
+      `Ontbreekt: ${problemen.join(", ")}.` +
+      (toelichting ? ` Toelichting: "${toelichting}".` : "") +
+      ` Bekijk de foto's hieronder en beslis: borg (deels) inhouden of volledig terugbetalen. Leg de beslissing vast in Borg/Huur.`;
+    const { error } = await supabase.from("taken").insert([{
+      titel, omschrijving,
+      woning_id: t.woning_id || null,
+      kamer: t.kamer || null,
+      prioriteit: "hoog",
+      voor_rol: "backoffice",
+      status: "open",
+      aangemaakt_door: "Systeem (kamercontrole)",
+      bijlages,
+    }]);
+    if (error) { showToast(tx("Borg-beoordelingstaak aanmaken mislukt — meld dit bij backoffice"), "err"); return; }
+    logActiviteit("taak_aangemaakt", `💰 Borg beoordelen — ${naam}: kamercontrole niet in orde (${problemen.join(", ")})${huis?` — ${huis.adres}`:""}${t.kamer?` K${t.kamer}`:""}`, {taak_id: t.id, bijlages: parseBijlages(bijlages)});
+    await loadTaken();
+  }
+
   async function updateTaak(id, updates) {
     const t = taken.find(t=>t.id===id);
     const huis = houses.find(h=>h.id===t?.woning_id);
@@ -1586,6 +1636,12 @@ function App() {
       if (error2) { showToast(tx("Fout"),"err"); return; }
     }
     showToast(tx("✓ Opgeslagen")); await loadTaken();
+    // 23-11-2026: kamercontrole NIET in orde → automatisch een backoffice-taak "Borg beoordelen"
+    // met toelichting + foto's. De controletaak zelf is voor_rol "huismeester" en is voor backoffice
+    // onzichtbaar; daardoor waren de foto's (bewijs voor borginhouding) nergens terug te vinden.
+    if (updates.status==="gedaan" && t?.titel?.startsWith("Kamer controleren na")) {
+      await maakBorgBeoordelingTaak(t, updates);
+    }
     if (updates.status==="gedaan" && t?.melding_id) {
       await cascadeMeldingAfhandelen(t.melding_id);
     }
@@ -1618,7 +1674,7 @@ function App() {
           if (ei.opmerkingen) extraLog += ` | "${ei.opmerkingen}"`;
         } catch(e) {}
       }
-      logActiviteit("taak_gedaan", `✅ Taak gedaan: ${t?.titel||"?"}${updates.notitie?` — "${updates.notitie}"`:""}${extraLog}${huis?` — ${huis.adres}`:" — Algemeen"}${t?.kamer?` K${t.kamer}`:""}`, {taak_id:id, notitie:updates.notitie||null});
+      logActiviteit("taak_gedaan", `✅ Taak gedaan: ${t?.titel||"?"}${updates.notitie?` — "${updates.notitie}"`:""}${extraLog}${huis?` — ${huis.adres}`:" — Algemeen"}${t?.kamer?` K${t.kamer}`:""}`, {taak_id:id, notitie:updates.notitie||null, bijlages:parseBijlages(updates.bijlages)});
       stuurMail({
         type: "✅ Taak afgevinkt",
         type_icon: "✅",
@@ -2993,6 +3049,13 @@ function isVertrekTaak(titel) {
 function isVertrekBevestigTaak(titel) {
   const t = (titel || "").toLowerCase();
   return t.startsWith("vertrek bevestigen") || t.startsWith("vertrek inplannen");
+}
+
+// ─── HELPER: bijlages-kolom (JSON-string of array) veilig naar array ─────────
+function parseBijlages(b) {
+  if (!b) return [];
+  if (Array.isArray(b)) return b;
+  try { const r = JSON.parse(b); return Array.isArray(r) ? r : []; } catch(e) { return []; }
 }
 
 // ─── HELPER: welke controlepunten zijn NIET afgevinkt bij een kamercontrole? ──
@@ -5815,6 +5878,8 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast, inlin
                   </div>
                 )}
                 {t.omschrijving&&<div style={{fontSize:13,color:C.muted,marginTop:4,fontStyle:"italic"}}>"{tx(t.omschrijving)}"</div>}
+                {/* Open taak met meegestuurde foto's (bv. "Borg beoordelen") — bij afgeronde taken staan ze onder "Afgehandeld door" */}
+                {!gedaan && t.bijlages && <BijlageWeergave bijlages={parseBijlages(t.bijlages)}/>}
                 {t.status==="geaccepteerd" && (
                   <div style={{marginTop:6,background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:8,padding:"8px 12px"}}>
                     <div style={{fontSize:12,fontWeight:700,color:C.groen}}>{tx("📅 Opgepakt door")} {tx(t.geaccepteerd_door)}</div>
@@ -5996,7 +6061,7 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast, inlin
                   <div style={{marginTop:6}}>
                     <div style={{fontSize:12,color:C.groen}}>{tx("✓ Afgehandeld door")} {tx(t.afgehandeld_door)}{t.afgehandeld_op?` · ${fmtFull(t.afgehandeld_op)}`:""}</div>
                     {t.notitie&&<div style={{fontSize:13,color:C.muted,marginTop:3,fontStyle:"italic"}}>💬 "{tx(t.notitie)}"</div>}
-                    {t.bijlages&&<BijlageWeergave bijlages={JSON.parse(t.bijlages||"[]")}/>}
+                    {t.bijlages&&<BijlageWeergave bijlages={parseBijlages(t.bijlages)}/>}
                   </div>
                 )}
                 {gedaan&&(
@@ -8564,6 +8629,10 @@ function LogView({meldingen,houses,activiteiten,taken=[],onVernieuw}) {
       id:`a-${a.id}`, soort:"activiteit", datum:a.created_at,
       type:a.type, naam:a.omschrijving, door:a.gedaan_door,
       adres:"", kamer:"", status:"", notitie:"", extra:"",
+      // Foto's tonen: nieuwe regels hebben ze in extra.bijlages; oudere "taak_gedaan"-regels
+      // halen ze op via de gekoppelde taak (zo zijn ook eerder geüploade foto's zichtbaar).
+      bijlages: a.extra?.bijlages?.length ? a.extra.bijlages
+        : (a.type==="taak_gedaan" && a.extra?.taak_id ? parseBijlages(taken.find(t=>t.id===a.extra.taak_id)?.bijlages) : []),
     })),
     ...autoMeldingen.map(a=>({
       id:`au-${a.id}`, soort:"auto", datum:a.created_at,
@@ -8675,6 +8744,7 @@ function LogView({meldingen,houses,activiteiten,taken=[],onVernieuw}) {
                   <div style={{fontWeight:600,color:C.text,marginBottom:1}}>{tx(item.naam)}</div>
                   {item.notitie&&<div style={{fontSize:11,color:C.muted}}>{tx(item.notitie)}</div>}
                   {item.status&&<span style={{fontSize:10,fontWeight:700,color:item.status==="open"||item.status==="actief"?C.blauw:C.groen}}>{tx(item.status).toUpperCase()}</span>}
+                  {item.bijlages?.length>0&&<BijlageWeergave bijlages={item.bijlages}/>}
                   {item.controleOpen&&<span title={tx("Melding staat op afgehandeld/verwerkt, maar de gekoppelde controletaak (huismeester/collega) staat nog open")} style={{marginLeft:6,fontSize:10,fontWeight:700,color:"#b45309",background:"#fef3c7",padding:"1px 6px",borderRadius:8}}>{tx("⚠️ CONTROLE OPEN")}</span>}
                 </div>
                 <div>

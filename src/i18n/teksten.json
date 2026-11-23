@@ -10108,5 +10108,10 @@
   "en": "⚠️ Report saved, but caretaker task not created — create it manually",
   "ro": "⚠️ Raport salvat, dar sarcina pentru administrator nu a fost creată — creați-o manual",
   "pl": "⚠️ Zgłoszenie zapisane, ale zadanie dla gospodarza nie zostało utworzone — utwórz je ręcznie"
+ },
+ "Borg-beoordelingstaak aanmaken mislukt — meld dit bij backoffice": {
+  "en": "Could not create the deposit review task — please tell the back office",
+  "ro": "Sarcina de evaluare a garanției nu a putut fi creată — anunțați back office-ul",
+  "pl": "Nie udało się utworzyć zadania oceny kaucji — zgłoś to do back office"
  }
 }
