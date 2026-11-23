@@ -55,6 +55,20 @@ export function KledingModule({ gebruiker, showToast }) {
     return () => { supabase.removeChannel(s1); supabase.removeChannel(s2); };
   }, [loadVoorraad, loadTransacties]);
 
+  // Legt een transactie vast. Mislukt dat, dan wordt de voorraadwijziging teruggedraaid,
+  // zodat voorraad en transactielog nooit uit elkaar lopen.
+  async function logTransactie(rij, itemId, terugzetten) {
+    const { error } = await supabase.from("kleding_transacties").insert([rij]);
+    if (!error) return true;
+    const { error: eTerug } = await supabase.from("kleding_voorraad")
+      .update({ ...terugzetten, updated_at: new Date().toISOString() }).eq("id", itemId);
+    showToast(eTerug
+      ? tx("Transactie NIET vastgelegd en voorraad kon niet worden teruggezet — meld dit direct bij de backoffice")
+      : tx("Transactie niet vastgelegd — voorraad teruggezet, probeer het opnieuw"), "err");
+    await loadVoorraad();
+    return false;
+  }
+
   async function registreerUitgifte(vestiging, type, maat, aantal, opmerking, medewerkerNaam, actie="uitgifte") {
     const item = voorraad.find(v=>v.vestiging===vestiging&&v.type===type&&v.maat===maat);
     if (!item) { showToast(tx("Artikel niet gevonden"),"err"); return false; }
@@ -66,11 +80,12 @@ export function KledingModule({ gebruiker, showToast }) {
       .update({ aantal: nieuwAantal, updated_at: new Date().toISOString() })
       .eq("id", item.id);
     if (e1) { showToast(tx("Fout bij opslaan"),"err"); return false; }
-    await supabase.from("kleding_transacties").insert([{
+    if (!await logTransactie({
       vestiging, type, maat, aantal, actie,
       medewerker: medewerkerNaam || gebruiker.naam,
+      uitgegeven_door: actie==="uitgifte" ? gebruiker.naam : null,
       opmerking: opmerking ? `${opmerking} (door: ${gebruiker.naam})` : `Ingevoerd door: ${gebruiker.naam}`
-    }]);
+    }, item.id, { aantal: item.aantal })) return false;
     const msg = actie==="uitgifte"
       ? txv("✓ {0}x {1} {2} uitgegeven aan {3}", aantal, type, maat, medewerkerNaam||gebruiker.naam)
       : txv("✓ {0}x {1} {2} ingenomen van {3}", aantal, type, maat, medewerkerNaam||gebruiker.naam);
@@ -85,10 +100,10 @@ export function KledingModule({ gebruiker, showToast }) {
       .update({ aantal: item.aantal + aantal, updated_at: new Date().toISOString() })
       .eq("id", item.id);
     if (error) { showToast(tx("Fout bij opslaan"),"err"); return false; }
-    await supabase.from("kleding_transacties").insert([{
+    if (!await logTransactie({
       vestiging, type, maat, aantal, actie:"bijvulling",
       medewerker: gebruiker.naam, opmerking: opmerking||null
-    }]);
+    }, item.id, { aantal: item.aantal })) return false;
     showToast(txv("✓ Voorraad bijgevuld: +{0}x {1} {2}", aantal, type, maat));
     return true;
   }
@@ -110,22 +125,24 @@ export function KledingModule({ gebruiker, showToast }) {
       .update({ aantal: nieuwAantal, besteld_aantal: 0, besteld_datum: null, besteld_door: null, updated_at: new Date().toISOString() })
       .eq("id", id);
     if (error) { showToast(tx("Fout bij opslaan"),"err"); return false; }
-    await supabase.from("kleding_transacties").insert([{
+    if (!await logTransactie({
       vestiging, type, maat, aantal: ontvangen_aantal, actie:"bijvulling",
       medewerker: gebruiker.naam, opmerking: "Bestelling ontvangen"
-    }]);
+    }, id, { aantal: item.aantal, besteld_aantal: item.besteld_aantal, besteld_datum: item.besteld_datum, besteld_door: item.besteld_door })) return false;
     showToast(txv("✓ Ontvangst verwerkt — voorraad bijgewerkt naar {0}", nieuwAantal));
     await loadVoorraad(); return true;
   }
 
   async function correctieVoorraad(id, nieuwAantal, vestiging, type, maat) {
+    const item = voorraad.find(v=>v.id===id);
+    if (!item) { showToast(tx("Artikel niet gevonden"),"err"); return false; }
     const { error } = await supabase.from("kleding_voorraad")
       .update({ aantal: nieuwAantal, updated_at: new Date().toISOString() }).eq("id", id);
     if (error) { showToast(tx("Fout bij correctie"),"err"); return false; }
-    await supabase.from("kleding_transacties").insert([{
+    if (!await logTransactie({
       vestiging, type, maat, aantal: nieuwAantal, actie:"correctie",
       medewerker: gebruiker.naam, opmerking:"Handmatige correctie"
-    }]);
+    }, id, { aantal: item.aantal })) return false;
     showToast(tx("✓ Voorraad gecorrigeerd"));
     return true;
   }
