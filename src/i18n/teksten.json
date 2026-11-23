@@ -10108,5 +10108,15 @@
   "en": "⚠️ Report saved, but caretaker task not created — create it manually",
   "ro": "⚠️ Raport salvat, dar sarcina pentru administrator nu a fost creată — creați-o manual",
   "pl": "⚠️ Zgłoszenie zapisane, ale zadanie dla gospodarza nie zostało utworzone — utwórz je ręcznie"
+ },
+ "Niet in de lijst? Typ voor- én achternaam, dan kun je opslaan als nieuwe medewerker": {
+  "en": "Not in the list? Type first and last name, then you can save as a new employee",
+  "ro": "Nu este în listă? Scrie prenumele și numele, apoi poți salva ca angajat nou",
+  "pl": "Nie ma na liście? Wpisz imię i nazwisko, wtedy możesz zapisać jako nowego pracownika"
+ },
+ "Vul voor- én achternaam in (alleen een voornaam kan niet gekoppeld worden)": {
+  "en": "Enter first and last name (a single name cannot be linked)",
+  "ro": "Completează prenumele și numele (un singur nume nu poate fi asociat)",
+  "pl": "Wpisz imię i nazwisko (samo jedno imię nie może zostać powiązane)"
  }
 }

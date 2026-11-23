@@ -208,7 +208,11 @@ export function MedewerkerKiezer({
         </div>
       )}
       {!exact && waarde.trim() && probleem && (
-        <div style={{ fontSize: 11, color: KLEUR.rood, marginTop: 4, fontWeight: 600 }}>✕ {tx(probleem)}</div>
+        <div style={{ fontSize: 11, color: KLEUR.rood, marginTop: 4, fontWeight: 600 }}>
+          ✕ {nieuwToegestaan
+            ? tx("Niet in de lijst? Typ voor- én achternaam, dan kun je opslaan als nieuwe medewerker")
+            : tx(probleem)}
+        </div>
       )}
       {!exact && waarde.trim() && !probleem && lijkend.length === 0 && (
         <div style={{ fontSize: 11, color: nieuwToegestaan ? KLEUR.muted : KLEUR.oranje, marginTop: 4, fontWeight: nieuwToegestaan ? 400 : 600 }}>
