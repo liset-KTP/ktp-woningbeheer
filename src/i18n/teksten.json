@@ -10108,5 +10108,135 @@
   "en": "⚠️ Report saved, but caretaker task not created — create it manually",
   "ro": "⚠️ Raport salvat, dar sarcina pentru administrator nu a fost creată — creați-o manual",
   "pl": "⚠️ Zgłoszenie zapisane, ale zadanie dla gospodarza nie zostało utworzone — utwórz je ręcznie"
+ },
+ "Niet in de lijst? Typ voor- én achternaam, dan kun je opslaan als nieuwe medewerker": {
+  "en": "Not in the list? Type first and last name, then you can save as a new employee",
+  "ro": "Nu este în listă? Scrie prenumele și numele, apoi poți salva ca angajat nou",
+  "pl": "Nie ma na liście? Wpisz imię i nazwisko, wtedy możesz zapisać jako nowego pracownika"
+ },
+ "Vul voor- én achternaam in (alleen een voornaam kan niet gekoppeld worden)": {
+  "en": "Enter first and last name (a single name cannot be linked)",
+  "ro": "Completează prenumele și numele (un singur nume nu poate fi asociat)",
+  "pl": "Wpisz imię i nazwisko (samo jedno imię nie może zostać powiązane)"
+ },
+ "Wijzigen via \"📅 Aankomstdatum wijzigen\"": {
+  "en": "Change via \"📅 Change arrival date\"",
+  "ro": "Modifică prin \"📅 Modifică data sosirii\"",
+  "pl": "Zmień przez \"📅 Zmień datę przyjazdu\""
+ },
+ "Transactie NIET vastgelegd en voorraad kon niet worden teruggezet — meld dit direct bij de backoffice": {
+  "en": "Transaction NOT recorded and stock could not be restored — report this to the back office immediately",
+  "ro": "Tranzacția NU a fost înregistrată și stocul nu a putut fi restabilit — anunță imediat back office-ul",
+  "pl": "Transakcja NIE została zapisana, a stanu magazynu nie udało się przywrócić — natychmiast zgłoś to do back office"
+ },
+ "Transactie niet vastgelegd — voorraad teruggezet, probeer het opnieuw": {
+  "en": "Transaction not recorded — stock restored, please try again",
+  "ro": "Tranzacția nu a fost înregistrată — stocul a fost restabilit, încearcă din nou",
+  "pl": "Transakcja nie została zapisana — stan magazynu przywrócony, spróbuj ponownie"
+ },
+ "Een vertrek-aankondiging sluit je niet zelf af. Gebruik \"🧳 Is vertrokken\" op de taak \"Vertrek bevestigen\" — blijft de medewerker toch, kies daar \"Kan niet\".": {
+  "en": "You do not close a departure notice yourself. Use \"🧳 Has departed\" on the task \"Confirm departure\" — if the employee stays after all, choose \"Can't do\" there.",
+  "ro": "Nu închizi singur un anunț de plecare. Folosește \"🧳 A plecat\" la sarcina \"Confirmă plecarea\" — dacă angajatul rămâne totuși, alege acolo \"Nu se poate\".",
+  "pl": "Ogłoszenia o wyjeździe nie zamykasz sam. Użyj \"🧳 Wyjechał\" przy zadaniu \"Potwierdź wyjazd\" — jeśli pracownik jednak zostaje, wybierz tam \"Nie mogę\"."
+ },
+ "Aankondiging niet gevonden — meld het vertrek handmatig via Nieuwe melding": {
+  "en": "Notice not found — report the departure manually via New report",
+  "ro": "Anunțul nu a fost găsit — raportează plecarea manual prin Raport nou",
+  "pl": "Nie znaleziono ogłoszenia — zgłoś wyjazd ręcznie przez Nowe zgłoszenie"
+ },
+ "Geblokkeerd": {
+  "en": "Blocked",
+  "ro": "Blocat",
+  "pl": "Zablokowane"
+ },
+ "Opgepakt": {
+  "en": "Picked up",
+  "ro": "Preluat",
+  "pl": "Podjęte"
+ },
+ "ingepland op": {
+  "en": "scheduled for",
+  "ro": "programat pe",
+  "pl": "zaplanowano na"
+ },
+ "Ontvangen, nog niet opgepakt": {
+  "en": "Received, not yet picked up",
+  "ro": "Primit, încă nepreluat",
+  "pl": "Otrzymane, jeszcze nie podjęte"
+ },
+ "Door mij gemeld bij de huismeester": {
+  "en": "Reported by me to the house manager",
+  "ro": "Raportat de mine administratorului",
+  "pl": "Zgłoszone przeze mnie opiekunowi domu"
+ },
+ "Gemeld op": {
+  "en": "Reported on",
+  "ro": "Raportat pe",
+  "pl": "Zgłoszono"
+ },
+ "prioriteit": {
+  "en": "priority",
+  "ro": "prioritate",
+  "pl": "priorytet"
+ },
+ "Is de medewerker vertrokken? Ga naar de taak \"Vertrek bevestigen\" en klik op \"🧳 Is vertrokken\". Dan krijgt de huismeester zijn controletaak en wordt de kamer vrijgegeven.": {
+  "en": "Has the employee left? Go to the task \"Confirm departure\" and click \"🧳 Has departed\". The house manager then gets the inspection task and the room is released.",
+  "ro": "A plecat angajatul? Mergi la sarcina \"Confirmă plecarea\" și apasă \"🧳 A plecat\". Administratorul primește sarcina de verificare și camera este eliberată.",
+  "pl": "Czy pracownik wyjechał? Przejdź do zadania \"Potwierdź wyjazd\" i kliknij \"🧳 Wyjechał\". Opiekun domu dostaje zadanie kontroli, a pokój zostaje zwolniony."
+ },
+ "📅 Aankomstdatum wijzigen": {
+  "en": "📅 Change arrival date",
+  "ro": "📅 Modifică data sosirii",
+  "pl": "📅 Zmień datę przyjazdu"
+ },
+ "Huidige verwachte aankomst:": {
+  "en": "Current expected arrival:",
+  "ro": "Sosirea estimată actuală:",
+  "pl": "Obecny przewidywany przyjazd:"
+ },
+ "De reservering blijft open en de kamer blijft op Gereserveerd.": {
+  "en": "The reservation stays open and the room stays Reserved.",
+  "ro": "Rezervarea rămâne deschisă și camera rămâne Rezervată.",
+  "pl": "Rezerwacja pozostaje otwarta, a pokój pozostaje Zarezerwowany."
+ },
+ "NIEUWE AANKOMSTDATUM *": {
+  "en": "NEW ARRIVAL DATE *",
+  "ro": "DATA NOUĂ DE SOSIRE *",
+  "pl": "NOWA DATA PRZYJAZDU *"
+ },
+ "REDEN *": {
+  "en": "REASON *",
+  "ro": "MOTIV *",
+  "pl": "POWÓD *"
+ },
+ "bijv. komt later aan, moeder ziek": {
+  "en": "e.g. arrives later, mother ill",
+  "ro": "ex. sosește mai târziu, mama bolnavă",
+  "pl": "np. przyjedzie później, chora matka"
+ },
+ "Kies een nieuwe aankomstdatum": {
+  "en": "Choose a new arrival date",
+  "ro": "Alege o nouă dată de sosire",
+  "pl": "Wybierz nową datę przyjazdu"
+ },
+ "Dit is dezelfde datum als nu": {
+  "en": "This is the same date as now",
+  "ro": "Aceasta este aceeași dată ca acum",
+  "pl": "To jest ta sama data co obecnie"
+ },
+ "⚠ Datum op melding aangepast, maar de kamer niet:": {
+  "en": "⚠ Date changed on the report, but not on the room:",
+  "ro": "⚠ Data modificată în raport, dar nu și la cameră:",
+  "pl": "⚠ Data zmieniona w zgłoszeniu, ale nie w pokoju:"
+ },
+ "✓ Aankomstdatum gewijzigd": {
+  "en": "✓ Arrival date changed",
+  "ro": "✓ Data sosirii modificată",
+  "pl": "✓ Data przyjazdu zmieniona"
+ },
+ "Bij een open reservering kun je hier alleen opmerkingen en sleutels aanpassen. Andere datum? Gebruik \"📅 Aankomstdatum wijzigen\". Andere kamer, woning, naam of type? Annuleer de reservering en maak een nieuwe aan.": {
+  "en": "For an open reservation you can only change notes and keys here. Different date? Use \"📅 Change arrival date\". Different room, house, name or type? Cancel the reservation and create a new one.",
+  "ro": "La o rezervare deschisă poți modifica aici doar observațiile și cheile. Altă dată? Folosește \"📅 Modifică data sosirii\". Altă cameră, locuință, nume sau tip? Anulează rezervarea și creează una nouă.",
+  "pl": "Przy otwartej rezerwacji możesz tu zmienić tylko uwagi i klucze. Inna data? Użyj \"📅 Zmień datę przyjazdu\". Inny pokój, dom, nazwisko lub typ? Anuluj rezerwację i utwórz nową."
  }
 }
