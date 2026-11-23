@@ -69,6 +69,7 @@ export function KledingModule({ gebruiker, showToast }) {
     await supabase.from("kleding_transacties").insert([{
       vestiging, type, maat, aantal, actie,
       medewerker: medewerkerNaam || gebruiker.naam,
+      uitgegeven_door: actie==="uitgifte" ? gebruiker.naam : null,
       opmerking: opmerking ? `${opmerking} (door: ${gebruiker.naam})` : `Ingevoerd door: ${gebruiker.naam}`
     }]);
     const msg = actie==="uitgifte"
