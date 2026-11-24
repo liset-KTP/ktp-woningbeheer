@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { supabase } from "./supabaseClient";
 import WeekDatePicker from "./WeekDatePicker";
-import { MedewerkerKiezer, naamProbleem, normaliseerNaam } from "./MedewerkerKiezer";
+import { MedewerkerKiezer, naamProbleem, normaliseerNaam, vernieuwMedewerkerNamen } from "./MedewerkerKiezer";
 import { tx, txv } from "./i18n";
 
 const C = {
@@ -284,6 +284,7 @@ function UitgifteForm({ voorraad, gebruiker, onSubmit, showToast }) {
   const [vestiging, setVestiging] = useState(VESTIGINGEN[0]);
   const [actie, setActie] = useState("uitgifte");
   const [medewerkerNaam, setMedewerkerNaam] = useState("");
+  const [kiezerVersie, setKiezerVersie] = useState(0); // na opslaan: naamlijst opnieuw laden
   // Huidig te selecteren artikel
   const [type, setType] = useState("");
   const [maat, setMaat] = useState("");
@@ -326,6 +327,8 @@ function UitgifteForm({ voorraad, gebruiker, onSubmit, showToast }) {
     }
     setSaving(false);
     if (allOk) {
+      vernieuwMedewerkerNamen(); // nieuwe naam staat bij de volgende uitgifte direct in de lijst
+      setKiezerVersie(v => v + 1);
       showToast((mandje.length>1 ? txv("✓ {0} artikelen geregistreerd voor {1}", mandje.length, medewerkerNaam) : txv("✓ {0} artikel geregistreerd voor {1}", mandje.length, medewerkerNaam)));
       setMandje([]); setMedewerkerNaam(""); setType(""); setMaat(""); setAantal(1);
     }
@@ -359,7 +362,7 @@ function UitgifteForm({ voorraad, gebruiker, onSubmit, showToast }) {
           <label style={{fontSize:11,fontWeight:600,color:C.muted,letterSpacing:".8px",textTransform:"uppercase",marginBottom:6,display:"block"}}>
             {tx("Naam medewerker *")} <span style={{fontSize:10,fontWeight:400}}>{tx("(wie")} {actie==="uitgifte"?tx("de kleding krijgt"):tx("de kleding teruggeeft")})</span>
           </label>
-          <MedewerkerKiezer value={medewerkerNaam} onChange={setMedewerkerNaam} placeholder={tx("Voor- en achternaam (typ om te zoeken)")}/>
+          <MedewerkerKiezer key={kiezerVersie} value={medewerkerNaam} onChange={setMedewerkerNaam} placeholder={tx("Voor- en achternaam (typ om te zoeken)")}/>
         </div>
 
         {/* Vestiging */}
