@@ -5847,9 +5847,58 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast, inlin
                       const checked = (t.notitie||"").includes(`[✓ ${key}]`);
                       return (
                         <div key={key} onClick={async()=>{
-                          if(checked) return;
                           const oud = t.notitie||"";
+                          const alleKeys = t.titel?.includes("Verhuizing voltooid") ? ["sleutel1","kamer_klaar"] : ["schoon","sleutel1"];
+                          const isAf = (n, k) => n.includes("[✓ "+k+"]") || (k === "sleutel1" && n.includes("[✓ geen_sleutel]"));
+                          // 24-11-2026 (melding huismeester, Stelian Simion): een per ongeluk gezet vinkje
+                          // ("Kamer schoon" terwijl de kamer vies was) kon niet meer weg. Uitvinken mag nu
+                          // zolang de taak niet op gedaan staat.
+                          if(checked) {
+                            const nieuwNotitie = oud.replace("[✓ "+key+"]","").replace(/\s{2,}/g," ").trim();
+                            const wasCompleet = alleKeys.every(k => isAf(oud, k));
+                            const nogCompleet = alleKeys.every(k => isAf(nieuwNotitie, k));
+                            if (wasCompleet && !nogCompleet) {
+                              if (!window.confirm(tx("Vinkje weghalen? De controle was al afgerond en backoffice is al geïnformeerd. Backoffice krijgt nu een bericht dat de controle is ingetrokken."))) return;
+                            }
+                            await onUpdate(t.id, {notitie: nieuwNotitie || null});
+                            if (wasCompleet && !nogCompleet) {
+                              const isVerhuizingVoltooid = t.titel?.includes("Verhuizing voltooid");
+                              const isVertrek = t.titel?.includes("na vertrek");
+                              // Oude kamer terug op "Controle" — alleen als er nog niemand anders in zit
+                              let kamerTerug = false;
+                              if (!isVerhuizingVoltooid && t.woning_id && t.kamer) {
+                                const { data: vers } = await supabase.from("woningen").select("kamers").eq("id", t.woning_id).single();
+                                const k = (vers?.kamers||[]).find(x => String(x.k) === String(t.kamer));
+                                if (k && !k.naam && k.status === "Beschikbaar") {
+                                  kamerTerug = await patchKamer(t.woning_id, { [t.kamer]: { status: "Controle" } });
+                                }
+                              }
+                              const tekst = isVerhuizingVoltooid
+                                ? `Controle ingetrokken door ${gebruiker?.naam||"collega"}: "${label}" is weer uitgevinkt bij "${t.titel}". Kamer ${t.kamer||""} is NIET automatisch aangepast — controleer de kamerstatus.`
+                                : `Controle ingetrokken door ${gebruiker?.naam||"huismeester"}: "${label}" is weer uitgevinkt. Kamer ${t.kamer||""} is ${kamerTerug ? "terug op Controle gezet" : "NIET aangepast (zit al iemand in of status gewijzigd) — controleer handmatig"}.${isVertrek ? " Borg NIET terugbetalen tot de controle opnieuw is afgerond — check of er al een terugbetaalpost in de Borgmodule staat." : ""}`;
+                              await supabase.from("berichten").insert([{
+                                tekst,
+                                van: gebruiker?.naam||"Huismeester",
+                                aan: null,
+                                onderwerp: `↩ Controle ingetrokken — ${t.titel}`,
+                                koppeling_type: "taak",
+                                koppeling_id: t.id,
+                                koppeling_label: t.titel,
+                                gelezen_door: [gebruiker?.naam||"Huismeester"],
+                              }]);
+                              showToast(tx("↩ Vinkje weggehaald — backoffice is geïnformeerd"));
+                            }
+                            return;
+                          }
                           const nieuwNotitie = oud ? oud+" [✓ "+key+"]" : "[✓ "+key+"]";
+                          // Voorkomen van per-ongeluk-afronden: vóórdat de kamer automatisch wordt
+                          // vrijgegeven/bezet gezet, eerst expliciet bevestigen.
+                          if (alleKeys.every(k => isAf(nieuwNotitie, k)) && !alleKeys.every(k => isAf(oud, k))) {
+                            const vraag = t.titel?.includes("Verhuizing voltooid")
+                              ? tx("Klopt het? Sleutel uitgereikt én medewerker woont nu in deze kamer. De kamer wordt direct op bezet gezet.")
+                              : tx("Klopt het? Kamer is echt SCHOON én sleutel(s) zijn ingeleverd. De kamer wordt direct vrijgegeven voor een nieuwe bewoner.");
+                            if (!window.confirm(vraag)) return;
+                          }
                           await onUpdate(t.id, {notitie: nieuwNotitie});
                           // Check of nu alles afgevinkt is
                           // BUGFIX — alle checkbox-keys van deze checklist moeten hier staan (sleutel2 ontbrak),
@@ -5861,8 +5910,6 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast, inlin
                           // wél op gedaan kwam (via de gewone gedaan-knop) en de melding automatisch dichtging.
                           // "Geen sleutel (deur zonder slot)" telt als vervanger van sleutel 1 (28-10-2026, Pelkowski):
                           // zonder deze optie vinkten collega's sleutel 1 af terwijl er geen sleutel was.
-                          const alleKeys = t.titel?.includes("Verhuizing voltooid") ? ["sleutel1","kamer_klaar"] : ["schoon","sleutel1"];
-                          const isAf = (n, k) => n.includes("[✓ "+k+"]") || (k === "sleutel1" && n.includes("[✓ geen_sleutel]"));
                           const wasAlAfgevinkt = alleKeys.every(k => isAf(t.notitie||"", k));
                           const alleAfgevinkt = alleKeys.every(k => isAf(nieuwNotitie, k));
                           if (alleAfgevinkt && !wasAlAfgevinkt) {
@@ -5923,12 +5970,15 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast, inlin
                             // 1. Bericht naar backoffice
                             const berichtTekst = isVerhuizingVoltooid
                               ? `Verhuizing voltooid voor ${medewerkerNaam}: ${nieuwNotitie.includes("[✓ geen_sleutel]") ? "geen sleutel (deur zonder slot)" : "sleutel(s) uitgereikt ✓"}, woont in nieuwe kamer ✓. Borg loopt door — NIET terugbetalen. Check of extra borg of km-vergoeding aanpassing nodig is.`
-                              : `Kamer ${t.kamer||""} is gecontroleerd en klaar: kamer schoon ✓, sleutel(s) ingeleverd ✓. Borg kan worden terugbetaald.`;
+                              : isVertrek
+                                ? `Kamer ${t.kamer||""} is gecontroleerd en klaar: kamer schoon ✓, sleutel(s) ingeleverd ✓. Borg kan worden terugbetaald.`
+                                // 24-11-2026: bij verhuizing loopt de borg door — niet "terugbetalen" melden.
+                                : `Oude kamer ${t.kamer||""} is gecontroleerd en vrijgegeven: kamer schoon ✓, sleutel(s) ingeleverd ✓. Verhuizing — borg loopt door, NIET terugbetalen.`;
                             await supabase.from("berichten").insert([{
                               tekst: berichtTekst,
                               van: gebruiker?.naam||"Huismeester",
                               aan: null,
-                              onderwerp: isVerhuizingVoltooid ? `✅ Verhuizing voltooid — ${medewerkerNaam}` : `✅ Kamer klaar + borg terugbetalen — ${medewerkerNaam}`,
+                              onderwerp: isVerhuizingVoltooid ? `✅ Verhuizing voltooid — ${medewerkerNaam}` : isVertrek ? `✅ Kamer klaar + borg terugbetalen — ${medewerkerNaam}` : `✅ Oude kamer vrijgegeven (verhuizing) — ${medewerkerNaam}`,
                               koppeling_type: "taak",
                               koppeling_id: t.id,
                               koppeling_label: t.titel,
@@ -5969,6 +6019,15 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast, inlin
                               datum: new Date().toISOString().slice(0,10),
                               ingediend_door: gebruiker?.naam||"Collega",
                               opmerkingen: `${nieuwNotitie.includes("[✓ geen_sleutel]") ? "Geen sleutel (deur zonder slot)" : "Sleutel(s) uitgereikt ✓"} · Woont in nieuwe kamer ✓ · Borg loopt door (niet terugbetalen)`,
+                            } : !isVertrek ? {
+                              type: "✅ Oude kamer vrijgegeven (verhuizing)",
+                              type_icon: "✅",
+                              medewerker: medewerkerNaam || "—",
+                              woning: huis ? `${huis.adres}, ${huis.stad}` : "—",
+                              kamer: `Kamer ${t.kamer||""}`,
+                              datum: new Date().toISOString().slice(0,10),
+                              ingediend_door: gebruiker?.naam||"Huismeester",
+                              opmerkingen: "Kamer schoon ✓ · Sleutel(s) ingeleverd ✓ · Verhuizing: borg loopt door (NIET terugbetalen)",
                             } : {
                               type: "✅ Kamer klaar + borg terugbetalen",
                               type_icon: "✅",
@@ -5980,7 +6039,7 @@ function TakenView({ taken, houses, gebruiker, onAdd, onUpdate, showToast, inlin
                               opmerkingen: "Kamer schoon ✓ · Sleutel(s) ingeleverd ✓ · Borg terugbetalen aan medewerker",
                             });
                           }
-                        }} style={{display:"flex",alignItems:"center",gap:10,padding:"6px 0",borderBottom:"1px solid #fcd34d",cursor:checked?"default":"pointer"}}>
+                        }} style={{display:"flex",alignItems:"center",gap:10,padding:"6px 0",borderBottom:"1px solid #fcd34d",cursor:"pointer"}}>
                           <div style={{width:20,height:20,borderRadius:4,border:`2px solid ${checked?"#4A9B3C":"#f59e0b"}`,background:checked?"#4A9B3C":"white",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
                             {checked && <span style={{color:"white",fontSize:12,fontWeight:700}}>✓</span>}
                           </div>

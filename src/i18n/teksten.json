@@ -10239,6 +10239,26 @@
   "ro": "La o rezervare deschisă poți modifica aici doar observațiile și cheile. Altă dată? Folosește \"📅 Modifică data sosirii\". Altă cameră, locuință, nume sau tip? Anulează rezervarea și creează una nouă.",
   "pl": "Przy otwartej rezerwacji możesz tu zmienić tylko uwagi i klucze. Inna data? Użyj \"📅 Zmień datę przyjazdu\". Inny pokój, dom, nazwisko lub typ? Anuluj rezerwację i utwórz nową."
  },
+ "Vinkje weghalen? De controle was al afgerond en backoffice is al geïnformeerd. Backoffice krijgt nu een bericht dat de controle is ingetrokken.": {
+  "en": "Remove the tick? The check was already completed and the back office was informed. The back office will now get a message that the check has been withdrawn.",
+  "ro": "Elimini bifa? Verificarea era deja finalizată și biroul a fost deja informat. Biroul va primi acum un mesaj că verificarea a fost anulată.",
+  "pl": "Usunąć zaznaczenie? Kontrola była już zakończona i biuro zostało poinformowane. Biuro dostanie teraz wiadomość, że kontrola została wycofana."
+ },
+ "↩ Vinkje weggehaald — backoffice is geïnformeerd": {
+  "en": "↩ Tick removed — back office has been informed",
+  "ro": "↩ Bifă eliminată — biroul a fost informat",
+  "pl": "↩ Zaznaczenie usunięte — biuro zostało poinformowane"
+ },
+ "Klopt het? Sleutel uitgereikt én medewerker woont nu in deze kamer. De kamer wordt direct op bezet gezet.": {
+  "en": "Is this correct? Key handed over AND the employee now lives in this room. The room will be set to occupied right away.",
+  "ro": "Este corect? Cheia a fost predată ȘI angajatul locuiește acum în această cameră. Camera va fi marcată imediat ca ocupată.",
+  "pl": "Czy to się zgadza? Klucz wydany ORAZ pracownik mieszka teraz w tym pokoju. Pokój zostanie od razu oznaczony jako zajęty."
+ },
+ "Klopt het? Kamer is echt SCHOON én sleutel(s) zijn ingeleverd. De kamer wordt direct vrijgegeven voor een nieuwe bewoner.": {
+  "en": "Is this correct? The room is really CLEAN AND the key(s) have been returned. The room will be released for a new tenant right away.",
+  "ro": "Este corect? Camera este cu adevărat CURATĂ ȘI cheia/cheile au fost returnate. Camera va fi eliberată imediat pentru un nou locatar.",
+  "pl": "Czy to się zgadza? Pokój jest naprawdę CZYSTY ORAZ klucz(e) zostały zwrócone. Pokój zostanie od razu zwolniony dla nowego lokatora."
+ },
  "💼 Huur via loon vanaf": {
   "en": "💼 Rent via wages from",
   "ro": "💼 Chirie reținută din salariu de la",
