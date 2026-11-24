@@ -10238,5 +10238,30 @@
   "en": "For an open reservation you can only change notes and keys here. Different date? Use \"📅 Change arrival date\". Different room, house, name or type? Cancel the reservation and create a new one.",
   "ro": "La o rezervare deschisă poți modifica aici doar observațiile și cheile. Altă dată? Folosește \"📅 Modifică data sosirii\". Altă cameră, locuință, nume sau tip? Anulează rezervarea și creează una nouă.",
   "pl": "Przy otwartej rezerwacji możesz tu zmienić tylko uwagi i klucze. Inna data? Użyj \"📅 Zmień datę przyjazdu\". Inny pokój, dom, nazwisko lub typ? Anuluj rezerwację i utwórz nową."
+ },
+ "💼 Huur via loon vanaf": {
+  "en": "💼 Rent via wages from",
+  "ro": "💼 Chirie reținută din salariu de la",
+  "pl": "💼 Czynsz potrącany z wypłaty od"
+ },
+ "💼 Huur via loon": {
+  "en": "💼 Rent via wages",
+  "ro": "💼 Chirie din salariu",
+  "pl": "💼 Czynsz z wypłaty"
+ },
+ "Vanaf deze datum wordt de huur op het loon ingehouden. De opbouw stopt de dag ervoor; wat daarvoor open staat blijft open. Max vraagt deze huur niet meer uit.": {
+  "en": "From this date the rent is deducted from wages. The debt stops building up the day before; anything still open before then stays open. Max will no longer ask about this rent.",
+  "ro": "De la această dată chiria se reține din salariu. Datoria nu mai crește din ziua anterioară; ce era restant înainte rămâne restant. Max nu mai întreabă de această chirie.",
+  "pl": "Od tej daty czynsz jest potrącany z wypłaty. Zadłużenie przestaje rosnąć dzień wcześniej; to, co było zaległe wcześniej, pozostaje do zapłaty. Max nie będzie już pytać o ten czynsz."
+ },
+ "Opslaan mislukt": {
+  "en": "Saving failed",
+  "ro": "Salvarea a eșuat",
+  "pl": "Zapis nie powiódł się"
+ },
+ "Huur via loon vanaf": {
+  "en": "Rent via wages from",
+  "ro": "Chirie din salariu de la",
+  "pl": "Czynsz z wypłaty od"
  }
 }
