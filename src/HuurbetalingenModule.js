@@ -514,6 +514,8 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onAfschrij
   const [toonAfschrijven, setToonAfschrijven] = useState(false);
   const [afschrijfReden, setAfschrijfReden] = useState("");
   const [stopDatum, setStopDatum] = useState("");
+  const [toonViaLoon, setToonViaLoon] = useState(false);
+  const [viaLoonDatum, setViaLoonDatum] = useState("");
   const [toonBetalingen, setToonBetalingen] = useState(false);
   const [toonBetalingForm, setToonBetalingForm] = useState(false);
   const [toonExtraForm, setToonExtraForm] = useState(false);
@@ -566,6 +568,11 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onAfschrij
             {schuld.einddatum && schuld.actief && openstaand > 0 && (
               <span style={{marginLeft:8,fontSize:11,fontWeight:700,background:"#fef2f2",color:"#ef4444",padding:"2px 8px",borderRadius:8,border:"1px solid #fecaca"}}>
                 {tx("🛑 Gestopt — schuld loopt nog")}
+              </span>
+            )}
+            {schuld.huur_via_loon_vanaf && (
+              <span style={{marginLeft:8,fontSize:11,fontWeight:700,background:"#eff6ff",color:"#1d4ed8",padding:"2px 8px",borderRadius:8,border:"1px solid #bfdbfe"}}>
+                {tx("💼 Huur via loon vanaf")} {fmtDate(schuld.huur_via_loon_vanaf)}
               </span>
             )}
             {isAfgeschreven && (
@@ -833,6 +840,43 @@ function SchuldKaart({ schuld, isBackoffice, onBetaling, onAfsluiten, onAfschrij
                 style={{background:"white",border:`1.5px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"9px 14px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
                 {tx("💬 Opmerking")}
               </button>
+              {toonViaLoon && (
+                <div style={{background:"#eff6ff",border:"1px solid #bfdbfe",borderRadius:10,padding:12,minWidth:280}}>
+                  <div style={{fontSize:12,fontWeight:700,color:"#1d4ed8",marginBottom:8}}>{tx("💼 Huur via loon")}</div>
+                  <div style={{fontSize:12,color:C.muted,marginBottom:8}}>{tx("Vanaf deze datum wordt de huur op het loon ingehouden. De opbouw stopt de dag ervoor; wat daarvoor open staat blijft open. Max vraagt deze huur niet meer uit.")}</div>
+                  <WeekDatePicker value={viaLoonDatum} onChange={v=>setViaLoonDatum(v)}
+                    style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1.5px solid ${C.border}`,fontSize:13,fontFamily:"inherit",background:"white",color:C.text,boxSizing:"border-box",marginBottom:8}}/>
+                  <div style={{display:"flex",gap:8}}>
+                    <button onClick={async()=>{
+                      if(!viaLoonDatum){showToast(tx("Vul een datum in"),"err");return;}
+                      const d=new Date(viaLoonDatum+"T00:00:00"); d.setDate(d.getDate()-1);
+                      const eind=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+                      const regel=`[${new Date().toLocaleDateString("nl-NL")}] ${gebruiker?.naam ? gebruiker.naam+": " : ""}huur vanaf ${fmtDate(viaLoonDatum)} via loon ingehouden.`;
+                      const { error } = await supabase.from("huurschulden").update({
+                        huur_via_loon_vanaf: viaLoonDatum,
+                        einddatum: eind,
+                        actief: true,
+                        opmerkingen: schuld.opmerkingen ? schuld.opmerkingen+"\n"+regel : regel,
+                      }).eq("id",schuld.id);
+                      if(error){console.error(error);showToast(tx("Opslaan mislukt"),"err");return;}
+                      showToast("✓ "+tx("Huur via loon vanaf")+" "+fmtDate(viaLoonDatum));
+                      setToonViaLoon(false);
+                    }} style={{background:"#1d4ed8",color:"white",border:"none",borderRadius:8,padding:"7px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                      {tx("✓ Opslaan")}
+                    </button>
+                    <button onClick={()=>setToonViaLoon(false)}
+                      style={{background:"white",border:`1px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"7px 12px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>
+                      {tx("Annuleren")}
+                    </button>
+                  </div>
+                </div>
+              )}
+              {!toonViaLoon && !schuld.huur_via_loon_vanaf && (
+                <button onClick={()=>{setToonViaLoon(true);setViaLoonDatum(new Date().toISOString().slice(0,10));}}
+                  style={{background:"white",border:"1.5px solid #1d4ed8",color:"#1d4ed8",borderRadius:8,padding:"9px 14px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                  {tx("💼 Huur via loon")}
+                </button>
+              )}
               {toonStopzetten ? (
                 <div style={{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:10,padding:12,minWidth:280}}>
                   <div style={{fontSize:12,fontWeight:700,color:C.groen,marginBottom:8}}>{tx("📅 Einddatum instellen")}</div>
