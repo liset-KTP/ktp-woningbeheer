@@ -77,6 +77,7 @@ function lijktOp(getypt, bekend) {
 }
 
 const NIET_AANWEZIG = "niet meer aanwezig";
+const KLEDING = "eerder kleding gekregen";
 
 // Namenlijst één keer per 5 min ophalen en delen tussen alle invoervelden.
 // Bewoners komen ook uit de database, zodat modules zonder `houses`-prop (auto, kleding,
@@ -87,11 +88,15 @@ const NIET_AANWEZIG = "niet meer aanwezig";
 let cache = null, cacheTijd = 0;
 async function laadDbNamen() {
   if (cache && Date.now() - cacheTijd < 5 * 60 * 1000) return cache;
-  const [woningen, autos, borg, huur] = await Promise.all([
+  const [woningen, autos, borg, huur, kleding] = await Promise.all([
     supabase.from("woningen").select("adres, kamers").neq("gearchiveerd", true),
     supabase.from("autos").select("kenteken, naam_medewerker").neq("gearchiveerd", true).not("naam_medewerker", "is", null),
     supabase.from("borg_plannen").select("naam_medewerker").eq("status", "actief"),
     supabase.from("huurschulden").select("naam_medewerker").eq("actief", true),
+    // Wie eerder kleding kreeg/inleverde, staat er ook in (ook zonder kamer of auto).
+    // Nieuwste eerst: bij dubbele spelling wint de laatst gebruikte.
+    supabase.from("kleding_transacties").select("medewerker").in("actie", ["uitgifte", "inname"])
+      .not("medewerker", "is", null).order("created_at", { ascending: false }).limit(2000),
   ]);
   const bewoners = [];
   (woningen.data || []).forEach(h => (h.kamers || []).forEach(k => {
@@ -101,6 +106,8 @@ async function laadDbNamen() {
     ...bewoners,
     ...(autos.data || []).map(r => ({ naam: r.naam_medewerker, info: r.kenteken || "" })),
     ...[...(borg.data || []), ...(huur.data || [])].map(r => ({ naam: r.naam_medewerker, info: NIET_AANWEZIG })),
+    // Ongeldige oude invoer (alleen voornaam) niet als suggestie aanbieden.
+    ...(kleding.data || []).filter(r => !naamProbleem(r.medewerker)).map(r => ({ naam: r.medewerker, info: KLEDING })),
   ];
   cacheTijd = Date.now();
   return cache;
@@ -130,13 +137,16 @@ export function MedewerkerKiezer({
 
   // Bekende namen met herkomst. `houses` (live in App) gaat voor op de database-cache.
   const bekend = useMemo(() => {
+    // Sleutel zonder hoofdletters/accenten: "Janusz szklorz" en "Janusz Szklorz" = één regel.
+    // Eerste wint, dus bewoners (live) gaan voor database, en daarbinnen de volgorde van laadDbNamen.
     const map = new Map();
-    houses.forEach(h => (h.kamers || []).forEach(k => {
-      const n = normaliseerNaam(k.naam);
-      if (n && !map.has(n)) map.set(n, h.adres || "");
-    }));
-    dbNamen.forEach(d => { const n = normaliseerNaam(d.naam); if (n && !map.has(n)) map.set(n, d.info); });
-    return [...map.entries()].map(([naam, info]) => ({ naam, info })).sort((a, b) => a.naam.localeCompare(b.naam));
+    const voegToe = (naam, info) => {
+      const n = normaliseerNaam(naam), k = sleutel(n);
+      if (n && !map.has(k)) map.set(k, { naam: n, info });
+    };
+    houses.forEach(h => (h.kamers || []).forEach(k => voegToe(k.naam, h.adres || "")));
+    dbNamen.forEach(d => voegToe(d.naam, d.info));
+    return [...map.values()].sort((a, b) => a.naam.localeCompare(b.naam));
   }, [houses, dbNamen]);
 
   const waarde = value || "";
